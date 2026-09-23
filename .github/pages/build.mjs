@@ -77,7 +77,8 @@ footer { max-width:920px; margin:0 auto; padding:1.5rem 1.25rem 3rem; color:var(
 `
 
 function layout({ title, nav, body }) {
-  const docTitle = title.trim().toLowerCase() === BRAND.toLowerCase() ? title : `${title} · ${BRAND}`
+  const bare = title.replace(new RegExp(`^${BRAND}\\s+`), '').trim()
+  const docTitle = bare.toLowerCase() === BRAND.toLowerCase() ? BRAND : `${bare} · ${BRAND}`
   return `<!doctype html>
 <html lang="zh-CN">
 <head>
