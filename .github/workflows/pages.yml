@@ -1,0 +1,65 @@
+name: Pages
+
+# The site is built from the project wiki, so it is refreshed on:
+#  - changes to the site workflow itself
+#  - the daily schedule (picks up wiki edits automatically)
+#  - manual runs
+# Wiki edits do not trigger workflow runs in this repository, hence the schedule.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/pages.yml'
+      - '.github/pages/**'
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Clone project wiki
+        run: git clone --depth 1 "https://github.com/${GITHUB_REPOSITORY}.wiki.git" wiki
+
+      - name: Install build dependency
+        run: npm install --no-save --no-audit --no-fund marked@12
+
+      - name: Build static site
+        run: node .github/pages/build.mjs wiki _site
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload site artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
