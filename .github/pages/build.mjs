@@ -19,6 +19,7 @@ const outDir = process.argv[3] || '_site'
 const repo = process.env.GITHUB_REPOSITORY || 'jiale-li-orion/SecFusionAgent'
 const [owner, name] = repo.split('/')
 const diagramHtml = 'prd-flow/prd-requirements-flow.html'
+const BRAND = 'SecFusionAgent'
 
 const esc = (s) =>
   String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -29,6 +30,10 @@ const titleOf = (md, fallback) => {
 }
 
 const slugOf = (file) => (file === 'Home.md' ? 'index' : file.replace(/\.md$/, ''))
+
+/** Short nav label: 首页 for Home, otherwise the heading without a leading brand name. */
+const navLabel = (page) =>
+  page.slug === 'index' ? '首页' : page.title.replace(new RegExp(`^${BRAND}\\s+`), '')
 
 const css = `
 :root { color-scheme: light dark; --bg:#ffffff; --fg:#1f2430; --muted:#5b6675; --line:#e3e8ef;
@@ -72,12 +77,13 @@ footer { max-width:920px; margin:0 auto; padding:1.5rem 1.25rem 3rem; color:var(
 `
 
 function layout({ title, nav, body }) {
+  const docTitle = title.trim().toLowerCase() === BRAND.toLowerCase() ? title : `${title} · ${BRAND}`
   return `<!doctype html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${esc(title)} · SecFusionAgent</title>
+<title>${esc(docTitle)}</title>
 <style>${css}</style>
 </head>
 <body>
@@ -135,7 +141,7 @@ async function main() {
     const nav = pages
       .map((p) => {
         const current = p.slug === page.slug ? ' aria-current="page"' : ''
-        return `<a href="${p.slug}.html"${current}>${esc(p.title)}</a>`
+        return `<a href="${p.slug}.html"${current}>${esc(navLabel(p))}</a>`
       })
       .join('\n    ')
     const diagramNav = hasDiagram
