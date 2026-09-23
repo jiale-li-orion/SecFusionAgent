@@ -30,6 +30,13 @@ jobs:
           git clone --depth 1 "https://github.com/${GITHUB_REPOSITORY}.wiki.git" wiki
           mkdir -p _site
           cp wiki/prd-flow/prd-requirements-flow.html _site/index.html
+          cat > _site/404.html <<HTML
+          <!doctype html>
+          <meta charset="utf-8">
+          <meta http-equiv="refresh" content="0; url=/${GITHUB_REPOSITORY#*/}/">
+          <title>需求主链路图</title>
+          <p><a href="/${GITHUB_REPOSITORY#*/}/">前往需求主链路图</a></p>
+          HTML
           ls -l _site
 
       - name: Configure Pages
