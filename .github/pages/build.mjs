@@ -29,11 +29,11 @@ const titleOf = (md, fallback) => {
   return m ? m[1].trim() : fallback
 }
 
-const slugOf = (file) => (file === 'Home.md' ? 'index' : file.replace(/\.md$/, ''))
+const slugOf = (file) => (file === 'Home.md' ? 'home' : file.replace(/\.md$/, ''))
 
-/** Short nav label: 首页 for Home, otherwise the heading without a leading brand name. */
+/** Short nav label: the docs home, otherwise the heading without a leading brand name. */
 const navLabel = (page) =>
-  page.slug === 'index' ? '首页' : page.title.replace(new RegExp(`^${BRAND}\\s+`), '')
+  page.slug === 'home' ? '文档首页' : page.title.replace(new RegExp(`^${BRAND}\\s+`), '')
 
 const css = `
 :root { color-scheme: light dark; --bg:#ffffff; --fg:#1f2430; --muted:#5b6675; --line:#e3e8ef;
@@ -139,35 +139,36 @@ async function main() {
   const hasDiagram = existsSync(join(wikiDir, diagramHtml))
 
   for (const page of pages) {
-    const nav = pages
-      .map((p) => {
+    const nav = [
+      ...(hasDiagram ? ['<a href="index.html">交互图</a>'] : []),
+      ...pages.map((p) => {
         const current = p.slug === page.slug ? ' aria-current="page"' : ''
         return `<a href="${p.slug}.html"${current}>${esc(navLabel(p))}</a>`
-      })
-      .join('\n    ')
-    const diagramNav = hasDiagram
-      ? `\n    <a href="${diagramHtml}">交互图 ↗</a>`
-      : ''
+      }),
+    ].join('\n    ')
 
     const rendered = rewriteLinks(marked.parse(page.md))
-    // On the Pages site the interactive diagram is served directly, so point at it.
-    const callout =
-      hasDiagram && page.slug === 'Requirements-Flow-Diagram'
-        ? `<div class="callout">本站可直接打开<b>交互版图</b>（主题切换、缩放、搜索、导出，另存为单文件即可离线使用）：<a href="${diagramHtml}">prd-requirements-flow.html ↗</a></div>\n`
-        : ''
+    // The interactive diagram is the site root, so every docs page points there.
+    const callout = hasDiagram && page.slug === 'Requirements-Flow-Diagram'
+      ? `<div class="callout">本站根路径就是<b>交互版图</b>（主题切换、缩放、搜索、关系追踪、导出，单文件可离线另存）：<a href="index.html">打开交互图 ↗</a></div>\n`
+      : ''
 
     await writeFile(
       join(outDir, `${page.slug}.html`),
-      layout({ title: page.title, nav: nav + diagramNav, body: callout + rendered }),
+      layout({ title: page.title, nav, body: callout + rendered }),
       'utf8'
     )
   }
 
   if (hasDiagram) {
     await cp(join(wikiDir, 'prd-flow'), join(outDir, 'prd-flow'), { recursive: true })
+    // Site root IS the archify artifact, served byte-for-byte.
+    await cp(join(wikiDir, diagramHtml), join(outDir, 'index.html'))
   }
 
-  console.log(`built ${pages.length} page(s) -> ${outDir}${hasDiagram ? ' (+ prd-flow assets)' : ''}`)
+  console.log(
+    `built ${pages.length} page(s) -> ${outDir}${hasDiagram ? ' + interactive diagram at /index.html' : ''}`
+  )
 }
 
 main().catch((err) => {
