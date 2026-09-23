@@ -1,16 +1,13 @@
 name: Pages
 
-# The site is built from the project wiki, so it is refreshed on:
-#  - changes to the site workflow itself
-#  - the daily schedule (picks up wiki edits automatically)
-#  - manual runs
-# Wiki edits do not trigger workflow runs in this repository, hence the schedule.
+# Publishes the interactive requirements-flow diagram as the site root.
+# The diagram is a single self-contained HTML file kept in the project wiki, and
+# wiki commits do not trigger runs here, so a daily schedule keeps the site in
+# sync; run the workflow manually when the diagram changes.
 on:
   push:
     branches: [main]
-    paths:
-      - '.github/workflows/pages.yml'
-      - '.github/pages/**'
+    paths: ['.github/workflows/pages.yml']
   schedule:
     - cron: '17 3 * * *'
   workflow_dispatch:
@@ -28,22 +25,12 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Clone project wiki
-        run: git clone --depth 1 "https://github.com/${GITHUB_REPOSITORY}.wiki.git" wiki
-
-      - name: Install build dependency
-        run: npm install --no-save --no-audit --no-fund marked@12
-
-      - name: Build static site
-        run: node .github/pages/build.mjs wiki _site
+      - name: Fetch the diagram from the project wiki
+        run: |
+          git clone --depth 1 "https://github.com/${GITHUB_REPOSITORY}.wiki.git" wiki
+          mkdir -p _site
+          cp wiki/prd-flow/prd-requirements-flow.html _site/index.html
+          ls -l _site
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
