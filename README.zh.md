@@ -11,7 +11,7 @@ SecFusionAgent 面向 AI 安全漏洞、研究进展与安全事件构建持续�
 
 这里的 Agent 建立在可验证的数据平面之上。外部读取带有采集溯源，重要结论能够回到原始观测与产物，历史版本保留、当前视图可重建；Agent 后续承担调查、tool call 与推理，不取代证据权威。
 
-[架构视图](https://jiale-li-orion.github.io/SecFusionAgent/) · [项目 Wiki](https://github.com/jiale-li-orion/SecFusionAgent/wiki) · [Requirements-SPEC](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Requirements-SPEC) · [Technical-Design](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design) · [English](README.md)
+[架构视图](https://jiale-li-orion.github.io/SecFusionAgent/) · [项目 Wiki](https://github.com/jiale-li-orion/SecFusionAgent/wiki) · [Requirements-SPEC](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Requirements-SPEC) · [Technical-Design](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design) · Website：[jiale-li-orion.github.io/SecFusionAgent](https://jiale-li-orion.github.io/SecFusionAgent/)
 
 ## 项目状态
 
