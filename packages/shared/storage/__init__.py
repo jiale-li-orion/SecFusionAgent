@@ -1,0 +1,1 @@
+"""Business-agnostic persistent infrastructure."""

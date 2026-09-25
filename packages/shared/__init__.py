@@ -1,0 +1,1 @@
+"""Business-agnostic shared infrastructure."""

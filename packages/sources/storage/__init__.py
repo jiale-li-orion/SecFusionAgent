@@ -1,0 +1,1 @@
+"""Persistent source-registry state."""

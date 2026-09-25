@@ -1,0 +1,35 @@
+{
+  "source_id": "nvd-cves-2",
+  "adapter_type": "nvd",
+  "source_class": "canonical_bug_feed",
+  "authority_scope": ["cvss", "cwe", "references", "published", "last_modified"],
+  "source_role": "authority",
+  "source_family": "nvd",
+  "access_mode": "https_api",
+  "update_semantics": "last_modified_window",
+  "discovery_method": {
+    "base_url": "https://services.nvd.nist.gov/rest/json/cves/2.0",
+    "initial_lookback_seconds": 86400,
+    "results_per_page": 2000
+  },
+  "time_semantics": {
+    "published_at": "cve.published",
+    "updated_at": "cve.lastModified"
+  },
+  "identity_semantics": {
+    "external_object_id": "cve.id",
+    "external_revision": "cve.lastModified"
+  },
+  "auth_ref": "SECFUSION_NVD_API_KEY",
+  "rate_limit_policy": {
+    "provider": "nvd"
+  },
+  "access_rights": {
+    "classification": "public"
+  },
+  "retention_mode": "hot_window",
+  "schedule_policy": {
+    "interval_seconds": 900
+  },
+  "schema_version": "1"
+}
