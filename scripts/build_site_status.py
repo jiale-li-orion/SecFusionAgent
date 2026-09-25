@@ -37,7 +37,8 @@ def build(repo: Path, wiki: Path | None) -> dict[str, object]:
             if path.is_file()
         ),
         "quality_gate": ["ruff", "mypy", "pytest"],
-        "phase": "M1-M3 Data Plane / Integration Probe",
+        "phase_zh": "M1-M3 数据平面 / 集成验证",
+        "phase_en": "M1-M3 Data Plane / Integration Probe",
     }
 
 

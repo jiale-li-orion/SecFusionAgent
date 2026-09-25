@@ -8,13 +8,16 @@ from urllib.parse import urlparse
 
 REQUIRED_FILES = {
     "index.html",
+    "index.en.html",
     "requirements.html",
+    "requirements.en.html",
     "tech-design.html",
+    "tech-design.en.html",
     "lifecycle.html",
+    "lifecycle.en.html",
     "assets/site.css",
     "assets/site.js",
     "assets/lifecycle.js",
-    "assets/lang.js",
     "diagrams/requirements.zh.html",
     "diagrams/requirements.en.html",
     "diagrams/tech-design.zh.html",
@@ -23,6 +26,13 @@ REQUIRED_FILES = {
     "specs/requirements.en.workflow.json",
     "specs/tech-design.architecture.json",
     "specs/tech-design.en.architecture.json",
+}
+
+LANGUAGE_PAIRS = {
+    "index.html": ("zh-CN", "index.en.html", "en"),
+    "requirements.html": ("zh-CN", "requirements.en.html", "en"),
+    "tech-design.html": ("zh-CN", "tech-design.en.html", "en"),
+    "lifecycle.html": ("zh-CN", "lifecycle.en.html", "en"),
 }
 
 
@@ -123,6 +133,23 @@ def validate(site: Path) -> list[str]:
                 continue
             if not local.exists():
                 errors.append(f"broken local {attr} in {html_path.relative_to(site)}: {target}")
+
+    for zh_name, (zh_lang, en_name, en_lang) in LANGUAGE_PAIRS.items():
+        zh_text = (site / zh_name).read_text(encoding="utf-8")
+        en_text = (site / en_name).read_text(encoding="utf-8")
+        if f'<html lang="{zh_lang}">' not in zh_text:
+            errors.append(f"{zh_name} must declare lang={zh_lang}")
+        if f'<html lang="{en_lang}">' not in en_text:
+            errors.append(f"{en_name} must declare lang={en_lang}")
+        if en_name not in zh_text:
+            errors.append(f"{zh_name} must link directly to {en_name}")
+        if zh_name not in en_text:
+            errors.append(f"{en_name} must link directly to {zh_name}")
+        for marker in ("data-zh=", "data-en=", "secfusion-lang"):
+            if marker in zh_text or marker in en_text:
+                errors.append(
+                    f"runtime bilingual mixing is not allowed in {zh_name}/{en_name}: {marker}"
+                )
 
     try:
         workflow_zh = _load_json(site / "specs/requirements.workflow.json")

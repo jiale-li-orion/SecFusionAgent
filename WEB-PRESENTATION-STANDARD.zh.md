@@ -29,26 +29,37 @@ Wiki 保存 Requirements、Technical Design、专项语义、风险研究、设�
 
 ### GitHub Pages
 
-Pages 是 **engineering portal**，负责降低系统理解成本，而不是复制 Wiki。
+Pages 是 Wiki 与代码仓库的可交互技术概览，负责降低阅读完整文档前的理解成本，不复制或改写 Wiki 的语义所有权。
 
 首页提供：
 
 - 项目定位与当前阶段；
 - 可计算工程状态；
-- System lifecycle walkthrough；
+- 数据处理主路径；
 - Requirements / Technical Design 交互视图入口；
-- Evidence Lifecycle Explorer；
-- 工程阶段与文档 authority map。
+- 漏洞情报处理示例；
+- 当前实现阶段与文档关系。
 
 Pages 可以使用静态交互解释复杂机制，但示例必须明确区分 synthetic data 与真实情报事实。
 
-### Evidence Lifecycle Explorer
+### 漏洞情报处理示例
 
-Lifecycle Explorer 用一个合成对象演示真实的 contract、owner、storage 与数据转换，例如：
+处理示例使用一个合成对象说明真实的数据对象、模块归属、存储位置与状态转换，例如：
 
 `External Source → AcquisitionRun → Hot Working Set → Promotion → Observation/Artifact → Canonical Knowledge → Provider-backed Enrichment → Current Projection`
 
-Explorer 的对象名、package path 与状态迁移必须能在当前代码或 Technical Design 中找到依据；不得为了视觉连贯创造不存在的 runtime behavior。
+示例中的对象名、package path 与状态迁移必须能在当前代码或 Technical Design 中找到依据；不得为了视觉连贯创造不存在的运行时行为。
+
+### 页面文风
+
+Pages 正文使用与 Wiki、Technical Design 一致的技术文档语体，不使用产品官网或宣传材料语体。
+
+- 先说明对象、范围、当前状态，再说明处理路径、边界与未完成项；
+- 使用陈述句描述已经实现或尚未实现的事实，不使用 slogan、愿景句、修辞性对比或能力宣称；
+- 不使用“开始探索”“立即查看”“一站式”“赋能”“面向……打造”“工程事实而非宣传”等产品文案；
+- 链接和按钮优先使用文档名、页面名或对象名，例如 `Technical Design`、`Requirements`、`处理示例`、`代码仓库`，不使用营销式 CTA；
+- 中文散文优先使用已确认的中文工程术语，代码标识符、package path、产品名和必要领域术语保留原形；
+- 页面摘要必须能够直接回填到 Wiki 文档而不显得文体突兀；如果一段文字只适合 landing page 而不适合 Technical Design，则不应出现在 Pages 正文。
 
 ## 3. Archify 规范
 
@@ -78,12 +89,15 @@ node $ARCHIFY visual-check $W/site/diagrams/tech-design.zh.html --json
 
 ## 4. 视觉与交互原则
 
-视觉语言服务于工程语义：
+视觉语言服务于工程语义。站点外壳默认沿用已有色板与基础排版，不因为新增页面或组件顺手更换整套视觉风格；全局色板变更需要单独 review，而不是作为信息架构优化的副作用。
 
 - 中性色为主，强调色表示信息层级，而不是装饰；
 - monospace 用于 identifier、contract、commit、path 与 payload；
-- cyan/blue 可表示 acquisition/data path，green 表示 validated/durable，amber 表示 transient/probing/warning，red 只用于 conflict/failure；
-- 不使用与工程含义无关的 AI 紫色渐变、粒子背景或高频动画；
+- Pages 外壳使用既有 `#f6f8fa / #ffffff / #1f2328 / #59636e / #0969da` 基础色板及其 dark-mode 对应值；Archify 图使用 Archify 自己的主题，不由 Pages CSS 重配色；
+- 不通过渐变、阴影、彩色状态块或大面积强调色来制造“产品感”；UI 优化优先来自布局、层级、留白和交互；
+- 小字号只用于编号、代码标识、commit、路径等真实辅助信息；用于解释系统行为的句子保持正常正文尺寸，不把解释压成灰色小字；
+- 能通过标题、列关系、留白和分隔线表达的层级，不额外套卡片、标签或按钮。大面积重复边框会把技术文档切碎，应优先使用开放排版；
+- 页面入口优先使用普通文本链接；只有存在明确操作语义时才使用按钮。文档导航不做成按钮组；
 - 支持系统 dark mode；
 - 支持 `prefers-reduced-motion`；
 - 交互必须可由键盘或标准 button/link 访问；
@@ -93,7 +107,14 @@ node $ARCHIFY visual-check $W/site/diagrams/tech-design.zh.html --json
 
 ## 5. 双语规则
 
-站点默认中文，提供 English 切换。语言状态通过 URL/local storage 保留，但 URL 不应改变页面 authority。
+站点采用**文件级中英分流**，不在同一页面中运行时切换整段文案：
+
+- `index.html` / `index.en.html`；
+- `requirements.html` / `requirements.en.html`；
+- `tech-design.html` / `tech-design.en.html`；
+- `lifecycle.html` / `lifecycle.en.html`。
+
+语言入口只是普通链接，中文页跳到英文页，英文页跳回中文页。不使用 `data-zh/data-en`、local storage 或前端翻译字典来混合两种语言。
 
 双语要求：
 
@@ -154,6 +175,8 @@ Wiki 仓库本身没有 Actions，因此 Wiki-only update 通过 manual dispatch
 
 - 关键页面、asset、diagram 与 spec 是否存在；
 - HTML 中相对 `href/src` 是否可解析；
+- 四组中文/英文页面是否成对存在、声明正确 `lang`，并直接互链；
+- 页面是否重新引入 `data-zh/data-en` 或 local-storage language state；
 - Requirements / Technical Design 中英文 spec topology 是否一致；
 - diagram 目录是否误提交 visual-check PNG / receipt；
 - spec 是否使用正确 diagram type。

@@ -11,7 +11,7 @@ SecFusionAgent builds a continuously evolving intelligence system for AI securit
 
 The Agent here sits on top of a verifiable data plane. External reads carry acquisition provenance; important conclusions trace back to the original observation / artifact; historical revisions are retained and current views are rebuildable. Agent work then covers investigation, tool calls and reasoning; it does not replace evidence authority.
 
-[Architecture Views](https://jiale-li-orion.github.io/SecFusionAgent/) · [Project Wiki](https://github.com/jiale-li-orion/SecFusionAgent/wiki) · [Requirements](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Requirements-SPEC) · [Technical Design](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design) · [中文](README.zh.md)
+[Architecture Views](https://jiale-li-orion.github.io/SecFusionAgent/index.en.html) · [Project Wiki](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Home.en) · [Requirements](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Requirements-SPEC.en) · [Technical Design](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design.en) · [中文](README.zh.md)
 
 ## Project status
 
@@ -31,8 +31,8 @@ Repository CI continuously runs `ruff`, `mypy`, and `pytest`. Fast tests mostly 
 
 The public documentation site contains two interactive Archify views generated from the authoritative specifications:
 
-- [Technical Design — Data Plane](https://jiale-li-orion.github.io/SecFusionAgent/tech-design.html) shows Acquisition, the four `retention_mode` lifecycles, the Evidence boundary, durable state and asynchronous consumers.
-- [Requirements — Module Flow](https://jiale-li-orion.github.io/SecFusionAgent/requirements.html) shows the M1–M8 product modules, C1–C3 cross-cutting constraints and acceptance semantics.
+- [Technical Design — Data Plane](https://jiale-li-orion.github.io/SecFusionAgent/tech-design.en.html) shows Acquisition, the four `retention_mode` lifecycles, the Evidence boundary, durable state and asynchronous consumers.
+- [Requirements — Module Flow](https://jiale-li-orion.github.io/SecFusionAgent/requirements.en.html) shows the M1–M8 product modules, C1–C3 cross-cutting constraints and acceptance semantics.
 
 The system maintains source protocols, runtime lifecycle, canonical knowledge and derived read models separately: provider adapters interpret external protocols; the acquisition runtime records every scheduled / on-demand read; EvidenceIngress fixes the raw revision; canonical knowledge holds long-lived facts and provenance; projections, caches and later retrieval indexes are all rebuildable state.
 
