@@ -1,13 +1,12 @@
 name: Pages
 
-# Publishes the architecture views site from the project wiki.
-# The site lives in the wiki under site/ (an index, two bilingual shells, the
-# archify artifacts and their specs). Wiki commits do not trigger runs here, so a
-# daily schedule keeps the site in sync; run the workflow manually when it changes.
+# The public engineering portal is authored in the project Wiki under site/.
+# Wiki pushes cannot directly trigger a workflow in this repository, so manual
+# dispatch and a daily sync keep GitHub Pages aligned with the Wiki. Every main
+# push also republishes machine-generated engineering status.
 on:
   push:
     branches: [main]
-    paths: ['.github/workflows/pages.yml']
   schedule:
     - cron: '17 3 * * *'
   workflow_dispatch:
@@ -23,22 +22,37 @@ concurrency:
 
 jobs:
   build:
+    name: Validate and build site
     runs-on: ubuntu-latest
     steps:
-      - name: Fetch the site from the project wiki
+      - name: Checkout code repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Fetch project Wiki
+        run: git clone --depth 1 "https://github.com/${GITHUB_REPOSITORY}.wiki.git" wiki
+
+      - name: Validate Wiki site contract
+        run: make site-check WIKI_PATH=wiki
+
+      - name: Generate engineering status
+        run: make site-status WIKI_PATH=wiki SITE_STATUS_OUTPUT=wiki/site/project-status.json
+
+      - name: Assemble Pages artifact
         run: |
-          git clone --depth 1 "https://github.com/${GITHUB_REPOSITORY}.wiki.git" wiki
-          test -f wiki/site/index.html
           mkdir -p _site
           cp -R wiki/site/. _site/
           cat > _site/404.html <<HTML
           <!doctype html>
           <meta charset="utf-8">
           <meta http-equiv="refresh" content="0; url=/${GITHUB_REPOSITORY#*/}/">
-          <title>SecFusionAgent 架构视图</title>
-          <p><a href="/${GITHUB_REPOSITORY#*/}/">前往架构视图</a></p>
+          <title>SecFusionAgent</title>
+          <p><a href="/${GITHUB_REPOSITORY#*/}/">Open SecFusionAgent engineering portal</a></p>
           HTML
-          ls -l _site
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
@@ -49,6 +63,7 @@ jobs:
           path: _site
 
   deploy:
+    name: Deploy
     needs: build
     runs-on: ubuntu-latest
     environment:

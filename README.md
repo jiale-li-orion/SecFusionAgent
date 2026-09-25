@@ -2,6 +2,8 @@
 
 English | [中文](README.zh.md)
 
+[![CI](https://github.com/jiale-li-orion/SecFusionAgent/actions/workflows/ci.yml/badge.svg)](https://github.com/jiale-li-orion/SecFusionAgent/actions/workflows/ci.yml) [![Pages](https://github.com/jiale-li-orion/SecFusionAgent/actions/workflows/pages.yml/badge.svg)](https://github.com/jiale-li-orion/SecFusionAgent/actions/workflows/pages.yml)
+
 **Evidence-first AI Security Intelligence System**
 **Agent-driven AI security intelligence fusion and assessment**
 
@@ -9,7 +11,7 @@ SecFusionAgent builds a continuously evolving intelligence system for AI securit
 
 The Agent here sits on top of a verifiable data plane. External reads carry acquisition provenance; important conclusions trace back to the original observation / artifact; historical revisions are retained and current views are rebuildable. Agent work then covers investigation, tool calls and reasoning; it does not replace evidence authority.
 
-[Project Wiki](https://github.com/jiale-li-orion/SecFusionAgent/wiki) · [Requirements](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Requirements-SPEC) · [Technical Design](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design) · [Repository Standard](PRODUCT-REPO-STANDARD.md) · [Repository Standard (Chinese)](PRODUCT-REPO-STANDARD.zh.md)
+[Architecture Views](https://jiale-li-orion.github.io/SecFusionAgent/) · [Project Wiki](https://github.com/jiale-li-orion/SecFusionAgent/wiki) · [Requirements](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Requirements-SPEC) · [Technical Design](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design) · [中文](README.zh.md)
 
 ## Project status
 
@@ -23,49 +25,14 @@ mypy        static type checking
 pytest      domain, replay, state-transition and contract tests
 ```
 
-The current fast suite is **29 tests**. These tests mostly use fixtures and a lightweight local database to verify deterministic contracts; they do not replace integration tests for PostgreSQL transactions, queue recovery, object storage, concurrency and deployment.
+Repository CI continuously runs `ruff`, `mypy`, and `pytest`. Fast tests mostly use fixtures and a lightweight local database to verify deterministic contracts; they do not replace integration tests for PostgreSQL transactions, queue recovery, object storage, concurrency or deployment.
 
 ## System overview
 
-```mermaid
-flowchart LR
-    EXT[External Intelligence Sources]
-    SRC[Source Adapters]
-    ACQ[Acquisition Runtime]
-    ROUTE{Retention / Processing Path}
+The public documentation site contains two interactive Archify views generated from the authoritative specifications:
 
-    HOT[Hot Bug Working Set\nRedis]
-    DOC[Managed Documents\nRaw Artifact + Revision + Chunk]
-    IDX[Structured Index\nRepo / Provider Objects]
-    SIG[Incident Signals\nSignalItem + IncidentCandidate]
-
-    PROMOTE[Promotion]
-    EVID[Evidence Boundary\nObservation + Artifact]
-    KNOW[Canonical Knowledge\nObject + Identifier + Claim + Relation]
-    INC[Security Incident\nTimeline + Source Links]
-    ENRICH[Provider-backed Enrichment]
-    OUTBOX[Transactional Outbox]
-    VIEW[Rebuildable Current Projections]
-    CASE[Case / Trajectory / Experience]
-
-    EXT --> SRC --> ACQ --> ROUTE
-    ROUTE -->|hot_window| HOT --> PROMOTE
-    ROUTE -->|durable_managed| DOC
-    ROUTE -->|selective_index| IDX
-    ROUTE -->|incident_signal| SIG --> PROMOTE
-
-    PROMOTE --> EVID --> KNOW
-    DOC --> EVID
-    IDX --> EVID
-    PROMOTE --> INC
-
-    KNOW --> OUTBOX
-    INC --> OUTBOX
-    OUTBOX --> ENRICH --> EVID
-    OUTBOX --> VIEW
-    KNOW --> CASE
-    INC --> CASE
-```
+- [Technical Design — Data Plane](https://jiale-li-orion.github.io/SecFusionAgent/tech-design.html) shows Acquisition, the four `retention_mode` lifecycles, the Evidence boundary, durable state and asynchronous consumers.
+- [Requirements — Module Flow](https://jiale-li-orion.github.io/SecFusionAgent/requirements.html) shows the M1–M8 product modules, C1–C3 cross-cutting constraints and acceptance semantics.
 
 The system maintains source protocols, runtime lifecycle, canonical knowledge and derived read models separately: provider adapters interpret external protocols; the acquisition runtime records every scheduled / on-demand read; EvidenceIngress fixes the raw revision; canonical knowledge holds long-lived facts and provenance; projections, caches and later retrieval indexes are all rebuildable state.
 
@@ -300,6 +267,7 @@ Start with:
 - [Normative Knowledge and Policy](https://github.com/jiale-li-orion/SecFusionAgent/wiki/03-Normative-Knowledge-and-Policy) — standards, policy and normative knowledge.
 - [AI / Model / Data / Agent Security](https://github.com/jiale-li-orion/SecFusionAgent/wiki/04-AI-Model-Data-and-Agent-Application-Security) — AI-specific risk semantics.
 - [Incident & News Intelligence](https://github.com/jiale-li-orion/SecFusionAgent/wiki/05-Incident-News-Intelligence) — incident source roles, correlation and event lifecycle.
+- [`WEB-PRESENTATION-STANDARD.zh.md`](WEB-PRESENTATION-STANDARD.zh.md) — GitHub Pages, Archify, bilingual presentation and CI/CD rules.
 
 Repository organization and contribution rules are defined by [`PRODUCT-REPO-STANDARD.md`](PRODUCT-REPO-STANDARD.md) and [`PRODUCT-REPO-STANDARD.zh.md`](PRODUCT-REPO-STANDARD.zh.md). Agent-assisted changes additionally follow [`AGENTS.md`](AGENTS.md).
 

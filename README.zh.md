@@ -2,6 +2,8 @@
 
 [English](README.md) | 中文
 
+[![CI](https://github.com/jiale-li-orion/SecFusionAgent/actions/workflows/ci.yml/badge.svg)](https://github.com/jiale-li-orion/SecFusionAgent/actions/workflows/ci.yml) [![Pages](https://github.com/jiale-li-orion/SecFusionAgent/actions/workflows/pages.yml/badge.svg)](https://github.com/jiale-li-orion/SecFusionAgent/actions/workflows/pages.yml)
+
 **证据优先的 AI 安全情报系统**
 **智能体驱动的 AI 安全情报融合与研判系统**
 
@@ -9,7 +11,7 @@ SecFusionAgent 面向 AI 安全漏洞、研究进展与安全事件构建持续�
 
 这里的 Agent 建立在可验证的数据平面之上。外部读取带有采集溯源，重要结论能够回到原始观测与产物，历史版本保留、当前视图可重建；Agent 后续承担调查、tool call 与推理，不取代证据权威。
 
-[项目 Wiki](https://github.com/jiale-li-orion/SecFusionAgent/wiki) · [Requirements-SPEC](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Requirements-SPEC) · [Technical-Design](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design) · [仓库规范（英文）](PRODUCT-REPO-STANDARD.md) · [仓库规范（中文）](PRODUCT-REPO-STANDARD.zh.md)
+[架构视图](https://jiale-li-orion.github.io/SecFusionAgent/) · [项目 Wiki](https://github.com/jiale-li-orion/SecFusionAgent/wiki) · [Requirements-SPEC](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Requirements-SPEC) · [Technical-Design](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design) · [English](README.md)
 
 ## 项目状态
 
@@ -23,49 +25,14 @@ mypy        静态类型检查
 pytest      领域、重放、状态迁移与契约测试
 ```
 
-当前快速测试集为 **29 个测试**。这些测试主要使用 fixture 与轻量本地数据库验证确定性的契约，不取代 PostgreSQL 事务、队列恢复、对象存储、并发与部署层的集成测试。
+主仓库 CI 持续运行 `ruff`、`mypy` 与 `pytest`。快速测试主要使用 fixture 与轻量本地数据库验证确定性契约，不取代 PostgreSQL 事务、队列恢复、对象存储、并发与部署层的集成测试。
 
 ## 系统概览
 
-```mermaid
-flowchart LR
-    EXT[外部情报来源]
-    SRC[来源适配器]
-    ACQ[采集运行时]
-    ROUTE{留存 / 处理路径}
+公开文档站提供两张由 authoritative specification 生成的 Archify 交互视图：
 
-    HOT[热漏洞工作集\nRedis]
-    DOC[受管文档\n原始产物 + 版本 + 切块]
-    IDX[结构化索引\nRepo / Provider 对象]
-    SIG[事件信号\nSignalItem + IncidentCandidate]
-
-    PROMOTE[晋升]
-    EVID[证据边界\n观测 + 产物]
-    KNOW[canonical knowledge\nObject + Identifier + Claim + Relation]
-    INC[安全事件\n时间线 + 来源链接]
-    ENRICH[provider-backed 富化]
-    OUTBOX[事务性 outbox]
-    VIEW[可重建的当前投影]
-    CASE[Case / Trajectory / Experience]
-
-    EXT --> SRC --> ACQ --> ROUTE
-    ROUTE -->|hot_window| HOT --> PROMOTE
-    ROUTE -->|durable_managed| DOC
-    ROUTE -->|selective_index| IDX
-    ROUTE -->|incident_signal| SIG --> PROMOTE
-
-    PROMOTE --> EVID --> KNOW
-    DOC --> EVID
-    IDX --> EVID
-    PROMOTE --> INC
-
-    KNOW --> OUTBOX
-    INC --> OUTBOX
-    OUTBOX --> ENRICH --> EVID
-    OUTBOX --> VIEW
-    KNOW --> CASE
-    INC --> CASE
-```
+- [Technical Design — Data Plane](https://jiale-li-orion.github.io/SecFusionAgent/tech-design.html) 展示 Acquisition、四种 `retention_mode` 生命周期、Evidence boundary、durable state 与异步 consumer。
+- [Requirements — 模块数据流](https://jiale-li-orion.github.io/SecFusionAgent/requirements.html) 展示 M1–M8 产品模块、C1–C3 横切约束与验收语义。
 
 系统把来源协议、运行时生命周期、canonical knowledge 与 derived 读模型分开维护：provider 适配器解释外部协议；采集运行时记录每次 scheduled / on-demand 读取；EvidenceIngress 固定原始版本；canonical knowledge 保存长期事实与溯源；投影、缓存与后续 retrieval 索引都属于可重建状态。
 
@@ -302,6 +269,8 @@ make test
 - [05-Incident-News-Intelligence](https://github.com/jiale-li-orion/SecFusionAgent/wiki/05-Incident-News-Intelligence) — incident 来源角色、关联与事件生命周期。
 
 仓库组织与贡献规则由 [`PRODUCT-REPO-STANDARD.md`](PRODUCT-REPO-STANDARD.md) 和 [`PRODUCT-REPO-STANDARD.zh.md`](PRODUCT-REPO-STANDARD.zh.md) 定义。涉及 Agent 的变更还需遵循 [`AGENTS.md`](AGENTS.md)。
+
+GitHub Pages、Archify、双语展示与 CI/CD 发布规则见 [`WEB-PRESENTATION-STANDARD.zh.md`](WEB-PRESENTATION-STANDARD.zh.md)。
 
 ## 路线图
 

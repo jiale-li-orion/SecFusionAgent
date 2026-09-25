@@ -1,4 +1,7 @@
-.PHONY: sync lint format typecheck test check dev-up dev-down migrate sync-sources worker scheduler probe-nvd promote-hot
+.PHONY: sync lint format typecheck test check site-check site-status dev-up dev-down migrate sync-sources worker scheduler probe-nvd promote-hot
+
+WIKI_PATH ?= ../SecFusionAgent.wiki
+SITE_STATUS_OUTPUT ?= $(WIKI_PATH)/site/project-status.json
 
 sync:
 	uv sync --dev
@@ -16,6 +19,12 @@ test:
 	uv run pytest
 
 check: lint typecheck test
+
+site-check:
+	python3 scripts/validate_site.py --site $(WIKI_PATH)/site
+
+site-status:
+	python3 scripts/build_site_status.py --repo . --wiki $(WIKI_PATH) --output $(SITE_STATUS_OUTPUT)
 
 dev-up:
 	docker compose -f deploy/docker-compose.yml up -d postgres redis-broker redis-cache minio
