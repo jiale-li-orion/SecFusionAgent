@@ -1,9 +1,9 @@
 name: Pages
 
-# Publishes the interactive requirements-flow diagram as the site root.
-# The diagram is a single self-contained HTML file kept in the project wiki, and
-# wiki commits do not trigger runs here, so a daily schedule keeps the site in
-# sync; run the workflow manually when the diagram changes.
+# Publishes the architecture views site from the project wiki.
+# The site lives in the wiki under site/ (an index, two bilingual shells, the
+# archify artifacts and their specs). Wiki commits do not trigger runs here, so a
+# daily schedule keeps the site in sync; run the workflow manually when it changes.
 on:
   push:
     branches: [main]
@@ -25,17 +25,18 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Fetch the diagram from the project wiki
+      - name: Fetch the site from the project wiki
         run: |
           git clone --depth 1 "https://github.com/${GITHUB_REPOSITORY}.wiki.git" wiki
+          test -f wiki/site/index.html
           mkdir -p _site
-          cp wiki/prd-flow/prd-requirements-flow.html _site/index.html
+          cp -R wiki/site/. _site/
           cat > _site/404.html <<HTML
           <!doctype html>
           <meta charset="utf-8">
           <meta http-equiv="refresh" content="0; url=/${GITHUB_REPOSITORY#*/}/">
-          <title>需求主链路图</title>
-          <p><a href="/${GITHUB_REPOSITORY#*/}/">前往需求主链路图</a></p>
+          <title>SecFusionAgent 架构视图</title>
+          <p><a href="/${GITHUB_REPOSITORY#*/}/">前往架构视图</a></p>
           HTML
           ls -l _site
 
