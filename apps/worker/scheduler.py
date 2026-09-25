@@ -14,15 +14,29 @@ logger = logging.getLogger(__name__)
 
 
 async def _publish(topic: str, payload: dict[str, object]) -> None:
-    if topic != "collection.requested":
+    task_name: str
+    args: list[object]
+    if topic == "collection.requested":
+        run_id = payload.get("run_id")
+        if not isinstance(run_id, str) or not run_id:
+            raise ValueError("collection.requested payload requires run_id")
+        task_name = "secfusion.collection.run"
+        args = [run_id]
+    elif topic == "knowledge.changed":
+        task_name = "secfusion.projection.knowledge_changed"
+        args = [payload]
+    elif topic == "incident.changed":
+        task_name = "secfusion.projection.incident_changed"
+        args = [payload]
+    elif topic == "enrichment.requested":
+        task_name = "secfusion.enrichment.vulnerability"
+        args = [payload]
+    else:
         raise ValueError(f"unsupported outbox topic: {topic}")
-    run_id = payload.get("run_id")
-    if not isinstance(run_id, str) or not run_id:
-        raise ValueError("collection.requested payload requires run_id")
     await asyncio.to_thread(
         celery_app.send_task,
-        "secfusion.collection.run",
-        args=[run_id],
+        task_name,
+        args=args,
     )
 
 

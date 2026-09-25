@@ -1,0 +1,1 @@
+"""Durable investigation storage models."""

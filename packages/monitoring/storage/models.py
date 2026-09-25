@@ -35,6 +35,8 @@ class AcquisitionRunModel(Base):
         index=True,
     )
     trigger: Mapped[str] = mapped_column(String(32), nullable=False)
+    parent_run_id: Mapped[str | None] = mapped_column(String(36), index=True)
+    query_spec: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
     status: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     cursor_in: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
     cursor_out: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)

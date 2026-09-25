@@ -1,0 +1,31 @@
+{
+  "source_id": "cisa-kev",
+  "adapter_type": "cisa_kev",
+  "source_class": "canonical_bug_query",
+  "authority_scope": ["known_exploited", "date_added", "required_action", "ransomware_use"],
+  "source_role": "authority",
+  "source_family": "cisa-kev",
+  "access_mode": "https_json_feed",
+  "update_semantics": "catalog_revision",
+  "discovery_method": {
+    "base_url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+  },
+  "time_semantics": {
+    "published_at": "vulnerability.dateAdded",
+    "updated_at": "dateReleased"
+  },
+  "identity_semantics": {
+    "external_object_id": "vulnerability.cveID"
+  },
+  "rate_limit_policy": {
+    "provider": "cisa"
+  },
+  "access_rights": {
+    "classification": "public"
+  },
+  "retention_mode": "time_bounded",
+  "schedule_policy": {
+    "enabled": false
+  },
+  "schema_version": "1"
+}

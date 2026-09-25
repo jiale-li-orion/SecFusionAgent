@@ -135,6 +135,8 @@ async def test_stale_running_run_is_requeued_with_new_outbox_event() -> None:
                     run_id="stale-run",
                     source_id=source.source_id,
                     trigger="scheduled",
+                    parent_run_id=None,
+                    query_spec={},
                     status="running",
                     cursor_in={},
                     cursor_out={},

@@ -1,0 +1,1 @@
+"""Durable acquisition application services."""

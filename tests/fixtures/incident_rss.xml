@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Security News</title>
+    <link>https://news.example.test/</link>
+    <description>Security feed</description>
+    <item>
+      <title>Attackers exploit CVE-2026-42424 in AI inference servers</title>
+      <link>https://news.example.test/cve-2026-42424-exploited</link>
+      <guid>news-42424</guid>
+      <pubDate>Fri, 25 Sep 2026 10:00:00 GMT</pubDate>
+      <description><![CDATA[Researchers observed exploitation of <b>CVE-2026-42424</b>.]]></description>
+    </item>
+    <item>
+      <title>Exchange traces stolen funds</title>
+      <link>https://news.example.test/exchange-funds</link>
+      <guid>news-chain-1</guid>
+      <pubDate>Fri, 25 Sep 2026 10:05:00 GMT</pubDate>
+      <description><![CDATA[Funds moved in transaction 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.]]></description>
+    </item>
+  </channel>
+</rss>

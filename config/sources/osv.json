@@ -1,0 +1,32 @@
+{
+  "source_id": "osv-vulnerabilities",
+  "adapter_type": "osv",
+  "source_class": "canonical_bug_query",
+  "authority_scope": ["package", "affected_versions", "references", "modified"],
+  "source_role": "reference",
+  "source_family": "osv",
+  "access_mode": "https_api",
+  "update_semantics": "on_demand_current_record",
+  "discovery_method": {
+    "base_url": "https://api.osv.dev/v1/vulns"
+  },
+  "time_semantics": {
+    "published_at": "published",
+    "updated_at": "modified"
+  },
+  "identity_semantics": {
+    "external_object_id": "id",
+    "aliases": "aliases"
+  },
+  "rate_limit_policy": {
+    "provider": "osv"
+  },
+  "access_rights": {
+    "classification": "public"
+  },
+  "retention_mode": "time_bounded",
+  "schedule_policy": {
+    "enabled": false
+  },
+  "schema_version": "1"
+}

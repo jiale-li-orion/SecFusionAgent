@@ -1,0 +1,33 @@
+{
+  "source_id": "github-global-advisories",
+  "adapter_type": "github_global_advisory",
+  "source_class": "canonical_bug_query",
+  "authority_scope": ["ghsa", "package", "affected_versions", "severity", "cwe", "references"],
+  "source_role": "reference",
+  "source_family": "github-advisory-database",
+  "access_mode": "https_api",
+  "update_semantics": "on_demand_current_record",
+  "discovery_method": {
+    "base_url": "https://api.github.com/advisories"
+  },
+  "time_semantics": {
+    "published_at": "published_at",
+    "updated_at": "updated_at"
+  },
+  "identity_semantics": {
+    "external_object_id": "ghsa_id",
+    "cve": "cve_id"
+  },
+  "auth_ref": "SECFUSION_GITHUB_TOKEN",
+  "rate_limit_policy": {
+    "provider": "github"
+  },
+  "access_rights": {
+    "classification": "public"
+  },
+  "retention_mode": "time_bounded",
+  "schedule_policy": {
+    "enabled": false
+  },
+  "schema_version": "1"
+}

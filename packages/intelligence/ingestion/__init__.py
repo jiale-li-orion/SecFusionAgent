@@ -1,0 +1,1 @@
+"""Durable evidence ingestion boundary."""

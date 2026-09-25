@@ -105,6 +105,25 @@ async def complete_hot_window_run(
     *,
     now: datetime | None = None,
 ) -> None:
+    await complete_collection_run(
+        session,
+        run_id,
+        next_cursor=_object_dict(result.next_cursor),
+        accepted_count=len(result.accepted),
+        changed=any(item.changed_fields for item in result.accepted),
+        now=now,
+    )
+
+
+async def complete_collection_run(
+    session: AsyncSession,
+    run_id: str,
+    *,
+    next_cursor: dict[str, object],
+    accepted_count: int,
+    changed: bool,
+    now: datetime | None = None,
+) -> None:
     instant = now or datetime.now(UTC)
     run, state = await _locked_run_and_state(session, run_id)
     if run.status in TERMINAL_STATUSES:
@@ -112,11 +131,10 @@ async def complete_hot_window_run(
     if run.status != "running":
         raise RuntimeError(f"cannot complete acquisition run in status {run.status!r}")
 
-    changed = any(item.changed_fields for item in result.accepted)
-    run.status = "success" if result.accepted else "no_change"
-    run.cursor_out = _object_dict(result.next_cursor)
+    run.status = "success" if accepted_count else "no_change"
+    run.cursor_out = dict(next_cursor)
     run.finished_at = instant
-    state.cursor = _object_dict(result.next_cursor)
+    state.cursor = dict(next_cursor)
     state.last_success_at = instant
     if changed:
         state.last_change_at = instant

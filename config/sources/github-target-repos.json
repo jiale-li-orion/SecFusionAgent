@@ -1,0 +1,44 @@
+{
+  "source_id": "github-target-repos",
+  "adapter_type": "github_repo",
+  "source_class": "structured_development_platform",
+  "authority_scope": ["repo_identity", "repo_state", "default_branch", "archive_state"],
+  "source_role": "primary",
+  "source_family": "github",
+  "access_mode": "https_api",
+  "update_semantics": "mutable_repo_metadata",
+  "discovery_method": {
+    "base_url": "https://api.github.com",
+    "repos": [
+      "vllm-project/vllm",
+      "sgl-project/sglang",
+      "ggml-org/llama.cpp",
+      "ollama/ollama",
+      "BerriAI/litellm",
+      "huggingface/transformers",
+      "triton-inference-server/server",
+      "NVIDIA/TensorRT-LLM"
+    ]
+  },
+  "time_semantics": {
+    "updated_at": "updated_at",
+    "pushed_at": "pushed_at"
+  },
+  "identity_semantics": {
+    "external_object_id": "full_name",
+    "provider_id": "id"
+  },
+  "auth_ref": "SECFUSION_GITHUB_TOKEN",
+  "rate_limit_policy": {
+    "provider": "github"
+  },
+  "access_rights": {
+    "classification": "public"
+  },
+  "retention_mode": "selective_index",
+  "schedule_policy": {
+    "enabled": true,
+    "interval_seconds": 3600
+  },
+  "schema_version": "1"
+}

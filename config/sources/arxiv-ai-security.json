@@ -1,0 +1,37 @@
+{
+  "source_id": "arxiv-ai-security",
+  "adapter_type": "arxiv",
+  "source_class": "research_insight",
+  "authority_scope": ["paper_metadata", "paper_revision", "research_content"],
+  "source_role": "reference",
+  "source_family": "arxiv",
+  "access_mode": "atom_api_pdf",
+  "update_semantics": "versioned_document",
+  "discovery_method": {
+    "base_url": "https://export.arxiv.org/api/query",
+    "search_query": "all:\"AI security\" OR all:\"prompt injection\" OR all:\"agent security\"",
+    "page_size": 50,
+    "initial_limit": 50
+  },
+  "time_semantics": {
+    "published_at": "atom.published",
+    "updated_at": "atom.updated"
+  },
+  "identity_semantics": {
+    "external_object_id": "arxiv_base_id",
+    "external_revision": "arxiv_versioned_id"
+  },
+  "rate_limit_policy": {
+    "provider": "arxiv",
+    "polite_interval_seconds": 3
+  },
+  "access_rights": {
+    "classification": "public"
+  },
+  "retention_mode": "durable_managed",
+  "schedule_policy": {
+    "enabled": true,
+    "interval_seconds": 21600
+  },
+  "schema_version": "1"
+}

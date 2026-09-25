@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>ArXiv Query</title>
+  <entry>
+    <id>http://arxiv.org/abs/2609.12345v2</id>
+    <updated>2026-09-25T08:30:00Z</updated>
+    <published>2026-09-20T07:00:00Z</published>
+    <title>Agent Security Under Indirect Prompt Injection</title>
+    <summary>We study indirect prompt injection against tool-using agents.</summary>
+    <author><name>Alice Example</name></author>
+    <author><name>Bob Example</name></author>
+    <category term="cs.CR" />
+    <category term="cs.AI" />
+    <link href="https://arxiv.org/pdf/2609.12345v2" rel="related" type="application/pdf" title="pdf" />
+  </entry>
+</feed>

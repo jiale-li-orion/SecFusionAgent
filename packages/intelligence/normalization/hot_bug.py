@@ -54,6 +54,7 @@ class HotBugIngress:
         priority_signals = _priority_signals(projection, previous is None, changed_fields)
         available_at = self._now()
         record = HotBugRecord(
+            acquisition_run_id=envelope.acquisition_run_id,
             source_id=source.source_id,
             external_object_id=envelope.external_object_id,
             external_revision=envelope.external_revision,
@@ -62,6 +63,7 @@ class HotBugIngress:
             updated_at=envelope.updated_at,
             fetched_at=envelope.observed_at,
             content_hash=envelope.content_hash,
+            raw_payload=envelope.json_payload,
             projection=projection,
             changed_fields=changed_fields,
             priority_signals=priority_signals,

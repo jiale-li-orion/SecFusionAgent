@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Protocol
+from typing import Any, Protocol
 
 from pydantic import BaseModel, Field, JsonValue
 
 
 class HotBugRecord(BaseModel):
+    acquisition_run_id: str
     source_id: str
     external_object_id: str
     external_revision: str | None = None
@@ -15,6 +16,7 @@ class HotBugRecord(BaseModel):
     updated_at: datetime | None = None
     fetched_at: datetime
     content_hash: str
+    raw_payload: dict[str, Any]
     projection: dict[str, JsonValue]
     changed_fields: list[str] = Field(default_factory=list)
     priority_signals: list[str] = Field(default_factory=list)

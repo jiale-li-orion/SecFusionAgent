@@ -22,7 +22,11 @@ async def test_discover_and_fetch_reuse_inline_nvd_payload() -> None:
         return httpx.Response(200, json=PAYLOAD)
 
     transport = httpx.MockTransport(handler)
-    source = load_source_definitions(Path("config/sources"))[0]
+    source = next(
+        item
+        for item in load_source_definitions(Path("config/sources"))
+        if item.source_id == "nvd-cves-2"
+    )
     now = datetime(2026, 9, 25, 2, 0, tzinfo=UTC)
     async with httpx.AsyncClient(transport=transport) as client:
         adapter = NVDAdapter(client, now=lambda: now)
@@ -47,8 +51,14 @@ async def test_discover_and_fetch_reuse_inline_nvd_payload() -> None:
 
 def test_source_registry_loads_nvd_contract() -> None:
     definitions = load_source_definitions(Path("config/sources"))
-    assert [item.source_id for item in definitions] == ["nvd-cves-2"]
-    assert definitions[0].retention_mode.value == "hot_window"
+    by_id = {item.source_id: item for item in definitions}
+    assert {
+        "nvd-cves-2",
+        "osv-vulnerabilities",
+        "github-global-advisories",
+        "cisa-kev",
+    }.issubset(by_id)
+    assert by_id["nvd-cves-2"].retention_mode.value == "hot_window"
 
 
 @pytest.mark.asyncio
@@ -86,7 +96,11 @@ async def test_discover_reads_all_nvd_pages_before_returning_cursor() -> None:
         seen_start_indices.append(start_index)
         return httpx.Response(200, json=pages[int(start_index)])
 
-    source = load_source_definitions(Path("config/sources"))[0]
+    source = next(
+        item
+        for item in load_source_definitions(Path("config/sources"))
+        if item.source_id == "nvd-cves-2"
+    )
     source = source.model_copy(
         update={"discovery_method": {**source.discovery_method, "results_per_page": 1}}
     )

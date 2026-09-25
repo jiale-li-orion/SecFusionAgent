@@ -1,4 +1,4 @@
-.PHONY: sync lint format typecheck test check dev-up dev-down migrate sync-sources worker scheduler probe-nvd
+.PHONY: sync lint format typecheck test check dev-up dev-down migrate sync-sources worker scheduler probe-nvd promote-hot
 
 sync:
 	uv sync --dev
@@ -37,3 +37,6 @@ scheduler:
 
 probe-nvd:
 	uv run python -m scripts.probe_nvd_hot --limit 20
+
+promote-hot:
+	uv run python -m scripts.promote_hot_bug $(CVE)

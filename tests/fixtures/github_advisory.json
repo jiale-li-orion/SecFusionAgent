@@ -1,0 +1,23 @@
+[
+  {
+    "ghsa_id": "GHSA-aaaa-bbbb-cccc",
+    "cve_id": "CVE-2026-42424",
+    "url": "https://api.github.com/advisories/GHSA-aaaa-bbbb-cccc",
+    "html_url": "https://github.com/advisories/GHSA-aaaa-bbbb-cccc",
+    "summary": "Privileged inference endpoint exposure",
+    "description": "A crafted request reaches a privileged endpoint.",
+    "severity": "critical",
+    "published_at": "2026-09-25T00:30:00Z",
+    "updated_at": "2026-09-25T03:30:00Z",
+    "withdrawn_at": null,
+    "cwes": [{"cwe_id": "CWE-306", "name": "Missing Authentication for Critical Function"}],
+    "vulnerabilities": [
+      {
+        "package": {"ecosystem": "pip", "name": "vllm"},
+        "vulnerable_version_range": "< 0.11.1",
+        "first_patched_version": {"identifier": "0.11.1"}
+      }
+    ],
+    "references": ["https://example.test/advisory"]
+  }
+]

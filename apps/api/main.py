@@ -1,11 +1,24 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
+from apps.api.routes.knowledge import router as knowledge_router
 from packages.shared.config import get_settings
+from packages.shared.db import create_engine, create_session_factory
 
 
 def create_app() -> FastAPI:
     settings = get_settings()
-    app = FastAPI(title="SecFusionAgent", version="0.1.0")
+    engine = create_engine(settings.database_url)
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        app.state.session_factory = create_session_factory(engine)
+        yield
+        await engine.dispose()
+
+    app = FastAPI(title="SecFusionAgent", version="0.1.0", lifespan=lifespan)
+    app.include_router(knowledge_router)
 
     @app.get("/health/live", tags=["health"])
     async def liveness() -> dict[str, str]:

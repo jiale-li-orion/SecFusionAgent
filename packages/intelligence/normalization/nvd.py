@@ -10,7 +10,7 @@ from packages.sources.errors import SourceSchemaChanged
 
 class NVDHotBugNormalizer:
     def projection(self, envelope: IngestEnvelope) -> dict[str, JsonValue]:
-        cve = envelope.payload.get("cve")
+        cve = envelope.json_payload.get("cve")
         if not isinstance(cve, dict):
             raise SourceSchemaChanged("NVD payload has no cve object")
         cve_id = cve.get("id")

@@ -42,7 +42,11 @@ class FakeHotBugCache:
 
 
 def _envelope(payload: dict[str, object], revision: str) -> IngestEnvelope:
-    source = load_source_definitions(Path("config/sources"))[0]
+    source = next(
+        item
+        for item in load_source_definitions(Path("config/sources"))
+        if item.source_id == "nvd-cves-2"
+    )
     cve = payload["cve"]
     assert isinstance(cve, dict)
     return IngestEnvelope.for_json_payload(
@@ -62,7 +66,11 @@ def _envelope(payload: dict[str, object], revision: str) -> IngestEnvelope:
 async def test_hot_ingress_detects_new_and_material_update() -> None:
     first_payload = PAGE["vulnerabilities"][0]
     cache = FakeHotBugCache()
-    source = load_source_definitions(Path("config/sources"))[0]
+    source = next(
+        item
+        for item in load_source_definitions(Path("config/sources"))
+        if item.source_id == "nvd-cves-2"
+    )
     now = datetime(2026, 9, 25, 2, 0, tzinfo=UTC)
     ingress = HotBugIngress(
         cache,

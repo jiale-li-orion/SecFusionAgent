@@ -5,11 +5,12 @@ from enum import StrEnum
 from hashlib import sha256
 from typing import Any, Protocol
 
-from pydantic import BaseModel, ConfigDict, Field, JsonValue
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, model_validator
 
 
 class SourceRole(StrEnum):
     SIGNAL = "signal"
+    TELEMETRY = "telemetry"
     PRIMARY = "primary"
     FORENSIC = "forensic"
     AUTHORITY = "authority"
@@ -96,10 +97,28 @@ class IngestEnvelope(BaseModel):
     observed_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     external_revision: str | None = None
     media_type: str = "application/json"
-    payload: dict[str, Any]
+    payload: dict[str, Any] | None = None
+    body: bytes | None = None
     content_hash: str
     request_metadata: dict[str, JsonValue] = Field(default_factory=dict)
     idempotency_key: str
+
+    @model_validator(mode="after")
+    def validate_content(self) -> IngestEnvelope:
+        if (self.payload is None) == (self.body is None):
+            raise ValueError("IngestEnvelope requires exactly one of payload or body")
+        return self
+
+    @property
+    def json_payload(self) -> dict[str, Any]:
+        if self.payload is None:
+            raise ValueError(f"{self.media_type} envelope has no JSON payload")
+        return self.payload
+
+    def content_bytes(self) -> bytes:
+        if self.body is not None:
+            return self.body
+        return self._canonical_payload(self.json_payload)
 
     @classmethod
     def for_json_payload(
@@ -115,6 +134,7 @@ class IngestEnvelope(BaseModel):
         updated_at: datetime | None,
         external_revision: str | None,
         request_metadata: dict[str, JsonValue] | None = None,
+        observed_at: datetime | None = None,
     ) -> IngestEnvelope:
         canonical = cls._canonical_payload(payload)
         content_hash = sha256(canonical).hexdigest()
@@ -128,8 +148,46 @@ class IngestEnvelope(BaseModel):
             canonical_url=canonical_url,
             published_at=published_at,
             updated_at=updated_at,
+            observed_at=observed_at or datetime.now(UTC),
             external_revision=external_revision,
             payload=payload,
+            content_hash=content_hash,
+            request_metadata=request_metadata or {},
+            idempotency_key=idem,
+        )
+
+    @classmethod
+    def for_binary_payload(
+        cls,
+        *,
+        acquisition_run_id: str,
+        trigger: AcquisitionTrigger,
+        source_id: str,
+        external_object_id: str,
+        body: bytes,
+        media_type: str,
+        canonical_url: str | None,
+        published_at: datetime | None,
+        updated_at: datetime | None,
+        external_revision: str | None,
+        request_metadata: dict[str, JsonValue] | None = None,
+        observed_at: datetime | None = None,
+    ) -> IngestEnvelope:
+        content_hash = sha256(body).hexdigest()
+        identity = external_revision or content_hash
+        idem = sha256(f"{source_id}:{external_object_id}:{identity}".encode()).hexdigest()
+        return cls(
+            acquisition_run_id=acquisition_run_id,
+            trigger=trigger,
+            source_id=source_id,
+            external_object_id=external_object_id,
+            canonical_url=canonical_url,
+            published_at=published_at,
+            updated_at=updated_at,
+            observed_at=observed_at or datetime.now(UTC),
+            external_revision=external_revision,
+            media_type=media_type,
+            body=body,
             content_hash=content_hash,
             request_metadata=request_metadata or {},
             idempotency_key=idem,

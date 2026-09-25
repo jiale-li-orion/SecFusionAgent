@@ -13,12 +13,14 @@ async def test_redis_hot_cache_keeps_frequency_and_pin_separate_from_ttl() -> No
     client = FakeRedis()
     cache = RedisHotBugCache(cast(Any, client))
     record = HotBugRecord(
+        acquisition_run_id="run-1",
         source_id="nvd-cves-2",
         external_object_id="CVE-2026-42424",
         external_revision="r1",
         fetched_at=datetime(2026, 9, 25, 2, 0, tzinfo=UTC),
         updated_at=datetime(2026, 9, 25, 1, 45, tzinfo=UTC),
         content_hash="abc",
+        raw_payload={"cve": {"id": "CVE-2026-42424"}},
         projection={"cve_id": "CVE-2026-42424"},
     )
 

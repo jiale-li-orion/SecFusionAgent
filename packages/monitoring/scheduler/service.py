@@ -52,6 +52,8 @@ async def schedule_due_sources(
                 run_id=run_id,
                 source_id=source.source_id,
                 trigger="scheduled",
+                parent_run_id=None,
+                query_spec={},
                 status="queued",
                 cursor_in=dict(state.cursor),
                 cursor_out={},

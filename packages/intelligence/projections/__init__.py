@@ -1,0 +1,1 @@
+"""Rebuildable current-state projections."""

@@ -114,7 +114,11 @@ def _payload(cve_id: str, modified: str) -> dict[str, Any]:
 
 @pytest.mark.asyncio
 async def test_checkpoint_cursor_is_returned_only_after_full_batch_succeeds() -> None:
-    source = load_source_definitions(Path("config/sources"))[0]
+    source = next(
+        item
+        for item in load_source_definitions(Path("config/sources"))
+        if item.source_id == "nvd-cves-2"
+    )
     cache = MemoryCache()
     ingress = HotBugIngress(
         cache,

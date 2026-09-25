@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -13,6 +14,8 @@ class Settings(BaseSettings):
     redis_broker_url: str = "redis://localhost:6379/0"
     redis_hot_cache_url: str = "redis://localhost:6380/0"
     hot_cache_ttl_seconds: int = 30 * 24 * 60 * 60
+    incident_signal_ttl_seconds: int = 7 * 24 * 60 * 60
+    source_registry_path: Path = Path("config/sources")
     collection_run_timeout_seconds: int = 15 * 60
     scheduler_tick_seconds: int = 5
 
@@ -23,6 +26,7 @@ class Settings(BaseSettings):
     s3_region: str = "us-east-1"
 
     nvd_api_key: str | None = None
+    github_token: str | None = None
 
 
 @lru_cache(maxsize=1)

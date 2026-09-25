@@ -1,0 +1,31 @@
+{
+  "source_id": "bleepingcomputer-news",
+  "adapter_type": "rss_incident",
+  "source_class": "incident_news",
+  "authority_scope": ["breaking_signal", "secondary_reporting"],
+  "source_role": "signal",
+  "source_family": "bleepingcomputer",
+  "access_mode": "rss",
+  "update_semantics": "feed_item_revision",
+  "discovery_method": {
+    "feed_url": "https://www.bleepingcomputer.com/feed/"
+  },
+  "time_semantics": {
+    "published_at": "item.pubDate"
+  },
+  "identity_semantics": {
+    "external_object_id": "item.guid_or_link"
+  },
+  "rate_limit_policy": {
+    "provider": "bleepingcomputer"
+  },
+  "access_rights": {
+    "classification": "public"
+  },
+  "retention_mode": "incident_signal",
+  "schedule_policy": {
+    "enabled": true,
+    "interval_seconds": 900
+  },
+  "schema_version": "1"
+}
