@@ -1,19 +1,21 @@
 # SecFusionAgent
 
+English | [中文](README.zh.md)
+
 **Evidence-first AI Security Intelligence System**
-**智能体驱动的 AI 安全情报融合与研判系统**
+**Agent-driven AI security intelligence fusion and assessment**
 
-SecFusionAgent 面向 AI 安全漏洞、研究进展与安全事件构建持续演进的情报系统。系统从公开漏洞库、项目仓库、安全公告、研究论文和事件信息源持续获取新增或变化内容，将外部数据固定为可追溯 evidence，再完成规范化、关联、富化、事件跟踪与后续调查。
+SecFusionAgent builds a continuously evolving intelligence system for AI security vulnerabilities, research progress and security incidents. The system continuously acquires new or changed content from public vulnerability databases, project repositories, security advisories, research papers and incident sources, fixes external data as traceable evidence, then performs normalization, correlation, enrichment, incident tracking and follow-up investigation.
 
-这里的 Agent 建立在可验证的数据平面之上。外部读取拥有 acquisition provenance，重要结论能够回到原始 observation / artifact，历史 revision 保留，current view 可重建；Agent 后续负责调查、工具调用与推理，不替代 evidence authority。
+The Agent here sits on top of a verifiable data plane. External reads carry acquisition provenance; important conclusions trace back to the original observation / artifact; historical revisions are retained and current views are rebuildable. Agent work then covers investigation, tool calls and reasoning; it does not replace evidence authority.
 
-[Project Wiki](https://github.com/jiale-li-orion/SecFusionAgent/wiki) · [Requirements](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Requirements-SPEC) · [Technical Design](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design) · [Repository Standard](PRODUCT-REPO-STANDARD.md) · [仓库规范](PRODUCT-REPO-STANDARD.zh.md)
+[Project Wiki](https://github.com/jiale-li-orion/SecFusionAgent/wiki) · [Requirements](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Requirements-SPEC) · [Technical Design](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design) · [Repository Standard](PRODUCT-REPO-STANDARD.md) · [Repository Standard (Chinese)](PRODUCT-REPO-STANDARD.zh.md)
 
 ## Project status
 
-SecFusionAgent 当前处于 **M1–M3 Data Plane first-pass implementation / integration probe** 阶段。第一轮代码已经覆盖多种来源生命周期、canonical knowledge、provider-backed enrichment、Incident Watch、managed document、current projection，以及 Investigation Experience 的存储边界；PostgreSQL、Redis、MinIO 与 Celery 的真实基础设施集成仍在继续验证。
+SecFusionAgent is at the **M1–M3 Data Plane first-pass implementation / integration probe** stage. The first implementation round covers multiple source lifecycles, canonical knowledge, provider-backed enrichment, Incident Watch, managed documents, current projections and the storage boundary of Investigation Experience; real infrastructure integration with PostgreSQL, Redis, MinIO and Celery is still being verified.
 
-当前本地质量门：
+The current local quality gate:
 
 ```text
 ruff        lint / import / Python correctness checks
@@ -21,7 +23,7 @@ mypy        static type checking
 pytest      domain, replay, state-transition and contract tests
 ```
 
-当前 fast suite 为 **29 tests**。这些测试主要使用 fixture 与轻量本地数据库验证 deterministic contract；它们不替代 PostgreSQL transaction、queue recovery、object storage、并发和部署层 integration tests。
+The current fast suite is **29 tests**. These tests mostly use fixtures and a lightweight local database to verify deterministic contracts; they do not replace integration tests for PostgreSQL transactions, queue recovery, object storage, concurrency and deployment.
 
 ## System overview
 
@@ -65,45 +67,45 @@ flowchart LR
     INC --> CASE
 ```
 
-系统把 source protocol、runtime lifecycle、canonical knowledge 和 derived read model 分开维护：provider adapter 解释外部协议；acquisition runtime 记录每次 scheduled / on-demand read；EvidenceIngress 固定原始 revision；canonical knowledge 保存长期事实与 provenance；projection、cache 和后续 retrieval index 均属于可重建状态。
+The system maintains source protocols, runtime lifecycle, canonical knowledge and derived read models separately: provider adapters interpret external protocols; the acquisition runtime records every scheduled / on-demand read; EvidenceIngress fixes the raw revision; canonical knowledge holds long-lived facts and provenance; projections, caches and later retrieval indexes are all rebuildable state.
 
 ## Implemented data paths
 
 | Path | Current implementation | Purpose |
 | --- | --- | --- |
-| Hot Bug Stream | NVD CVE API → normalization → Redis hot working set → durable promotion | 保持高频漏洞 feed 的 freshness，同时避免把全部历史漏洞复制进本地长期库 |
-| Vulnerability Enrichment | OSV / GitHub Global Advisory / CISA KEV → child AcquisitionRun → EvidenceIngress → claims / relations | 对已进入 durable knowledge 的漏洞补充 package、修复、KEV 与 advisory 信息 |
-| Managed Content | arXiv Atom discovery → versioned PDF artifact → document revision → page-oriented chunks | 建设可长期演进、可回到具体 revision / page 的研究语料 |
-| Structured Source Index | GitHub target repositories → repo revision cursor → `Repo` object / claims | 持续维护重点 AI infrastructure repository 的结构化状态 |
-| Incident Watch | RSS breaking source → strong-anchor correlation → candidate watch → durable incident timeline | 将突发消息与后续独立证据组织成可持续富化的安全事件 |
-| Current Projection | knowledge / incident change → transactional outbox → projection rebuild | 为 API 与后续 retrieval 提供低成本 current view，同时保留底层历史和冲突 |
-| Investigation Memory | Case → append-only Trajectory → Experience candidate / version / evaluation | 为后续 Agent 调查保存可评测、可版本化的 procedural experience |
+| Hot Bug Stream | NVD CVE API → normalization → Redis hot working set → durable promotion | Keep high-frequency vulnerability feeds fresh without copying the full vulnerability history into the local long-term store |
+| Vulnerability Enrichment | OSV / GitHub Global Advisory / CISA KEV → child AcquisitionRun → EvidenceIngress → claims / relations | Add package, fix, KEV and advisory information to vulnerabilities already promoted into durable knowledge |
+| Managed Content | arXiv Atom discovery → versioned PDF artifact → document revision → page-oriented chunks | Build a research corpus that evolves over the long term and traces back to a specific revision / page |
+| Structured Source Index | GitHub target repositories → repo revision cursor → `Repo` object / claims | Continuously maintain structured state for priority AI infrastructure repositories |
+| Incident Watch | RSS breaking source → strong-anchor correlation → candidate watch → durable incident timeline | Organize breaking reports and later independent evidence into security incidents that keep accumulating enrichment |
+| Current Projection | knowledge / incident change → transactional outbox → projection rebuild | Provide a low-cost current view for the API and later retrieval while preserving underlying history and conflicts |
+| Investigation Memory | Case → append-only Trajectory → Experience candidate / version / evaluation | Store evaluable, versioned procedural experience for later Agent investigation |
 
-当前内置 source definitions 位于 [`config/sources/`](config/sources/)；source 是否进入 hot cache、durable corpus、structured index 或 incident staging，由 `SourceDefinition.retention_mode` 明确决定。
+Built-in source definitions live in [`config/sources/`](config/sources/); whether a source enters the hot cache, the durable corpus, the structured index or incident staging is decided explicitly by `SourceDefinition.retention_mode`.
 
 ## Evidence and knowledge model
 
-SecFusionAgent 将“来源看到的内容”和“系统当前认为可用的知识”区分存储。
+SecFusionAgent stores what a source published separately from the knowledge the system currently treats as usable.
 
-`Observation` 描述一次外部对象 revision 的获取；`EvidenceArtifact` 固定需要长期保留的原始内容；`EvidenceLink` 把 object、claim 或 relation 回连到 observation/artifact 与 locator。长期知识使用 `Object / ExternalIdentifier / Claim / Relation` 表达，并通过 knowledge revision 保存演进历史。
+`Observation` describes one acquisition of an external object revision; `EvidenceArtifact` fixes raw content that must be retained long term; `EvidenceLink` connects an object, claim or relation back to its observation/artifact and locator. Long-lived knowledge is expressed as `Object / ExternalIdentifier / Claim / Relation`, and knowledge revisions preserve its evolution history.
 
-Snapshot 型 provider 的新 revision 会 supersede **同一来源**的旧 current claim / relation；来自不同来源的差异继续同时保留，由 current projection 暴露 conflict 与 alternatives。数据修正因此不会覆盖历史，多源冲突也不会在 ingest 阶段被静默裁决。
+A new revision from a snapshot-style provider supersedes the previous current claim / relation from **the same source**; differences from other sources remain side by side, and the current projection exposes conflicts and alternatives. Corrections therefore never overwrite history, and multi-source conflicts are not silently adjudicated during ingest.
 
-所有 enrichment 产生的新外部读取都重新进入 `AcquisitionRun → IngestEnvelope → EvidenceIngress`，不会由 processor 直接把未经记录的 HTTP response 写成知识。
+Every new external read produced by enrichment re-enters `AcquisitionRun → IngestEnvelope → EvidenceIngress`; a processor never writes an unrecorded HTTP response directly into knowledge.
 
 ## Incident intelligence
 
-Incident Watch 使用独立的 lifecycle。Breaking source 先进入短期 `SignalItem / IncidentCandidate` working set，只有达到 promotion 条件的事件才进入 durable incident storage。
+Incident Watch uses a separate lifecycle. Breaking sources first enter a short-lived `SignalItem / IncidentCandidate` working set; only incidents that meet promotion conditions enter durable incident storage.
 
-多源确认按照“**独立来源支持同一个可验证 strong anchor**”计算。`upstream_source` 用于识别转载依赖，防止多个媒体转述同一原始消息后被错误计为独立 corroboration。当前 strong anchors 包括 CVE/GHSA、transaction hash、address、IOC、domain/IP、incident/advisory ID 和 commit 等可验证标识。
+Multi-source confirmation is computed as **independent sources supporting the same verifiable strong anchor**. `upstream_source` identifies reprint dependencies, so several outlets repeating one original report are not wrongly counted as independent corroboration. Current strong anchors include verifiable identifiers such as CVE/GHSA, transaction hash, address, IOC, domain/IP, incident/advisory ID and commit.
 
-事件进入 durable state 后保留 append-only timeline 与 source links；后续官方说明、forensic analysis、资金流变化和影响范围更新继续追加，而不是反复覆盖一条静态新闻记录。
+Once an incident enters durable state it retains an append-only timeline and source links; later official statements, forensic analysis, fund-flow changes and impact-scope updates are appended rather than repeatedly overwriting a static news record.
 
 ## Investigation experience
 
-调查过程被建模为 `Case` 与 append-only `Trajectory`。Trajectory 记录 provider query、tool call、evidence reference、使用过的 experience version、outcome、latency 与 cost，为后续 Agent Eval 和 replay 提供基础数据。
+Investigation is modeled as `Case` plus an append-only `Trajectory`. A trajectory records provider queries, tool calls, evidence references, the experience version in use, outcome, latency and cost, giving later Agent Eval and replay their base data.
 
-可复用经验进入独立的 versioned lifecycle：
+Reusable experience enters a separate versioned lifecycle:
 
 ```text
 Trajectory
@@ -117,7 +119,7 @@ active
  deprecated
 ```
 
-Experience 保存适用范围、trigger、推荐动作、evidence expectation、failure mode、stop condition 与 fallback。它属于 planning memory，不拥有 security evidence authority；后续任务仍需重新取得当前证据后才能形成事实结论。
+Experience stores scope, triggers, recommended actions, evidence expectations, failure modes, stop conditions and fallbacks. It is planning memory and holds no security evidence authority; a later task must still acquire current evidence before forming factual conclusions.
 
 ## Repository layout
 
