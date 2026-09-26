@@ -15,7 +15,7 @@ The Agent here sits on top of a verifiable data plane. External reads carry acqu
 
 ## Project status
 
-SecFusionAgent is at the **M1–M3 Data Plane / M3→M4 handoff verified** stage. The data plane now covers hot vulnerability working sets, durable evidence/canonical knowledge, provider enrichment, Incident Watch, managed HTML/PDF/plain documents, GitHub development objects, materialized current views, time-bounded Internet asset observations and the Case/Trajectory/Experience storage seam. `make verify-m3` verifies the handoff with fast tests, source ownership/lifecycle checks, real PostgreSQL/pgvector/FTS, separated Redis failure domains, outbox→Celery replay/idempotency and a real S3-compatible ArtifactStore round trip. M4 task routing, query construction, retrieval/perception, investigation state, Agent runtime and M6 decision remain intentionally outside the M1–M3 data-plane implementation and are specified in Technical Design 2.
+SecFusionAgent is at the **M1–M3 Data Plane / M3→M4 storage-read handoff verified / semantic-enrichment contract frozen** stage. The data plane covers hot vulnerability working sets, durable evidence/canonical knowledge, provider enrichment, Incident Watch, managed HTML/PDF/plain documents, GitHub development objects, materialized current views, time-bounded Internet asset observations and the Case/Trajectory/Experience storage seam. `enrichment-v1` now fixes canonical/source-specific/exploratory vocabulary ownership and the closed-set enrichment evaluation unit; remaining canonical-CWE/PoC/EPSS/applicability/asset-join/paper-relation work stays explicit M3 implementation backlog. `make verify-m3` verifies the storage/read handoff with fast tests, source ownership/lifecycle checks, real PostgreSQL/pgvector/FTS, separated Redis failure domains, outbox→Celery replay/idempotency and a real S3-compatible ArtifactStore round trip. M4 task routing, query construction, retrieval/perception, investigation state, Agent runtime and M6 decision remain outside the M1–M3 data-plane implementation and are specified in Technical Design 2.
 
 The current local quality gate:
 
@@ -25,7 +25,7 @@ mypy        static type checking
 pytest      domain, replay, state-transition and contract tests
 ```
 
-Repository CI continuously runs `ruff`, `mypy`, and `pytest`. The current fast gate is **97 passed + 6 infrastructure tests skipped by default**. `make integration-core` runs **5/5** real PostgreSQL/pgvector/FTS, Redis, outbox/Celery and M3-handoff tests; `make integration-object-store` runs the real S3-compatible ArtifactStore round trip. The last recorded live-probe snapshot is **41 OK / 10 provider-blocked / 5 transient failures / 1 rate-limited / 7 auth-required**. It is a point-in-time reachability report, not an M3 acceptance gate; anti-bot, network, rate-limit and credential handling remain later provider-hardening work. Fast SQLite/fixture tests remain useful for deterministic contracts but are not treated as infrastructure evidence.
+Repository CI continuously runs `ruff`, `mypy`, and `pytest`. The current fast gate is **119 passed + 6 infrastructure tests skipped by default**. `make integration-core` runs **5/5** real PostgreSQL/pgvector/FTS, Redis, outbox/Celery and M3-handoff tests; `make integration-object-store` runs the real S3-compatible ArtifactStore round trip. The last recorded live-probe snapshot is **41 OK / 10 provider-blocked / 5 transient failures / 1 rate-limited / 7 auth-required**. It is a point-in-time reachability report, not an M3 acceptance gate; anti-bot, network, rate-limit and credential handling remain later provider-hardening work. Fast SQLite/fixture tests remain useful for deterministic contracts but are not treated as infrastructure evidence.
 
 ## System overview
 
@@ -63,6 +63,8 @@ SecFusionAgent stores what a source published separately from the knowledge the 
 A new revision from a snapshot-style provider supersedes the previous current claim / relation from **the same source**; differences from other sources remain side by side, and the current projection exposes conflicts and alternatives. Corrections therefore never overwrite history, and multi-source conflicts are not silently adjudicated during ingest.
 
 Every new external read produced by enrichment re-enters `AcquisitionRun → IngestEnvelope → EvidenceIngress`; a processor never writes an unrecorded HTTP response directly into knowledge.
+
+Canonical enrichment vocabulary is versioned separately from provider-native fields. Deterministic/source-asserted processors must use registered canonical or source-specific terms; unregistered semantic discoveries remain evidence-backed `exploratory` results and do not enter formal enrichment P/R until vocabulary review. `packages/evaluation/m1_m3.py` fixes the eight-category product source taxonomy and coverage contract, monitoring-latency sample semantics and evidence-aware closed-set enrichment scorer for later M7 benchmarks.
 
 ## Incident intelligence
 
@@ -105,7 +107,8 @@ SecFusionAgent/
 │   ├── monitoring/          # acquisition lifecycle and retention-mode collectors
 │   ├── intelligence/        # evidence, canonical knowledge, incident and projections
 │   ├── enrichment/          # provider-backed vulnerability enrichment
-│   ├── investigation/       # Case, Trajectory and Experience lifecycle
+│   ├── evaluation/          # executable M1-M3 metric and benchmark contracts
+│   ├── investigation/       # Case, Trajectory and Experience persistence seam
 │   └── shared/              # configuration, database and generic outbox primitives
 │
 ├── config/
@@ -123,6 +126,19 @@ SecFusionAgent/
 ```
 
 Package ownership and dependency direction are repository contracts, not directory conventions. `packages/sources` does not own scheduler state; `packages/monitoring/acquisition` owns durable acquisition lifecycle; `packages/intelligence/knowledge` owns canonical knowledge contracts and writes. [`tests/test_architecture_dependencies.py`](tests/test_architecture_dependencies.py) checks these dependency directions automatically.
+
+Module-level implementation design lives with the code it governs:
+
+- [`packages/sources/README.md`](packages/sources/README.md) — source definitions, adapters, taxonomy/retention mapping, extension checklist;
+- [`packages/monitoring/README.md`](packages/monitoring/README.md) — scheduling, acquisition-run state, cursor/retry/recovery semantics;
+- [`packages/intelligence/README.md`](packages/intelligence/README.md) — Evidence/Knowledge persistence, documents, incidents, projections, artifact storage;
+- [`packages/enrichment/README.md`](packages/enrichment/README.md) — deterministic/semantic M3 processing, provider query composition, processor extension rules;
+- [`packages/evaluation/README.md`](packages/evaluation/README.md) — concrete M1–M3 denominators, gold identity, evidence-aware scoring;
+- [`packages/shared/README.md`](packages/shared/README.md) — common infrastructure contracts, configuration, outbox, model protocol;
+- [`apps/api/README.md`](apps/api/README.md) — HTTP bootstrap and transport boundary;
+- [`apps/worker/README.md`](apps/worker/README.md) — background-process, outbox-topic, Celery-task composition.
+
+These READMEs refine Technical Design 1 below the cross-module architecture boundary. Internal implementation changes update the owning module README; changes to cross-module ownership, evidence authority, processing paths, persistence semantics, security boundaries, or evaluation protocol still require the Wiki Technical Design/Requirements to change in the same cycle. M4 runtime modules are intentionally not documented here until their design is frozen.
 
 ## Development
 

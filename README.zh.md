@@ -15,7 +15,7 @@ SecFusionAgent 面向 AI 安全漏洞、研究进展与安全事件构建持续�
 
 ## 项目状态
 
-SecFusionAgent 当前处于 **M1–M3 数据平面 / M3→M4 handoff 已验证** 阶段。数据平面已经覆盖 Hot Bug、durable evidence / canonical knowledge、provider 富化、Incident Watch、HTML/PDF/plain 受管文档、GitHub development objects、五类物化当前视图、time-bounded Internet asset observation，以及 Case / Trajectory / Experience 存储接缝。`make verify-m3` 把 fast test、source ownership/lifecycle check、真实 PostgreSQL/pgvector/FTS、隔离 Redis failure domain、outbox→Celery 重放/幂等与真实 S3-compatible ArtifactStore round trip 串成可重复 gate。M4 的任务路由、查询构造、retrieval / Perception、Investigation State、Agent Runtime 与 M6 Decision 明确留在数据平面之外，并由 Technical Design 2 约束。
+SecFusionAgent 当前处于 **M1–M3 数据平面 / M3→M4 storage-read handoff 已验证 / semantic enrichment contract 已冻结** 阶段。数据平面已经覆盖 Hot Bug、durable evidence / canonical knowledge、provider 富化、Incident Watch、HTML/PDF/plain 受管文档、GitHub development objects、五类物化当前视图、time-bounded Internet asset observation，以及 Case / Trajectory / Experience 存储接缝。`enrichment-v1` 已固定 canonical/source-specific/exploratory vocabulary ownership 与 closed-set enrichment 评测单元；canonical CWE/PoC/EPSS/applicability/asset join/paper relation 等剩余工作继续作为显式 M3 implementation backlog。`make verify-m3` 把 fast test、source ownership/lifecycle check、真实 PostgreSQL/pgvector/FTS、隔离 Redis failure domain、outbox→Celery 重放/幂等与真实 S3-compatible ArtifactStore round trip 串成 storage/read handoff 的可重复 gate。M4 的任务路由、查询构造、retrieval / Perception、Investigation State、Agent Runtime 与 M6 Decision 留在数据平面之外，由 Technical Design 2 约束。
 
 当前本地质量门：
 
@@ -25,7 +25,7 @@ mypy        静态类型检查
 pytest      领域、重放、状态迁移与契约测试
 ```
 
-主仓库 CI 持续运行 `ruff`、`mypy` 与 `pytest`。当前 fast gate 为 **97 passed + 6 个默认跳过的 infrastructure tests**；`make integration-core` 真实运行 **5/5** PostgreSQL/pgvector/FTS、Redis、outbox/Celery 与 M3 handoff test；`make integration-object-store` 验证真实 S3-compatible ArtifactStore round trip。上一版 live probe 快照为 **41 OK / 10 provider-blocked / 5 transient failures / 1 rate-limited / 7 auth-required**。它只作为时点连通性报告，不再作为 M3 验收 gate；反爬、网络、限流与凭据问题留到后续 provider hardening。SQLite/fixture 只作为快速确定性测试，不作为基础设施通过证据。
+主仓库 CI 持续运行 `ruff`、`mypy` 与 `pytest`。当前 fast gate 为 **119 passed + 6 个默认跳过的 infrastructure tests**；`make integration-core` 真实运行 **5/5** PostgreSQL/pgvector/FTS、Redis、outbox/Celery 与 M3 handoff test；`make integration-object-store` 验证真实 S3-compatible ArtifactStore round trip。上一版 live probe 快照为 **41 OK / 10 provider-blocked / 5 transient failures / 1 rate-limited / 7 auth-required**。它只作为时点连通性报告，不再作为 M3 验收 gate；反爬、网络、限流与凭据问题留到后续 provider hardening。SQLite/fixture 只作为快速确定性测试，不作为基础设施通过证据。
 
 ## 系统概览
 
@@ -63,6 +63,8 @@ SecFusionAgent 把来源发布的内容与系统当前认为可用的知识分�
 snapshot 型 provider 的新版本会取代**同一来源**此前的 current claim / relation；来自其他来源的差异继续并存，由当前投影暴露冲突与备选。修正因此不会覆盖历史，多源冲突也不会在 ingest 阶段被静默裁决。
 
 富化产生的每次新的外部读取都会重新进入 `AcquisitionRun → IngestEnvelope → EvidenceIngress`；processor 不会把没有记录过的 HTTP response 直接写成知识。
+
+Canonical enrichment vocabulary 与 provider 原始字段分开版本化。deterministic/source-asserted processor 只能写已注册的 canonical 或 source-specific term；semantic processor 的未注册发现保留为有证据的 `exploratory` 结果，在 vocabulary review 前不进入正式 enrichment P/R。`packages/evaluation/m1_m3.py` 已固定 八类产品数据源 taxonomy 与 coverage contract、monitoring latency sample 语义与 evidence-aware closed-set enrichment scorer，供后续 M7 benchmark 复用。
 
 ## 事件情报
 
@@ -105,7 +107,8 @@ SecFusionAgent/
 │   ├── monitoring/          # 采集生命周期与 retention-mode 采集器
 │   ├── intelligence/        # 证据、canonical knowledge、incident 与投影
 │   ├── enrichment/          # provider-backed 漏洞富化
-│   ├── investigation/       # Case、Trajectory 与 Experience 生命周期
+│   ├── evaluation/          # 可执行 M1-M3 评测与 benchmark contract
+│   ├── investigation/       # Case、Trajectory 与 Experience persistence seam
 │   └── shared/              # 配置、数据库与通用 outbox 原语
 │
 ├── config/
@@ -123,6 +126,19 @@ SecFusionAgent/
 ```
 
 package 归属与依赖方向属于仓库契约，而不是目录约定。`packages/sources` 不拥有调度器状态；`packages/monitoring/acquisition` 拥有 durable 采集生命周期；`packages/intelligence/knowledge` 拥有 canonical knowledge 契约与写入。[`tests/test_architecture_dependencies.py`](tests/test_architecture_dependencies.py) 自动检查这些依赖方向。
+
+模块级 implementation design 跟随代码 owner 保存：
+
+- [`packages/sources/README.md`](packages/sources/README.md)：source definition、adapter、taxonomy/retention mapping、扩展步骤；
+- [`packages/monitoring/README.md`](packages/monitoring/README.md)：scheduler、AcquisitionRun、cursor、retry/recovery 语义；
+- [`packages/intelligence/README.md`](packages/intelligence/README.md)：Evidence/Knowledge 持久化、document、incident、projection、artifact storage；
+- [`packages/enrichment/README.md`](packages/enrichment/README.md)：deterministic/semantic M3 processing、provider query composition、processor 扩展约束；
+- [`packages/evaluation/README.md`](packages/evaluation/README.md)：M1–M3 denominator、gold identity、evidence-aware scorer；
+- [`packages/shared/README.md`](packages/shared/README.md)：共享基础设施、配置、outbox、model protocol；
+- [`apps/api/README.md`](apps/api/README.md)：HTTP bootstrap 与 transport boundary；
+- [`apps/worker/README.md`](apps/worker/README.md)：后台进程、outbox topic 与 Celery task composition。
+
+这些 README 承接 Technical Design 1 以下的实现级设计。package 内部实现变化更新 owner README；一旦变化触及跨模块 ownership、evidence authority、processing path、持久化语义、安全边界或 evaluation protocol，仍需在同一轮更新 Wiki Technical Design / Requirements。M4 runtime 尚未冻结，因此本轮不提前建立对应模块 README。
 
 ## 开发
 

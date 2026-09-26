@@ -142,6 +142,8 @@ async def test_hot_bug_promotion_is_durable_traceable_and_idempotent() -> None:
             assert view.external_identifiers == {"cve": ["CVE-2026-42424"]}
             cvss = next(claim for claim in view.claims if claim.predicate == "cvss_score")
             assert cvss.value == 9.8
+            assert cvss.qualifier["vocabulary_revision"] == "enrichment-v1"
+            assert cvss.qualifier["vocabulary_scope"] == "canonical"
             assert cvss.evidence[0].source_id == source.source_id
             assert cvss.evidence[0].locator["kind"] == "jsonpath"
 
@@ -232,6 +234,8 @@ async def test_cvelist_hot_bug_can_promote_into_same_canonical_vulnerability_lay
             assert view is not None
             title = next(claim for claim in view.claims if claim.predicate == "title")
             assert title.value == "Example inference server issue"
+            assert title.qualifier["vocabulary_scope"] == "source_specific"
+            assert title.qualifier["vocabulary_revision"] == "enrichment-v1"
             assert title.evidence[0].source_id == source.source_id
             affected = next(
                 claim for claim in view.claims if claim.predicate == "affected_products"

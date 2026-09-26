@@ -8,7 +8,11 @@
 
 Wiki 持有 PRD、Technical Design、风险专题、调研、方案比较、设计决策、运行手册、incident/postmortem 和项目演进。主 repo 持有源码、测试、benchmark、部署定义、工程脚本、CI 配置和仓库治理文件。一个事实进入哪个仓库，由谁负责维护也随之确定。
 
-根 `README.md` 是代码仓库入口，包含项目身份、Wiki 链接、开发入口和稳定命令。`PRODUCT-REPO-STANDARD.md` / `.zh.md` 定义仓库规则。`AGENTS.md` 承载对 Agent 每次工作都有效的 standing orders。代码注释与类型声明承载紧贴实现的局部 contract，例如参数语义、异常、状态不变量和安全前置条件。
+根 `README.md` 是代码仓库入口，包含项目身份、Wiki 链接、开发入口和稳定命令。`PRODUCT-REPO-STANDARD.md` / `.zh.md` 定义仓库规则。`AGENTS.md` 承载对 Agent 每次工作都有效的 standing orders。
+
+capability package 或 deployable module 可以拥有本地 `README.md`。模块 README 位于 Wiki Technical Design 与代码级 contract 之间，承接已经冻结的 Technical Design 没有必要继续下沉的 implementation design：package 内部拓扑、局部状态/控制流、扩展点、event/configuration contract、局部 failure/retry/idempotency 语义、相邻模块接口和验证命令。模块 README 不重新定义 Wiki 已确定的跨模块 ownership、evidence authority、持久化语义、processing path、安全边界或 benchmark protocol。局部实现变化更新 owner 模块 README，不要求同步改写 Technical Design；一旦变化触及这些跨模块语义，代码与 Technical Design 在同一轮 change 中更新。
+
+代码注释与类型声明继续承载紧贴 symbol 的局部 contract，例如参数语义、异常、状态不变量和安全前置条件。
 
 架构、接口语义、评测协议或运行方式发生变化时，代码和 Wiki 在同一轮 change 中更新。Wiki 页面记录适用的 release、tag 或 commit；checkout 历史版本时据此找到对应设计。
 

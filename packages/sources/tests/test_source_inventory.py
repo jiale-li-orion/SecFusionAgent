@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from packages.sources.contracts import RetentionMode
 from packages.sources.inventory import load_source_inventory
 from packages.sources.registry.loader import load_source_definitions
 from packages.sources.resolver_registry import create_dynamic_source_resolvers
@@ -71,3 +72,19 @@ def test_dynamic_inventory_owners_have_executable_resolvers() -> None:
         if item.mode == "dynamic_resolution" and item.dynamic_owner is not None
     }
     assert expected == set(create_dynamic_source_resolvers())
+
+
+def test_asset_taxonomy_entries_use_time_bounded_on_demand_runtime_path() -> None:
+    inventory = load_source_inventory()
+    definitions = {item.source_id: item for item in load_source_definitions(Path("config/sources"))}
+    asset_source_ids = {
+        source_id
+        for item in inventory.entries
+        if item.category == "assets"
+        for source_id in item.source_ids
+    }
+    assert asset_source_ids
+    for source_id in asset_source_ids:
+        source = definitions[source_id]
+        assert source.retention_mode is RetentionMode.TIME_BOUNDED
+        assert source.schedule_policy.get("enabled") is False

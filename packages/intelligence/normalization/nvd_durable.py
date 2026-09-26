@@ -10,6 +10,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.intelligence.ingestion.evidence import ObservationAck
+from packages.intelligence.knowledge.vocabulary import (
+    VocabularyScope,
+    classify_term,
+    vocabulary_metadata,
+)
 from packages.intelligence.normalization.canonical import NormalizationResult
 from packages.intelligence.normalization.hot_bug import HotBugNormalizer
 from packages.intelligence.normalization.nvd import NVDHotBugNormalizer
@@ -128,6 +133,14 @@ class ProjectedVulnerabilityCanonicalNormalizer:
         for predicate in projection:
             if predicate == "cve_id":
                 continue
+            scope = classify_term(
+                "claim",
+                predicate,
+                origin="source_asserted",
+                subject_type="Vulnerability",
+            )
+            if scope is VocabularyScope.UNREGISTERED:
+                raise ValueError(f"unregistered canonical claim predicate: {predicate}")
             await _supersede_source_claims(
                 session,
                 subject_id=object_id,
@@ -148,7 +161,17 @@ class ProjectedVulnerabilityCanonicalNormalizer:
                     subject_id=object_id,
                     predicate=predicate,
                     value=value,
-                    qualifier={"source_id": source.source_id},
+                    qualifier={
+                        "source_id": source.source_id,
+                        **vocabulary_metadata(
+                            classify_term(
+                                "claim",
+                                predicate,
+                                origin="source_asserted",
+                                subject_type="Vulnerability",
+                            )
+                        ),
+                    },
                     origin="source_asserted",
                     lifecycle="accepted",
                     processing_run_id=run_id,

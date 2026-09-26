@@ -108,6 +108,8 @@ async def test_semantic_document_enrichment_requires_verbatim_evidence() -> None
             assert view is not None
             claim = next(item for item in view.claims if item.predicate == "attack_condition")
             assert claim.origin == "semantic_derived"
+            assert claim.qualifier["vocabulary_scope"] == "exploratory"
+            assert claim.qualifier["vocabulary_revision"] == "enrichment-v1"
             assert len(claim.evidence) == 1
             locator = claim.evidence[0].locator
             assert locator["kind"] == "document_chunk"
@@ -120,6 +122,8 @@ async def test_semantic_document_enrichment_requires_verbatim_evidence() -> None
             )
             assert relation.target.object_type == "Product"
             assert relation.target.canonical_key == "vllm"
+            assert relation.qualifier["vocabulary_scope"] == "exploratory"
+            assert relation.qualifier["vocabulary_revision"] == "enrichment-v1"
             assert relation.evidence[0].locator["quote"] == "vLLM"
 
             insight = await session.scalar(

@@ -8,7 +8,11 @@ This standard defines directory responsibilities, code ownership, dependency dir
 
 The Wiki owns the PRD, Technical Design, security-topic studies, research notes, solution comparisons, design decisions, runbooks, incident/postmortem records, and project evolution. The main repository owns source code, tests, benchmarks, deployment definitions, engineering scripts, CI configuration, and repository-governance files. A fact's repository determines its maintenance owner.
 
-The root `README.md` is the code-repository entry point and contains the project identity, Wiki link, development entry point, and stable commands. `PRODUCT-REPO-STANDARD.md` / `.zh.md` define repository rules. `AGENTS.md` carries standing orders that apply to every agent session. Source comments and type declarations carry local contracts that must stay next to implementation, such as parameter semantics, exceptions, state invariants, and security preconditions.
+The root `README.md` is the code-repository entry point and contains the project identity, Wiki link, development entry point, and stable commands. `PRODUCT-REPO-STANDARD.md` / `.zh.md` define repository rules. `AGENTS.md` carries standing orders that apply to every agent session.
+
+A capability or deployable module may own a local `README.md`. Module README files are the implementation-design layer between Wiki Technical Design and symbol-level code contracts. They refine a frozen Technical Design with the concrete package topology, internal state/control flow, extension points, event/configuration contracts, local failure/retry/idempotency semantics, adjacent-module interfaces, and verification commands needed to maintain the implementation. They do not redefine cross-module ownership, evidence authority, persistence semantics, processing paths, security boundaries, or benchmark protocols established by the Wiki. A local implementation change updates the owning module README without forcing a Technical Design rewrite; a change that alters those cross-module semantics updates code and Technical Design in the same change cycle.
+
+Source comments and type declarations carry symbol-level contracts that must stay next to implementation, such as parameter semantics, exceptions, state invariants, and security preconditions.
 
 Changes to architecture, interface semantics, evaluation protocols, or runtime behavior update code and Wiki in the same change cycle. Wiki pages record the applicable release, tag, or commit so historical checkouts can be matched to their design.
 

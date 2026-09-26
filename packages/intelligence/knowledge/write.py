@@ -16,6 +16,13 @@ from packages.intelligence.knowledge.contracts import (
     KnowledgeOrigin,
     ObjectCandidate,
 )
+from packages.intelligence.knowledge.vocabulary import (
+    VocabularyScope,
+    canonical_term,
+    classify_object_type,
+    classify_term,
+    vocabulary_metadata,
+)
 from packages.intelligence.normalization.canonical import NormalizationResult
 from packages.intelligence.storage.knowledge_models import (
     ClaimModel,
@@ -67,6 +74,7 @@ class EvidenceBackedKnowledgeWriter:
                 raise RuntimeError("successful enrichment has no knowledge change")
             return _result(change, observation.observation_id, run_id)
 
+        _validate_candidate_vocabulary(candidate, origin=origin)
         now = self._now()
         if existing_run is None:
             session.add(
@@ -111,6 +119,7 @@ class EvidenceBackedKnowledgeWriter:
             root.object_id,
             candidate.root_identifiers,
         )
+        _validate_candidate_shapes(candidate, origin=origin, subject_type=root.object_type)
 
         for predicate in candidate.replace_predicates:
             await _supersede_source_claims(
@@ -153,7 +162,19 @@ class EvidenceBackedKnowledgeWriter:
                         subject_id=root_object_id,
                         predicate=claim_candidate.predicate,
                         value=claim_candidate.value,
-                        qualifier={"source_id": source.source_id, **claim_candidate.qualifier},
+                        qualifier={
+                            **claim_candidate.qualifier,
+                            "source_id": source.source_id,
+                            **vocabulary_metadata(
+                                classify_term(
+                                    "claim",
+                                    claim_candidate.predicate,
+                                    origin=origin,
+                                    subject_type=root.object_type,
+                                    qualifier_keys=claim_candidate.qualifier.keys(),
+                                )
+                            ),
+                        },
                         origin=origin,
                         lifecycle="accepted",
                         processing_run_id=run_id,
@@ -188,8 +209,18 @@ class EvidenceBackedKnowledgeWriter:
                         relation_type=relation_candidate.relation_type,
                         target_object_id=target.object_id,
                         qualifier={
-                            "source_id": source.source_id,
                             **relation_candidate.qualifier,
+                            "source_id": source.source_id,
+                            **vocabulary_metadata(
+                                classify_term(
+                                    "relation",
+                                    relation_candidate.relation_type,
+                                    origin=origin,
+                                    subject_type=root.object_type,
+                                    target_type=relation_candidate.target.object_type,
+                                    qualifier_keys=relation_candidate.qualifier.keys(),
+                                )
+                            ),
                         },
                         origin=origin,
                         lifecycle="accepted",
@@ -238,6 +269,77 @@ class EvidenceBackedKnowledgeWriter:
         run.finished_at = now
         await session.flush()
         return _result(change, observation.observation_id, run_id)
+
+
+def _validate_candidate_vocabulary(
+    candidate: EnrichmentCandidate,
+    *,
+    origin: KnowledgeOrigin,
+) -> None:
+    objects = [item for item in [candidate.root_object] if item is not None]
+    objects.extend(item.target for item in candidate.relations)
+    for obj in objects:
+        scope = classify_object_type(obj.object_type, origin=origin)
+        if scope is VocabularyScope.UNREGISTERED:
+            raise ValueError(f"unregistered canonical object_type: {obj.object_type}")
+
+    claim_names = {item.predicate for item in candidate.claims}.union(candidate.replace_predicates)
+    for predicate in claim_names:
+        scope = classify_term("claim", predicate, origin=origin)
+        if scope is VocabularyScope.UNREGISTERED:
+            raise ValueError(f"unregistered canonical claim predicate: {predicate}")
+
+    relation_names = {item.relation_type for item in candidate.relations}.union(
+        candidate.replace_relation_types
+    )
+    for relation_type in relation_names:
+        scope = classify_term("relation", relation_type, origin=origin)
+        if scope is VocabularyScope.UNREGISTERED:
+            raise ValueError(f"unregistered canonical relation type: {relation_type}")
+
+
+def _validate_candidate_shapes(
+    candidate: EnrichmentCandidate,
+    *,
+    origin: KnowledgeOrigin,
+    subject_type: str,
+) -> None:
+    for claim in candidate.claims:
+        scope = classify_term(
+            "claim",
+            claim.predicate,
+            origin=origin,
+            subject_type=subject_type,
+            qualifier_keys=claim.qualifier.keys(),
+        )
+        if scope is VocabularyScope.UNREGISTERED:
+            term = canonical_term("claim", claim.predicate)
+            expected = term.subject_types if term is not None else ()
+            raise ValueError(
+                "canonical claim subject type mismatch: "
+                f"{subject_type} --{claim.predicate}; expected one of {expected}"
+            )
+
+    for relation in candidate.relations:
+        scope = classify_term(
+            "relation",
+            relation.relation_type,
+            origin=origin,
+            subject_type=subject_type,
+            target_type=relation.target.object_type,
+            qualifier_keys=relation.qualifier.keys(),
+        )
+        if scope is VocabularyScope.UNREGISTERED:
+            term = canonical_term("relation", relation.relation_type)
+            expected_subjects = term.subject_types if term is not None else ()
+            expected_targets = term.target_types if term is not None else ()
+            raise ValueError(
+                "canonical relation shape mismatch: "
+                f"{subject_type} --{relation.relation_type}-> "
+                f"{relation.target.object_type}; expected subjects={expected_subjects} "
+                f"targets={expected_targets} required_qualifiers="
+                f"{term.required_qualifier_keys if term is not None else ()}"
+            )
 
 
 async def _upsert_object(

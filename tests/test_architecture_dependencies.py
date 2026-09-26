@@ -10,6 +10,7 @@ ALLOWED_PACKAGE_DEPENDENCIES = {
     "investigation": {"shared", "investigation"},
     "monitoring": {"shared", "sources", "intelligence", "monitoring"},
     "enrichment": {"shared", "sources", "intelligence", "monitoring", "enrichment"},
+    "evaluation": {"shared", "sources", "intelligence", "evaluation"},
 }
 
 
