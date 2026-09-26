@@ -1,0 +1,43 @@
+{
+  "source_id": "certik-incident-analysis",
+  "adapter_type": "html_index",
+  "source_class": "incident_forensic_research",
+  "authority_scope": [
+    "incident_root_cause",
+    "attack_path",
+    "loss_estimate",
+    "forensic_analysis"
+  ],
+  "source_role": "forensic",
+  "source_family": "certik",
+  "access_mode": "html_index",
+  "update_semantics": "mutable_incident_analysis",
+  "discovery_method": {
+    "index_url": "https://www.certik.com/blog/research?tab=incident-analysis",
+    "link_selector": "a[href$='-incident-analysis']",
+    "allowed_hosts": [
+      "www.certik.com",
+      "certik.com"
+    ],
+    "max_items": 25
+  },
+  "time_semantics": {
+    "updated_at": "http_last_modified_when_available"
+  },
+  "identity_semantics": {
+    "external_object_id": "canonical_analysis_url",
+    "external_revision": "etag_or_last_modified"
+  },
+  "rate_limit_policy": {
+    "provider": "certik"
+  },
+  "access_rights": {
+    "classification": "public"
+  },
+  "retention_mode": "durable_managed",
+  "schedule_policy": {
+    "enabled": true,
+    "interval_seconds": 21600
+  },
+  "schema_version": "1"
+}

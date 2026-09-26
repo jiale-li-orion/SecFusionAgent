@@ -1,0 +1,35 @@
+{
+  "source_id": "openalex-search",
+  "adapter_type": "scholarly_search",
+  "source_class": "academic_search",
+  "authority_scope": [
+    "work_identity",
+    "citation_metadata",
+    "candidate_discovery"
+  ],
+  "source_role": "reference",
+  "source_family": "openalex",
+  "access_mode": "https_api",
+  "update_semantics": "on_demand_search",
+  "discovery_method": {
+    "provider": "openalex",
+    "base_url": "https://api.openalex.org/works"
+  },
+  "time_semantics": {
+    "observed_at": "collector_clock"
+  },
+  "identity_semantics": {
+    "external_object_id": "OpenAlex work id"
+  },
+  "rate_limit_policy": {
+    "provider": "openalex"
+  },
+  "access_rights": {
+    "classification": "public-metadata"
+  },
+  "retention_mode": "time_bounded",
+  "schedule_policy": {
+    "enabled": false
+  },
+  "schema_version": "1"
+}

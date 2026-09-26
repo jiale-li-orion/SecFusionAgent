@@ -1,0 +1,19 @@
+{
+  "source_id": "peckshieldalert-x",
+  "adapter_type": "x_user_signal",
+  "source_class": "incident_telemetry",
+  "authority_scope": ["security_alert", "onchain_observation", "exploit_signal"],
+  "source_role": "telemetry",
+  "source_family": "peckshieldalert",
+  "access_mode": "x_api_v2",
+  "update_semantics": "append_only_posts",
+  "discovery_method": {"username": "PeckShieldAlert", "max_results": 20},
+  "time_semantics": {"published_at": "tweet.created_at", "observed_at": "collector_clock"},
+  "identity_semantics": {"external_object_id": "tweet id"},
+  "auth_ref": "SECFUSION_X_BEARER_TOKEN",
+  "rate_limit_policy": {"provider": "x-api-v2"},
+  "access_rights": {"classification": "authorized_api"},
+  "retention_mode": "incident_signal",
+  "schedule_policy": {"enabled": false},
+  "schema_version": "1"
+}

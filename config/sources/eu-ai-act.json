@@ -1,0 +1,53 @@
+{
+  "source_id": "eu-ai-act",
+  "adapter_type": "direct_document",
+  "source_class": "normative_knowledge",
+  "authority_scope": [
+    "regulation_text",
+    "gpai_obligation",
+    "effective_date",
+    "jurisdiction"
+  ],
+  "source_role": "authority",
+  "source_family": "eu-ai-office",
+  "access_mode": "direct_documents",
+  "update_semantics": "authoritative_document_revision",
+  "discovery_method": {
+    "allowed_hosts": [
+      "eur-lex.europa.eu",
+      "digital-strategy.ec.europa.eu"
+    ],
+    "documents": [
+      {
+        "document_id": "EU-AI-ACT-2024-1689",
+        "title": "Regulation (EU) 2024/1689 — Artificial Intelligence Act",
+        "document_type": "regulation",
+        "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj"
+      },
+      {
+        "document_id": "EU-GPAI-OBLIGATIONS",
+        "title": "General-purpose AI obligations under the AI Act",
+        "document_type": "official_guidance",
+        "url": "https://digital-strategy.ec.europa.eu/en/factpages/general-purpose-ai-obligations-under-ai-act"
+      }
+    ]
+  },
+  "time_semantics": {
+    "updated_at": "http_last_modified_when_available"
+  },
+  "identity_semantics": {
+    "external_object_id": "configured document_id"
+  },
+  "rate_limit_policy": {
+    "provider": "eu"
+  },
+  "access_rights": {
+    "classification": "public-authoritative"
+  },
+  "retention_mode": "durable_managed",
+  "schedule_policy": {
+    "enabled": true,
+    "interval_seconds": 86400
+  },
+  "schema_version": "1"
+}

@@ -2,11 +2,22 @@
   "source_id": "github-target-repos",
   "adapter_type": "github_repo",
   "source_class": "structured_development_platform",
-  "authority_scope": ["repo_identity", "repo_state", "default_branch", "archive_state"],
+  "authority_scope": [
+    "repo_identity",
+    "repo_state",
+    "default_branch",
+    "archive_state",
+    "issue_identity",
+    "pull_request_identity",
+    "commit_identity",
+    "release_identity",
+    "merge_commit_relation",
+    "parent_commit_relation"
+  ],
   "source_role": "primary",
   "source_family": "github",
   "access_mode": "https_api",
-  "update_semantics": "mutable_repo_metadata",
+  "update_semantics": "scheduled_repo_snapshot + on_demand_development_objects",
   "discovery_method": {
     "base_url": "https://api.github.com",
     "repos": [
@@ -17,16 +28,30 @@
       "BerriAI/litellm",
       "huggingface/transformers",
       "triton-inference-server/server",
-      "NVIDIA/TensorRT-LLM"
+      "NVIDIA/TensorRT-LLM",
+      "ray-project/ray",
+      "bentoml/BentoML",
+      "LMCache/LMCache",
+      "kvcache-ai/Mooncake",
+      "ai-dynamo/dynamo",
+      "kserve/kserve",
+      "safetensors/safetensors"
     ]
   },
   "time_semantics": {
     "updated_at": "updated_at",
-    "pushed_at": "pushed_at"
+    "pushed_at": "pushed_at",
+    "issue_pr_updated_at": "updated_at",
+    "commit_time": "commit.committer.date",
+    "release_time": "published_at"
   },
   "identity_semantics": {
     "external_object_id": "full_name",
-    "provider_id": "id"
+    "provider_id": "id",
+    "issue": "repo_full_name + number",
+    "pull_request": "repo_full_name + number",
+    "commit": "git sha",
+    "release": "github release id + repo tag"
   },
   "auth_ref": "SECFUSION_GITHUB_TOKEN",
   "rate_limit_policy": {
@@ -40,5 +65,5 @@
     "enabled": true,
     "interval_seconds": 3600
   },
-  "schema_version": "1"
+  "schema_version": "2"
 }

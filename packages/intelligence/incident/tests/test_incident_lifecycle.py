@@ -304,6 +304,131 @@ async def test_incident_promotion_persists_selected_evidence_and_timeline() -> N
         await engine.dispose()
 
 
+@pytest.mark.asyncio
+async def test_promoted_incident_appends_new_material_signal_idempotently() -> None:
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    redis_client = FakeRedis()
+    store = RedisIncidentSignalStore(cast(Any, redis_client))
+    correlator = IncidentCorrelator(store, now=lambda: NOW)
+    ingress = IncidentSignalIngress(correlator, {"generic_news": GenericNewsSignalExtractor()})
+    source_a = _source("media-a", "media-a", SourceRole.REFERENCE)
+    source_b = _source("forensic-b", "forensic-b", SourceRole.FORENSIC)
+    source_c = _source("primary-c", "primary-c", SourceRole.PRIMARY)
+    sources = {item.source_id: item for item in [source_a, source_b, source_c]}
+
+    try:
+        async with factory() as session, session.begin():
+            await sync_source_definitions(session, list(sources.values()))
+            for index, source in enumerate(sources.values(), start=1):
+                session.add(
+                    AcquisitionRunModel(
+                        run_id=f"append-run-{index}",
+                        source_id=source.source_id,
+                        trigger="scheduled",
+                        parent_run_id=None,
+                        query_spec={},
+                        status="success",
+                        cursor_in={},
+                        cursor_out={},
+                        attempt=1,
+                        created_at=NOW,
+                        started_at=NOW,
+                        finished_at=NOW,
+                    )
+                )
+
+        first = await ingress.accept(
+            source_a,
+            _envelope(
+                source_a,
+                "append-run-1",
+                "news-a",
+                upstream_source=None,
+                title="Initial report",
+                cve="CVE-2026-42424",
+                observed_at=NOW,
+            ),
+        )
+        await ingress.accept(
+            source_b,
+            _envelope(
+                source_b,
+                "append-run-2",
+                "forensic-b",
+                upstream_source=None,
+                title="Independent forensic confirmation",
+                cve="CVE-2026-42424",
+                observed_at=NOW,
+            ),
+        )
+
+        service = IncidentPromotionService(
+            store,
+            EvidenceIngress(MemoryArtifactStore(), now=lambda: NOW),
+            IncidentPromotionPolicy(),
+            now=lambda: NOW,
+        )
+        async with factory() as session, session.begin():
+            promoted = await service.promote(
+                session,
+                candidate_id=first.incident_candidate_id,
+                sources=sources,
+            )
+        assert promoted.replay is False
+        initial_revision = promoted.incident_revision
+
+        followup_time = NOW.replace(hour=11)
+        followup = await ingress.accept(
+            source_c,
+            _envelope(
+                source_c,
+                "append-run-3",
+                "primary-update",
+                upstream_source=None,
+                title="Primary source confirms mitigation in progress",
+                cve="CVE-2026-42424",
+                observed_at=followup_time,
+            ),
+        )
+        assert followup.material_change is True
+
+        async with factory() as session, session.begin():
+            appended = await service.promote(
+                session,
+                candidate_id=first.incident_candidate_id,
+                sources=sources,
+            )
+        assert appended.replay is False
+        assert appended.incident_revision > initial_revision
+        assert len(appended.timeline_event_ids) == 1
+        assert len(appended.observation_ids) == 1
+
+        async with factory() as session:
+            incident = await session.get(SecurityIncidentModel, promoted.incident_id)
+            assert incident is not None
+            assert incident.current_revision == appended.incident_revision
+            assert incident.current_summary == "Primary source confirms mitigation in progress"
+            assert await _count(session, IncidentTimelineEventModel) == 3
+            assert await _count(session, IncidentSourceLinkModel) == 3
+
+        async with factory() as session, session.begin():
+            replay = await service.promote(
+                session,
+                candidate_id=first.incident_candidate_id,
+                sources=sources,
+            )
+        assert replay.replay is True
+        async with factory() as session:
+            assert await _count(session, IncidentTimelineEventModel) == 3
+            assert await _count(session, IncidentSourceLinkModel) == 3
+        await redis_client.aclose()
+    finally:
+        await engine.dispose()
+
+
 async def _count(session: AsyncSession, model: type[Any]) -> int:
     value = await session.scalar(select(func.count()).select_from(model))
     return int(value or 0)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -78,6 +79,7 @@ class DocumentChunkModel(Base):
     content_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     chunker_version: Mapped[str] = mapped_column(String(32), nullable=False)
     index_status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    embedding: Mapped[list[float] | None] = mapped_column(Vector().with_variant(JSON(), "sqlite"))
     embedding_model: Mapped[str | None] = mapped_column(String(128))
     embedding_version: Mapped[str | None] = mapped_column(String(128))
 

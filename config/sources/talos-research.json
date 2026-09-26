@@ -1,0 +1,42 @@
+{
+  "source_id": "talos-research",
+  "adapter_type": "html_index",
+  "source_class": "independent_security_research",
+  "authority_scope": [
+    "threat_research",
+    "vulnerability_exploitation",
+    "campaign_analysis",
+    "technical_analysis"
+  ],
+  "source_role": "forensic",
+  "source_family": "cisco-talos",
+  "access_mode": "html_index",
+  "update_semantics": "mutable_research_article",
+  "discovery_method": {
+    "index_url": "https://blog.talosintelligence.com/",
+    "link_selector": "main a[href^='/']",
+    "allowed_hosts": [
+      "blog.talosintelligence.com"
+    ],
+    "max_items": 25
+  },
+  "time_semantics": {
+    "updated_at": "http_last_modified_when_available"
+  },
+  "identity_semantics": {
+    "external_object_id": "canonical_article_url",
+    "external_revision": "etag_or_last_modified"
+  },
+  "rate_limit_policy": {
+    "provider": "cisco-talos"
+  },
+  "access_rights": {
+    "classification": "public"
+  },
+  "retention_mode": "durable_managed",
+  "schedule_policy": {
+    "enabled": true,
+    "interval_seconds": 21600
+  },
+  "schema_version": "1"
+}

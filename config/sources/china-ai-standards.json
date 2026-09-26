@@ -1,0 +1,70 @@
+{
+  "source_id": "china-ai-standards",
+  "adapter_type": "direct_document",
+  "source_class": "normative_knowledge",
+  "authority_scope": [
+    "standard_status",
+    "standard_metadata",
+    "policy_guideline"
+  ],
+  "source_role": "authority",
+  "source_family": "china-standards",
+  "access_mode": "direct_documents",
+  "update_semantics": "authoritative_document_revision",
+  "discovery_method": {
+    "allowed_hosts": [
+      "std.samr.gov.cn",
+      "www.miit.gov.cn"
+    ],
+    "documents": [
+      {
+        "document_id": "GB-45438-2025",
+        "title": "GB 45438-2025 网络安全技术 人工智能生成合成内容标识方法",
+        "document_type": "mandatory_standard",
+        "url": "https://std.samr.gov.cn/gb/search/gbDetailedCNF?id=301E0388CB75788DE06397BE0A0AE1B4"
+      },
+      {
+        "document_id": "GBT-45654-2025",
+        "title": "GB/T 45654-2025 网络安全技术 生成式人工智能服务安全基本要求",
+        "document_type": "recommended_standard",
+        "url": "https://std.samr.gov.cn/gb/search/gbDetailedCNF?id=33D40F1160BF5D92E06397BE0A0A5B93"
+      },
+      {
+        "document_id": "GBT-45652-2025",
+        "title": "GB/T 45652-2025 网络安全技术 生成式人工智能预训练和优化训练数据安全规范",
+        "document_type": "recommended_standard",
+        "url": "https://std.samr.gov.cn/gb/search/gbDetailed?id=33D40F1160BE5D92E06397BE0A0A5B93"
+      },
+      {
+        "document_id": "GBT-45674-2025",
+        "title": "GB/T 45674-2025 网络安全技术 生成式人工智能数据标注安全规范",
+        "document_type": "recommended_standard",
+        "url": "https://std.samr.gov.cn/gb/search/gbDetailed?id=33D40F1160F95D92E06397BE0A0A5B93"
+      },
+      {
+        "document_id": "miit-ai-standardization-2024",
+        "title": "国家人工智能产业综合标准化体系建设指南（2024版）",
+        "document_type": "policy_guideline",
+        "url": "https://www.miit.gov.cn/zwgk/zcwj/wjfb/tz/art/2024/art_e8ebf5600ec24d3db644150873712c5f.html"
+      }
+    ]
+  },
+  "time_semantics": {
+    "updated_at": "http_last_modified_when_available"
+  },
+  "identity_semantics": {
+    "external_object_id": "configured document_id"
+  },
+  "rate_limit_policy": {
+    "provider": "samr-miit"
+  },
+  "access_rights": {
+    "classification": "public-authoritative"
+  },
+  "retention_mode": "durable_managed",
+  "schedule_policy": {
+    "enabled": true,
+    "interval_seconds": 86400
+  },
+  "schema_version": "1"
+}

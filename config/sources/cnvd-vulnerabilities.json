@@ -1,0 +1,23 @@
+{
+  "source_id": "cnvd-vulnerabilities",
+  "adapter_type": "html_index",
+  "source_class": "canonical_bug_reference",
+  "authority_scope": ["cnvd_identity", "domestic_vulnerability_notice", "domestic_affected_mapping"],
+  "source_role": "authority",
+  "source_family": "cnvd",
+  "access_mode": "html_index",
+  "update_semantics": "mutable_vulnerability_page",
+  "discovery_method": {
+    "index_url": "https://www.cnvd.org.cn/flaw/list?flag=true",
+    "link_selector": "a[href*='/flaw/show/']",
+    "allowed_hosts": ["www.cnvd.org.cn", "cnvd.org.cn"],
+    "max_items": 20
+  },
+  "time_semantics": {"observed_at": "collector_clock"},
+  "identity_semantics": {"external_object_id": "canonical vulnerability URL"},
+  "rate_limit_policy": {"provider": "cnvd"},
+  "access_rights": {"classification": "public"},
+  "retention_mode": "time_bounded",
+  "schedule_policy": {"enabled": false},
+  "schema_version": "1"
+}

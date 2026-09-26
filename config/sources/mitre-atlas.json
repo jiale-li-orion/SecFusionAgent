@@ -1,0 +1,54 @@
+{
+  "source_id": "mitre-atlas",
+  "adapter_type": "direct_document",
+  "source_class": "independent_security_research",
+  "authority_scope": [
+    "ai_attack_taxonomy",
+    "technique",
+    "mitigation",
+    "case_study",
+    "relationship"
+  ],
+  "source_role": "reference",
+  "source_family": "mitre-atlas",
+  "access_mode": "direct_documents",
+  "update_semantics": "versioned_knowledge_base",
+  "discovery_method": {
+    "allowed_hosts": [
+      "raw.githubusercontent.com"
+    ],
+    "allowed_media_types": [
+      "text/plain",
+      "text/yaml",
+      "application/yaml",
+      "application/x-yaml",
+      "application/octet-stream"
+    ],
+    "documents": [
+      {
+        "document_id": "MITRE-ATLAS-LATEST",
+        "title": "MITRE ATLAS latest distributed dataset",
+        "document_type": "structured_security_knowledge",
+        "url": "https://raw.githubusercontent.com/mitre-atlas/atlas-data/main/dist/ATLAS-latest.yaml"
+      }
+    ]
+  },
+  "time_semantics": {
+    "updated_at": "http_last_modified_when_available"
+  },
+  "identity_semantics": {
+    "external_object_id": "configured document_id"
+  },
+  "rate_limit_policy": {
+    "provider": "github-raw"
+  },
+  "access_rights": {
+    "classification": "public-release"
+  },
+  "retention_mode": "durable_managed",
+  "schedule_policy": {
+    "enabled": true,
+    "interval_seconds": 86400
+  },
+  "schema_version": "1"
+}

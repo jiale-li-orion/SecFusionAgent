@@ -1,0 +1,35 @@
+{
+  "source_id": "blockbeats-newsflash",
+  "adapter_type": "html_incident",
+  "source_class": "incident_news",
+  "authority_scope": ["breaking_signal", "secondary_reporting"],
+  "source_role": "signal",
+  "source_family": "blockbeats",
+  "access_mode": "html_index",
+  "update_semantics": "list_item_revision",
+  "discovery_method": {
+    "index_url": "https://www.theblockbeats.info/newsflash/",
+    "link_selector": "a[href^='/flash/']",
+    "title_strip_regex": "^\\d{2}:\\d{2}\\s+",
+    "allowed_hosts": ["www.theblockbeats.info", "theblockbeats.info"],
+    "max_items": 50
+  },
+  "time_semantics": {
+    "observed_at": "collector_clock"
+  },
+  "identity_semantics": {
+    "external_object_id": "canonical_flash_url"
+  },
+  "rate_limit_policy": {
+    "provider": "blockbeats"
+  },
+  "access_rights": {
+    "classification": "public"
+  },
+  "retention_mode": "incident_signal",
+  "schedule_policy": {
+    "enabled": true,
+    "interval_seconds": 900
+  },
+  "schema_version": "1"
+}

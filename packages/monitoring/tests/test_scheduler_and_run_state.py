@@ -173,3 +173,45 @@ def _as_utc(value: datetime | None) -> datetime | None:
     if value.tzinfo is None:
         return value.replace(tzinfo=UTC)
     return value.astimezone(UTC)
+
+
+@pytest.mark.asyncio
+async def test_schedule_policy_toggle_reconciles_runtime_enabled_and_due_state() -> None:
+    engine, factory = await _database()
+    now = datetime(2026, 9, 26, 6, 0, tzinfo=UTC)
+    definitions = load_source_definitions(Path("config/sources"))
+    nvd = next(item for item in definitions if item.source_id == "nvd-cves-2")
+    disabled = nvd.model_copy(update={"schedule_policy": {"enabled": False}})
+    enabled = nvd.model_copy(update={"schedule_policy": {"enabled": True, "interval_seconds": 900}})
+    try:
+        async with factory() as session, session.begin():
+            ids = await sync_source_definitions(session, [enabled])
+            await ensure_source_states(session, ids, now=now)
+        async with factory() as session:
+            source = await session.get(SourceModel, nvd.source_id)
+            state = await session.get(SourceStateModel, nvd.source_id)
+            assert source is not None and source.enabled is True
+            assert state is not None and _as_utc(state.next_due_at) == now
+
+        async with factory() as session, session.begin():
+            ids = await sync_source_definitions(session, [disabled])
+            await ensure_source_states(session, ids, now=now + timedelta(minutes=1))
+        async with factory() as session:
+            source = await session.get(SourceModel, nvd.source_id)
+            state = await session.get(SourceStateModel, nvd.source_id)
+            assert source is not None and source.enabled is True
+            assert state is not None and state.next_due_at is None
+        async with factory() as session, session.begin():
+            assert await schedule_due_sources(session, now=now + timedelta(hours=1)) == []
+
+        resumed_at = now + timedelta(hours=2)
+        async with factory() as session, session.begin():
+            ids = await sync_source_definitions(session, [enabled])
+            await ensure_source_states(session, ids, now=resumed_at)
+        async with factory() as session:
+            source = await session.get(SourceModel, nvd.source_id)
+            state = await session.get(SourceStateModel, nvd.source_id)
+            assert source is not None and source.enabled is True
+            assert state is not None and _as_utc(state.next_due_at) == resumed_at
+    finally:
+        await engine.dispose()

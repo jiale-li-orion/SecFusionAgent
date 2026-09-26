@@ -8,6 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from packages.intelligence.documents.parsers import PlainTextDocumentParser
 from packages.intelligence.documents.service import ManagedDocumentService
 from packages.intelligence.ingestion.evidence import EvidenceIngress
+from packages.intelligence.retrieval.contracts import EmbeddingBatch
+from packages.intelligence.retrieval.indexing import DocumentIndexService
 from packages.intelligence.storage.artifacts import MemoryArtifactStore
 from packages.intelligence.storage.document_models import (
     DocumentChunkModel,
@@ -31,6 +33,16 @@ SOURCE = next(
     for item in load_source_definitions(Path("config/sources"))
     if item.source_id == "arxiv-ai-security"
 )
+
+
+class FakeEmbeddingProvider:
+    async def embed(self, texts: list[str]) -> EmbeddingBatch:
+        return EmbeddingBatch(
+            model="fake-embedding",
+            version="1",
+            dimensions=3,
+            vectors=[[float(index), 0.5, 1.0] for index, _ in enumerate(texts)],
+        )
 
 
 @pytest.mark.asyncio
@@ -118,7 +130,7 @@ async def test_managed_document_versions_are_durable_and_chunked() -> None:
             assert await _count(session, InsightCandidateModel) == 2
             assert await _count(session, ObservationModel) == 2
             assert await _count(session, ProcessingRunModel) == 2
-            assert await _count(session, OutboxEventModel) == 2
+            assert await _count(session, OutboxEventModel) == 4
             assert await _count(session, DocumentChunkModel) == (
                 result1.chunk_count + result2.chunk_count
             )
@@ -137,6 +149,72 @@ async def test_managed_document_versions_are_durable_and_chunked() -> None:
                 )
             )
             assert {item.change_type for item in insights} == {"new_document", "new_revision"}
+
+        indexer = DocumentIndexService()
+        async with factory() as session, session.begin():
+            indexed = await indexer.build_lexical_index(
+                session, document_revision_id=result2.document_revision_id
+            )
+            assert indexed.changed is True
+            assert len(indexed.indexed_chunk_ids) == result2.chunk_count
+
+        async with factory() as session:
+            first_chunks = list(
+                await session.scalars(
+                    select(DocumentChunkModel).where(
+                        DocumentChunkModel.document_revision_id == result1.document_revision_id
+                    )
+                )
+            )
+            second_chunks = list(
+                await session.scalars(
+                    select(DocumentChunkModel).where(
+                        DocumentChunkModel.document_revision_id == result2.document_revision_id
+                    )
+                )
+            )
+            assert {item.index_status for item in first_chunks} == {"pending"}
+            assert {item.index_status for item in second_chunks} == {"lexical_ready"}
+            assert {item.metadata_json.get("lexical_index_version") for item in second_chunks} == {
+                DocumentIndexService.LEXICAL_INDEX_VERSION
+            }
+
+        async with factory() as session, session.begin():
+            dense = await indexer.build_dense_index(
+                session,
+                document_revision_id=result2.document_revision_id,
+                provider=FakeEmbeddingProvider(),
+            )
+            assert dense.changed is True
+            assert dense.embedding_model == "fake-embedding"
+            assert dense.dimensions == 3
+
+        async with factory() as session:
+            dense_chunks = list(
+                await session.scalars(
+                    select(DocumentChunkModel).where(
+                        DocumentChunkModel.document_revision_id == result2.document_revision_id
+                    )
+                )
+            )
+            assert {item.index_status for item in dense_chunks} == {"retrieval_ready"}
+            assert {item.embedding_model for item in dense_chunks} == {"fake-embedding"}
+            assert {item.embedding_version for item in dense_chunks} == {"1"}
+            assert all(
+                item.embedding is not None and len(item.embedding) == 3 for item in dense_chunks
+            )
+
+        async with factory() as session, session.begin():
+            replay_index = await indexer.build_lexical_index(
+                session, document_revision_id=result2.document_revision_id
+            )
+            assert replay_index.changed is False
+            replay_dense = await indexer.build_dense_index(
+                session,
+                document_revision_id=result2.document_revision_id,
+                provider=FakeEmbeddingProvider(),
+            )
+            assert replay_dense.changed is False
     finally:
         await engine.dispose()
 

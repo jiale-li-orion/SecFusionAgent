@@ -1,0 +1,23 @@
+{
+  "source_id": "securityweek-news",
+  "adapter_type": "html_incident",
+  "source_class": "incident_news",
+  "authority_scope": ["breaking_signal", "enterprise_incident_reporting", "supply_chain_reporting"],
+  "source_role": "signal",
+  "source_family": "securityweek",
+  "access_mode": "html_index",
+  "update_semantics": "mutable_article_list",
+  "discovery_method": {
+    "index_url": "https://www.securityweek.com/",
+    "link_selector": "article a[href]",
+    "allowed_hosts": ["www.securityweek.com", "securityweek.com"],
+    "max_items": 30
+  },
+  "time_semantics": {"observed_at": "collector_clock"},
+  "identity_semantics": {"external_object_id": "canonical article URL"},
+  "rate_limit_policy": {"provider": "securityweek"},
+  "access_rights": {"classification": "public"},
+  "retention_mode": "incident_signal",
+  "schedule_policy": {"enabled": false},
+  "schema_version": "1"
+}

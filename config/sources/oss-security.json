@@ -1,0 +1,22 @@
+{
+  "source_id": "oss-security",
+  "adapter_type": "oss_security",
+  "source_class": "independent_security_research",
+  "authority_scope": ["oss_disclosure", "maintainer_advisory", "patch_context", "coordination_discussion"],
+  "source_role": "forensic",
+  "source_family": "openwall-oss-security",
+  "access_mode": "mailing_list_archive",
+  "update_semantics": "append_only_messages",
+  "discovery_method": {
+    "root_url": "https://www.openwall.com/lists/oss-security/",
+    "lookback_months": 2,
+    "max_items": 120
+  },
+  "time_semantics": {"published_at": "message Date header", "observed_at": "collector_clock"},
+  "identity_semantics": {"external_object_id": "YYYY/MM/DD/message_ordinal"},
+  "rate_limit_policy": {"provider": "openwall"},
+  "access_rights": {"classification": "public-mailing-list"},
+  "retention_mode": "durable_managed",
+  "schedule_policy": {"enabled": true, "interval_seconds": 3600},
+  "schema_version": "1"
+}

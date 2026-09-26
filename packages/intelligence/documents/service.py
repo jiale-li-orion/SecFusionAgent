@@ -176,6 +176,10 @@ class ManagedDocumentService:
                 created_at=now,
             )
             session.add(document)
+            # Persist the parent before inserting a revision. These models use
+            # explicit FK ids without ORM relationships, so PostgreSQL must not
+            # rely on unit-of-work insert ordering.
+            await session.flush()
 
         document_revision_id = _stable_id(
             f"document-revision:{document_id}:{observation.observation_id}"
@@ -196,15 +200,18 @@ class ManagedDocumentService:
                 created_at=now,
             )
         )
+        await session.flush()
         sections = parser.parse(envelope.content_bytes())
         chunks = chunk_sections(sections)
+        chunk_ids: list[str] = []
         for chunk in chunks:
+            chunk_id = _stable_id(
+                f"document-chunk:{document_revision_id}:{chunk.ordinal}:{chunk.content_hash}"
+            )
+            chunk_ids.append(chunk_id)
             session.add(
                 DocumentChunkModel(
-                    chunk_id=_stable_id(
-                        f"document-chunk:{document_revision_id}:{chunk.ordinal}:"
-                        f"{chunk.content_hash}"
-                    ),
+                    chunk_id=chunk_id,
                     document_revision_id=document_revision_id,
                     ordinal=chunk.ordinal,
                     section=chunk.section,
@@ -215,8 +222,13 @@ class ManagedDocumentService:
                         "object_id": object_id,
                     },
                     locator={
-                        "kind": "pdf_page" if chunk.page_number is not None else "text_range",
+                        **chunk.source_locator,
+                        "kind": chunk.source_locator.get(
+                            "kind",
+                            "pdf_page" if chunk.page_number is not None else "text_range",
+                        ),
                         "page": chunk.page_number,
+                        "section": chunk.section,
                         "char_start": chunk.char_start,
                         "char_end": chunk.char_end,
                     },
@@ -281,6 +293,21 @@ class ManagedDocumentService:
                     "object_ids": [object_id],
                     "claim_ids": [],
                     "relation_ids": [],
+                },
+                status="pending",
+                attempts=0,
+                available_at=now,
+            )
+        )
+        session.add(
+            OutboxEventModel(
+                event_id=_stable_id(f"outbox:document.index.requested:{run_id}"),
+                topic="document.index.requested",
+                aggregate_id=document_revision_id,
+                payload={
+                    "document_revision_id": document_revision_id,
+                    "chunk_ids": chunk_ids,
+                    "knowledge_revision": revision.revision,
                 },
                 status="pending",
                 attempts=0,

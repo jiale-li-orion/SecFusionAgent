@@ -10,8 +10,12 @@ from pydantic import JsonValue
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from packages.intelligence.ingestion.evidence import ObservationAck
-from packages.intelligence.knowledge.contracts import EnrichmentCandidate, ObjectCandidate
+from packages.intelligence.knowledge.contracts import (
+    EnrichmentCandidate,
+    EvidencePointer,
+    KnowledgeOrigin,
+    ObjectCandidate,
+)
 from packages.intelligence.normalization.canonical import NormalizationResult
 from packages.intelligence.storage.knowledge_models import (
     ClaimModel,
@@ -37,10 +41,11 @@ class EvidenceBackedKnowledgeWriter:
         *,
         root_object_id: str | None = None,
         source: SourceDefinition,
-        observation: ObservationAck,
+        observation: EvidencePointer,
         candidate: EnrichmentCandidate,
         processor_name: str,
         processor_version: str,
+        origin: KnowledgeOrigin = "source_asserted",
     ) -> NormalizationResult:
         root_seed = root_object_id
         if root_seed is None and candidate.root_object is not None:
@@ -149,7 +154,7 @@ class EvidenceBackedKnowledgeWriter:
                         predicate=claim_candidate.predicate,
                         value=claim_candidate.value,
                         qualifier={"source_id": source.source_id, **claim_candidate.qualifier},
-                        origin="source_asserted",
+                        origin=origin,
                         lifecycle="accepted",
                         processing_run_id=run_id,
                         created_revision=revision.revision,
@@ -186,7 +191,7 @@ class EvidenceBackedKnowledgeWriter:
                             "source_id": source.source_id,
                             **relation_candidate.qualifier,
                         },
-                        origin="source_asserted",
+                        origin=origin,
                         lifecycle="accepted",
                         processing_run_id=run_id,
                         created_revision=revision.revision,
@@ -341,7 +346,7 @@ def _add_evidence_link(
     *,
     target_kind: str,
     target_id: str,
-    observation: ObservationAck,
+    observation: EvidencePointer,
     locator: dict[str, JsonValue],
 ) -> None:
     locator_hash = _json_hash(locator)

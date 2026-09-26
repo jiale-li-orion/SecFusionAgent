@@ -42,20 +42,55 @@ class CurrentProjectionService:
         object_id: str,
         upstream_revision: int,
     ) -> ProjectionWriteResult | None:
-        obj = await session.get(ObjectModel, object_id)
-        if obj is None or obj.object_type != "Vulnerability":
-            return None
-        projection_type = "current_vulnerability_view"
-        data = await _vulnerability_projection(session, obj)
-        projection_key = _primary_identifier(data, "cve") or obj.canonical_key
-        return await self._upsert(
+        results = await self.rebuild_knowledge_object_views(
             session,
-            projection_type=projection_type,
-            subject_id=obj.object_id,
-            projection_key=projection_key,
-            data=data,
+            object_id=object_id,
             upstream_revision=upstream_revision,
         )
+        return results[0] if results else None
+
+    async def rebuild_knowledge_object_views(
+        self,
+        session: AsyncSession,
+        *,
+        object_id: str,
+        upstream_revision: int,
+    ) -> list[ProjectionWriteResult]:
+        obj = await session.get(ObjectModel, object_id)
+        if obj is None:
+            return []
+        if obj.object_type == "Vulnerability":
+            data = await _vulnerability_projection(session, obj)
+            projection_key = _primary_identifier(data, "cve") or obj.canonical_key
+            views = [
+                ("current_vulnerability_view", data),
+                ("current_affected_versions", _affected_versions_projection(data)),
+                ("current_fix_status", _fix_status_projection(data)),
+            ]
+            return [
+                await self._upsert(
+                    session,
+                    projection_type=projection_type,
+                    subject_id=obj.object_id,
+                    projection_key=projection_key,
+                    data=view_data,
+                    upstream_revision=upstream_revision,
+                )
+                for projection_type, view_data in views
+            ]
+        if obj.object_type == "Repo":
+            data = await _repo_security_projection(session, obj)
+            return [
+                await self._upsert(
+                    session,
+                    projection_type="current_repo_security_state",
+                    subject_id=obj.object_id,
+                    projection_key=obj.canonical_key,
+                    data=data,
+                    upstream_revision=upstream_revision,
+                )
+            ]
+        return []
 
     async def rebuild_incident(
         self,
@@ -231,6 +266,209 @@ async def _vulnerability_projection(
         "fields": fields,
         "conflict_predicates": sorted(conflict_predicates),
         "relations": relation_views,
+    }
+
+
+def _affected_versions_projection(data: dict[str, object]) -> dict[str, object]:
+    relations = data.get("relations")
+    entries: list[dict[str, object]] = []
+    if isinstance(relations, list):
+        for relation in relations:
+            if not isinstance(relation, dict) or relation.get("type") != "affects-package":
+                continue
+            qualifier = relation.get("qualifier")
+            entries.append(
+                {
+                    "relation_id": relation.get("relation_id"),
+                    "target_id": relation.get("target_id"),
+                    "target_key": relation.get("target_key"),
+                    "target_properties": relation.get("target_properties", {}),
+                    "qualifier": qualifier if isinstance(qualifier, dict) else {},
+                    "revision": relation.get("revision"),
+                }
+            )
+    return {
+        "object_id": data.get("object_id"),
+        "identifiers": data.get("identifiers", {}),
+        "affected_entries": entries,
+    }
+
+
+def _fix_status_projection(data: dict[str, object]) -> dict[str, object]:
+    relations = data.get("relations")
+    fixed_versions: list[dict[str, object]] = []
+    fixed_commits: list[dict[str, object]] = []
+    fix_relations: list[dict[str, object]] = []
+    if isinstance(relations, list):
+        for relation in relations:
+            if not isinstance(relation, dict):
+                continue
+            relation_type = relation.get("type")
+            qualifier = relation.get("qualifier")
+            qualifier_dict = qualifier if isinstance(qualifier, dict) else {}
+            if relation_type == "affects-package":
+                patched = qualifier_dict.get("first_patched_version")
+                if isinstance(patched, str) and patched:
+                    fixed_versions.append(
+                        {
+                            "version": patched,
+                            "target_key": relation.get("target_key"),
+                            "source_id": qualifier_dict.get("source_id"),
+                            "relation_id": relation.get("relation_id"),
+                        }
+                    )
+                ranges = qualifier_dict.get("ranges")
+                if isinstance(ranges, list):
+                    for range_item in ranges:
+                        if not isinstance(range_item, dict):
+                            continue
+                        range_type = str(range_item.get("type", "")).upper()
+                        events = range_item.get("events")
+                        if not isinstance(events, list):
+                            continue
+                        for event in events:
+                            if not isinstance(event, dict):
+                                continue
+                            fixed = event.get("fixed")
+                            if not isinstance(fixed, str):
+                                continue
+                            if range_type == "GIT":
+                                fixed_commits.append(
+                                    {
+                                        "sha": fixed,
+                                        "repo": range_item.get("repo"),
+                                        "target_key": relation.get("target_key"),
+                                        "source_id": qualifier_dict.get("source_id"),
+                                        "relation_id": relation.get("relation_id"),
+                                    }
+                                )
+                            else:
+                                fixed_versions.append(
+                                    {
+                                        "version": fixed,
+                                        "target_key": relation.get("target_key"),
+                                        "source_id": qualifier_dict.get("source_id"),
+                                        "relation_id": relation.get("relation_id"),
+                                    }
+                                )
+            if relation_type in {"fixed-by", "fixed-in-release", "contains-fix"}:
+                fix_relations.append(relation)
+                if relation_type == "fixed-by" and relation.get("target_type") == "Commit":
+                    target_properties = relation.get("target_properties")
+                    properties = target_properties if isinstance(target_properties, dict) else {}
+                    sha = properties.get("sha")
+                    if isinstance(sha, str) and sha:
+                        fixed_commits.append(
+                            {
+                                "sha": sha,
+                                "repo": qualifier_dict.get("repo_url"),
+                                "target_key": relation.get("target_key"),
+                                "source_id": qualifier_dict.get("source_id"),
+                                "relation_id": relation.get("relation_id"),
+                                "confirmed": True,
+                            }
+                        )
+    fixed_versions = _dedupe_dicts(fixed_versions, ("version", "target_key", "source_id"))
+    fixed_commits = _dedupe_dicts(fixed_commits, ("sha", "repo", "source_id"))
+    versions_by_target: dict[str, set[str]] = {}
+    for item in fixed_versions:
+        value = item.get("version")
+        target_key = item.get("target_key")
+        if isinstance(value, str) and isinstance(target_key, str):
+            versions_by_target.setdefault(target_key, set()).add(value)
+    target_status = [
+        {
+            "target_key": target_key,
+            "versions": sorted(versions),
+            "conflict": len(versions) > 1,
+        }
+        for target_key, versions in sorted(versions_by_target.items())
+    ]
+    return {
+        "object_id": data.get("object_id"),
+        "identifiers": data.get("identifiers", {}),
+        "status": "known" if fixed_versions or fixed_commits or fix_relations else "unknown",
+        "fixed_versions": fixed_versions,
+        "fixed_commits": fixed_commits,
+        "targets": target_status,
+        "version_conflict": any(item["conflict"] is True for item in target_status),
+        "fix_relations": fix_relations,
+    }
+
+
+def _dedupe_dicts(
+    items: list[dict[str, object]],
+    keys: tuple[str, ...],
+) -> list[dict[str, object]]:
+    unique: dict[tuple[str, ...], dict[str, object]] = {}
+    for item in items:
+        fingerprint = tuple(str(item.get(key, "")) for key in keys)
+        existing = unique.get(fingerprint)
+        if existing is None or item.get("confirmed") is True:
+            unique[fingerprint] = item
+    return list(unique.values())
+
+
+async def _repo_security_projection(
+    session: AsyncSession,
+    obj: ObjectModel,
+) -> dict[str, object]:
+    claims = list(
+        await session.scalars(
+            select(ClaimModel)
+            .where(
+                ClaimModel.subject_id == obj.object_id,
+                ClaimModel.lifecycle == "accepted",
+                ClaimModel.superseded_revision.is_(None),
+            )
+            .order_by(ClaimModel.created_revision, ClaimModel.claim_id)
+        )
+    )
+    inbound = list(
+        await session.scalars(
+            select(RelationModel)
+            .where(
+                RelationModel.target_object_id == obj.object_id,
+                RelationModel.lifecycle == "accepted",
+                RelationModel.superseded_revision.is_(None),
+            )
+            .order_by(RelationModel.created_revision, RelationModel.relation_id)
+        )
+    )
+    fields: dict[str, object] = {}
+    for claim in claims:
+        fields[claim.predicate] = {
+            "claim_id": claim.claim_id,
+            "value": claim.value,
+            "qualifier": claim.qualifier,
+            "revision": claim.created_revision,
+        }
+    development_objects: list[dict[str, object]] = []
+    counts: dict[str, int] = {}
+    for relation in inbound:
+        if relation.relation_type != "belongs-to-repo":
+            continue
+        source = await session.get(ObjectModel, relation.source_object_id)
+        if source is None:
+            continue
+        counts[source.object_type] = counts.get(source.object_type, 0) + 1
+        development_objects.append(
+            {
+                "object_id": source.object_id,
+                "object_type": source.object_type,
+                "canonical_key": source.canonical_key,
+                "properties": source.properties,
+                "relation_id": relation.relation_id,
+                "revision": relation.created_revision,
+            }
+        )
+    return {
+        "object_id": obj.object_id,
+        "canonical_key": obj.canonical_key,
+        "properties": obj.properties,
+        "fields": fields,
+        "development_object_counts": counts,
+        "development_objects": development_objects,
     }
 
 

@@ -1,0 +1,41 @@
+{
+  "source_id": "owasp-genai",
+  "adapter_type": "html_index",
+  "source_class": "independent_security_research",
+  "authority_scope": [
+    "operational_taxonomy",
+    "agent_security_guidance",
+    "llm_application_risk"
+  ],
+  "source_role": "reference",
+  "source_family": "owasp-genai",
+  "access_mode": "html_index",
+  "update_semantics": "mutable_guidance",
+  "discovery_method": {
+    "index_url": "https://genai.owasp.org/",
+    "link_selector": "a[href*='llm-top-10']",
+    "allowed_hosts": [
+      "genai.owasp.org"
+    ],
+    "max_items": 20
+  },
+  "time_semantics": {
+    "updated_at": "http_last_modified_when_available"
+  },
+  "identity_semantics": {
+    "external_object_id": "canonical_guidance_url",
+    "external_revision": "etag_or_last_modified"
+  },
+  "rate_limit_policy": {
+    "provider": "owasp"
+  },
+  "access_rights": {
+    "classification": "public"
+  },
+  "retention_mode": "durable_managed",
+  "schedule_policy": {
+    "enabled": true,
+    "interval_seconds": 86400
+  },
+  "schema_version": "1"
+}

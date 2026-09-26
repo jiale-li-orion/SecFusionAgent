@@ -1,0 +1,11 @@
+{
+  "id": 81001,
+  "node_id": "I_kwDOExample",
+  "number": 8421,
+  "title": "Security: authentication bypass in OpenAI-compatible endpoint",
+  "state": "closed",
+  "html_url": "https://github.com/vllm-project/vllm/issues/8421",
+  "created_at": "2026-09-20T08:00:00Z",
+  "updated_at": "2026-09-24T09:30:00Z",
+  "closed_at": "2026-09-24T09:30:00Z"
+}

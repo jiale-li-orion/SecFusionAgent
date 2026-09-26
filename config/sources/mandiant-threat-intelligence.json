@@ -1,0 +1,23 @@
+{
+  "source_id": "mandiant-threat-intelligence",
+  "adapter_type": "html_index",
+  "source_class": "independent_security_research",
+  "authority_scope": ["incident_response", "threat_actor", "ttp", "supply_chain", "forensic_analysis"],
+  "source_role": "forensic",
+  "source_family": "google-threat-intelligence",
+  "access_mode": "html_index",
+  "update_semantics": "mutable_research_article",
+  "discovery_method": {
+    "index_url": "https://cloud.google.com/blog/topics/threat-intelligence",
+    "link_selector": "a[href*='/blog/topics/threat-intelligence/']",
+    "allowed_hosts": ["cloud.google.com"],
+    "max_items": 20
+  },
+  "time_semantics": {"observed_at": "collector_clock"},
+  "identity_semantics": {"external_object_id": "canonical article URL"},
+  "rate_limit_policy": {"provider": "google-cloud"},
+  "access_rights": {"classification": "public"},
+  "retention_mode": "durable_managed",
+  "schedule_policy": {"enabled": false},
+  "schema_version": "1"
+}

@@ -1,0 +1,80 @@
+{
+  "source_id": "iso-ai-standards",
+  "adapter_type": "direct_document",
+  "source_class": "normative_knowledge",
+  "authority_scope": [
+    "standard_status",
+    "standard_metadata",
+    "official_abstract"
+  ],
+  "source_role": "authority",
+  "source_family": "iso-sc42",
+  "access_mode": "direct_documents",
+  "update_semantics": "official_catalog_metadata_revision",
+  "discovery_method": {
+    "allowed_hosts": [
+      "www.iso.org",
+      "iso.org"
+    ],
+    "allowed_media_types": [
+      "text/html",
+      "application/xhtml+xml"
+    ],
+    "documents": [
+      {
+        "document_id": "ISO-IEC-42001-2023",
+        "title": "ISO/IEC 42001:2023",
+        "document_type": "international_standard_metadata",
+        "url": "https://www.iso.org/standard/42001"
+      },
+      {
+        "document_id": "ISO-IEC-23894-2023",
+        "title": "ISO/IEC 23894:2023",
+        "document_type": "international_standard_metadata",
+        "url": "https://www.iso.org/standard/77304.html"
+      },
+      {
+        "document_id": "ISO-IEC-42005-2025",
+        "title": "ISO/IEC 42005:2025",
+        "document_type": "international_standard_metadata",
+        "url": "https://www.iso.org/standard/42005"
+      },
+      {
+        "document_id": "ISO-SC42-CATALOGUE",
+        "title": "ISO/IEC JTC 1/SC 42 catalogue",
+        "document_type": "official_catalogue",
+        "url": "https://www.iso.org/committee/6794475/x/catalogue/"
+      },
+      {
+        "document_id": "ISO-IEC-5259-SERIES",
+        "title": "ISO/IEC 5259 series — Data quality for analytics and machine learning",
+        "document_type": "international_standard_series_metadata",
+        "url": "https://www.iso.org/search.html?q=ISO%2FIEC%205259"
+      },
+      {
+        "document_id": "ISO-IEC-TR-24028-2020",
+        "title": "ISO/IEC TR 24028:2020 — Overview of trustworthiness in artificial intelligence",
+        "document_type": "technical_report_metadata",
+        "url": "https://www.iso.org/standard/77608.html"
+      }
+    ]
+  },
+  "time_semantics": {
+    "updated_at": "http_last_modified_when_available"
+  },
+  "identity_semantics": {
+    "external_object_id": "configured document_id"
+  },
+  "rate_limit_policy": {
+    "provider": "iso"
+  },
+  "access_rights": {
+    "classification": "metadata_only_copyright_restricted"
+  },
+  "retention_mode": "durable_managed",
+  "schedule_policy": {
+    "enabled": true,
+    "interval_seconds": 86400
+  },
+  "schema_version": "1"
+}

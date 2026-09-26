@@ -1,0 +1,38 @@
+{
+  "source_id": "openreview-search",
+  "adapter_type": "scholarly_search",
+  "source_class": "academic_search",
+  "authority_scope": [
+    "submission_identity",
+    "title",
+    "abstract",
+    "venue",
+    "review_context"
+  ],
+  "source_role": "reference",
+  "source_family": "openreview",
+  "access_mode": "https_api",
+  "update_semantics": "on_demand_search",
+  "discovery_method": {
+    "provider": "openreview",
+    "base_url": "https://api2.openreview.net/notes/search"
+  },
+  "time_semantics": {
+    "observed_at": "collector_clock",
+    "published_at": "note.cdate"
+  },
+  "identity_semantics": {
+    "external_object_id": "note.id"
+  },
+  "rate_limit_policy": {
+    "provider": "openreview"
+  },
+  "access_rights": {
+    "classification": "public-note-metadata"
+  },
+  "retention_mode": "time_bounded",
+  "schedule_policy": {
+    "enabled": false
+  },
+  "schema_version": "1"
+}

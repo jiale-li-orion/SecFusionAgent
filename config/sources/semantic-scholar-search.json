@@ -1,0 +1,37 @@
+{
+  "source_id": "semantic-scholar-search",
+  "adapter_type": "scholarly_search",
+  "source_class": "academic_search",
+  "authority_scope": [
+    "paper_identity",
+    "citation_metadata",
+    "candidate_discovery"
+  ],
+  "source_role": "reference",
+  "source_family": "semantic-scholar",
+  "access_mode": "https_api",
+  "update_semantics": "on_demand_search",
+  "discovery_method": {
+    "provider": "semantic_scholar",
+    "base_url": "https://api.semanticscholar.org/graph/v1/paper/search"
+  },
+  "time_semantics": {
+    "observed_at": "collector_clock"
+  },
+  "identity_semantics": {
+    "external_object_id": "paperId"
+  },
+  "auth_ref": "SECFUSION_SEMANTIC_SCHOLAR_API_KEY",
+  "rate_limit_policy": {
+    "provider": "semantic-scholar",
+    "anonymous_rate_limited": true
+  },
+  "access_rights": {
+    "classification": "public-metadata"
+  },
+  "retention_mode": "time_bounded",
+  "schedule_policy": {
+    "enabled": false
+  },
+  "schema_version": "1"
+}

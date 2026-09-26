@@ -11,11 +11,11 @@ SecFusionAgent builds a continuously evolving intelligence system for AI securit
 
 The Agent here sits on top of a verifiable data plane. External reads carry acquisition provenance; important conclusions trace back to the original observation / artifact; historical revisions are retained and current views are rebuildable. Agent work then covers investigation, tool calls and reasoning; it does not replace evidence authority.
 
-[Architecture Views](https://jiale-li-orion.github.io/SecFusionAgent/index.en.html) · [Project Wiki](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Home.en) · [Requirements](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Requirements-SPEC.en) · [Technical Design](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design.en) · Website：[jiale-li-orion.github.io/SecFusionAgent](https://jiale-li-orion.github.io/SecFusionAgent/)
+[Architecture Views](https://jiale-li-orion.github.io/SecFusionAgent/index.en.html) · [Project Wiki](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Home.en) · [Requirements](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Requirements-SPEC.en) · [Technical Design 1](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design-1.en) · [Technical Design 2](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design-2.en) · Website：[jiale-li-orion.github.io/SecFusionAgent](https://jiale-li-orion.github.io/SecFusionAgent/)
 
 ## Project status
 
-SecFusionAgent is at the **M1–M3 Data Plane first-pass implementation / integration probe** stage. The first implementation round covers multiple source lifecycles, canonical knowledge, provider-backed enrichment, Incident Watch, managed documents, current projections and the storage boundary of Investigation Experience; real infrastructure integration with PostgreSQL, Redis, MinIO and Celery is still being verified.
+SecFusionAgent is at the **M1–M3 Data Plane / M3→M4 handoff verified** stage. The data plane now covers hot vulnerability working sets, durable evidence/canonical knowledge, provider enrichment, Incident Watch, managed HTML/PDF/plain documents, GitHub development objects, materialized current views, time-bounded Internet asset observations and the Case/Trajectory/Experience storage seam. `make verify-m3` verifies the handoff with fast tests, source ownership/lifecycle checks, real PostgreSQL/pgvector/FTS, separated Redis failure domains, outbox→Celery replay/idempotency and a real S3-compatible ArtifactStore round trip. M4 task routing, query construction, retrieval/perception, investigation state, Agent runtime and M6 decision remain intentionally outside the M1–M3 data-plane implementation and are specified in Technical Design 2.
 
 The current local quality gate:
 
@@ -25,14 +25,15 @@ mypy        static type checking
 pytest      domain, replay, state-transition and contract tests
 ```
 
-Repository CI continuously runs `ruff`, `mypy`, and `pytest`. Fast tests mostly use fixtures and a lightweight local database to verify deterministic contracts; they do not replace integration tests for PostgreSQL transactions, queue recovery, object storage, concurrency or deployment.
+Repository CI continuously runs `ruff`, `mypy`, and `pytest`. The current fast gate is **97 passed + 6 infrastructure tests skipped by default**. `make integration-core` runs **5/5** real PostgreSQL/pgvector/FTS, Redis, outbox/Celery and M3-handoff tests; `make integration-object-store` runs the real S3-compatible ArtifactStore round trip. The last recorded live-probe snapshot is **41 OK / 10 provider-blocked / 5 transient failures / 1 rate-limited / 7 auth-required**. It is a point-in-time reachability report, not an M3 acceptance gate; anti-bot, network, rate-limit and credential handling remain later provider-hardening work. Fast SQLite/fixture tests remain useful for deterministic contracts but are not treated as infrastructure evidence.
 
 ## System overview
 
 The public documentation site contains two interactive Archify views generated from the authoritative specifications:
 
-- [Technical Design — Data Plane](https://jiale-li-orion.github.io/SecFusionAgent/tech-design.en.html) shows Acquisition, the four `retention_mode` lifecycles, the Evidence boundary, durable state and asynchronous consumers.
-- [Requirements — Module Flow](https://jiale-li-orion.github.io/SecFusionAgent/requirements.en.html) shows the M1–M8 product modules, C1–C3 cross-cutting constraints and acceptance semantics.
+- [Technical Design 1](https://jiale-li-orion.github.io/SecFusionAgent/tech-design.en.html) shows Acquisition, the four `retention_mode` lifecycles, the Evidence boundary, durable state and asynchronous consumers.
+- [Technical Design 2](https://jiale-li-orion.github.io/SecFusionAgent/diagrams/tech-design-lower.en.html) shows task routing, Perception, Investigation State, bounded execution and decision flow.
+- [Requirements](https://jiale-li-orion.github.io/SecFusionAgent/requirements.en.html) shows the M1–M8 product modules, C1–C3 cross-cutting constraints and acceptance semantics.
 
 The system maintains source protocols, runtime lifecycle, canonical knowledge and derived read models separately: provider adapters interpret external protocols; the acquisition runtime records every scheduled / on-demand read; EvidenceIngress fixes the raw revision; canonical knowledge holds long-lived facts and provenance; projections, caches and later retrieval indexes are all rebuildable state.
 
@@ -40,15 +41,18 @@ The system maintains source protocols, runtime lifecycle, canonical knowledge an
 
 | Path | Current implementation | Purpose |
 | --- | --- | --- |
-| Hot Bug Stream | NVD CVE API → normalization → Redis hot working set → durable promotion | Keep high-frequency vulnerability feeds fresh without copying the full vulnerability history into the local long-term store |
+| Hot Bug Stream | NVD + CVE Program/cvelistV5 → provider projection → Redis hot working set → durable canonical promotion | Keep high-frequency vulnerability feeds fresh without copying the full vulnerability history into the local long-term store |
 | Vulnerability Enrichment | OSV / GitHub Global Advisory / CISA KEV → child AcquisitionRun → EvidenceIngress → claims / relations | Add package, fix, KEV and advisory information to vulnerabilities already promoted into durable knowledge |
-| Managed Content | arXiv Atom discovery → versioned PDF artifact → document revision → page-oriented chunks | Build a research corpus that evolves over the long term and traces back to a specific revision / page |
-| Structured Source Index | GitHub target repositories → repo revision cursor → `Repo` object / claims | Continuously maintain structured state for priority AI infrastructure repositories |
-| Incident Watch | RSS breaking source → strong-anchor correlation → candidate watch → durable incident timeline | Organize breaking reports and later independent evidence into security incidents that keep accumulating enrichment |
-| Current Projection | knowledge / incident change → transactional outbox → projection rebuild | Provide a low-cost current view for the API and later retrieval while preserving underlying history and conflicts |
+| Managed Content | PDF/plain/HTML/XHTML durable document revision/chunks → lexical FTS + provider-neutral dense embedding → evidence-gated semantic extraction | Build a retrieval-ready research corpus whose semantic claims still resolve to a specific source revision and verbatim document span |
+| Structured Source Index | GitHub target repositories + explicit advisory references → Repo / Issue / PullRequest / Commit / Release objects and deterministic relations | Maintain priority AI infrastructure state and a development graph without guessing fix relations from semantic similarity |
+| Incident Watch | RSS / BlockBeats HTML breaking signal → deterministic anchor extraction → candidate correlation → durable incident timeline | Organize breaking reports and later independent evidence into security incidents without treating reprints as corroboration |
+| Current Projection | knowledge / incident change → transactional outbox → vulnerability / affected-version / fix-status / repo-security / incident views | Provide low-cost retrieval-ready current state while preserving underlying history, evidence and conflicts |
+| Internet Asset Observation | on-demand Shodan / Censys / FOFA / ZoomEye → provider-normalized AssetObservation → explicit EvidenceIngress promotion | Preserve query/provider/time provenance without turning volatile asset search results into permanent knowledge by default |
 | Investigation Memory | Case → append-only Trajectory → Experience candidate / version / evaluation | Store evaluable, versioned procedural experience for later Agent investigation |
 
 Built-in source definitions live in [`config/sources/`](config/sources/); whether a source enters the hot cache, the durable corpus, the structured index or incident staging is decided explicitly by `SourceDefinition.retention_mode`.
+
+The concrete source commitments projected by the website are tracked in [`config/source-inventory.json`](config/source-inventory.json). The current inventory maps **99/99 website entries** to either a fixed/grouped source owner or an executable dynamic resolver. The repository currently contains **63 SourceDefinition records**, all of which have a live-probe owner; the real PostgreSQL registry also syncs all 63 definitions and source states. `make source-inventory-check` verifies Chinese-catalog identity plus bilingual catalog structural parity, while `make verify-data-sources` adds deterministic source/runtime ownership tests. `make probe-live-sources` is kept as a manual reachability report. Lifecycle tests additionally require every configured retention mode to have an executable runtime owner: `time_bounded` sources stay out of the scheduler and have an explicit downstream consumer, every Hot Bug adapter has both hot and durable normalization, and every Incident adapter has a registered signal extractor.
 
 ## Evidence and knowledge model
 
@@ -161,7 +165,7 @@ make migrate
 make sync-sources
 ```
 
-This starts the local PostgreSQL/pgvector, Redis Broker, Redis Hot Cache and MinIO services, applies Alembic migrations, then synchronizes declarative source definitions into runtime state.
+`make dev-up-core` is the verified local core path for PostgreSQL/pgvector and the two Redis failure domains. `make dev-up` additionally asks for the configured MinIO deployment; that MinIO-specific image path is still tracked as an engineering blocker even though the S3-compatible ArtifactStore contract itself is verified against a pinned LocalStack Community integration provider.
 
 Stop the local stack with:
 
@@ -220,10 +224,26 @@ Probes answer bounded integration questions. Stable product behavior belongs in 
 
 ## Quality gates
 
-Run the complete local gate before submitting a change:
+Run the fast repository gate while iterating:
 
 ```bash
 make check
+```
+
+Run the complete M3 closeout gate before changing the handoff boundary:
+
+```bash
+make verify-m3
+```
+
+Focused infrastructure/source gates are also available:
+
+```bash
+make integration-core
+make integration-object-store
+make source-inventory-check
+make verify-data-sources
+make probe-live-sources
 ```
 
 Individual commands are available when iterating on a focused change:
@@ -261,7 +281,8 @@ The code repository and Wiki have separate ownership:
 Start with:
 
 - [Requirements SPEC](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Requirements-SPEC) — product scope, constraints and acceptance semantics.
-- [Technical Design](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design) — runtime architecture, storage semantics, M1–M3 processing paths and implementation baseline.
+- [Technical Design 1](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design-1) — M1–M3 runtime architecture, storage semantics, processing paths and implementation baseline.
+- [Technical Design 2](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design-2) — M4–M6 task routing, Perception, Investigation State, bounded execution and Decision contracts.
 - [Data Sources and Processing](https://github.com/jiale-li-orion/SecFusionAgent/wiki/01-Data-Sources-and-Processing) — source classes, lifecycle and data semantics.
 - [CTI Baseline Reuse and Ownership](https://github.com/jiale-li-orion/SecFusionAgent/wiki/02-CTI-Baseline-Reuse-and-Ownership) — CTI capability boundaries and reuse policy.
 - [Normative Knowledge and Policy](https://github.com/jiale-li-orion/SecFusionAgent/wiki/03-Normative-Knowledge-and-Policy) — standards, policy and normative knowledge.
@@ -273,15 +294,16 @@ Repository organization and contribution rules are defined by [`PRODUCT-REPO-STA
 
 ## Roadmap
 
-The next engineering boundary is the transition from a first-pass Data Plane to verified runtime and retrieval infrastructure:
+The next engineering boundary is the transition from the verified M3 handoff into the Investigation / Retrieval / Reasoning plane:
 
-- complete PostgreSQL / Redis / MinIO / Celery integration probes and recovery tests;
-- expand GitHub monitoring from repository metadata to issue / PR / commit / release relations;
-- add primary and forensic Incident sources beyond the first RSS breaking-source path;
-- extend Managed Content to HTML sources and semantic extraction;
-- implement rebuildable sparse + dense retrieval and query construction over current/canonical knowledge;
-- connect Investigation Case / Trajectory state to the Agent runtime;
-- establish fixed M7 evaluation protocols for enrichment, retrieval, QA, Agent trajectories and Experience activation;
+- run one live semantic+dense provider E2E once model credentials/endpoint are supplied;
+- validate deterministic fix-boundary promotion on a real target-repo OSV `GIT fixed` sample when one is available;
+- keep provider-access blockers explicit while preserving the closed source-lifecycle contracts;
+- extend Incident primary/forensic follow-up and on-chain telemetry beyond the current source set;
+- implement the Technical Design 2 fast path: `TaskSpec → ContextBinding → ExecutionProfile → L0/L1 query`;
+- add M4 `InvestigationState / EvidenceNeed / StatePatch / InvestigationSnapshot` and local Perception reads over the verified M3 state;
+- add dynamic capability visibility, hierarchical budgets, bounded loops and sandbox/network/identity enforcement before active Agent investigation;
+- establish M6 `DecisionResult` plus fixed M7 replay/evaluation protocols for routing, perception, state integration and evidence use;
 - add security regression for poisoned sources, indirect prompt injection, malicious tool output and privilege boundaries.
 
 Requirements remain the authority for product scope; roadmap ordering follows dependency and integration risk rather than UI completeness.

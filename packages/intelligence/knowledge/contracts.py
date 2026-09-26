@@ -1,10 +1,22 @@
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Literal, Protocol
 
 from pydantic import BaseModel, Field, JsonValue
 
 from packages.sources.contracts import IngestEnvelope
+
+KnowledgeOrigin = Literal["source_asserted", "deterministic_derived", "semantic_derived"]
+
+
+class EvidencePointer(Protocol):
+    observation_id: str
+    artifact_id: str | None
+
+
+class EvidenceAnchor(BaseModel):
+    observation_id: str
+    artifact_id: str | None = None
 
 
 class ObjectCandidate(BaseModel):

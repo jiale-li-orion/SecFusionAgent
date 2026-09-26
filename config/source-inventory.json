@@ -1,0 +1,907 @@
+{
+  "schema_version": "1",
+  "purpose": "Executable ownership inventory for the concrete source commitments projected by product documentation.",
+  "coverage_semantics": {
+    "owned": "A fixed/grouped repo owner exists; runtime reachability is reported separately by live probes.",
+    "partial": "A repo owner exists for a bounded subset; the note states the remaining scope.",
+    "dynamic": "The source is intentionally resolved at investigation time and has a named resolver owner."
+  },
+  "entries": [
+    {
+      "category": "vulnerability",
+      "name": "CVE Program / cvelistV5",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "cve-program-cvelist-v5"
+      ]
+    },
+    {
+      "category": "vulnerability",
+      "name": "NVD",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "nvd-cves-2"
+      ]
+    },
+    {
+      "category": "vulnerability",
+      "name": "OSV",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "osv-vulnerabilities"
+      ]
+    },
+    {
+      "category": "vulnerability",
+      "name": "CISA KEV",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "cisa-kev"
+      ]
+    },
+    {
+      "category": "vulnerability",
+      "name": "CNNVD",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "cnnvd-vulnerabilities"
+      ]
+    },
+    {
+      "category": "vulnerability",
+      "name": "CNVD",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "cnvd-vulnerabilities"
+      ]
+    },
+    {
+      "category": "development",
+      "name": "GitHub Global Advisories",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "github-global-advisories"
+      ]
+    },
+    {
+      "category": "development",
+      "name": "GitHub Target Repositories",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "github-target-repos"
+      ]
+    },
+    {
+      "category": "development",
+      "name": "vllm-project/vllm",
+      "mode": "grouped_member",
+      "coverage": "owned",
+      "source_ids": [
+        "github-target-repos"
+      ]
+    },
+    {
+      "category": "development",
+      "name": "sgl-project/sglang",
+      "mode": "grouped_member",
+      "coverage": "owned",
+      "source_ids": [
+        "github-target-repos"
+      ]
+    },
+    {
+      "category": "development",
+      "name": "ggml-org/llama.cpp",
+      "mode": "grouped_member",
+      "coverage": "owned",
+      "source_ids": [
+        "github-target-repos"
+      ]
+    },
+    {
+      "category": "development",
+      "name": "ollama/ollama",
+      "mode": "grouped_member",
+      "coverage": "owned",
+      "source_ids": [
+        "github-target-repos"
+      ]
+    },
+    {
+      "category": "development",
+      "name": "BerriAI/litellm",
+      "mode": "grouped_member",
+      "coverage": "owned",
+      "source_ids": [
+        "github-target-repos"
+      ]
+    },
+    {
+      "category": "development",
+      "name": "huggingface/transformers",
+      "mode": "grouped_member",
+      "coverage": "owned",
+      "source_ids": [
+        "github-target-repos"
+      ]
+    },
+    {
+      "category": "development",
+      "name": "triton-inference-server/server",
+      "mode": "grouped_member",
+      "coverage": "owned",
+      "source_ids": [
+        "github-target-repos"
+      ]
+    },
+    {
+      "category": "development",
+      "name": "NVIDIA/TensorRT-LLM",
+      "mode": "grouped_member",
+      "coverage": "owned",
+      "source_ids": [
+        "github-target-repos"
+      ]
+    },
+    {
+      "category": "development",
+      "name": "ray-project/ray",
+      "mode": "grouped_member",
+      "coverage": "owned",
+      "source_ids": [
+        "github-target-repos"
+      ]
+    },
+    {
+      "category": "development",
+      "name": "bentoml/BentoML",
+      "mode": "grouped_member",
+      "coverage": "owned",
+      "source_ids": [
+        "github-target-repos"
+      ]
+    },
+    {
+      "category": "development",
+      "name": "LMCache/LMCache",
+      "mode": "grouped_member",
+      "coverage": "owned",
+      "source_ids": [
+        "github-target-repos"
+      ]
+    },
+    {
+      "category": "development",
+      "name": "kvcache-ai/Mooncake",
+      "mode": "grouped_member",
+      "coverage": "owned",
+      "source_ids": [
+        "github-target-repos"
+      ]
+    },
+    {
+      "category": "development",
+      "name": "ai-dynamo/dynamo",
+      "mode": "grouped_member",
+      "coverage": "owned",
+      "source_ids": [
+        "github-target-repos"
+      ]
+    },
+    {
+      "category": "development",
+      "name": "kserve/kserve",
+      "mode": "grouped_member",
+      "coverage": "owned",
+      "source_ids": [
+        "github-target-repos"
+      ]
+    },
+    {
+      "category": "development",
+      "name": "safetensors/safetensors",
+      "mode": "grouped_member",
+      "coverage": "owned",
+      "source_ids": [
+        "github-target-repos"
+      ]
+    },
+    {
+      "category": "academic",
+      "name": "arXiv",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "arxiv-ai-security"
+      ]
+    },
+    {
+      "category": "academic",
+      "name": "Crossref",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "crossref-search"
+      ]
+    },
+    {
+      "category": "academic",
+      "name": "OpenAlex",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "openalex-search"
+      ]
+    },
+    {
+      "category": "academic",
+      "name": "OpenReview",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "openreview-search"
+      ]
+    },
+    {
+      "category": "academic",
+      "name": "Semantic Scholar",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "semantic-scholar-search"
+      ]
+    },
+    {
+      "category": "academic",
+      "name": "USENIX Security proceedings",
+      "mode": "dynamic_resolution",
+      "coverage": "dynamic",
+      "source_ids": [],
+      "dynamic_owner": "publication_resolver"
+    },
+    {
+      "category": "academic",
+      "name": "IEEE S&P / ACM CCS / NDSS",
+      "mode": "dynamic_resolution",
+      "coverage": "dynamic",
+      "source_ids": [],
+      "dynamic_owner": "publication_resolver"
+    },
+    {
+      "category": "academic",
+      "name": "ACL Anthology",
+      "mode": "dynamic_resolution",
+      "coverage": "dynamic",
+      "source_ids": [],
+      "dynamic_owner": "publication_resolver"
+    },
+    {
+      "category": "academic",
+      "name": "ICLR / ICML / NeurIPS 等正式会议页",
+      "mode": "dynamic_resolution",
+      "coverage": "dynamic",
+      "source_ids": [],
+      "dynamic_owner": "publication_resolver"
+    },
+    {
+      "category": "academic",
+      "name": "ICLR2026-Guide-CN",
+      "mode": "dynamic_resolution",
+      "coverage": "dynamic",
+      "source_ids": [],
+      "dynamic_owner": "curated_publication_resolver"
+    },
+    {
+      "category": "academic",
+      "name": "ICML / ICLR 2026 Agent Papers",
+      "mode": "dynamic_resolution",
+      "coverage": "dynamic",
+      "source_ids": [],
+      "dynamic_owner": "curated_publication_resolver"
+    },
+    {
+      "category": "vendor",
+      "name": "OpenAI Research / Security / System Cards",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "openai-deployment-safety",
+        "openai-research",
+        "openai-safety"
+      ]
+    },
+    {
+      "category": "vendor",
+      "name": "Anthropic Research / News / System Cards",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "anthropic-system-cards",
+        "anthropic-research",
+        "anthropic-news"
+      ]
+    },
+    {
+      "category": "vendor",
+      "name": "Google DeepMind Responsibility & Safety",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "deepmind-safety"
+      ]
+    },
+    {
+      "category": "vendor",
+      "name": "Meta AI safety/security",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "meta-ai-safety"
+      ]
+    },
+    {
+      "category": "vendor",
+      "name": "ByteDance Seed Publications / Tech Blog / Model Cards",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "bytedance-seed-research"
+      ]
+    },
+    {
+      "category": "vendor",
+      "name": "Microsoft Security Blog · AI and agents",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "microsoft-security-ai"
+      ]
+    },
+    {
+      "category": "vendor",
+      "name": "NVIDIA Technical Blog · Security for AI / AI Red Team",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "nvidia-ai-security"
+      ]
+    },
+    {
+      "category": "vendor",
+      "name": "AWS Security Bulletins",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "aws-security-bulletins"
+      ]
+    },
+    {
+      "category": "vendor",
+      "name": "Vendor PSIRT / Security Bulletin",
+      "mode": "dynamic_resolution",
+      "coverage": "dynamic",
+      "source_ids": [],
+      "dynamic_owner": "vendor_primary_source_resolver"
+    },
+    {
+      "category": "independent",
+      "name": "Trail of Bits",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "trailofbits-research"
+      ]
+    },
+    {
+      "category": "independent",
+      "name": "Wiz Research",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "wiz-research"
+      ]
+    },
+    {
+      "category": "independent",
+      "name": "HiddenLayer Research",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "hiddenlayer-security-advisories",
+        "hiddenlayer-reports"
+      ]
+    },
+    {
+      "category": "independent",
+      "name": "Palo Alto Unit 42",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "unit42-research"
+      ]
+    },
+    {
+      "category": "independent",
+      "name": "Cisco Talos",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "talos-research"
+      ]
+    },
+    {
+      "category": "independent",
+      "name": "CERT/CC",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "certcc-vulnerability-notes"
+      ]
+    },
+    {
+      "category": "independent",
+      "name": "oss-security",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "oss-security"
+      ]
+    },
+    {
+      "category": "independent",
+      "name": "Seebug",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "seebug-vuldb"
+      ]
+    },
+    {
+      "category": "independent",
+      "name": "OSCS",
+      "mode": "fixed_provider",
+      "coverage": "partial",
+      "source_ids": [
+        "oscs-community"
+      ],
+      "note": "Public project/security API is owned; broader durable community corpus is not mirrored."
+    },
+    {
+      "category": "independent",
+      "name": "OWASP GenAI / Agentic",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "owasp-genai"
+      ]
+    },
+    {
+      "category": "independent",
+      "name": "MITRE ATLAS",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "mitre-atlas"
+      ]
+    },
+    {
+      "category": "independent",
+      "name": "Bug bounty disclosure",
+      "mode": "dynamic_resolution",
+      "coverage": "dynamic",
+      "source_ids": [],
+      "dynamic_owner": "public_disclosure_resolver"
+    },
+    {
+      "category": "normative",
+      "name": "中国政府网 / 国家网信办",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "cac-ai-regulations"
+      ]
+    },
+    {
+      "category": "normative",
+      "name": "全国标准信息公共服务平台 / TC260",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "china-ai-standards"
+      ]
+    },
+    {
+      "category": "normative",
+      "name": "NIST / AIRC",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "nist-ai-rmf",
+        "nist-genai-profile"
+      ]
+    },
+    {
+      "category": "normative",
+      "name": "ISO/IEC JTC 1/SC 42 / ISO Catalogue",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "iso-ai-standards"
+      ]
+    },
+    {
+      "category": "normative",
+      "name": "EUR-Lex / European Commission AI Office",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "eu-ai-act"
+      ]
+    },
+    {
+      "category": "normative",
+      "name": "《生成式人工智能服务管理暂行办法》",
+      "mode": "grouped_member",
+      "coverage": "owned",
+      "source_ids": [
+        "cac-ai-regulations"
+      ]
+    },
+    {
+      "category": "normative",
+      "name": "《人工智能生成合成内容标识办法》",
+      "mode": "grouped_member",
+      "coverage": "owned",
+      "source_ids": [
+        "cac-ai-regulations"
+      ]
+    },
+    {
+      "category": "normative",
+      "name": "GB 45438-2025",
+      "mode": "grouped_member",
+      "coverage": "owned",
+      "source_ids": [
+        "china-ai-standards"
+      ]
+    },
+    {
+      "category": "normative",
+      "name": "GB/T 45654-2025",
+      "mode": "grouped_member",
+      "coverage": "owned",
+      "source_ids": [
+        "china-ai-standards"
+      ]
+    },
+    {
+      "category": "normative",
+      "name": "GB/T 45652-2025",
+      "mode": "grouped_member",
+      "coverage": "owned",
+      "source_ids": [
+        "china-ai-standards"
+      ]
+    },
+    {
+      "category": "normative",
+      "name": "GB/T 45674-2025",
+      "mode": "grouped_member",
+      "coverage": "owned",
+      "source_ids": [
+        "china-ai-standards"
+      ]
+    },
+    {
+      "category": "normative",
+      "name": "《国家人工智能产业综合标准化体系建设指南（2024版）》",
+      "mode": "grouped_member",
+      "coverage": "owned",
+      "source_ids": [
+        "china-ai-standards"
+      ]
+    },
+    {
+      "category": "normative",
+      "name": "NIST AI RMF / Generative AI Profile",
+      "mode": "grouped_member",
+      "coverage": "owned",
+      "source_ids": [
+        "nist-ai-rmf",
+        "nist-genai-profile"
+      ]
+    },
+    {
+      "category": "normative",
+      "name": "ISO/IEC 42001",
+      "mode": "grouped_member",
+      "coverage": "owned",
+      "source_ids": [
+        "iso-ai-standards"
+      ]
+    },
+    {
+      "category": "normative",
+      "name": "ISO/IEC 23894",
+      "mode": "grouped_member",
+      "coverage": "owned",
+      "source_ids": [
+        "iso-ai-standards"
+      ]
+    },
+    {
+      "category": "normative",
+      "name": "ISO/IEC 42005",
+      "mode": "grouped_member",
+      "coverage": "owned",
+      "source_ids": [
+        "iso-ai-standards"
+      ]
+    },
+    {
+      "category": "normative",
+      "name": "ISO/IEC 5259 系列",
+      "mode": "grouped_member",
+      "coverage": "owned",
+      "source_ids": [
+        "iso-ai-standards"
+      ]
+    },
+    {
+      "category": "normative",
+      "name": "ISO/IEC TR 24028",
+      "mode": "grouped_member",
+      "coverage": "owned",
+      "source_ids": [
+        "iso-ai-standards"
+      ]
+    },
+    {
+      "category": "normative",
+      "name": "EU AI Act / GPAI obligations",
+      "mode": "grouped_member",
+      "coverage": "owned",
+      "source_ids": [
+        "eu-ai-act"
+      ]
+    },
+    {
+      "category": "assets",
+      "name": "Censys",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "censys-assets"
+      ]
+    },
+    {
+      "category": "assets",
+      "name": "Shodan",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "shodan-assets"
+      ]
+    },
+    {
+      "category": "assets",
+      "name": "FOFA",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "fofa-assets"
+      ]
+    },
+    {
+      "category": "assets",
+      "name": "ZoomEye",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "zoomeye-assets"
+      ]
+    },
+    {
+      "category": "incidents",
+      "name": "BlockBeats 快讯",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "blockbeats-newsflash"
+      ]
+    },
+    {
+      "category": "incidents",
+      "name": "Foresight News Timeline",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "foresight-timeline"
+      ]
+    },
+    {
+      "category": "incidents",
+      "name": "The Block Exploits",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "theblock-exploits"
+      ]
+    },
+    {
+      "category": "incidents",
+      "name": "Lookonchain",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "lookonchain-x"
+      ]
+    },
+    {
+      "category": "incidents",
+      "name": "PeckShieldAlert",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "peckshieldalert-x"
+      ]
+    },
+    {
+      "category": "incidents",
+      "name": "ZachXBT",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "zachxbt-x"
+      ]
+    },
+    {
+      "category": "incidents",
+      "name": "CertiK Incident Analysis",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "certik-incident-analysis"
+      ]
+    },
+    {
+      "category": "incidents",
+      "name": "CertiK Security Dashboard",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "certik-security-dashboard"
+      ]
+    },
+    {
+      "category": "incidents",
+      "name": "SlowMist Hacked / SlowMist",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "slowmist-hacked",
+        "slowmist-reports"
+      ]
+    },
+    {
+      "category": "incidents",
+      "name": "SlowMist Reports",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "slowmist-reports"
+      ]
+    },
+    {
+      "category": "incidents",
+      "name": "Cyvers",
+      "mode": "fixed_provider",
+      "coverage": "partial",
+      "source_ids": [
+        "cyvers-reports"
+      ],
+      "note": "Public reports are owned; realtime/commercial telemetry remains unresolved."
+    },
+    {
+      "category": "incidents",
+      "name": "Chainalysis",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "chainalysis-research"
+      ],
+      "note": "Public research is the fixed product source; commercial tracing capabilities remain a separate evaluation."
+    },
+    {
+      "category": "incidents",
+      "name": "BleepingComputer",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "bleepingcomputer-news"
+      ]
+    },
+    {
+      "category": "incidents",
+      "name": "SecurityWeek",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "securityweek-news"
+      ]
+    },
+    {
+      "category": "incidents",
+      "name": "Google Threat Intelligence / Mandiant",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "mandiant-threat-intelligence"
+      ]
+    },
+    {
+      "category": "incidents",
+      "name": "Palo Alto Unit 42",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "unit42-research"
+      ]
+    },
+    {
+      "category": "incidents",
+      "name": "Cisco Talos",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "talos-research"
+      ]
+    },
+    {
+      "category": "incidents",
+      "name": "CISA Cybersecurity Alerts & Advisories",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "cisa-cybersecurity-advisories"
+      ]
+    },
+    {
+      "category": "incidents",
+      "name": "CERT/CC 与国家/行业 CERT",
+      "mode": "fixed_provider",
+      "coverage": "partial",
+      "source_ids": [
+        "certcc-vulnerability-notes"
+      ],
+      "note": "CERT/CC is fixed; additional national/sector CERT sources are resolved per incident."
+    },
+    {
+      "category": "incidents",
+      "name": "受影响项目 / 厂商 Security Blog / Status Page / Incident Report",
+      "mode": "dynamic_resolution",
+      "coverage": "dynamic",
+      "source_ids": [],
+      "dynamic_owner": "incident_primary_source_resolver"
+    },
+    {
+      "category": "incidents",
+      "name": "GitHub Advisory / Issue / Release / Commit",
+      "mode": "dynamic_resolution",
+      "coverage": "dynamic",
+      "source_ids": [
+        "github-global-advisories",
+        "github-target-repos"
+      ],
+      "dynamic_owner": "github_incident_followup_resolver"
+    }
+  ]
+}

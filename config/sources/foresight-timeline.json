@@ -1,0 +1,23 @@
+{
+  "source_id": "foresight-timeline",
+  "adapter_type": "html_incident",
+  "source_class": "incident_news",
+  "authority_scope": ["breaking_signal", "incident_timeline", "secondary_reporting"],
+  "source_role": "signal",
+  "source_family": "foresight-news",
+  "access_mode": "html_index",
+  "update_semantics": "timeline_card_revision",
+  "discovery_method": {
+    "index_url": "https://foresightnews.pro/timeline",
+    "link_selector": "a.topic-content[href^='/timeline/detail/']",
+    "allowed_hosts": ["foresightnews.pro", "www.foresightnews.pro"],
+    "max_items": 50
+  },
+  "time_semantics": {"observed_at": "collector_clock"},
+  "identity_semantics": {"external_object_id": "canonical_timeline_url"},
+  "rate_limit_policy": {"provider": "foresight-news"},
+  "access_rights": {"classification": "public"},
+  "retention_mode": "incident_signal",
+  "schedule_policy": {"enabled": true, "interval_seconds": 1800},
+  "schema_version": "1"
+}

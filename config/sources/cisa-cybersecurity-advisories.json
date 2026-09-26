@@ -1,0 +1,23 @@
+{
+  "source_id": "cisa-cybersecurity-advisories",
+  "adapter_type": "html_index",
+  "source_class": "incident_authority",
+  "authority_scope": ["current_security_issue", "ttp", "ioc", "mitigation", "official_advisory"],
+  "source_role": "authority",
+  "source_family": "cisa-advisories",
+  "access_mode": "html_index",
+  "update_semantics": "mutable_authoritative_advisory",
+  "discovery_method": {
+    "index_url": "https://www.cisa.gov/news-events/cybersecurity-advisories",
+    "link_selector": "a[href*='/news-events/cybersecurity-advisories/']",
+    "allowed_hosts": ["www.cisa.gov", "cisa.gov"],
+    "max_items": 20
+  },
+  "time_semantics": {"observed_at": "collector_clock"},
+  "identity_semantics": {"external_object_id": "canonical advisory URL"},
+  "rate_limit_policy": {"provider": "cisa"},
+  "access_rights": {"classification": "public-authoritative"},
+  "retention_mode": "durable_managed",
+  "schedule_policy": {"enabled": false},
+  "schema_version": "1"
+}

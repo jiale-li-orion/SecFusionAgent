@@ -4,11 +4,19 @@ from pathlib import Path
 import httpx
 
 from apps.worker.celery_app import celery_app
+from packages.enrichment.graph.fix_boundary import DeterministicFixBoundaryService
+from packages.enrichment.graph.github_references import GitHubReferenceGraphService
+from packages.enrichment.normative.service import NormativeKnowledgeService
 from packages.enrichment.planner import VulnerabilityEnrichmentPlanner
+from packages.enrichment.providers.factory import create_configured_ai_provider
+from packages.enrichment.semantic.documents import DocumentSemanticService
 from packages.enrichment.service import VulnerabilityEnrichmentService
 from packages.intelligence.ingestion.evidence import EvidenceIngress
 from packages.intelligence.knowledge.write import EvidenceBackedKnowledgeWriter
 from packages.intelligence.projections.service import CurrentProjectionService
+from packages.intelligence.retrieval.indexing import DocumentIndexService
+from packages.intelligence.storage.document_models import DocumentRevisionModel
+from packages.intelligence.storage.evidence_models import ObservationModel
 from packages.intelligence.storage.factory import create_s3_artifact_store
 from packages.monitoring.acquisition.service import AcquisitionService
 from packages.monitoring.runtime import execute_collection_run
@@ -38,6 +46,11 @@ def enrich_vulnerability(payload: dict[str, object]) -> int:
     return asyncio.run(_enrich_vulnerability(payload))
 
 
+@celery_app.task(name="secfusion.indexing.document_revision")
+def index_document_revision(payload: dict[str, object]) -> int:
+    return asyncio.run(_index_document_revision(payload))
+
+
 async def _rebuild_knowledge_projections(payload: dict[str, object]) -> int:
     revision = payload.get("revision")
     object_ids = payload.get("object_ids")
@@ -52,13 +65,12 @@ async def _rebuild_knowledge_projections(payload: dict[str, object]) -> int:
     try:
         async with factory() as session, session.begin():
             for object_id in normalized_ids:
-                result = await service.rebuild_knowledge_object(
+                results = await service.rebuild_knowledge_object_views(
                     session,
                     object_id=object_id,
                     upstream_revision=revision,
                 )
-                if result is not None and result.changed:
-                    changed += 1
+                changed += sum(1 for result in results if result.changed)
         return changed
     finally:
         await engine.dispose()
@@ -81,7 +93,12 @@ async def _enrich_vulnerability(payload: dict[str, object]) -> int:
         item.source_id: item
         for item in load_source_definitions(Path(settings.source_registry_path))
     }
-    provider_ids = ["cisa-kev", "github-global-advisories", "osv-vulnerabilities"]
+    provider_ids = [
+        "cisa-kev",
+        "github-global-advisories",
+        "osv-vulnerabilities",
+        "github-target-repos",
+    ]
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             adapters = {
@@ -105,7 +122,91 @@ async def _enrich_vulnerability(payload: dict[str, object]) -> int:
                 cve_id,
                 parent_run_id=parent_run_id,
             )
-            return len(results)
+            graph_results = await GitHubReferenceGraphService(
+                factory,
+                AcquisitionService(factory),
+                EvidenceIngress(artifact_store),
+                EvidenceBackedKnowledgeWriter(),
+                source_definitions,
+                adapters,
+            ).enrich_cve(
+                cve_id,
+                parent_run_id=parent_run_id,
+            )
+            fix_results = await DeterministicFixBoundaryService(
+                factory,
+                AcquisitionService(factory),
+                EvidenceIngress(artifact_store),
+                EvidenceBackedKnowledgeWriter(),
+                source_definitions,
+                adapters,
+            ).enrich_cve(
+                cve_id,
+                parent_run_id=parent_run_id,
+            )
+            return len(results) + len(graph_results) + len(fix_results)
+    finally:
+        await engine.dispose()
+
+
+async def _index_document_revision(payload: dict[str, object]) -> int:
+    document_revision_id = payload.get("document_revision_id")
+    if not isinstance(document_revision_id, str) or not document_revision_id:
+        raise ValueError("document.index.requested payload requires document_revision_id")
+    settings = get_settings()
+    engine = create_engine(settings.database_url)
+    factory = create_session_factory(engine)
+    try:
+        async with factory() as session, session.begin():
+            lexical = await DocumentIndexService().build_lexical_index(
+                session, document_revision_id=document_revision_id
+            )
+        if not settings.model_base_url:
+            return len(lexical.indexed_chunk_ids)
+
+        async with httpx.AsyncClient(timeout=settings.model_timeout_seconds) as client:
+            provider = create_configured_ai_provider(settings, client)
+            if provider is None:
+                return len(lexical.indexed_chunk_ids)
+
+            if settings.embedding_model_name:
+                async with factory() as session, session.begin():
+                    await DocumentIndexService().build_dense_index(
+                        session,
+                        document_revision_id=document_revision_id,
+                        provider=provider,
+                    )
+
+            if settings.model_name:
+                async with factory() as session:
+                    revision = await session.get(DocumentRevisionModel, document_revision_id)
+                    if revision is None:
+                        raise LookupError(f"document revision not found: {document_revision_id}")
+                    observation = await session.get(ObservationModel, revision.observation_id)
+                    if observation is None:
+                        raise RuntimeError("document revision exists without observation")
+                    source_id = observation.source_id
+                source_definitions = {
+                    item.source_id: item
+                    for item in load_source_definitions(Path(settings.source_registry_path))
+                }
+                source = source_definitions.get(source_id)
+                if source is None:
+                    raise LookupError(f"source definition not found: {source_id}")
+                async with factory() as session, session.begin():
+                    if source.source_class == "normative_knowledge":
+                        await NormativeKnowledgeService(provider).extract(
+                            session,
+                            source=source,
+                            document_revision_id=document_revision_id,
+                        )
+                    else:
+                        await DocumentSemanticService(provider).extract(
+                            session,
+                            source=source,
+                            document_revision_id=document_revision_id,
+                        )
+        return len(lexical.indexed_chunk_ids)
     finally:
         await engine.dispose()
 

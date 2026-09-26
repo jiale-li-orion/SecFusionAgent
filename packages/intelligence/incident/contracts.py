@@ -1,11 +1,21 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from typing import Any, Protocol
 
 from pydantic import BaseModel, Field
 
 from packages.sources.contracts import IngestEnvelope, SourceDefinition, SourceRole
+
+CVE_RE = re.compile(r"\bCVE-\d{4}-\d{4,8}\b", re.IGNORECASE)
+GHSA_RE = re.compile(
+    r"\bGHSA-[23456789cfghjmpqrvwx]{4}-[23456789cfghjmpqrvwx]{4}-"
+    r"[23456789cfghjmpqrvwx]{4}\b",
+    re.IGNORECASE,
+)
+ETH_TX_RE = re.compile(r"\b0x[a-fA-F0-9]{64}\b")
+ETH_ADDRESS_RE = re.compile(r"\b0x[a-fA-F0-9]{40}\b")
 
 
 class SignalItem(BaseModel):
@@ -113,6 +123,9 @@ class GenericNewsSignalExtractor:
             raise ValueError("incident_type must be a string")
         entity_hints = _string_list_map(payload.get("entity_hints", {}), "entity_hints")
         anchors = _string_list_map(payload.get("anchors", {}), "anchors")
+        derived_anchors = _extract_security_anchors(f"{title}\n{summary or ''}")
+        for anchor_type, values in derived_anchors.items():
+            anchors[anchor_type] = sorted(set(anchors.get(anchor_type, [])).union(values))
         unresolved = payload.get("unresolved_questions", [])
         if not isinstance(unresolved, list) or not all(
             isinstance(item, str) for item in unresolved
@@ -152,3 +165,20 @@ def _string_list_map(value: Any, field: str) -> dict[str, list[str]]:
         if values:
             normalized[key] = sorted(set(values))
     return normalized
+
+
+def _extract_security_anchors(text: str) -> dict[str, list[str]]:
+    anchors: dict[str, list[str]] = {}
+    cves = sorted({match.upper() for match in CVE_RE.findall(text)})
+    ghsas = sorted({match.upper() for match in GHSA_RE.findall(text)})
+    tx_hashes = sorted(set(ETH_TX_RE.findall(text)))
+    addresses = sorted(set(ETH_ADDRESS_RE.findall(text)) - set(tx_hashes))
+    if cves:
+        anchors["cve"] = cves
+    if ghsas:
+        anchors["ghsa"] = ghsas
+    if tx_hashes:
+        anchors["tx_hash"] = tx_hashes
+    if addresses:
+        anchors["address"] = addresses
+    return anchors

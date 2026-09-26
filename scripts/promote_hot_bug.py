@@ -6,9 +6,10 @@ from pathlib import Path
 
 from redis.asyncio import Redis
 
+from apps.runtime_models import register_runtime_models
 from packages.intelligence.hot_cache.redis import RedisHotBugCache
 from packages.intelligence.ingestion.evidence import EvidenceIngress
-from packages.intelligence.normalization.nvd_durable import NVDCanonicalNormalizer
+from packages.intelligence.normalization.factory import create_durable_bug_normalizer
 from packages.intelligence.promotion.service import PromotionService
 from packages.intelligence.storage.factory import create_s3_artifact_store
 from packages.shared.config import get_settings
@@ -17,6 +18,7 @@ from packages.sources.registry.loader import load_source_definitions
 
 
 async def main() -> None:
+    register_runtime_models()
     parser = argparse.ArgumentParser(
         description="Promote one hot vulnerability into durable knowledge"
     )
@@ -38,7 +40,7 @@ async def main() -> None:
     service = PromotionService(
         RedisHotBugCache(redis),
         EvidenceIngress(store),
-        {"nvd": NVDCanonicalNormalizer()},
+        {source.adapter_type: create_durable_bug_normalizer(source)},
     )
     try:
         async with factory() as session, session.begin():

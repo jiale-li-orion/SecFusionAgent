@@ -1,6 +1,9 @@
 services:
   postgres:
-    image: pgvector/pgvector:pg16
+    build:
+      context: ..
+      dockerfile: deploy/postgres/Dockerfile
+    image: secfusion-postgres:pg16-pgvector
     environment:
       POSTGRES_DB: secfusion
       POSTGRES_USER: secfusion
@@ -16,7 +19,7 @@ services:
       - secfusion-postgres:/var/lib/postgresql/data
 
   redis-broker:
-    image: redis:7-alpine
+    image: public.ecr.aws/docker/library/redis:7-alpine
     command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
     ports:
       - "6379:6379"
@@ -24,7 +27,7 @@ services:
       - secfusion-redis-broker:/data
 
   redis-cache:
-    image: redis:7-alpine
+    image: public.ecr.aws/docker/library/redis:7-alpine
     command:
       [
         "redis-server",
@@ -48,7 +51,28 @@ services:
     volumes:
       - secfusion-minio:/data
 
+  localstack-s3:
+    image: public.ecr.aws/localstack/localstack:4.14.0
+    profiles: ["integration"]
+    ports:
+      - "4566:4566"
+    environment:
+      SERVICES: s3
+      AWS_DEFAULT_REGION: us-east-1
+      DEBUG: "0"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          curl -fsS http://localhost:4566/_localstack/health | grep -Eq '"s3": "(running|available)"'
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    volumes:
+      - localstack-data:/var/lib/localstack
+
 volumes:
+  localstack-data:
   secfusion-postgres:
   secfusion-redis-broker:
   secfusion-minio:

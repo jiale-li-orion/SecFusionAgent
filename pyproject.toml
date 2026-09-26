@@ -20,6 +20,7 @@ dependencies = [
   "pydantic-settings>=2.6,<3",
   "pypdf>=5,<7",
   "redis>=5.2,<6",
+  "selectolax>=0.3,<1",
   "sqlalchemy[asyncio]>=2.0,<3",
   "uvicorn[standard]>=0.30,<1",
 ]
@@ -62,5 +63,5 @@ check_untyped_defs = true
 disallow_any_generics = true
 
 [[tool.mypy.overrides]]
-module = ["boto3", "botocore.*", "celery"]
+module = ["boto3", "botocore.*", "celery", "celery.*"]
 ignore_missing_imports = true

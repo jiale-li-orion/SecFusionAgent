@@ -1,0 +1,23 @@
+{
+  "source_id": "openai-research",
+  "adapter_type": "html_index",
+  "source_class": "vendor_security_material",
+  "authority_scope": ["openai_research", "model_capability_research", "safety_research"],
+  "source_role": "primary",
+  "source_family": "openai",
+  "access_mode": "html_index",
+  "update_semantics": "mutable_research_article",
+  "discovery_method": {
+    "index_url": "https://openai.com/research/",
+    "link_selector": "a[href*='/research/']",
+    "allowed_hosts": ["openai.com", "www.openai.com"],
+    "max_items": 30
+  },
+  "time_semantics": {"observed_at": "collector_clock"},
+  "identity_semantics": {"external_object_id": "canonical article URL"},
+  "rate_limit_policy": {"provider": "openai"},
+  "access_rights": {"classification": "public"},
+  "retention_mode": "durable_managed",
+  "schedule_policy": {"enabled": false},
+  "schema_version": "1"
+}

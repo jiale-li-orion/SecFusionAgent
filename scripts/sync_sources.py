@@ -1,6 +1,7 @@
 import asyncio
 from pathlib import Path
 
+from apps.runtime_models import register_runtime_models
 from packages.monitoring.storage.service import ensure_source_states
 from packages.shared.db import create_engine, create_session_factory
 from packages.sources.registry.loader import load_source_definitions
@@ -8,6 +9,7 @@ from packages.sources.registry.service import sync_source_definitions
 
 
 async def _run() -> None:
+    register_runtime_models()
     definitions = load_source_definitions(Path("config/sources"))
     engine = create_engine()
     factory = create_session_factory(engine)

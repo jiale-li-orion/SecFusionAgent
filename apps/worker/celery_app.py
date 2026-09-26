@@ -1,7 +1,9 @@
 from celery import Celery
 
+from apps.runtime_models import register_runtime_models
 from packages.shared.config import get_settings
 
+register_runtime_models()
 settings = get_settings()
 
 celery_app = Celery(

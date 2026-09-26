@@ -1,0 +1,23 @@
+{
+  "source_id": "hiddenlayer-reports",
+  "adapter_type": "html_index",
+  "source_class": "independent_security_research",
+  "authority_scope": ["ai_threat_landscape", "incident_analysis", "ai_security_research", "agent_security_research"],
+  "source_role": "forensic",
+  "source_family": "hiddenlayer",
+  "access_mode": "html_index",
+  "update_semantics": "mutable_research_report",
+  "discovery_method": {
+    "index_url": "https://www.hiddenlayer.com/innovation-hub/reports-and-guides",
+    "link_selector": "a[href^='/report-and-guide/']",
+    "allowed_hosts": ["www.hiddenlayer.com", "hiddenlayer.com"],
+    "max_items": 30
+  },
+  "time_semantics": {"observed_at": "collector_clock"},
+  "identity_semantics": {"external_object_id": "canonical report URL"},
+  "rate_limit_policy": {"provider": "hiddenlayer"},
+  "access_rights": {"classification": "public"},
+  "retention_mode": "durable_managed",
+  "schedule_policy": {"enabled": true, "interval_seconds": 21600},
+  "schema_version": "1"
+}

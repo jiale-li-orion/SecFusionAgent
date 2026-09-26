@@ -1,0 +1,13 @@
+{
+  "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "node_id": "C_kwDOExample",
+  "html_url": "https://github.com/vllm-project/vllm/commit/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "commit": {
+    "message": "fix: enforce auth on OpenAI-compatible endpoint",
+    "author": {"name": "Security Maintainer", "date": "2026-09-24T09:50:00Z"},
+    "committer": {"name": "GitHub", "date": "2026-09-24T10:00:00Z"}
+  },
+  "parents": [
+    {"sha": "cccccccccccccccccccccccccccccccccccccccc"}
+  ]
+}

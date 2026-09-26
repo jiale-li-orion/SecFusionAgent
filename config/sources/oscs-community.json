@@ -1,0 +1,18 @@
+{
+  "source_id": "oscs-community",
+  "adapter_type": "oscs",
+  "source_class": "independent_security_research",
+  "authority_scope": ["community_project_security", "component_vulnerability_reference", "remediation_activity"],
+  "source_role": "reference",
+  "source_family": "oscs",
+  "access_mode": "public_json_api",
+  "update_semantics": "on_demand_observation",
+  "discovery_method": {"base_url": "https://www.oscs1024.com"},
+  "time_semantics": {"observed_at": "collector_clock"},
+  "identity_semantics": {"external_object_id": "project id or repository name"},
+  "rate_limit_policy": {"provider": "oscs"},
+  "access_rights": {"classification": "public"},
+  "retention_mode": "time_bounded",
+  "schedule_policy": {"enabled": false},
+  "schema_version": "1"
+}

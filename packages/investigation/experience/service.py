@@ -270,9 +270,7 @@ class ExperienceStore:
     ) -> ExperienceVersion:
         version, experience = await _locked_version_and_experience(session, experience_version_id)
         if version.status not in {"candidate", "validated"}:
-            raise ValueError(
-                f"experience cannot be validated from status={version.status}"
-            )
+            raise ValueError(f"experience cannot be validated from status={version.status}")
         support_count = await session.scalar(
             select(func.count())
             .select_from(ExperienceSupportModel)

@@ -1,0 +1,42 @@
+{
+  "source_id": "openai-deployment-safety",
+  "adapter_type": "html_index",
+  "source_class": "vendor_security_material",
+  "authority_scope": [
+    "system_card",
+    "deployment_safety_evaluation",
+    "model_risk",
+    "mitigation"
+  ],
+  "source_role": "primary",
+  "source_family": "openai",
+  "access_mode": "html_index",
+  "update_semantics": "mutable_system_card_index",
+  "discovery_method": {
+    "index_url": "https://deploymentsafety.openai.com/",
+    "link_selector": "a[href^='/gpt-'], a[href^='/chatgpt-']",
+    "allowed_hosts": [
+      "deploymentsafety.openai.com"
+    ],
+    "max_items": 25
+  },
+  "time_semantics": {
+    "updated_at": "http_last_modified_when_available"
+  },
+  "identity_semantics": {
+    "external_object_id": "canonical_document_url",
+    "external_revision": "etag_or_last_modified"
+  },
+  "rate_limit_policy": {
+    "provider": "openai"
+  },
+  "access_rights": {
+    "classification": "public"
+  },
+  "retention_mode": "durable_managed",
+  "schedule_policy": {
+    "enabled": true,
+    "interval_seconds": 21600
+  },
+  "schema_version": "1"
+}

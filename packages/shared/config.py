@@ -27,6 +27,20 @@ class Settings(BaseSettings):
 
     nvd_api_key: str | None = None
     github_token: str | None = None
+    shodan_api_key: str | None = None
+    x_bearer_token: str | None = None
+    censys_pat: str | None = None
+    censys_organization_id: str | None = None
+    fofa_api_key: str | None = None
+    zoomeye_api_key: str | None = None
+    semantic_scholar_api_key: str | None = None
+
+    model_base_url: str | None = None
+    model_api_key: str | None = None
+    model_name: str | None = None
+    embedding_model_name: str | None = None
+    embedding_dimensions: int | None = None
+    model_timeout_seconds: float = 60.0
 
 
 @lru_cache(maxsize=1)

@@ -1,0 +1,23 @@
+{
+  "source_id": "anthropic-research",
+  "adapter_type": "html_index",
+  "source_class": "vendor_security_material",
+  "authority_scope": ["anthropic_research", "alignment", "frontier_red_team", "security_research"],
+  "source_role": "primary",
+  "source_family": "anthropic",
+  "access_mode": "html_index",
+  "update_semantics": "mutable_research_article",
+  "discovery_method": {
+    "index_url": "https://www.anthropic.com/research",
+    "link_selector": "a[href^='/research/']",
+    "allowed_hosts": ["www.anthropic.com", "anthropic.com"],
+    "max_items": 40
+  },
+  "time_semantics": {"observed_at": "collector_clock"},
+  "identity_semantics": {"external_object_id": "canonical article URL"},
+  "rate_limit_policy": {"provider": "anthropic"},
+  "access_rights": {"classification": "public"},
+  "retention_mode": "durable_managed",
+  "schedule_policy": {"enabled": true, "interval_seconds": 21600},
+  "schema_version": "1"
+}

@@ -5,11 +5,15 @@ import asyncio
 import httpx
 from redis.asyncio import Redis
 
-from packages.intelligence.documents.parsers import PDFDocumentParser, PlainTextDocumentParser
+from packages.intelligence.documents.parsers import (
+    HTMLDocumentParser,
+    PDFDocumentParser,
+    PlainTextDocumentParser,
+)
 from packages.intelligence.documents.service import ManagedDocumentService
 from packages.intelligence.hot_cache.redis import RedisHotBugCache
-from packages.intelligence.incident.contracts import GenericNewsSignalExtractor
 from packages.intelligence.incident.correlator import IncidentCorrelator
+from packages.intelligence.incident.factory import create_incident_signal_extractors
 from packages.intelligence.incident.ingress import IncidentSignalIngress
 from packages.intelligence.incident.promotion import (
     IncidentPromotionPolicy,
@@ -83,6 +87,12 @@ async def execute_collection_run(run_id: str, settings: Settings) -> str:
                             {
                                 "application/pdf": PDFDocumentParser(),
                                 "text/plain": PlainTextDocumentParser(),
+                                "text/yaml": PlainTextDocumentParser(),
+                                "application/yaml": PlainTextDocumentParser(),
+                                "application/x-yaml": PlainTextDocumentParser(),
+                                "application/octet-stream": PlainTextDocumentParser(),
+                                "text/html": HTMLDocumentParser(),
+                                "application/xhtml+xml": HTMLDocumentParser(),
                             },
                         )
                         managed_result = await ManagedContentCollector(
@@ -139,7 +149,7 @@ async def execute_collection_run(run_id: str, settings: Settings) -> str:
                                 incident_store,
                                 ttl_seconds=settings.incident_signal_ttl_seconds,
                             ),
-                            {"rss_incident": GenericNewsSignalExtractor()},
+                            create_incident_signal_extractors(),
                         )
                         artifact_store = create_s3_artifact_store(settings)
                         await artifact_store.ensure_bucket()

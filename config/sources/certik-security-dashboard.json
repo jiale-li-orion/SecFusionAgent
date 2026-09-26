@@ -1,0 +1,28 @@
+{
+  "source_id": "certik-security-dashboard",
+  "adapter_type": "direct_document",
+  "source_class": "incident_forensic_reference",
+  "authority_scope": ["incident_statistics", "loss_statistics", "major_incident_reference"],
+  "source_role": "reference",
+  "source_family": "certik-dashboard",
+  "access_mode": "direct_documents",
+  "update_semantics": "mutable_dashboard_snapshot",
+  "discovery_method": {
+    "allowed_hosts": ["www.certik.com", "certik.com"],
+    "documents": [
+      {
+        "document_id": "CERTIK-SECURITY-DASHBOARD",
+        "title": "CertiK Security Dashboard",
+        "document_type": "security_dashboard_reference",
+        "url": "https://www.certik.com/certik-report/dashboard"
+      }
+    ]
+  },
+  "time_semantics": {"updated_at": "http_last_modified_when_available"},
+  "identity_semantics": {"external_object_id": "configured document_id"},
+  "rate_limit_policy": {"provider": "certik"},
+  "access_rights": {"classification": "public"},
+  "retention_mode": "durable_managed",
+  "schedule_policy": {"enabled": true, "interval_seconds": 21600},
+  "schema_version": "1"
+}

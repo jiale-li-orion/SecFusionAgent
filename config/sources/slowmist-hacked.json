@@ -1,0 +1,21 @@
+{
+  "source_id": "slowmist-hacked",
+  "adapter_type": "slowmist_hacked",
+  "source_class": "incident_forensic_signal",
+  "authority_scope": ["incident_target", "loss_estimate", "attack_method", "upstream_reference"],
+  "source_role": "forensic",
+  "source_family": "slowmist-hacked",
+  "access_mode": "html_event_database",
+  "update_semantics": "mutable_incident_card",
+  "discovery_method": {
+    "index_url": "https://hacked.slowmist.io/",
+    "max_items": 100
+  },
+  "time_semantics": {"published_at": "event card date", "observed_at": "collector_clock"},
+  "identity_semantics": {"external_object_id": "date + target + upstream reference hash"},
+  "rate_limit_policy": {"provider": "slowmist"},
+  "access_rights": {"classification": "public"},
+  "retention_mode": "incident_signal",
+  "schedule_policy": {"enabled": true, "interval_seconds": 3600},
+  "schema_version": "1"
+}

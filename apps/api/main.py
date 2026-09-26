@@ -3,11 +3,13 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from apps.api.routes.knowledge import router as knowledge_router
+from apps.runtime_models import register_runtime_models
 from packages.shared.config import get_settings
 from packages.shared.db import create_engine, create_session_factory
 
 
 def create_app() -> FastAPI:
+    register_runtime_models()
     settings = get_settings()
     engine = create_engine(settings.database_url)
 

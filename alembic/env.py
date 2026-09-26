@@ -11,6 +11,7 @@ from packages.intelligence.storage import evidence_models as evidence_models
 from packages.intelligence.storage import incident_models as incident_models
 from packages.intelligence.storage import knowledge_models as knowledge_models
 from packages.intelligence.storage import models as intelligence_models  # noqa: F401
+from packages.intelligence.storage import normative_models as normative_models
 from packages.intelligence.storage import projection_models as projection_models
 from packages.investigation.storage import models as investigation_models  # noqa: F401
 from packages.monitoring.storage import models as monitoring_models  # noqa: F401

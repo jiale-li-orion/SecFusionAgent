@@ -95,7 +95,11 @@ async def test_vulnerability_projection_preserves_conflict_and_relations() -> No
                     source_object_id="vuln-1",
                     relation_type="affects-package",
                     target_object_id="pkg-1",
-                    qualifier={"vulnerable_version_range": "<0.11.1"},
+                    qualifier={
+                        "source_id": "gh",
+                        "vulnerable_version_range": "<0.11.1",
+                        "first_patched_version": "0.11.1",
+                    },
                     origin="source_asserted",
                     lifecycle="accepted",
                     created_revision=revision2.revision,
@@ -128,6 +132,26 @@ async def test_vulnerability_projection_preserves_conflict_and_relations() -> No
             relations = projection.data["relations"]
             assert isinstance(relations, list)
             assert relations[0]["target_key"] == "package:pypi:vllm"
+
+            affected = await get_current_projection(
+                session,
+                projection_type="current_affected_versions",
+                projection_key="CVE-2026-42424",
+            )
+            assert affected is not None
+            entries = affected.data["affected_entries"]
+            assert isinstance(entries, list)
+            assert entries[0]["qualifier"]["vulnerable_version_range"] == "<0.11.1"
+
+            fix = await get_current_projection(
+                session, projection_type="current_fix_status", projection_key="CVE-2026-42424"
+            )
+            assert fix is not None
+            assert fix.data["status"] == "known"
+            assert fix.data["version_conflict"] is False
+            assert fix.data["targets"] == [
+                {"target_key": "package:pypi:vllm", "versions": ["0.11.1"], "conflict": False}
+            ]
 
         async with factory() as session, session.begin():
             replay = await service.rebuild_knowledge_object(

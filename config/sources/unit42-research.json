@@ -1,0 +1,43 @@
+{
+  "source_id": "unit42-research",
+  "adapter_type": "html_index",
+  "source_class": "independent_security_research",
+  "authority_scope": [
+    "threat_research",
+    "incident_response",
+    "campaign_analysis",
+    "technical_analysis"
+  ],
+  "source_role": "forensic",
+  "source_family": "unit42",
+  "access_mode": "html_index",
+  "update_semantics": "mutable_research_article",
+  "discovery_method": {
+    "index_url": "https://unit42.paloaltonetworks.com/",
+    "item_selector": "article",
+    "link_selector": "a[href]",
+    "allowed_hosts": [
+      "unit42.paloaltonetworks.com"
+    ],
+    "max_items": 25
+  },
+  "time_semantics": {
+    "updated_at": "http_last_modified_when_available"
+  },
+  "identity_semantics": {
+    "external_object_id": "canonical_article_url",
+    "external_revision": "etag_or_last_modified"
+  },
+  "rate_limit_policy": {
+    "provider": "unit42"
+  },
+  "access_rights": {
+    "classification": "public"
+  },
+  "retention_mode": "durable_managed",
+  "schedule_policy": {
+    "enabled": true,
+    "interval_seconds": 21600
+  },
+  "schema_version": "1"
+}

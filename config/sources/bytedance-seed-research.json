@@ -1,0 +1,42 @@
+{
+  "source_id": "bytedance-seed-research",
+  "adapter_type": "html_index",
+  "source_class": "vendor_security_material",
+  "authority_scope": [
+    "model_card",
+    "technical_report",
+    "agent_system_design",
+    "ai_infra_research"
+  ],
+  "source_role": "primary",
+  "source_family": "bytedance-seed",
+  "access_mode": "html_index",
+  "update_semantics": "mutable_technical_article",
+  "discovery_method": {
+    "index_url": "https://seed.bytedance.com/en/research",
+    "link_selector": "a[href^='/en/blog/']",
+    "allowed_hosts": [
+      "seed.bytedance.com"
+    ],
+    "max_items": 25
+  },
+  "time_semantics": {
+    "updated_at": "http_last_modified_when_available"
+  },
+  "identity_semantics": {
+    "external_object_id": "canonical_article_url",
+    "external_revision": "etag_or_last_modified"
+  },
+  "rate_limit_policy": {
+    "provider": "bytedance-seed"
+  },
+  "access_rights": {
+    "classification": "public"
+  },
+  "retention_mode": "durable_managed",
+  "schedule_policy": {
+    "enabled": true,
+    "interval_seconds": 21600
+  },
+  "schema_version": "1"
+}

@@ -15,6 +15,7 @@ class DocumentChunk:
     char_start: int
     char_end: int
     content_hash: str
+    source_locator: dict[str, object]
 
 
 def chunk_sections(
@@ -48,6 +49,7 @@ def chunk_sections(
                         char_start=start,
                         char_end=end,
                         content_hash=sha256(chunk_text.encode("utf-8")).hexdigest(),
+                        source_locator=dict(section.source_locator),
                     )
                 )
                 ordinal += 1

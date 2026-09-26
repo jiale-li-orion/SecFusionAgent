@@ -11,11 +11,11 @@ SecFusionAgent 面向 AI 安全漏洞、研究进展与安全事件构建持续�
 
 这里的 Agent 建立在可验证的数据平面之上。外部读取带有采集溯源，重要结论能够回到原始观测与产物，历史版本保留、当前视图可重建；Agent 后续承担调查、tool call 与推理，不取代证据权威。
 
-[架构视图](https://jiale-li-orion.github.io/SecFusionAgent/) · [项目 Wiki](https://github.com/jiale-li-orion/SecFusionAgent/wiki) · [Requirements-SPEC](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Requirements-SPEC) · [Technical-Design](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design) · Website：[jiale-li-orion.github.io/SecFusionAgent](https://jiale-li-orion.github.io/SecFusionAgent/)
+[架构视图](https://jiale-li-orion.github.io/SecFusionAgent/) · [项目 Wiki](https://github.com/jiale-li-orion/SecFusionAgent/wiki) · [Requirements-SPEC](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Requirements-SPEC) · [Technical Design 1](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design-1) · [Technical Design 2](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design-2) · Website：[jiale-li-orion.github.io/SecFusionAgent](https://jiale-li-orion.github.io/SecFusionAgent/)
 
 ## 项目状态
 
-SecFusionAgent 当前处于 **M1–M3 数据平面首轮实现 / 集成探针** 阶段。第一轮实现覆盖多种来源生命周期、canonical knowledge、provider-backed 富化、Incident Watch、受管文档、当前投影，以及 Investigation Experience 的存储边界；PostgreSQL、Redis、MinIO 与 Celery 的真实基础设施集成仍在验证。
+SecFusionAgent 当前处于 **M1–M3 数据平面 / M3→M4 handoff 已验证** 阶段。数据平面已经覆盖 Hot Bug、durable evidence / canonical knowledge、provider 富化、Incident Watch、HTML/PDF/plain 受管文档、GitHub development objects、五类物化当前视图、time-bounded Internet asset observation，以及 Case / Trajectory / Experience 存储接缝。`make verify-m3` 把 fast test、source ownership/lifecycle check、真实 PostgreSQL/pgvector/FTS、隔离 Redis failure domain、outbox→Celery 重放/幂等与真实 S3-compatible ArtifactStore round trip 串成可重复 gate。M4 的任务路由、查询构造、retrieval / Perception、Investigation State、Agent Runtime 与 M6 Decision 明确留在数据平面之外，并由 Technical Design 2 约束。
 
 当前本地质量门：
 
@@ -25,14 +25,15 @@ mypy        静态类型检查
 pytest      领域、重放、状态迁移与契约测试
 ```
 
-主仓库 CI 持续运行 `ruff`、`mypy` 与 `pytest`。快速测试主要使用 fixture 与轻量本地数据库验证确定性契约，不取代 PostgreSQL 事务、队列恢复、对象存储、并发与部署层的集成测试。
+主仓库 CI 持续运行 `ruff`、`mypy` 与 `pytest`。当前 fast gate 为 **97 passed + 6 个默认跳过的 infrastructure tests**；`make integration-core` 真实运行 **5/5** PostgreSQL/pgvector/FTS、Redis、outbox/Celery 与 M3 handoff test；`make integration-object-store` 验证真实 S3-compatible ArtifactStore round trip。上一版 live probe 快照为 **41 OK / 10 provider-blocked / 5 transient failures / 1 rate-limited / 7 auth-required**。它只作为时点连通性报告，不再作为 M3 验收 gate；反爬、网络、限流与凭据问题留到后续 provider hardening。SQLite/fixture 只作为快速确定性测试，不作为基础设施通过证据。
 
 ## 系统概览
 
 公开文档站提供两张由 authoritative specification 生成的 Archify 交互视图：
 
-- [Technical Design — Data Plane](https://jiale-li-orion.github.io/SecFusionAgent/tech-design.html) 展示 Acquisition、四种 `retention_mode` 生命周期、Evidence boundary、durable state 与异步 consumer。
-- [Requirements — 模块数据流](https://jiale-li-orion.github.io/SecFusionAgent/requirements.html) 展示 M1–M8 产品模块、C1–C3 横切约束与验收语义。
+- [Technical Design 1](https://jiale-li-orion.github.io/SecFusionAgent/tech-design.html) 展示 Acquisition、四种 `retention_mode` 生命周期、Evidence boundary、durable state 与异步 consumer。
+- [Technical Design 2](https://jiale-li-orion.github.io/SecFusionAgent/diagrams/tech-design-lower.zh.html) 展示任务路由、Perception、Investigation State、有界执行与 Decision 流程。
+- [Requirements](https://jiale-li-orion.github.io/SecFusionAgent/requirements.html) 展示 M1–M8 产品模块、C1–C3 横切约束与验收语义。
 
 系统把来源协议、运行时生命周期、canonical knowledge 与 derived 读模型分开维护：provider 适配器解释外部协议；采集运行时记录每次 scheduled / on-demand 读取；EvidenceIngress 固定原始版本；canonical knowledge 保存长期事实与溯源；投影、缓存与后续 retrieval 索引都属于可重建状态。
 
@@ -40,15 +41,18 @@ pytest      领域、重放、状态迁移与契约测试
 
 | 通路 | 当前实现 | 用途 |
 | --- | --- | --- |
-| Hot Bug Stream | NVD CVE API → 规范化 → Redis 热工作集 → durable 晋升 | 保持高频漏洞 feed 的新鲜度，同时避免把全部历史漏洞复制进本地长期库 |
+| Hot Bug Stream | NVD + CVE Program/cvelistV5 → provider 投影 → Redis 热工作集 → durable canonical 晋升 | 保持高频漏洞 feed 的新鲜度，同时避免把全部历史漏洞复制进本地长期库 |
 | Vulnerability Enrichment | OSV / GitHub Global Advisory / CISA KEV → child AcquisitionRun → EvidenceIngress → claims / relations | 为已晋升进 durable knowledge 的漏洞补充 package、修复、KEV 与公告信息 |
-| Managed Content | arXiv Atom discovery → versioned PDF 产物 → 文档版本 → page-oriented 切块 | 建设可长期演进、可回到具体版本与页面的研究语料 |
-| Structured Source Index | GitHub target repositories → repo revision 游标 → `Repo` 对象 / claims | 持续维护重点 AI 基础设施仓库的结构化状态 |
-| Incident Watch | RSS breaking source → strong anchor 关联 → candidate watch → durable 事件时间线 | 把突发消息与后续独立证据组织成持续累积富化的安全事件 |
-| Current Projection | knowledge / incident 变化 → 事务性 outbox → 投影重建 | 为 API 与后续 retrieval 提供低成本的当前视图，同时保留底层历史与冲突 |
+| Managed Content | PDF / plain text / HTML / XHTML durable 文档版本/切块 → lexical FTS + provider-neutral dense embedding → evidence-gated semantic extraction | 建设 retrieval-ready 研究语料，并让语义 claim 继续回到具体来源版本与原文片段 |
+| Structured Source Index | GitHub target repositories + advisory 显式引用 → Repo / Issue / PullRequest / Commit / Release 对象与确定性关系 | 维护重点 AI 基础设施状态与 development graph，同时避免用语义相似度猜 fix relation |
+| Incident Watch | RSS / BlockBeats HTML breaking signal → deterministic anchor extraction → candidate 关联 → durable 事件时间线 | 把突发消息与后续独立证据组织成事件，同时避免把转载当成 corroboration |
+| Current Projection | knowledge / incident 变化 → 事务性 outbox → vulnerability / affected-version / fix-status / repo-security / incident 视图 | 为后续 retrieval 提供低成本当前状态，同时保留底层历史、证据与冲突 |
+| Internet Asset Observation | on-demand Shodan / Censys / FOFA / ZoomEye → provider-normalized AssetObservation → 显式 EvidenceIngress promotion | 保留 query/provider/time provenance，同时避免把高时效资产结果默认变成长久知识 |
 | Investigation Memory | Case → append-only Trajectory → Experience candidate / version / evaluation | 为后续 Agent 调查保存可评测、可版本化的 procedural experience |
 
 内置来源定义位于 [`config/sources/`](config/sources/)；来源是否进入热缓存、durable 语料、结构化索引或 incident staging，由 `SourceDefinition.retention_mode` 明确决定。
+
+Website 投影的具体来源承诺由 [`config/source-inventory.json`](config/source-inventory.json) 跟踪。当前 inventory 已把 **99/99 个 website 条目**映射到 fixed/grouped source owner 或 executable dynamic resolver；主仓库现有 **63 个 SourceDefinition**，63 个都有 live probe owner，真实 PostgreSQL registry 也会同步全部 63 条定义与状态。`make source-inventory-check` 检查中文 catalog identity 与中英文 catalog structural parity，`make verify-data-sources` 继续运行确定性的 source/runtime ownership tests；`make probe-live-sources` 只保留为手动连通性报告。Lifecycle tests 进一步要求每条来源都有可执行的数据流归属：`time_bounded` source 不进入 scheduler 且必须有 downstream consumer，Hot Bug adapter 必须同时拥有 hot/durable normalizer，Incident adapter 必须注册 signal extractor。
 
 ## 证据与知识模型
 
@@ -161,7 +165,7 @@ make migrate
 make sync-sources
 ```
 
-这会启动本地 PostgreSQL/pgvector、Redis Broker、Redis Hot Cache 与 MinIO 服务，应用 Alembic 迁移，然后把声明式来源定义同步进运行时状态。
+`make dev-up-core` 是已经验证的 PostgreSQL/pgvector + 双 Redis 本地 core 路径。`make dev-up` 还会尝试当前配置的 MinIO 部署；MinIO-specific 镜像路径仍作为工程 blocker 保留，但 S3-compatible ArtifactStore contract 已通过固定版本 LocalStack Community integration provider 的真实 round trip。
 
 停止本地栈：
 
@@ -220,10 +224,26 @@ make promote-hot CVE=CVE-YYYY-NNNN
 
 ## 质量门
 
-提交变更前运行完整本地质量门：
+迭代代码时运行 fast gate：
 
 ```bash
 make check
+```
+
+改变 M3 handoff 边界前运行完整阶段 gate：
+
+```bash
+make verify-m3
+```
+
+也可以单独运行：
+
+```bash
+make integration-core
+make integration-object-store
+make source-inventory-check
+make verify-data-sources
+make probe-live-sources
 ```
 
 针对聚焦变更迭代时可单独运行：
@@ -261,7 +281,8 @@ make test
 建议从以下内容开始：
 
 - [Requirements-SPEC](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Requirements-SPEC) — 产品范围、约束与验收语义。
-- [Technical-Design](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design) — runtime 架构、存储语义、M1–M3 处理通路与实现基线。
+- [Technical Design 1](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design-1) — M1–M3 runtime 架构、存储语义、处理通路与实现基线。
+- [Technical Design 2](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design-2) — M4–M6 任务路由、Perception、Investigation State、有界执行与 Decision 契约。
 - [01-Data-Sources-and-Processing](https://github.com/jiale-li-orion/SecFusionAgent/wiki/01-Data-Sources-and-Processing) — 来源分类、生命周期与数据语义。
 - [02-CTI-Baseline-Reuse-and-Ownership](https://github.com/jiale-li-orion/SecFusionAgent/wiki/02-CTI-Baseline-Reuse-and-Ownership) — CTI 能力边界与复用策略。
 - [03-Normative-Knowledge-and-Policy](https://github.com/jiale-li-orion/SecFusionAgent/wiki/03-Normative-Knowledge-and-Policy) — 标准、policy 与规范性知识。
@@ -274,15 +295,16 @@ GitHub Pages、Archify、双语展示与 CI/CD 发布规则见 [`WEB-PRESENTATIO
 
 ## 路线图
 
-下一个工程边界是从首轮数据平面过渡到经过验证的 runtime 与 retrieval 基础设施：
+下一个工程边界是从已经验证的 M3 handoff 进入 Investigation / Retrieval / Reasoning plane：
 
-- 完成 PostgreSQL / Redis / MinIO / Celery 集成探针与恢复测试；
-- 把 GitHub 监控从 repository metadata 扩展到 issue / PR / commit / release 关系；
-- 在第一条 RSS breaking-source 通路之外补充 primary 与 forensic 的 incident 来源；
-- 把 Managed Content 扩展到 HTML 来源与语义抽取；
-- 在 current/canonical knowledge 之上实现可重建的 sparse + dense retrieval 与 query construction；
-- 把 Investigation Case / Trajectory 状态接入 Agent runtime；
-- 为富化、retrieval、QA、Agent trajectory 与 Experience 激活建立固定的 M7 评测协议；
+- 用户提供模型端点/凭据后跑一次真实 semantic+dense provider E2E；
+- 出现合适 target-repo OSV `GIT fixed` 样本后验证真实 deterministic fix-boundary promotion；
+- 显式维护 provider blocker，同时保持已经闭合的 source lifecycle contract；
+- 继续扩展 Incident primary / forensic follow-up 与 on-chain telemetry；
+- 实现 Technical Design 2 的快速路径：`TaskSpec → ContextBinding → ExecutionProfile → L0/L1 query`；
+- 在已验证的 M3 状态之上实现 M4 `InvestigationState / EvidenceNeed / StatePatch / InvestigationSnapshot` 与本地 Perception 读取；
+- 在主动 Agent 调查前补齐动态能力可见集、层级预算、BoundedLoop 与 sandbox / network / identity enforcement；
+- 实现 M6 `DecisionResult`，并为 routing、perception、state integration、evidence use 建立固定 M7 replay / evaluation；
 - 针对被投毒来源、indirect prompt injection、恶意 tool output 与权限边界补充安全回归。
 
 Requirements-SPEC 仍是产品范围的权威；路线图排序依据依赖与集成风险，而不是 UI 完成度。

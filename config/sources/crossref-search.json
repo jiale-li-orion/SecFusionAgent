@@ -1,0 +1,35 @@
+{
+  "source_id": "crossref-search",
+  "adapter_type": "scholarly_search",
+  "source_class": "academic_search",
+  "authority_scope": [
+    "doi_metadata",
+    "publication_metadata",
+    "candidate_discovery"
+  ],
+  "source_role": "reference",
+  "source_family": "crossref",
+  "access_mode": "https_api",
+  "update_semantics": "on_demand_search",
+  "discovery_method": {
+    "provider": "crossref",
+    "base_url": "https://api.crossref.org/works"
+  },
+  "time_semantics": {
+    "observed_at": "collector_clock"
+  },
+  "identity_semantics": {
+    "external_object_id": "DOI"
+  },
+  "rate_limit_policy": {
+    "provider": "crossref"
+  },
+  "access_rights": {
+    "classification": "public-metadata"
+  },
+  "retention_mode": "time_bounded",
+  "schedule_policy": {
+    "enabled": false
+  },
+  "schema_version": "1"
+}

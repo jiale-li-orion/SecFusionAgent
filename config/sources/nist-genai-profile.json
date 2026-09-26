@@ -1,0 +1,46 @@
+{
+  "source_id": "nist-genai-profile",
+  "adapter_type": "direct_document",
+  "source_class": "normative_knowledge",
+  "authority_scope": [
+    "framework_status",
+    "genai_risk_profile",
+    "control_guidance"
+  ],
+  "source_role": "authority",
+  "source_family": "nist",
+  "access_mode": "direct_documents",
+  "update_semantics": "authoritative_document_revision",
+  "discovery_method": {
+    "allowed_hosts": [
+      "www.nist.gov",
+      "nist.gov"
+    ],
+    "documents": [
+      {
+        "document_id": "NIST-AI-600-1",
+        "title": "Artificial Intelligence Risk Management Framework: Generative Artificial Intelligence Profile",
+        "document_type": "risk_framework",
+        "url": "https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-generative-artificial-intelligence"
+      }
+    ]
+  },
+  "time_semantics": {
+    "updated_at": "http_last_modified_when_available"
+  },
+  "identity_semantics": {
+    "external_object_id": "configured document_id"
+  },
+  "rate_limit_policy": {
+    "provider": "nist"
+  },
+  "access_rights": {
+    "classification": "public-authoritative"
+  },
+  "retention_mode": "durable_managed",
+  "schedule_policy": {
+    "enabled": true,
+    "interval_seconds": 86400
+  },
+  "schema_version": "1"
+}

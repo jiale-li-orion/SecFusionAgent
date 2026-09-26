@@ -31,6 +31,9 @@ async def _publish(topic: str, payload: dict[str, object]) -> None:
     elif topic == "enrichment.requested":
         task_name = "secfusion.enrichment.vulnerability"
         args = [payload]
+    elif topic == "document.index.requested":
+        task_name = "secfusion.indexing.document_revision"
+        args = [payload]
     else:
         raise ValueError(f"unsupported outbox topic: {topic}")
     await asyncio.to_thread(

@@ -1,0 +1,37 @@
+{
+  "source_id": "zoomeye-assets",
+  "adapter_type": "zoomeye_asset",
+  "source_class": "internet_asset_intelligence",
+  "authority_scope": [
+    "host_observation",
+    "service_port",
+    "software_fingerprint",
+    "asn_location",
+    "observation_time"
+  ],
+  "source_role": "telemetry",
+  "source_family": "zoomeye",
+  "access_mode": "https_api",
+  "update_semantics": "on_demand_observation",
+  "discovery_method": {
+    "base_url": "https://api.zoomeye.ai/v2/search"
+  },
+  "time_semantics": {
+    "observed_at": "collector_clock"
+  },
+  "identity_semantics": {
+    "external_object_id": "ip + port + transport"
+  },
+  "auth_ref": "SECFUSION_ZOOMEYE_API_KEY",
+  "rate_limit_policy": {
+    "provider": "zoomeye"
+  },
+  "access_rights": {
+    "classification": "authorized_api"
+  },
+  "retention_mode": "time_bounded",
+  "schedule_policy": {
+    "enabled": false
+  },
+  "schema_version": "1"
+}

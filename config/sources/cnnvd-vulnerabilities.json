@@ -1,0 +1,22 @@
+{
+  "source_id": "cnnvd-vulnerabilities",
+  "adapter_type": "cnnvd",
+  "source_class": "canonical_bug_reference",
+  "authority_scope": ["cnnvd_identity", "domestic_vulnerability_description", "localized_risk_mapping", "cnnvd_affected_mapping"],
+  "source_role": "authority",
+  "source_family": "cnnvd",
+  "access_mode": "signed_public_frontend_api",
+  "update_semantics": "on_demand_mutable_record",
+  "discovery_method": {
+    "origin": "https://www.cnnvd.org.cn",
+    "base_path": "/cnnvdweb",
+    "app_id": "6i8417579268034679HXvp0Kb6r1C2A9"
+  },
+  "time_semantics": {"published_at": "record publishDate", "updated_at": "record updateTime"},
+  "identity_semantics": {"external_object_id": "CNNVD id"},
+  "rate_limit_policy": {"provider": "cnnvd"},
+  "access_rights": {"classification": "public-frontend-api"},
+  "retention_mode": "time_bounded",
+  "schedule_policy": {"enabled": false},
+  "schema_version": "1"
+}

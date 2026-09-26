@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.intelligence.ingestion.evidence import ObservationAck
 from packages.intelligence.normalization.canonical import NormalizationResult
+from packages.intelligence.normalization.hot_bug import HotBugNormalizer
 from packages.intelligence.normalization.nvd import NVDHotBugNormalizer
 from packages.intelligence.storage.knowledge_models import (
     ClaimModel,
@@ -25,13 +26,21 @@ from packages.shared.storage.models import OutboxEventModel
 from packages.sources.contracts import IngestEnvelope, SourceDefinition
 
 
-class NVDCanonicalNormalizer:
-    PROCESSOR_NAME = "nvd-canonical-normalizer"
+class ProjectedVulnerabilityCanonicalNormalizer:
     PROCESSOR_VERSION = "1"
 
-    def __init__(self, *, now: Callable[[], datetime] | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        processor_name: str,
+        projection: HotBugNormalizer,
+        locator_for: Callable[[str], dict[str, object]],
+        now: Callable[[], datetime] | None = None,
+    ) -> None:
+        self._processor_name = processor_name
         self._now = now or (lambda: datetime.now(UTC))
-        self._projection = NVDHotBugNormalizer()
+        self._projection = projection
+        self._locator_for = locator_for
 
     async def normalize(
         self,
@@ -41,7 +50,7 @@ class NVDCanonicalNormalizer:
         observation: ObservationAck,
     ) -> NormalizationResult:
         run_id = _stable_id(
-            f"processing:{self.PROCESSOR_NAME}:{self.PROCESSOR_VERSION}:{observation.observation_id}"
+            f"processing:{self._processor_name}:{self.PROCESSOR_VERSION}:{observation.observation_id}"
         )
         existing_run = await session.get(ProcessingRunModel, run_id)
         if existing_run is not None and existing_run.status == "success":
@@ -60,7 +69,7 @@ class NVDCanonicalNormalizer:
                 ProcessingRunModel(
                     run_id=run_id,
                     processor_type="normalization",
-                    processor_name=self.PROCESSOR_NAME,
+                    processor_name=self._processor_name,
                     processor_version=self.PROCESSOR_VERSION,
                     input_revision_ids=[observation.observation_id],
                     attempt=1,
@@ -146,7 +155,7 @@ class NVDCanonicalNormalizer:
                     created_revision=revision.revision,
                 )
                 session.add(claim)
-                locator = _locator_for(predicate)
+                locator = self._locator_for(predicate)
                 locator_hash = sha256(
                     json.dumps(locator, sort_keys=True, separators=(",", ":")).encode()
                 ).hexdigest()
@@ -214,6 +223,16 @@ class NVDCanonicalNormalizer:
         return _result_from_change(change, observation.observation_id, run_id)
 
 
+class NVDCanonicalNormalizer(ProjectedVulnerabilityCanonicalNormalizer):
+    def __init__(self, *, now: Callable[[], datetime] | None = None) -> None:
+        super().__init__(
+            processor_name="nvd-canonical-normalizer",
+            projection=NVDHotBugNormalizer(),
+            locator_for=_nvd_locator_for,
+            now=now,
+        )
+
+
 def _result_from_change(
     change: KnowledgeChangeModel,
     observation_id: str,
@@ -234,7 +253,7 @@ def _stable_id(value: str) -> str:
     return str(uuid5(NAMESPACE_URL, f"secfusion:{value}"))
 
 
-def _locator_for(predicate: str) -> dict[str, object]:
+def _nvd_locator_for(predicate: str) -> dict[str, object]:
     paths = {
         "status": "$.cve.vulnStatus",
         "description_en": "$.cve.descriptions[?(@.lang=='en')].value",

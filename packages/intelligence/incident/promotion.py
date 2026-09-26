@@ -111,28 +111,12 @@ class IncidentPromotionService:
             )
         )
         if existing is not None:
-            existing_event_ids = list(
-                await session.scalars(
-                    select(IncidentTimelineEventModel.event_id).where(
-                        IncidentTimelineEventModel.incident_id == existing.incident_id
-                    )
-                )
-            )
-            existing_observation_ids = list(
-                await session.scalars(
-                    select(IncidentSourceLinkModel.observation_id).where(
-                        IncidentSourceLinkModel.incident_id == existing.incident_id
-                    )
-                )
-            )
-            candidate.promotion_state = "promoted"
-            await self._store.put_candidate(candidate, ttl_seconds=7 * 24 * 60 * 60)
-            return IncidentPromotionResult(
-                incident_id=existing.incident_id,
-                incident_revision=existing.current_revision,
-                observation_ids=existing_observation_ids,
-                timeline_event_ids=existing_event_ids,
-                replay=True,
+            return await self._append_to_existing_incident(
+                session,
+                incident=existing,
+                candidate=candidate,
+                signals=signals,
+                sources=sources,
             )
 
         selected = _select_supporting_signals(signals, decision.reason)
@@ -242,6 +226,140 @@ class IncidentPromotionService:
             incident_revision=revision.revision,
             observation_ids=observation_ids,
             timeline_event_ids=event_ids,
+        )
+
+    async def _append_to_existing_incident(
+        self,
+        session: AsyncSession,
+        *,
+        incident: SecurityIncidentModel,
+        candidate: IncidentCandidate,
+        signals: list[SignalItem],
+        sources: dict[str, SourceDefinition],
+    ) -> IncidentPromotionResult:
+        existing_events = list(
+            await session.scalars(
+                select(IncidentTimelineEventModel).where(
+                    IncidentTimelineEventModel.incident_id == incident.incident_id
+                )
+            )
+        )
+        existing_signal_ids = {event.signal_id for event in existing_events}
+        new_signals = [signal for signal in signals if signal.signal_id not in existing_signal_ids]
+        if not new_signals:
+            existing_observation_ids = list(
+                await session.scalars(
+                    select(IncidentSourceLinkModel.observation_id).where(
+                        IncidentSourceLinkModel.incident_id == incident.incident_id
+                    )
+                )
+            )
+            candidate.promotion_state = "promoted"
+            await self._store.put_candidate(candidate, ttl_seconds=7 * 24 * 60 * 60)
+            return IncidentPromotionResult(
+                incident_id=incident.incident_id,
+                incident_revision=incident.current_revision,
+                observation_ids=existing_observation_ids,
+                timeline_event_ids=[event.event_id for event in existing_events],
+                replay=True,
+            )
+
+        observation_pairs: list[tuple[SignalItem, ObservationAck]] = []
+        for signal in new_signals:
+            source = sources.get(signal.source_id)
+            if source is None:
+                raise ValueError(
+                    f"missing source definition for incident signal {signal.source_id}"
+                )
+            observation = await self._evidence_ingress.accept(
+                session,
+                source,
+                _signal_envelope(signal),
+            )
+            observation_pairs.append((signal, observation))
+
+        now = self._now()
+        revision = IncidentRevisionModel(
+            cause_observation_id=observation_pairs[0][1].observation_id,
+            committed_at=now,
+        )
+        session.add(revision)
+        await session.flush()
+
+        event_ids: list[str] = []
+        observation_ids: list[str] = []
+        for signal, observation in observation_pairs:
+            event_id = _stable_id(f"incident-event:{incident.incident_id}:{signal.signal_id}")
+            event_ids.append(event_id)
+            observation_ids.append(observation.observation_id)
+            session.add(
+                IncidentTimelineEventModel(
+                    event_id=event_id,
+                    incident_id=incident.incident_id,
+                    signal_id=signal.signal_id,
+                    event_time=signal.published_at or signal.observed_at,
+                    observed_at=signal.observed_at,
+                    event_type=_event_type(signal),
+                    summary=signal.summary or signal.title,
+                    source_role=signal.source_role.value,
+                    claim_refs=[],
+                    evidence_refs=[observation.observation_id],
+                    supersedes_event_id=None,
+                    created_revision=revision.revision,
+                )
+            )
+            session.add(
+                IncidentSourceLinkModel(
+                    source_link_id=_stable_id(
+                        f"incident-source:{incident.incident_id}:{observation.observation_id}"
+                    ),
+                    incident_id=incident.incident_id,
+                    observation_id=observation.observation_id,
+                    source_id=signal.source_id,
+                    source_family=signal.source_family,
+                    upstream_source=signal.upstream_source,
+                    independence_key=signal.independence_key,
+                    source_role=signal.source_role.value,
+                    created_revision=revision.revision,
+                )
+            )
+
+        latest_signal = max(new_signals, key=lambda item: item.observed_at)
+        incident.current_revision = revision.revision
+        incident.current_summary = latest_signal.summary or latest_signal.title
+        incident.watch_state = {
+            "watch_priority": candidate.watch_priority,
+            "next_poll_at": (
+                candidate.next_poll_at.isoformat() if candidate.next_poll_at is not None else None
+            ),
+            "unresolved_questions": candidate.unresolved_questions,
+        }
+        incident.updated_at = now
+        session.add(
+            OutboxEventModel(
+                event_id=_stable_id(
+                    f"outbox:incident.changed:{incident.incident_id}:{revision.revision}"
+                ),
+                topic="incident.changed",
+                aggregate_id=incident.incident_id,
+                payload={
+                    "incident_id": incident.incident_id,
+                    "revision": revision.revision,
+                },
+                status="pending",
+                attempts=0,
+                available_at=now,
+            )
+        )
+        candidate.promotion_state = "promoted"
+        await self._store.put_candidate(candidate, ttl_seconds=7 * 24 * 60 * 60)
+        await session.flush()
+        return IncidentPromotionResult(
+            incident_id=incident.incident_id,
+            incident_revision=revision.revision,
+            observation_ids=observation_ids,
+            timeline_event_ids=event_ids,
+            replay=False,
         )
 
     async def _load_signals(self, candidate: IncidentCandidate) -> list[SignalItem]:
