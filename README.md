@@ -246,6 +246,8 @@ make verify-data-sources
 make probe-live-sources
 ```
 
+`make probe-live-sources` is a manual point-in-time reachability report. It is not part of `verify-m3` or `verify-data-sources`; anti-bot, regional network, rate-limit and credential conditions are handled during provider hardening.
+
 Individual commands are available when iterating on a focused change:
 
 ```bash

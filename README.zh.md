@@ -246,6 +246,8 @@ make verify-data-sources
 make probe-live-sources
 ```
 
+`make probe-live-sources` 只生成手动时点连通性报告，不属于 `verify-m3` 或 `verify-data-sources`；反爬、地区网络、限流和凭据问题在后续 provider hardening 中处理。
+
 针对聚焦变更迭代时可单独运行：
 
 ```bash
