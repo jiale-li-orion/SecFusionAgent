@@ -14,6 +14,7 @@ from packages.sources.adapters.cisa_kev import CISAKEVAdapter
 from packages.sources.adapters.cnnvd import CNNVDAdapter
 from packages.sources.adapters.cvelist_v5 import CVEListV5Adapter
 from packages.sources.adapters.direct_document import DirectDocumentAdapter
+from packages.sources.adapters.epss import FIRSTEPSSAdapter
 from packages.sources.adapters.github_advisory import GitHubGlobalAdvisoryAdapter
 from packages.sources.adapters.github_repo import GitHubRepoAdapter
 from packages.sources.adapters.html_incident import HTMLIncidentAdapter
@@ -64,6 +65,7 @@ async def _main(*, strict: bool, json_output: bool) -> int:
         github_advisory = GitHubGlobalAdvisoryAdapter(client, token=settings.github_token)
         github_repo = GitHubRepoAdapter(client, token=settings.github_token)
         cisa = CISAKEVAdapter(client)
+        epss = FIRSTEPSSAdapter(client)
         direct_document = DirectDocumentAdapter(client)
         scholarly = ScholarlySearchAdapter(
             client, semantic_scholar_api_key=settings.semantic_scholar_api_key
@@ -193,6 +195,16 @@ async def _main(*, strict: bool, json_output: bool) -> int:
                 lambda: cvelist.query(
                     sources["cve-program-cvelist-v5"],
                     QuerySpec(filters={"cve_id": "CVE-2024-3094"}),
+                    acquisition_run_id=run_id,
+                    trigger=trigger,
+                ),
+            ),
+            (
+                "first-epss",
+                "query:CVE-2021-44228",
+                lambda: epss.query(
+                    sources["first-epss"],
+                    QuerySpec(filters={"cve_id": "CVE-2021-44228"}),
                     acquisition_run_id=run_id,
                     trigger=trigger,
                 ),

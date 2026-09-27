@@ -78,10 +78,10 @@ The registry is broader than the processors already implemented. The current imp
 | Severity | CVSS score/vector/version/severity | NVD deterministic normalization writes all four canonical fields, including `cvss_version` |
 | Weakness | `Vulnerability --has-weakness--> Weakness` | NVD and GitHub Advisory deterministically map CWE identifiers to canonical `Weakness` objects with evidence |
 | Product/package | `affects-product`, `affects-package` | package relations exist; broader product identity mapping continues |
-| Version applicability | scoped `applicability-status` relation | GitHub Advisory ranges use `github_advisory_range`; OSV ecosystem/native records now use `osv_range` and retain OSV `ranges/versions` in the source-scoped qualifier. CVE/OSV/NVD/CSAF unification remains backlog |
+| Version applicability | scoped `applicability-status` relation | GitHub Advisory ranges use `github_advisory_range`; OSV ecosystem/native records use `osv_range`; NVD CPE configuration trees now write `nvd_cpe` assertions while preserving root/node `AND/OR/negate`, full CPE criteria, inclusive/exclusive bounds, and companion matches. CVE 5.x / CSAF remain backlog |
 | Fix/remediation | `fixed-version`, `fixed-by` | GitHub Advisory `first_patched_version` and OSV `ECOSYSTEM/SEMVER` fixed events write canonical `SoftwareVersion` + `fixed-version`; OSV GIT fixed hashes remain commit-level evidence for the existing fix-boundary path |
 | Exploit state | `known_exploited`, `has-poc`, exploit maturity | CISA KEV writes `known_exploited`; NVD references explicitly tagged `Exploit` now materialize canonical `ExploitArtifact` + `has-poc` with exact reference evidence. Broader exploit-feed coverage remains future work |
-| Exploit likelihood | EPSS probability/percentile at observed time | GitHub Advisory EPSS snapshot writes canonical probability/percentile claims with provider evidence; dedicated point-in-time EPSS source remains future hardening |
+| Exploit likelihood | EPSS probability/percentile at observed time | GitHub Advisory EPSS snapshots remain evidence-backed; dedicated FIRST EPSS is now an owned on-demand authority source and writes `epss_probability/percentile` with `source_semantics=first_epss` and `score_date`, preserving point-in-time identity |
 | Advisory/reference | canonical advisory/document associations | GitHub Advisory now writes canonical `Document` + `described-by`; vendor/advisory breadth remains incomplete |
 | Asset exposure | `InternetAsset --asset-potentially-affected--> Vulnerability` | provider-neutral `AssetObservation` exists; applicability join remains backlog |
 | Research/paper | `discusses-vulnerability` | managed semantic extraction exists; benchmark bridge remains backlog |
@@ -92,13 +92,12 @@ Supporting edges such as `release-contains-commit`, `asset-runs-product`, and `a
 The active M3 implementation backlog is therefore:
 
 1. Product/Package/SoftwareVersion alias normalization beyond the current ecosystem+package+version identity;
-2. CVE/NVD/CSAF source-specific applicability evaluators beyond the current GitHub Advisory and OSV assertions;
-3. dedicated point-in-time EPSS ingestion independent of GitHub advisory snapshots;
-4. advisory/document association coverage beyond GitHub Advisory;
-5. broader PoC/ExploitArtifact source coverage beyond NVD explicit `Exploit` tags;
-6. AssetObservation → Product/SoftwareVersion → Vulnerability deterministic join;
-7. paper `discusses-vulnerability` benchmark bridge;
-8. Incident → Vulnerability strong-anchor benchmark bridge.
+2. CVE 5.x / CSAF applicability beyond the current GitHub Advisory, OSV, and NVD CPE assertions;
+3. advisory/document association coverage beyond GitHub Advisory;
+4. broader PoC/ExploitArtifact source coverage beyond NVD explicit `Exploit` tags;
+5. AssetObservation → Product/SoftwareVersion → Vulnerability deterministic join;
+6. paper `discusses-vulnerability` benchmark bridge;
+7. Incident → Vulnerability strong-anchor benchmark bridge.
 
 Processor-version refresh is expected to be replay-safe. The canonical writer and NVD durable normalizer reactivate an identical immutable claim/relation when a newer processor run supersedes the previous active source projection and then reproduces the same normalized tuple. This prevents mapper upgrades from accidentally making stable facts disappear.
 
@@ -130,6 +129,22 @@ resolution, the source-specific OSV benchmark contains **44 formal facts / 44 TP
 product/package **11/11**, `osv_range` applicability **19/19**, and fixed/remediation **14/14**.
 The three CVEs with no OSV record are reported unavailable and are not inserted into the OSV
 denominator.
+
+NVD CPE applicability is now evaluated without flattening configuration trees. On real
+`CVE-2026-7273`, NVD exposes ten vulnerable firmware CPE branches, each paired through root `AND`
+configuration with a non-vulnerable hardware companion and an exclusive upper version bound. NVD
+v5 normalization materialized all ten as qualifier-rich `applicability-status` relations; the
+independent evaluator scored **10/10 TP, 0 FP, 0 FN** for `version_applicability`. The whole case,
+including severity/CWE/KEV/PoC/EPSS/advisory facts, scored **22 TP / 0 FP / 0 FN** after FIRST EPSS
+was added.
+
+FIRST EPSS is independently queryable and time-scoped rather than being inferred from GitHub.
+For `CVE-2026-7273`, the live source returned probability `0.02501`, percentile `0.84081`, and
+`score_date=2026-09-27`; both formal point-in-time facts scored **2/2** with evidence. Combined
+`exploit_likelihood` for the case is **4/4** when the GitHub snapshot and FIRST point-in-time
+assertions are kept as distinct source/time facts. `scripts/evaluate_first_epss.py` additionally
+checks FIRST in isolation and currently reports **2 TP / 0 FP / 0 FN**, preventing GitHub from
+masking a FIRST-specific regression.
 
 M3 exposes closed-set status as resolved/conflict/unknown/missing over the shared vocabulary. The conversion of those gaps into M4 `EvidenceNeed`, Perception and investigation policy remains owned by `packages.investigation`; M3 state specifications do not become a parallel investigation requirement protocol.
 

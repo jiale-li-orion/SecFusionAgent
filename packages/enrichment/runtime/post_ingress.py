@@ -11,6 +11,7 @@ from packages.enrichment.assets.service import map_asset_observation
 from packages.enrichment.processors.cisa_kev import CISAKEVMapper
 from packages.enrichment.processors.cnnvd import CNNVDMapper
 from packages.enrichment.processors.cnvd import CNVDHTMLMapper
+from packages.enrichment.processors.epss import FIRSTEPSSMapper
 from packages.enrichment.processors.github_advisory import GitHubAdvisoryMapper
 from packages.enrichment.processors.osv import OSVMapper
 from packages.intelligence.documents.parsers import (
@@ -101,6 +102,7 @@ class ObservationProcessingRuntime:
             "osv": OSVMapper(),
             "github_global_advisory": GitHubAdvisoryMapper(),
             "cisa_kev": CISAKEVMapper(),
+            "first_epss": FIRSTEPSSMapper(),
             "cnvd": CNVDHTMLMapper(),
             "cnnvd": CNNVDMapper(),
         }

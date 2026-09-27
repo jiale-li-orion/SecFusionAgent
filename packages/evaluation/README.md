@@ -303,5 +303,31 @@ facts / 44 TP / 0 FP / 0 FN**: product/package 11, `osv_range` applicability 19,
 fixed/remediation 14. Three OSV-unavailable cases are explicit non-denominator cases. A zero-fact
 OSV selection fails closed rather than inheriting the scorer's mathematical `0/0 -> 1.0` default.
 
-The next priority is assets and broader CVE/NVD/CSAF applicability, followed by paper/incident
-benchmark bridges and broader advisory/PoC source coverage.
+NVD CPE applicability is scored as qualifier-aware structured gold, not as a flattened affected
+version list. The fact identity includes canonical Product target plus `state=affected`,
+`source_semantics=nvd_cpe`, full CPE criteria, version bounds, and a configuration snapshot that
+retains root/node `AND/OR/negate` and companion matches. On `CVE-2026-7273`, ten real NVD CPE
+branches produced **10 TP / 0 FP / 0 FN** in `version_applicability`; no tree information was
+dropped to obtain the score.
+
+FIRST EPSS is now a separate formal point-in-time source. Its gold and prediction keys include
+`source_semantics=first_epss`, `score_date`, and `temporal_scope=score_date`, preventing one day's
+score from overwriting or being compared as if it were another day's fact. A live
+`CVE-2026-7273` refresh returned probability `0.02501`, percentile `0.84081`, date `2026-09-27`;
+the dedicated FIRST facts scored **2/2**. The same case currently contains **22 formal facts** and
+scores **22 TP / 0 FP / 0 FN** overall, including NVD CPE applicability 10/10.
+
+FIRST can also be evaluated independently of the mixed structured suite:
+
+```bash
+uv run python scripts/evaluate_first_epss.py \
+  CVE-2026-7273 \
+  --output /tmp/m3-first-epss.json
+```
+
+The current source-specific run is **2 TP / 0 FP / 0 FN**, with no missing or extra facts. This
+runner intentionally ignores GitHub EPSS so source-specific failures cannot be hidden by a second
+provider carrying a numerically similar score.
+
+The next priority is AssetObservation → vulnerability applicability and CVE 5.x / CSAF semantics,
+followed by paper/incident benchmark bridges and broader advisory/PoC source coverage.

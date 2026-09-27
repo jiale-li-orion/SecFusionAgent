@@ -23,6 +23,7 @@ from packages.sources.adapters.factory import create_source_adapter
 from packages.sources.contracts import AcquisitionTrigger, QuerySpec
 from packages.sources.errors import SourceFetchFailed, SourceRateLimited
 from packages.sources.registry.loader import load_source_definitions
+from packages.sources.registry.service import sync_source_definitions
 
 DEFAULT_CVES = (
     "CVE-2025-47828",
@@ -33,6 +34,7 @@ DEFAULT_CVES = (
     "CVE-2026-48746",
 )
 PROVIDER_IDS = (
+    "first-epss",
     "github-global-advisories",
     "osv-vulnerabilities",
     "cisa-kev",
@@ -49,10 +51,10 @@ async def _run(
     settings = get_settings()
     engine = create_engine(settings.database_url)
     factory = create_session_factory(engine)
-    sources = {
-        item.source_id: item
-        for item in load_source_definitions(Path(settings.source_registry_path))
-    }
+    definitions = load_source_definitions(Path(settings.source_registry_path))
+    sources = {item.source_id: item for item in definitions}
+    async with factory() as session, session.begin():
+        await sync_source_definitions(session, definitions)
     nvd = sources["nvd-cves-2"]
     artifact_store = create_s3_artifact_store(settings)
     await artifact_store.ensure_bucket()

@@ -16,3 +16,7 @@ class SourceSchemaChanged(SourceError):
 
 class SourceFetchFailed(SourceError):
     pass
+
+
+class SourceConfigurationError(SourceError):
+    """Configured source cannot be executed by the active runtime composition."""

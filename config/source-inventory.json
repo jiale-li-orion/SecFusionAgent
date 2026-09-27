@@ -45,6 +45,15 @@
     },
     {
       "category": "vulnerability",
+      "name": "FIRST EPSS",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "first-epss"
+      ]
+    },
+    {
+      "category": "vulnerability",
       "name": "CNNVD",
       "mode": "fixed_provider",
       "coverage": "owned",

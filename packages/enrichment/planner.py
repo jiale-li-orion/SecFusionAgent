@@ -27,6 +27,18 @@ class VulnerabilityEnrichmentPlanner:
                     query=QuerySpec(filters={"cve_id": cve_id.upper()}),
                 )
             )
+        first_epss_predicates = {
+            claim.predicate
+            for claim in view.claims
+            if claim.qualifier.get("source_id") == "first-epss"
+        }
+        if not {"epss_probability", "epss_percentile"} <= first_epss_predicates:
+            jobs.append(
+                EnrichmentJobSpec(
+                    source_id="first-epss",
+                    query=QuerySpec(filters={"cve_id": cve_id.upper()}),
+                )
+            )
         relation_types = {relation.relation_type for relation in view.relations}
         needs_github = (
             not any(predicate.startswith("github_") for predicate in predicates)

@@ -1,0 +1,31 @@
+{
+  "source_id": "first-epss",
+  "adapter_type": "first_epss",
+  "source_class": "canonical_bug_query",
+  "authority_scope": ["epss_probability", "epss_percentile", "score_date"],
+  "source_role": "authority",
+  "source_family": "first-epss",
+  "access_mode": "https_api",
+  "update_semantics": "daily_point_in_time_score",
+  "discovery_method": {
+    "base_url": "https://api.first.org/data/v1/epss"
+  },
+  "time_semantics": {
+    "updated_at": "data.date"
+  },
+  "identity_semantics": {
+    "external_object_id": "data.cve",
+    "external_revision": "data.date"
+  },
+  "rate_limit_policy": {
+    "provider": "first"
+  },
+  "access_rights": {
+    "classification": "public"
+  },
+  "retention_mode": "time_bounded",
+  "schedule_policy": {
+    "enabled": false
+  },
+  "schema_version": "1"
+}

@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from hashlib import sha256
 from uuid import NAMESPACE_URL, uuid5
 
+from pydantic import JsonValue
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -47,7 +48,9 @@ class ProjectedVulnerabilityCanonicalNormalizer:
         processor_name: str,
         projection: HotBugNormalizer,
         locator_for: Callable[[str], dict[str, object]],
-        relations_for: Callable[[dict[str, object]], list[RelationCandidate]] | None = None,
+        relations_for: (
+            Callable[[dict[str, object], IngestEnvelope], list[RelationCandidate]] | None
+        ) = None,
         now: Callable[[], datetime] | None = None,
     ) -> None:
         self._processor_name = processor_name
@@ -222,7 +225,9 @@ class ProjectedVulnerabilityCanonicalNormalizer:
         relation_ids: list[str] = []
         object_ids: list[str] = [object_id]
         relation_candidates = (
-            self._relations_for(dict(projection)) if self._relations_for is not None else []
+            self._relations_for(dict(projection), envelope)
+            if self._relations_for is not None
+            else []
         )
         relation_types = {item.relation_type for item in relation_candidates}
         for relation_type in relation_types:
@@ -363,7 +368,7 @@ class ProjectedVulnerabilityCanonicalNormalizer:
 
 
 class NVDCanonicalNormalizer(ProjectedVulnerabilityCanonicalNormalizer):
-    PROCESSOR_VERSION = "4"
+    PROCESSOR_VERSION = "5"
 
     def __init__(self, *, now: Callable[[], datetime] | None = None) -> None:
         super().__init__(
@@ -412,7 +417,10 @@ def _nvd_locator_for(predicate: str) -> dict[str, object]:
     return {"kind": "jsonpath", "path": paths.get(predicate, "$.cve")}
 
 
-def _nvd_relations(projection: dict[str, object]) -> list[RelationCandidate]:
+def _nvd_relations(
+    projection: dict[str, object],
+    envelope: IngestEnvelope,
+) -> list[RelationCandidate]:
     relations: list[RelationCandidate] = []
     raw_cwes = projection.get("cwes")
     if isinstance(raw_cwes, list):
@@ -459,12 +467,161 @@ def _nvd_relations(projection: dict[str, object]) -> list[RelationCandidate]:
                     },
                 )
             )
+
+    cve = envelope.json_payload.get("cve")
+    if isinstance(cve, dict):
+        relations.extend(_nvd_cpe_relations(cve.get("configurations")))
     return relations
 
 
 def _exploit_artifact_key(url: str) -> str:
     digest = sha256(url.strip().encode()).hexdigest()
     return f"exploit-artifact:url-sha256:{digest}"
+
+
+def _nvd_cpe_relations(value: object) -> list[RelationCandidate]:
+    if not isinstance(value, list):
+        return []
+    relations: list[RelationCandidate] = []
+    for root_index, root in enumerate(value):
+        if not isinstance(root, dict):
+            continue
+        nodes = root.get("nodes")
+        if not isinstance(nodes, list):
+            continue
+        for node_path, node in _walk_configuration_nodes(nodes):
+            matches = node.get("cpeMatch")
+            if not isinstance(matches, list):
+                continue
+            for match_index, match in enumerate(matches):
+                if not isinstance(match, dict) or match.get("vulnerable") is not True:
+                    continue
+                criteria = match.get("criteria")
+                identity = _cpe23_product_identity(criteria)
+                if identity is None:
+                    continue
+                part, vendor, product = identity
+                version_range = _nvd_version_range(match)
+                configuration: JsonValue = json.loads(
+                    json.dumps(
+                        {
+                            "root_index": root_index,
+                            "root_operator": root.get("operator"),
+                            "root_negate": bool(root.get("negate", False)),
+                            "node_path": node_path,
+                            "node_operator": node.get("operator"),
+                            "node_negate": bool(node.get("negate", False)),
+                            "match_index": match_index,
+                            "match_criteria_id": match.get("matchCriteriaId"),
+                            "root_snapshot": root,
+                        },
+                        sort_keys=True,
+                        ensure_ascii=False,
+                    )
+                )
+                qualifier: dict[str, JsonValue] = {
+                    "state": "affected",
+                    "source_semantics": "nvd_cpe",
+                    "platform": criteria,
+                    "configuration": configuration,
+                }
+                if version_range:
+                    qualifier["version_range"] = version_range
+                relations.append(
+                    RelationCandidate(
+                        relation_type="applicability-status",
+                        target=ObjectCandidate(
+                            object_type="Product",
+                            canonical_key=_cpe_product_key(part, vendor, product),
+                            properties={
+                                "identity_scheme": "cpe23_product",
+                                "cpe_part": part,
+                                "vendor": vendor,
+                                "product": product,
+                            },
+                        ),
+                        qualifier=qualifier,
+                        locator={
+                            "kind": "jsonpath",
+                            "path": (
+                                f"$.cve.configurations[{root_index}].nodes"
+                                + "".join(f"[{index}].nodes" for index in node_path[:-1])
+                                + f"[{node_path[-1]}].cpeMatch[{match_index}]"
+                            ),
+                        },
+                    )
+                )
+    return relations
+
+
+def _walk_configuration_nodes(
+    nodes: list[object],
+    prefix: tuple[int, ...] = (),
+) -> list[tuple[list[int], dict[str, object]]]:
+    result: list[tuple[list[int], dict[str, object]]] = []
+    for index, raw_node in enumerate(nodes):
+        if not isinstance(raw_node, dict):
+            continue
+        path = [*prefix, index]
+        result.append((path, raw_node))
+        children = raw_node.get("nodes")
+        if isinstance(children, list):
+            result.extend(_walk_configuration_nodes(children, tuple(path)))
+    return result
+
+
+def _nvd_version_range(match: dict[str, object]) -> dict[str, JsonValue]:
+    fields = (
+        "versionStartIncluding",
+        "versionStartExcluding",
+        "versionEndIncluding",
+        "versionEndExcluding",
+    )
+    return {
+        field: value
+        for field in fields
+        if isinstance((value := match.get(field)), str) and value
+    }
+
+
+def _cpe23_product_identity(criteria: object) -> tuple[str, str, str] | None:
+    if not isinstance(criteria, str) or not criteria.startswith("cpe:2.3:"):
+        return None
+    parts = _split_cpe23(criteria)
+    if len(parts) < 5:
+        return None
+    part, vendor, product = parts[2], parts[3], parts[4]
+    if any(value in {"", "*", "-"} for value in (part, vendor, product)):
+        return None
+    return part.lower(), vendor.lower(), product.lower()
+
+
+def _split_cpe23(value: str) -> list[str]:
+    parts: list[str] = []
+    current: list[str] = []
+    escaped = False
+    for char in value:
+        if escaped:
+            current.append(char)
+            escaped = False
+            continue
+        if char == "\\":
+            escaped = True
+            continue
+        if char == ":":
+            parts.append("".join(current))
+            current = []
+            continue
+        current.append(char)
+    if escaped:
+        current.append("\\")
+    parts.append("".join(current))
+    return parts
+
+
+def _cpe_product_key(part: str, vendor: str, product: str) -> str:
+    digest = sha256(f"{part}|{vendor}|{product}".encode()).hexdigest()
+    return f"product:cpe23-sha256:{digest}"
 
 
 async def _supersede_source_claims(

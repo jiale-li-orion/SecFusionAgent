@@ -55,7 +55,14 @@ def _json_normalized(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
-def _claim_fact(root_key: str, predicate: str, value: Any) -> EnrichmentFactKey:
+def _claim_fact(
+    root_key: str,
+    predicate: str,
+    value: Any,
+    *,
+    qualifier: dict[str, Any] | None = None,
+    temporal_scope: str = "current",
+) -> EnrichmentFactKey:
     term = canonical_term("claim", predicate)
     if term is None:
         raise ValueError(f"unknown canonical claim: {predicate}")
@@ -66,6 +73,9 @@ def _claim_fact(root_key: str, predicate: str, value: Any) -> EnrichmentFactKey:
         dimension=term.dimension,
         predicate_or_relation_type=predicate,
         normalized_value_or_target_id=_json_normalized(value),
+        qualifier_keys=tuple(sorted((qualifier or {}).keys())),
+        normalized_qualifier=_json_normalized(qualifier or {}),
+        temporal_scope=temporal_scope,
     )
 
 
@@ -112,6 +122,19 @@ def _nvd_primary_metric(cve: dict[str, Any]) -> dict[str, Any] | None:
     return None
 
 
+def _float_value(value: Any) -> float | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        try:
+            return float(value)
+        except ValueError:
+            return None
+    return None
+
+
 def _osv_applicability_qualifier(affected: dict[str, Any]) -> dict[str, Any]:
     qualifier: dict[str, Any] = {
         "state": "affected",
@@ -149,6 +172,26 @@ def _osv_fixed_versions(affected: dict[str, Any]) -> list[str]:
     return result
 
 
+def _osv_has_package_affected(payload: dict[str, Any]) -> bool:
+    affected = payload.get("affected")
+    if not isinstance(affected, list):
+        return False
+    return any(
+        isinstance(item, dict)
+        and isinstance(item.get("package"), dict)
+        and isinstance(item["package"].get("name"), str)
+        and isinstance(item["package"].get("ecosystem"), str)
+        for item in affected
+    )
+
+
+def _osv_ghsa_aliases(payload: dict[str, Any]) -> list[str]:
+    aliases = payload.get("aliases")
+    if not isinstance(aliases, list):
+        return []
+    return [item for item in aliases if isinstance(item, str) and item.startswith("GHSA-")]
+
+
 def _nvd_exploit_urls(cve: dict[str, Any]) -> list[str]:
     result: list[str] = []
     references = cve.get("references")
@@ -172,6 +215,122 @@ def _nvd_exploit_urls(cve: dict[str, Any]) -> list[str]:
 def _exploit_artifact_key(url: str) -> str:
     digest = sha256(url.strip().encode()).hexdigest()
     return f"exploit-artifact:url-sha256:{digest}"
+
+
+def _nvd_cpe_applicability(cve: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
+    configurations = cve.get("configurations")
+    if not isinstance(configurations, list):
+        return []
+    result: list[tuple[str, dict[str, Any]]] = []
+    for root_index, root in enumerate(configurations):
+        if not isinstance(root, dict):
+            continue
+        nodes = root.get("nodes")
+        if not isinstance(nodes, list):
+            continue
+        for node_path, node in _walk_nvd_nodes(nodes):
+            matches = node.get("cpeMatch")
+            if not isinstance(matches, list):
+                continue
+            for match_index, match in enumerate(matches):
+                if not isinstance(match, dict) or match.get("vulnerable") is not True:
+                    continue
+                criteria = match.get("criteria")
+                identity = _cpe23_product_identity(criteria)
+                if identity is None:
+                    continue
+                part, vendor, product = identity
+                qualifier: dict[str, Any] = {
+                    "state": "affected",
+                    "source_semantics": "nvd_cpe",
+                    "platform": criteria,
+                    "configuration": {
+                        "root_index": root_index,
+                        "root_operator": root.get("operator"),
+                        "root_negate": bool(root.get("negate", False)),
+                        "node_path": node_path,
+                        "node_operator": node.get("operator"),
+                        "node_negate": bool(node.get("negate", False)),
+                        "match_index": match_index,
+                        "match_criteria_id": match.get("matchCriteriaId"),
+                        "root_snapshot": root,
+                    },
+                }
+                version_range = _nvd_cpe_version_range(match)
+                if version_range:
+                    qualifier["version_range"] = version_range
+                result.append((_cpe_product_key(part, vendor, product), qualifier))
+    return result
+
+
+def _walk_nvd_nodes(
+    nodes: list[Any],
+    prefix: tuple[int, ...] = (),
+) -> list[tuple[list[int], dict[str, Any]]]:
+    result: list[tuple[list[int], dict[str, Any]]] = []
+    for index, raw_node in enumerate(nodes):
+        if not isinstance(raw_node, dict):
+            continue
+        path = [*prefix, index]
+        result.append((path, raw_node))
+        children = raw_node.get("nodes")
+        if isinstance(children, list):
+            result.extend(_walk_nvd_nodes(children, tuple(path)))
+    return result
+
+
+def _nvd_cpe_version_range(match: dict[str, Any]) -> dict[str, str]:
+    fields = (
+        "versionStartIncluding",
+        "versionStartExcluding",
+        "versionEndIncluding",
+        "versionEndExcluding",
+    )
+    return {
+        field: value
+        for field in fields
+        if isinstance((value := match.get(field)), str) and value
+    }
+
+
+def _cpe23_product_identity(criteria: Any) -> tuple[str, str, str] | None:
+    if not isinstance(criteria, str) or not criteria.startswith("cpe:2.3:"):
+        return None
+    parts = _split_cpe23(criteria)
+    if len(parts) < 5:
+        return None
+    part, vendor, product = parts[2], parts[3], parts[4]
+    if any(value in {"", "*", "-"} for value in (part, vendor, product)):
+        return None
+    return part.lower(), vendor.lower(), product.lower()
+
+
+def _split_cpe23(value: str) -> list[str]:
+    parts: list[str] = []
+    current: list[str] = []
+    escaped = False
+    for char in value:
+        if escaped:
+            current.append(char)
+            escaped = False
+            continue
+        if char == "\\":
+            escaped = True
+            continue
+        if char == ":":
+            parts.append("".join(current))
+            current = []
+            continue
+        current.append(char)
+    if escaped:
+        current.append("\\")
+    parts.append("".join(current))
+    return parts
+
+
+def _cpe_product_key(part: str, vendor: str, product: str) -> str:
+    digest = sha256(f"{part}|{vendor}|{product}".encode()).hexdigest()
+    return f"product:cpe23-sha256:{digest}"
 
 
 def _nvd_cwes(cve: dict[str, Any]) -> list[str]:
@@ -287,13 +446,50 @@ async def _fetch_gold_snapshot(cves: list[str]) -> dict[str, Any]:
             if not isinstance(github_payload, list):
                 raise RuntimeError(f"GitHub returned invalid advisory list for {cve_id}")
 
+            osv_payloads: list[dict[str, Any]] = []
             osv_response = await client.get(f"https://api.osv.dev/v1/vulns/{cve_id}")
-            osv_payload = osv_response.json() if osv_response.status_code == 200 else None
+            if osv_response.status_code == 200:
+                osv_payload = osv_response.json()
+                if not isinstance(osv_payload, dict):
+                    raise RuntimeError(f"OSV returned invalid payload for {cve_id}")
+                osv_payloads.append(osv_payload)
+                if not _osv_has_package_affected(osv_payload):
+                    seen_ids = {osv_payload.get("id")}
+                    for alias in _osv_ghsa_aliases(osv_payload):
+                        alias_response = await client.get(f"https://api.osv.dev/v1/vulns/{alias}")
+                        if alias_response.status_code == 404:
+                            continue
+                        alias_response.raise_for_status()
+                        alias_payload = alias_response.json()
+                        if not isinstance(alias_payload, dict):
+                            raise RuntimeError(f"OSV returned invalid payload for {alias}")
+                        if alias_payload.get("id") in seen_ids:
+                            continue
+                        seen_ids.add(alias_payload.get("id"))
+                        osv_payloads.append(alias_payload)
+
+            epss_response = await client.get(
+                "https://api.first.org/data/v1/epss",
+                params={"cve": cve_id},
+            )
+            epss_response.raise_for_status()
+            epss_payload = epss_response.json()
+            epss_record = None
+            if isinstance(epss_payload, dict) and isinstance(epss_payload.get("data"), list):
+                epss_record = next(
+                    (
+                        item
+                        for item in epss_payload["data"]
+                        if isinstance(item, dict) and item.get("cve") == cve_id
+                    ),
+                    None,
+                )
 
             cases[cve_id] = {
                 "nvd": cve,
                 "github": github_payload,
-                "osv": osv_payload,
+                "osv": osv_payloads,
+                "first_epss": epss_record,
                 "known_exploited": cve_id in kev_ids,
             }
         return {
@@ -311,6 +507,8 @@ def _gold_from_snapshot(
     diagnostics: dict[str, Any] = {
         "weakness_cwe_gold": 0,
         "nvd_poc_gold": 0,
+        "nvd_cpe_applicability_gold": 0,
+        "first_epss_gold": 0,
         "github_first_patched_version_gold": 0,
         "github_vulnerable_range_gold": 0,
         "github_epss_gold": 0,
@@ -326,9 +524,11 @@ def _gold_from_snapshot(
         case_diag: dict[str, Any] = {
             "cwes": _nvd_cwes(cve),
             "nvd_exploit_urls": _nvd_exploit_urls(cve),
+            "nvd_cpe_applicability": [],
             "first_patched_versions": [],
             "vulnerable_ranges": [],
             "epss": [],
+            "first_epss": None,
             "github_advisories": [],
             "osv_affected_packages": [],
             "osv_fixed_versions": [],
@@ -355,6 +555,64 @@ def _gold_from_snapshot(
                 "has-weakness",
                 f"weakness:{cwe_id}",
                 "Weakness",
+            )
+            gold.append(fact)
+            support[fact].add("nvd-cves-2")
+
+        first_epss = source_data.get("first_epss")
+        if isinstance(first_epss, dict):
+            probability = _float_value(first_epss.get("epss"))
+            percentile = _float_value(first_epss.get("percentile"))
+            score_date = first_epss.get("date") or first_epss.get("created")
+            if (
+                probability is not None
+                and percentile is not None
+                and isinstance(score_date, str)
+                and score_date
+            ):
+                qualifier = {
+                    "source_semantics": "first_epss",
+                    "score_date": score_date,
+                }
+                case_diag["first_epss"] = {
+                    "probability": probability,
+                    "percentile": percentile,
+                    "score_date": score_date,
+                }
+                probability_fact = _claim_fact(
+                    root_key,
+                    "epss_probability",
+                    probability,
+                    qualifier=qualifier,
+                    temporal_scope=score_date,
+                )
+                percentile_fact = _claim_fact(
+                    root_key,
+                    "epss_percentile",
+                    percentile,
+                    qualifier=qualifier,
+                    temporal_scope=score_date,
+                )
+                gold.extend((probability_fact, percentile_fact))
+                support[probability_fact].add("first-epss")
+                support[percentile_fact].add("first-epss")
+                diagnostics["first_epss_gold"] += 2
+
+        nvd_cpe_facts = _nvd_cpe_applicability(cve)
+        diagnostics["nvd_cpe_applicability_gold"] += len(nvd_cpe_facts)
+        for target_key, qualifier in nvd_cpe_facts:
+            case_diag["nvd_cpe_applicability"].append(
+                {
+                    "target_key": target_key,
+                    "qualifier": qualifier,
+                }
+            )
+            fact = _relation_fact(
+                root_key,
+                "applicability-status",
+                target_key,
+                "Product",
+                qualifier=qualifier,
             )
             gold.append(fact)
             support[fact].add("nvd-cves-2")
@@ -474,8 +732,15 @@ def _gold_from_snapshot(
                             gold.append(fact)
                             support[fact].add("github-global-advisories")
 
-        osv_payload = source_data.get("osv")
-        if isinstance(osv_payload, dict):
+        osv_raw = source_data.get("osv")
+        osv_payloads = (
+            [osv_raw]
+            if isinstance(osv_raw, dict)
+            else [item for item in osv_raw if isinstance(item, dict)]
+            if isinstance(osv_raw, list)
+            else []
+        )
+        for osv_payload in osv_payloads:
             affected_items = osv_payload.get("affected")
             if isinstance(affected_items, list):
                 for affected in affected_items:
@@ -564,7 +829,18 @@ async def _current_predictions(
             term = canonical_term("claim", claim.predicate)
             if term is None or not term.benchmarked or term.dimension not in FORMAL_DIMENSIONS:
                 continue
-            fact = _claim_fact(root.canonical_key, claim.predicate, claim.value)
+            qualifier = _benchmark_claim_qualifier(claim.predicate, claim.qualifier)
+            temporal_scope = "current"
+            score_date = qualifier.get("score_date")
+            if isinstance(score_date, str) and score_date:
+                temporal_scope = score_date
+            fact = _claim_fact(
+                root.canonical_key,
+                claim.predicate,
+                claim.value,
+                qualifier=qualifier,
+                temporal_scope=temporal_scope,
+            )
             predictions.append(
                 await _prediction_for_target(
                     session,
@@ -611,6 +887,21 @@ async def _current_predictions(
                 )
             )
     return predictions
+
+
+def _benchmark_claim_qualifier(
+    predicate: str,
+    qualifier: dict[str, Any],
+) -> dict[str, Any]:
+    if predicate not in {"epss_probability", "epss_percentile"}:
+        return {}
+    if qualifier.get("source_semantics") != "first_epss":
+        return {}
+    return {
+        key: qualifier[key]
+        for key in ("source_semantics", "score_date")
+        if key in qualifier
+    }
 
 
 def _benchmark_relation_qualifier(

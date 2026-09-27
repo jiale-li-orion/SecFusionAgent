@@ -8,6 +8,7 @@ from packages.sources.adapters.cisa_kev import CISAKEVAdapter
 from packages.sources.adapters.cnnvd import CNNVDAdapter
 from packages.sources.adapters.cvelist_v5 import CVEListV5Adapter
 from packages.sources.adapters.direct_document import DirectDocumentAdapter
+from packages.sources.adapters.epss import FIRSTEPSSAdapter
 from packages.sources.adapters.github_advisory import GitHubGlobalAdvisoryAdapter
 from packages.sources.adapters.github_repo import GitHubRepoAdapter
 from packages.sources.adapters.html_incident import HTMLIncidentAdapter
@@ -59,6 +60,8 @@ def create_source_adapter(
         return GitHubRepoAdapter(client, token=settings.github_token)
     if source.adapter_type == "cisa_kev":
         return CISAKEVAdapter(client)
+    if source.adapter_type == "first_epss":
+        return FIRSTEPSSAdapter(client)
     if source.adapter_type == "arxiv":
         return ArxivAdapter(client)
     if source.adapter_type == "rss_incident":

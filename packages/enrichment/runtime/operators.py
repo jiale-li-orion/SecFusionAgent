@@ -49,6 +49,12 @@ _OPERATOR_SPECS: tuple[EnrichmentOperatorSpec, ...] = (
         produces=(EnrichmentDimension.EXPLOIT_STATE,),
     ),
     EnrichmentOperatorSpec(
+        operator_id="provider.first_epss",
+        kind=EnrichmentOperatorKind.PROVIDER_QUERY,
+        source_id="first-epss",
+        produces=(EnrichmentDimension.EXPLOIT_LIKELIHOOD,),
+    ),
+    EnrichmentOperatorSpec(
         operator_id="provider.github_advisory",
         kind=EnrichmentOperatorKind.PROVIDER_QUERY,
         source_id="github-global-advisories",

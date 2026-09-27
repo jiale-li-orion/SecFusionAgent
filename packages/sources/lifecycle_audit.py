@@ -11,7 +11,7 @@ INCIDENT_SIGNAL_ADAPTERS = frozenset(
 )
 
 VULNERABILITY_ENRICHMENT_SOURCES = frozenset(
-    {"cisa-kev", "github-global-advisories", "osv-vulnerabilities"}
+    {"cisa-kev", "first-epss", "github-global-advisories", "osv-vulnerabilities"}
 )
 VULNERABILITY_REFERENCE_SOURCES = frozenset({"cnnvd-vulnerabilities", "cnvd-vulnerabilities"})
 GENERIC_EXTERNAL_QUERY_SOURCES = frozenset(
@@ -27,6 +27,7 @@ DURABLE_MANAGED_ADAPTERS = frozenset({"arxiv", "html_index", "direct_document", 
 TIME_BOUNDED_ADAPTERS = frozenset(
     {
         "cisa_kev",
+        "first_epss",
         "cnnvd",
         "html_index",
         "scholarly_search",

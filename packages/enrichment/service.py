@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from packages.enrichment.planner import EnrichmentJobSpec, VulnerabilityEnrichmentPlanner
 from packages.enrichment.processors.cisa_kev import CISAKEVMapper
+from packages.enrichment.processors.epss import FIRSTEPSSMapper
 from packages.enrichment.processors.github_advisory import GitHubAdvisoryMapper
 from packages.enrichment.processors.osv import OSVMapper
 from packages.intelligence.ingestion.evidence import EvidenceIngress
@@ -15,7 +16,7 @@ from packages.intelligence.knowledge.write import EvidenceBackedKnowledgeWriter
 from packages.intelligence.normalization.canonical import NormalizationResult
 from packages.monitoring.acquisition.service import AcquisitionService
 from packages.sources.contracts import SourceAdapter, SourceDefinition
-from packages.sources.errors import SourceError
+from packages.sources.errors import SourceConfigurationError, SourceError
 
 
 @dataclass(frozen=True)
@@ -63,6 +64,7 @@ class VulnerabilityEnrichmentService:
         self._adapters = adapters
         self._mappers: dict[str, EnrichmentMapper] = {
             "cisa_kev": CISAKEVMapper(),
+            "first_epss": FIRSTEPSSMapper(),
             "github_global_advisory": GitHubAdvisoryMapper(),
             "osv": OSVMapper(),
         }
@@ -116,15 +118,23 @@ class VulnerabilityEnrichmentService:
                 view = await get_vulnerability_by_cve(session, cve_id)
             if view is None:
                 raise LookupError(f"vulnerability not found: {cve_id}")
-        source = self._sources[job.source_id]
-        adapter = self._adapters[job.source_id]
+        source = self._sources.get(job.source_id)
+        if source is None:
+            raise SourceConfigurationError(f"source definition is not bound: {job.source_id}")
+        adapter = self._adapters.get(job.source_id)
+        if adapter is None:
+            raise SourceConfigurationError(f"source adapter is not bound: {job.source_id}")
         envelopes = await self._acquisition.query(
             source,
             adapter,
             job.query,
             parent_run_id=parent_run_id,
         )
-        mapper = self._mappers[source.adapter_type]
+        mapper = self._mappers.get(source.adapter_type)
+        if mapper is None:
+            raise SourceConfigurationError(
+                f"enrichment mapper is not bound for adapter_type={source.adapter_type!r}"
+            )
         results: list[NormalizationResult] = []
         for envelope in envelopes:
             candidate = mapper.map(envelope)

@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 from packages.enrichment.processors.cisa_kev import CISAKEVMapper
+from packages.enrichment.processors.epss import FIRSTEPSSMapper
 from packages.enrichment.processors.github_advisory import GitHubAdvisoryMapper
 from packages.enrichment.processors.osv import OSVMapper
 from packages.sources.contracts import AcquisitionTrigger, IngestEnvelope
@@ -18,6 +19,11 @@ def _envelope(name: str, external_id: str) -> IngestEnvelope:
             "catalogVersion": payload["catalogVersion"],
             "dateReleased": payload["dateReleased"],
             "vulnerability": payload["vulnerabilities"][0],
+        }
+    elif name == "first_epss.json":
+        payload = {
+            "api_version": payload["version"],
+            "record": payload["data"][0],
         }
     return IngestEnvelope.for_json_payload(
         acquisition_run_id="run",
@@ -37,6 +43,17 @@ def test_cisa_kev_mapper_marks_known_exploited() -> None:
     values = {claim.predicate: claim.value for claim in candidate.claims}
     assert values["known_exploited"] is True
     assert values["kev_required_action"] == "Apply mitigations per vendor instructions."
+
+
+def test_first_epss_mapper_preserves_point_in_time_semantics() -> None:
+    candidate = FIRSTEPSSMapper().map(_envelope("first_epss.json", "CVE-2026-42424"))
+    claims = {claim.predicate: claim for claim in candidate.claims}
+    assert claims["epss_probability"].value == 0.01152
+    assert claims["epss_percentile"].value == 0.65554
+    assert claims["epss_probability"].qualifier == {
+        "source_semantics": "first_epss",
+        "score_date": "2026-09-27",
+    }
 
 
 def test_github_mapper_builds_package_relation() -> None:

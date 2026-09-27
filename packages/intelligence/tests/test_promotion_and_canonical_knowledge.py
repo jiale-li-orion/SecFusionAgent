@@ -129,10 +129,10 @@ async def test_hot_bug_promotion_is_durable_traceable_and_idempotent() -> None:
             assert await _count(session, ObservationModel) == 1
             assert await _count(session, EvidenceArtifactModel) == 1
             assert await _count(session, KnowledgeRevisionModel) == 1
-            assert await _count(session, ObjectModel) == 3
+            assert await _count(session, ObjectModel) == 4
             assert await _count(session, ExternalIdentifierModel) == 2
             assert await _count(session, ClaimModel) > 0
-            assert await _count(session, RelationModel) == 2
+            assert await _count(session, RelationModel) == 3
             assert await _count(session, EvidenceLinkModel) == (
                 await _count(session, ClaimModel) + await _count(session, RelationModel)
             )
@@ -170,6 +170,44 @@ async def test_hot_bug_promotion_is_durable_traceable_and_idempotent() -> None:
             )
             assert poc.evidence[0].source_id == source.source_id
             assert poc.evidence[0].locator["path"] == "$.cve.references[1]"
+            applicability = next(
+                relation
+                for relation in view.relations
+                if relation.relation_type == "applicability-status"
+            )
+            assert applicability.target.object_type == "Product"
+            assert applicability.target.properties == {
+                "identity_scheme": "cpe23_product",
+                "cpe_part": "a",
+                "vendor": "example",
+                "product": "vllm",
+            }
+            assert applicability.qualifier["state"] == "affected"
+            assert applicability.qualifier["source_semantics"] == "nvd_cpe"
+            assert applicability.qualifier["platform"] == (
+                "cpe:2.3:a:example:vllm:*:*:*:*:*:*:*:*"
+            )
+            assert applicability.qualifier["version_range"] == {
+                "versionEndExcluding": "0.11.1"
+            }
+            configuration = applicability.qualifier["configuration"]
+            assert isinstance(configuration, dict)
+            assert configuration["root_operator"] == "AND"
+            assert configuration["node_path"] == [0]
+            root_snapshot = configuration["root_snapshot"]
+            assert isinstance(root_snapshot, dict)
+            nodes = root_snapshot["nodes"]
+            assert isinstance(nodes, list)
+            companion = nodes[1]
+            assert isinstance(companion, dict)
+            cpe_matches = companion["cpeMatch"]
+            assert isinstance(cpe_matches, list)
+            hardware = cpe_matches[0]
+            assert isinstance(hardware, dict)
+            assert hardware["vulnerable"] is False
+            assert applicability.evidence[0].locator["path"] == (
+                "$.cve.configurations[0].nodes[0].cpeMatch[0]"
+            )
 
         async with factory() as session, session.begin():
             replay = await promotion.promote_hot_bug(session, source, "CVE-2026-42424")
@@ -181,7 +219,7 @@ async def test_hot_bug_promotion_is_durable_traceable_and_idempotent() -> None:
             assert await _count(session, KnowledgeRevisionModel) == 1
             assert await _count(session, KnowledgeChangeModel) == 1
             assert await _count(session, ProcessingRunModel) == 1
-            assert await _count(session, RelationModel) == 2
+            assert await _count(session, RelationModel) == 3
         await redis_client.aclose()
     finally:
         await engine.dispose()
