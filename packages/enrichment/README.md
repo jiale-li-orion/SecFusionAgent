@@ -164,6 +164,12 @@ the raw Evidence and materialized
 the independent InternetDB evaluator produced **1 formal fact / 1 TP / 0 FP / 0 FN**. This is a
 positive-path smoke only, not evidence that arbitrary CPE/version observations can yet be joined to
 vulnerability applicability. Asset observations without explicit `vulns[]` remain context-only.
+The formal TD3 checkpoint is deployment `deployment:0ecfd8da773ffe47802c5f52e0a42ca0`, suite
+`m3-asset-exposure@1`, run `1cac6fb2-bf62-4c72-9119-d2c2dee9b1af`, with CompetitionReport
+`f9ff8ada-4b11-447a-a8e3-daddae2d384c` (digest
+`b4f8c3db23d4707f28ea958d037a5449105d85a5519354fde0fa8b5aeae485fa`). The report passes the M3
+precision/recall development targets for this asset-specific suite and leaves unrelated competition
+areas explicitly `not_evaluated`.
 
 M3 exposes closed-set status as resolved/conflict/unknown/missing over the shared vocabulary. The conversion of those gaps into M4 `EvidenceNeed`, Perception and investigation policy remains owned by `packages.investigation`; M3 state specifications do not become a parallel investigation requirement protocol.
 

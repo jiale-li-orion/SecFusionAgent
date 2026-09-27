@@ -326,6 +326,14 @@ score from overwriting or being compared as if it were another day's fact. A liv
 the dedicated FIRST facts scored **2/2**. The same case currently contains **22 formal facts** and
 scores **22 TP / 0 FP / 0 FN** overall, including NVD CPE applicability 10/10.
 
+Asset exposure has a separate formal suite rather than being folded into CVE-only enrichment. The
+Shodan InternetDB positive case `44.238.29.244 -> CVE-2014-4078` produced **1 TP / 0 FP / 0 FN**
+with provider-bound Evidence. It is persisted under deployment
+`deployment:0ecfd8da773ffe47802c5f52e0a42ca0`, suite `m3-asset-exposure@1`, run
+`1cac6fb2-bf62-4c72-9119-d2c2dee9b1af`, and CompetitionReport
+`f9ff8ada-4b11-447a-a8e3-daddae2d384c`. The suite intentionally proves only explicit host-level
+provider assertions; CPE/version-derived asset applicability remains a separate backlog item.
+
 FIRST can also be evaluated independently of the mixed structured suite:
 
 ```bash
