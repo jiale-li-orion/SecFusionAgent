@@ -282,7 +282,10 @@ reference index and maps the URL to a stable canonical `ExploitArtifact`, while 
 independently from the same NVD structured assertion rather than reusing the production mapper.
 On the initial two-case positive stratum (`CVE-2026-67279`, `CVE-2026-7273`), the evaluator produced
 **20 TP / 0 FP / 0 FN** over 20 facts; `exploit_state` was **4/4**, consisting of
-`known_exploited` 2/2 and `has-poc` 2/2. There were no missing or extra formal facts.
+`known_exploited` 2/2 and `has-poc` 2/2. There were no missing or extra formal facts. This result is
+also persisted in TD3 Benchmark Runtime under deployment
+`deployment:13af2cf3837cd14f28027af83ae236e9`, suite `m3-nvd-poc@1`, benchmark run
+`2fbcf7ac-ea98-47be-a204-2afa3441a4fa`.
 
 Example discovery:
 

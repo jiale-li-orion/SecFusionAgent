@@ -120,7 +120,9 @@ when NVD itself tags a reference `Exploit`. On the first real two-case stratum
 (`CVE-2026-67279`, `CVE-2026-7273`), production NVD v4 normalization materialized two canonical
 `ExploitArtifact / has-poc` edges and the independent evaluator produced **20 TP / 0 FP / 0 FN**
 over 20 formal facts. `exploit_state` scored **4/4**: `known_exploited` 2/2 and `has-poc` 2/2,
-with zero missing or extra facts.
+with zero missing or extra facts. The formal durable checkpoint is deployment
+`deployment:13af2cf3837cd14f28027af83ae236e9`, suite `m3-nvd-poc@1`, run
+`2fbcf7ac-ea98-47be-a204-2afa3441a4fa`.
 
 OSV is also tested independently of GitHub/NVD gold. On the 12-CVE recent structured manifest,
 9 cases had OSV records with strong GHSA aliases and ecosystem-native package data. After alias
