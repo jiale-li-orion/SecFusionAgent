@@ -330,6 +330,7 @@ SOURCE_SPECIFIC_CLAIMS = frozenset(
         "assigner",
         "affected_products",
         "references",
+        "exploit_references",
         "published",
         "last_modified",
         "cwes",

@@ -12,6 +12,26 @@ import httpx
 from packages.shared.config import get_settings
 
 
+def _nvd_exploit_urls(cve: dict[str, Any]) -> list[str]:
+    result: list[str] = []
+    references = cve.get("references")
+    if not isinstance(references, list):
+        return result
+    for item in references:
+        if not isinstance(item, dict):
+            continue
+        url = item.get("url")
+        tags = item.get("tags")
+        if (
+            isinstance(url, str)
+            and isinstance(tags, list)
+            and "Exploit" in tags
+            and url not in result
+        ):
+            result.append(url)
+    return result
+
+
 def _features(advisory: dict[str, Any]) -> dict[str, bool]:
     vulnerabilities = advisory.get("vulnerabilities")
     items = vulnerabilities if isinstance(vulnerabilities, list) else []
@@ -145,6 +165,102 @@ async def _discover_github(count: int) -> dict[str, Any]:
     }
 
 
+async def _discover_poc(count: int) -> dict[str, Any]:
+    settings = get_settings()
+    headers = {"User-Agent": "SecFusionAgent-eval-discovery/0.1"}
+    nvd_headers = dict(headers)
+    if settings.nvd_api_key:
+        nvd_headers["apiKey"] = settings.nvd_api_key
+
+    async with httpx.AsyncClient(timeout=30.0, headers=headers) as client:
+        kev_response = await client.get(
+            "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        )
+        kev_response.raise_for_status()
+        kev_payload = kev_response.json()
+        if not isinstance(kev_payload, dict) or not isinstance(
+            kev_payload.get("vulnerabilities"), list
+        ):
+            raise RuntimeError("CISA KEV discovery response is invalid")
+        candidates = [
+            item
+            for item in kev_payload["vulnerabilities"]
+            if isinstance(item, dict)
+            and isinstance(item.get("cveID"), str)
+            and item["cveID"].startswith("CVE-")
+        ]
+        candidates.sort(
+            key=lambda item: (
+                str(item.get("dateAdded") or ""),
+                str(item.get("cveID") or ""),
+            ),
+            reverse=True,
+        )
+
+        selected: list[dict[str, Any]] = []
+        interval_seconds = 0.7 if settings.nvd_api_key else 6.5
+        candidate_limit = min(len(candidates), max(count * 4, count))
+        for index, candidate in enumerate(candidates[:candidate_limit]):
+            cve_id = candidate["cveID"]
+            response: httpx.Response | None = None
+            for attempt in range(4):
+                try:
+                    response = await client.get(
+                        "https://services.nvd.nist.gov/rest/json/cves/2.0",
+                        params={"cveId": cve_id},
+                        headers=nvd_headers,
+                    )
+                except httpx.TransportError:
+                    if attempt == 3:
+                        response = None
+                        break
+                else:
+                    if response.status_code not in {403, 429} and not (
+                        500 <= response.status_code < 600
+                    ):
+                        break
+                await asyncio.sleep(interval_seconds)
+            if response is None or response.status_code != 200:
+                continue
+            payload = response.json()
+            vulnerabilities = payload.get("vulnerabilities")
+            if not isinstance(vulnerabilities, list) or not vulnerabilities:
+                continue
+            first = vulnerabilities[0]
+            if not isinstance(first, dict) or not isinstance(first.get("cve"), dict):
+                continue
+            cve = first["cve"]
+            exploit_urls = _nvd_exploit_urls(cve)
+            if exploit_urls:
+                selected.append(
+                    {
+                        "cve_id": cve_id,
+                        "date_added": candidate.get("dateAdded"),
+                        "nvd_exploit_reference_count": len(exploit_urls),
+                        "nvd_exploit_urls": exploit_urls,
+                    }
+                )
+                if len(selected) >= count:
+                    break
+            if index + 1 < candidate_limit:
+                await asyncio.sleep(interval_seconds)
+
+    return {
+        "profile": "nvd-exploit-reference-v1",
+        "discovered_at": datetime.now(UTC).isoformat(),
+        "requested_count": count,
+        "selected_count": len(selected),
+        "selection_policy": {
+            "candidate_pool": "CISA KEV ordered by dateAdded desc",
+            "inclusion_rule": "NVD references contains explicit Exploit tag",
+            "candidate_limit": candidate_limit,
+            "cisa_catalog_version": kev_payload.get("catalogVersion"),
+        },
+        "cases": selected,
+        "cves": [item["cve_id"] for item in selected],
+    }
+
+
 async def _discover_kev(count: int) -> dict[str, Any]:
     async with httpx.AsyncClient(
         timeout=30.0,
@@ -202,6 +318,8 @@ async def _discover(count: int, profile: str) -> dict[str, Any]:
         return await _discover_github(count)
     if profile == "kev-recent":
         return await _discover_kev(count)
+    if profile == "nvd-poc":
+        return await _discover_poc(count)
     raise ValueError(f"unsupported discovery profile: {profile}")
 
 
@@ -210,7 +328,7 @@ def main() -> None:
     parser.add_argument("--count", type=int, default=12)
     parser.add_argument(
         "--profile",
-        choices=("github-structured", "kev-recent"),
+        choices=("github-structured", "kev-recent", "nvd-poc"),
         default="github-structured",
     )
     parser.add_argument("--output", type=Path)

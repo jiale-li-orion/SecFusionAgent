@@ -363,7 +363,7 @@ class ProjectedVulnerabilityCanonicalNormalizer:
 
 
 class NVDCanonicalNormalizer(ProjectedVulnerabilityCanonicalNormalizer):
-    PROCESSOR_VERSION = "3"
+    PROCESSOR_VERSION = "4"
 
     def __init__(self, *, now: Callable[[], datetime] | None = None) -> None:
         super().__init__(
@@ -405,6 +405,7 @@ def _nvd_locator_for(predicate: str) -> dict[str, object]:
         "cvss_version": "$.cve.metrics",
         "cwes": "$.cve.weaknesses",
         "references": "$.cve.references",
+        "exploit_references": "$.cve.references",
         "published": "$.cve.published",
         "last_modified": "$.cve.lastModified",
     }
@@ -412,27 +413,58 @@ def _nvd_locator_for(predicate: str) -> dict[str, object]:
 
 
 def _nvd_relations(projection: dict[str, object]) -> list[RelationCandidate]:
-    raw = projection.get("cwes")
-    if not isinstance(raw, list):
-        return []
     relations: list[RelationCandidate] = []
-    for value in raw:
-        if not isinstance(value, str) or not value.startswith("CWE-"):
-            continue
-        cwe_id = value.upper()
-        relations.append(
-            RelationCandidate(
-                relation_type="has-weakness",
-                target=ObjectCandidate(
-                    object_type="Weakness",
-                    canonical_key=f"weakness:{cwe_id}",
-                    properties={"cwe_id": cwe_id},
-                    identifiers={"cwe": [cwe_id]},
-                ),
-                locator={"kind": "jsonpath", "path": "$.cve.weaknesses"},
+    raw_cwes = projection.get("cwes")
+    if isinstance(raw_cwes, list):
+        for value in raw_cwes:
+            if not isinstance(value, str) or not value.startswith("CWE-"):
+                continue
+            cwe_id = value.upper()
+            relations.append(
+                RelationCandidate(
+                    relation_type="has-weakness",
+                    target=ObjectCandidate(
+                        object_type="Weakness",
+                        canonical_key=f"weakness:{cwe_id}",
+                        properties={"cwe_id": cwe_id},
+                        identifiers={"cwe": [cwe_id]},
+                    ),
+                    locator={"kind": "jsonpath", "path": "$.cve.weaknesses"},
+                )
             )
-        )
+
+    raw_exploits = projection.get("exploit_references")
+    if isinstance(raw_exploits, list):
+        for item in raw_exploits:
+            if not isinstance(item, dict):
+                continue
+            url = item.get("url")
+            reference_index = item.get("reference_index")
+            if not isinstance(url, str) or not isinstance(reference_index, int):
+                continue
+            relations.append(
+                RelationCandidate(
+                    relation_type="has-poc",
+                    target=ObjectCandidate(
+                        object_type="ExploitArtifact",
+                        canonical_key=_exploit_artifact_key(url),
+                        properties={
+                            "url": url,
+                            "source_semantics": "nvd_reference_exploit_tag",
+                        },
+                    ),
+                    locator={
+                        "kind": "jsonpath",
+                        "path": f"$.cve.references[{reference_index}]",
+                    },
+                )
+            )
     return relations
+
+
+def _exploit_artifact_key(url: str) -> str:
+    digest = sha256(url.strip().encode()).hexdigest()
+    return f"exploit-artifact:url-sha256:{digest}"
 
 
 async def _supersede_source_claims(

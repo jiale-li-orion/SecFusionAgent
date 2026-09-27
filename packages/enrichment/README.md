@@ -80,7 +80,7 @@ The registry is broader than the processors already implemented. The current imp
 | Product/package | `affects-product`, `affects-package` | package relations exist; broader product identity mapping continues |
 | Version applicability | scoped `applicability-status` relation | GitHub Advisory ranges use `github_advisory_range`; OSV ecosystem/native records now use `osv_range` and retain OSV `ranges/versions` in the source-scoped qualifier. CVE/OSV/NVD/CSAF unification remains backlog |
 | Fix/remediation | `fixed-version`, `fixed-by` | GitHub Advisory `first_patched_version` and OSV `ECOSYSTEM/SEMVER` fixed events write canonical `SoftwareVersion` + `fixed-version`; OSV GIT fixed hashes remain commit-level evidence for the existing fix-boundary path |
-| Exploit state | `known_exploited`, `has-poc`, exploit maturity | KEV available; PoC/ExploitArtifact processor remains backlog |
+| Exploit state | `known_exploited`, `has-poc`, exploit maturity | CISA KEV writes `known_exploited`; NVD references explicitly tagged `Exploit` now materialize canonical `ExploitArtifact` + `has-poc` with exact reference evidence. Broader exploit-feed coverage remains future work |
 | Exploit likelihood | EPSS probability/percentile at observed time | GitHub Advisory EPSS snapshot writes canonical probability/percentile claims with provider evidence; dedicated point-in-time EPSS source remains future hardening |
 | Advisory/reference | canonical advisory/document associations | GitHub Advisory now writes canonical `Document` + `described-by`; vendor/advisory breadth remains incomplete |
 | Asset exposure | `InternetAsset --asset-potentially-affected--> Vulnerability` | provider-neutral `AssetObservation` exists; applicability join remains backlog |
@@ -93,9 +93,9 @@ The active M3 implementation backlog is therefore:
 
 1. Product/Package/SoftwareVersion alias normalization beyond the current ecosystem+package+version identity;
 2. CVE/NVD/CSAF source-specific applicability evaluators beyond the current GitHub Advisory and OSV assertions;
-3. PoC/ExploitArtifact processor;
-4. dedicated point-in-time EPSS ingestion independent of GitHub advisory snapshots;
-5. advisory/document association coverage beyond GitHub Advisory;
+3. dedicated point-in-time EPSS ingestion independent of GitHub advisory snapshots;
+4. advisory/document association coverage beyond GitHub Advisory;
+5. broader PoC/ExploitArtifact source coverage beyond NVD explicit `Exploit` tags;
 6. AssetObservation → Product/SoftwareVersion → Vulnerability deterministic join;
 7. paper `discusses-vulnerability` benchmark bridge;
 8. Incident → Vulnerability strong-anchor benchmark bridge.
@@ -113,6 +113,14 @@ A separate recent CISA KEV stratum exercises positive exploit-state coverage: 6 
 51 formal facts overall, `51 TP / 0 FP / 0 FN`, including `known_exploited` **6/6**. Keeping this
 stratum separate prevents a GitHub-heavy sample from making exploit-state look covered when no
 positive KEV case was actually present.
+
+PoC is evaluated as a separate positive stratum rather than inferred from KEV or URL shape. The
+`nvd-poc` discovery profile uses recent KEV only as a candidate pool, then includes a case **only**
+when NVD itself tags a reference `Exploit`. On the first real two-case stratum
+(`CVE-2026-67279`, `CVE-2026-7273`), production NVD v4 normalization materialized two canonical
+`ExploitArtifact / has-poc` edges and the independent evaluator produced **20 TP / 0 FP / 0 FN**
+over 20 formal facts. `exploit_state` scored **4/4**: `known_exploited` 2/2 and `has-poc` 2/2,
+with zero missing or extra facts.
 
 OSV is also tested independently of GitHub/NVD gold. On the 12-CVE recent structured manifest,
 9 cases had OSV records with strong GHSA aliases and ecosystem-native package data. After alias

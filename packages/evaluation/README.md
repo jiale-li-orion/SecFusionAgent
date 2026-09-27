@@ -275,6 +275,23 @@ the independent evaluator produced **51 TP / 0 FP / 0 FN** over 51 formal facts.
 stratum is intentionally separate from the GitHub-structured sample so positive exploit-state
 coverage is visible rather than diluted by a set with no KEV members.
 
+PoC coverage has its own `nvd-poc` profile. Candidate discovery starts from recent KEV entries only
+to improve hit rate, but inclusion is determined independently by NVD structured data:
+`references[].tags` must contain the exact `Exploit` tag. Production normalization preserves the
+reference index and maps the URL to a stable canonical `ExploitArtifact`, while formal gold is built
+independently from the same NVD structured assertion rather than reusing the production mapper.
+On the initial two-case positive stratum (`CVE-2026-67279`, `CVE-2026-7273`), the evaluator produced
+**20 TP / 0 FP / 0 FN** over 20 facts; `exploit_state` was **4/4**, consisting of
+`known_exploited` 2/2 and `has-poc` 2/2. There were no missing or extra formal facts.
+
+Example discovery:
+
+```bash
+uv run python scripts/discover_real_enrichment_cases.py \
+  --profile nvd-poc --count 4 \
+  --output /tmp/m3-nvd-poc.json
+```
+
 OSV applicability is evaluated with a separate source-specific diagnostic so GitHub assertions do
 not mask OSV failures. A CVE conversion record with no package does not create an empty "success":
 the benchmark independently follows strong GHSA aliases and requires package-bearing native OSV
@@ -283,5 +300,5 @@ facts / 44 TP / 0 FP / 0 FN**: product/package 11, `osv_range` applicability 19,
 fixed/remediation 14. Three OSV-unavailable cases are explicit non-denominator cases. A zero-fact
 OSV selection fails closed rather than inheriting the scorer's mathematical `0/0 -> 1.0` default.
 
-The next priority is PoC/ExploitArtifact, then assets/papers/incidents and broader CVE/NVD/CSAF
-applicability coverage.
+The next priority is assets and broader CVE/NVD/CSAF applicability, followed by paper/incident
+benchmark bridges and broader advisory/PoC source coverage.

@@ -43,7 +43,15 @@
           }
         ],
         "references": [
-          {"url": "https://example.test/advisories/CVE-2026-42424", "source": "nvd@nist.gov"}
+          {
+            "url": "https://example.test/advisories/CVE-2026-42424",
+            "source": "nvd@nist.gov"
+          },
+          {
+            "url": "https://example.test/exploits/CVE-2026-42424-poc",
+            "source": "nvd@nist.gov",
+            "tags": ["Exploit", "Third Party Advisory"]
+          }
         ]
       }
     }

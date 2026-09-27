@@ -27,6 +27,7 @@ class NVDHotBugNormalizer:
             "cvss_version": version,
             "cwes": _cwes(cve.get("weaknesses")),
             "references": _references(cve.get("references")),
+            "exploit_references": _exploit_references(cve.get("references")),
             "published": _json_scalar(cve.get("published")),
             "last_modified": _json_scalar(cve.get("lastModified")),
         }
@@ -87,6 +88,24 @@ def _cwes(value: Any) -> list[JsonValue]:
             cwe = item.get("value")
             if isinstance(cwe, str) and cwe.startswith("CWE-") and cwe not in result:
                 result.append(cwe)
+    return result
+
+
+def _exploit_references(value: Any) -> list[JsonValue]:
+    result: list[JsonValue] = []
+    if not isinstance(value, list):
+        return result
+    for index, item in enumerate(value):
+        if not isinstance(item, dict):
+            continue
+        url = item.get("url")
+        tags = item.get("tags")
+        if (
+            isinstance(url, str)
+            and isinstance(tags, list)
+            and any(tag == "Exploit" for tag in tags)
+        ):
+            result.append({"url": url, "reference_index": index})
     return result
 
 

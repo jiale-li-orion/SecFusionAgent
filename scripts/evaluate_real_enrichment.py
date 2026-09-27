@@ -149,6 +149,31 @@ def _osv_fixed_versions(affected: dict[str, Any]) -> list[str]:
     return result
 
 
+def _nvd_exploit_urls(cve: dict[str, Any]) -> list[str]:
+    result: list[str] = []
+    references = cve.get("references")
+    if not isinstance(references, list):
+        return result
+    for item in references:
+        if not isinstance(item, dict):
+            continue
+        url = item.get("url")
+        tags = item.get("tags")
+        if (
+            isinstance(url, str)
+            and isinstance(tags, list)
+            and "Exploit" in tags
+            and url not in result
+        ):
+            result.append(url)
+    return result
+
+
+def _exploit_artifact_key(url: str) -> str:
+    digest = sha256(url.strip().encode()).hexdigest()
+    return f"exploit-artifact:url-sha256:{digest}"
+
+
 def _nvd_cwes(cve: dict[str, Any]) -> list[str]:
     result: list[str] = []
     for weakness in cve.get("weaknesses", []):
@@ -285,6 +310,7 @@ def _gold_from_snapshot(
     support: dict[EnrichmentFactKey, set[str]] = defaultdict(set)
     diagnostics: dict[str, Any] = {
         "weakness_cwe_gold": 0,
+        "nvd_poc_gold": 0,
         "github_first_patched_version_gold": 0,
         "github_vulnerable_range_gold": 0,
         "github_epss_gold": 0,
@@ -299,6 +325,7 @@ def _gold_from_snapshot(
         cve = source_data["nvd"]
         case_diag: dict[str, Any] = {
             "cwes": _nvd_cwes(cve),
+            "nvd_exploit_urls": _nvd_exploit_urls(cve),
             "first_patched_versions": [],
             "vulnerable_ranges": [],
             "epss": [],
@@ -328,6 +355,17 @@ def _gold_from_snapshot(
                 "has-weakness",
                 f"weakness:{cwe_id}",
                 "Weakness",
+            )
+            gold.append(fact)
+            support[fact].add("nvd-cves-2")
+
+        diagnostics["nvd_poc_gold"] += len(case_diag["nvd_exploit_urls"])
+        for url in case_diag["nvd_exploit_urls"]:
+            fact = _relation_fact(
+                root_key,
+                "has-poc",
+                _exploit_artifact_key(url),
+                "ExploitArtifact",
             )
             gold.append(fact)
             support[fact].add("nvd-cves-2")
