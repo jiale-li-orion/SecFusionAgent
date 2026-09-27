@@ -137,6 +137,7 @@ def test_asset_observation_accepts_provider_neutral_normalized_payload() -> None
             "asn": "64501",
             "hostnames": ["api.example.test"],
             "domains": ["example.test"],
+            "vulns": ["cve-2026-42424", "not-a-cve", "CVE-2026-42424"],
             "location": {"country": "SG"},
         },
         canonical_url=None,
@@ -153,3 +154,4 @@ def test_asset_observation_accepts_provider_neutral_normalized_payload() -> None
     assert observation.product == "vLLM"
     assert observation.version == "0.10.2"
     assert observation.organization == "Example ASN"
+    assert observation.vulnerabilities == ["CVE-2026-42424"]

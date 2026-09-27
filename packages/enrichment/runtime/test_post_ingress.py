@@ -16,7 +16,12 @@ from packages.intelligence.ingestion.evidence import EvidenceIngress
 from packages.intelligence.storage.artifacts import MemoryArtifactStore
 from packages.intelligence.storage.document_models import DocumentRevisionModel
 from packages.intelligence.storage.evidence_models import ObservationModel
-from packages.intelligence.storage.knowledge_models import ClaimModel, ObjectModel, RelationModel
+from packages.intelligence.storage.knowledge_models import (
+    ClaimModel,
+    EvidenceLinkModel,
+    ObjectModel,
+    RelationModel,
+)
 from packages.monitoring.storage.models import AcquisitionRunModel
 from packages.shared.db import Base
 from packages.sources.contracts import AcquisitionTrigger, IngestEnvelope, SourceDefinition
@@ -100,6 +105,82 @@ async def test_managed_document_backfill_processes_existing_observation_idempote
             assert (
                 await session.scalar(select(func.count()).select_from(DocumentRevisionModel)) == 1
             )
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_internetdb_explicit_vulns_promote_asset_exposure_with_evidence() -> None:
+    source = SOURCES["shodan-internetdb-assets"]
+    engine, factory = await _factory_for(source)
+    store = MemoryArtifactStore()
+    run_id = "00000000-0000-0000-0000-000000001106"
+    try:
+        await _add_run(factory, source, run_id)
+        envelope = IngestEnvelope.for_json_payload(
+            acquisition_run_id=run_id,
+            trigger=AcquisitionTrigger.INVESTIGATION,
+            source_id=source.source_id,
+            external_object_id="44.238.29.244:80/tcp",
+            payload={
+                "ip": "44.238.29.244",
+                "port": 80,
+                "transport": "tcp",
+                "hostnames": ["ec2-44-238-29-244.us-west-2.compute.amazonaws.com"],
+                "domains": [],
+                "product": None,
+                "version": None,
+                "org": None,
+                "isp": None,
+                "asn": None,
+                "cpe": ["cpe:/a:microsoft:internet_information_services:8.5"],
+                "vulns": ["CVE-2014-4078"],
+                "location": {},
+            },
+            canonical_url="https://internetdb.shodan.io/44.238.29.244",
+            published_at=None,
+            updated_at=NOW,
+            external_revision=NOW.isoformat(),
+            request_metadata={
+                "provider": "shodan-internetdb",
+                "query": "ip=44.238.29.244",
+                "passive_observation": True,
+            },
+            observed_at=NOW,
+        )
+        observation_id = await _seed_observation(factory, store, source, envelope)
+        runtime = ObservationProcessingRuntime(store)
+        async with factory() as session, session.begin():
+            result = await runtime.process(session, source, observation_id)
+        assert result.status is PostIngressStatus.PROCESSED
+        assert result.handler == "asset_vulnerability_association"
+        assert result.output_refs["vulnerabilities"] == ["CVE-2014-4078"]
+
+        async with factory() as session:
+            relation = await session.scalar(
+                select(RelationModel).where(
+                    RelationModel.relation_type == "asset-potentially-affected",
+                    RelationModel.superseded_revision.is_(None),
+                )
+            )
+            assert relation is not None
+            source_object = await session.get(ObjectModel, relation.source_object_id)
+            target_object = await session.get(ObjectModel, relation.target_object_id)
+            assert source_object is not None
+            assert source_object.object_type == "InternetAsset"
+            assert source_object.canonical_key == "internet-asset:ip:44.238.29.244"
+            assert target_object is not None
+            assert target_object.object_type == "Vulnerability"
+            assert target_object.canonical_key == "cve:CVE-2014-4078"
+            assert relation.qualifier["source_semantics"] == "shodan_internetdb_vulns"
+            evidence = await session.scalar(
+                select(EvidenceLinkModel).where(
+                    EvidenceLinkModel.target_kind == "relation",
+                    EvidenceLinkModel.target_id == relation.relation_id,
+                )
+            )
+            assert evidence is not None
+            assert evidence.locator == {"kind": "jsonpath", "path": "$.vulns[0]"}
     finally:
         await engine.dispose()
 

@@ -7,6 +7,7 @@
     "service_port",
     "hostname",
     "software_fingerprint",
+    "vulnerability_association",
     "observation_time"
   ],
   "source_role": "telemetry",

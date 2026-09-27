@@ -70,6 +70,13 @@ OSV exact CVE lookup has one additional identity-preserving rule. Some OSV `CVE-
 
 FIRST EPSS is modeled as its own fixed on-demand source (`first-epss`) rather than as a field owned by GitHub Advisory. The adapter preserves the provider score date as `external_revision` / `updated_at`, and the M3 mapper carries `source_semantics=first_epss` plus `score_date` into canonical EPSS claims. This lets evaluation and replay distinguish daily point-in-time scores instead of treating EPSS as an unversioned mutable scalar. CLI refresh paths synchronize version-controlled source definitions into PostgreSQL before creating AcquisitionRuns, so newly added providers cannot fail the source foreign-key boundary merely because the registry has not been manually seeded yet.
 
+Shodan InternetDB remains a passive, time-bounded asset source. Its `vulns[]` field is treated as an
+explicit provider **host-level** vulnerability association, not as proof that any particular port is
+vulnerable. M3 may therefore materialize a canonical host-level `InternetAsset` relation when
+`vulns[]` explicitly names a CVE, with the relation bound to the exact InternetDB Observation.
+Records with empty `vulns[]`, or with only CPE/product context, remain context-only and do not become
+`asset-potentially-affected` by inference.
+
 ## Design → implementation map
 
 TD1 的“来源能力 ≠ 调度状态 ≠ 产品 coverage”在实现里分别落到三个位置：`SourceDefinition/SourceAdapter` 描述 provider 能做什么；`packages.monitoring` 决定何时做并保存 cursor/backoff；`config/source-inventory.json` 冻结八类产品 coverage denominator。`registry/sync.py` 只把 declarative source definition 同步进 PostgreSQL，不把一次 live probe 或一个 runtime failure 改写成产品 taxonomy。

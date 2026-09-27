@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from packages.enrichment.assets.internetdb import ShodanInternetDBAssetMapper
 from packages.enrichment.assets.service import map_asset_observation
 from packages.enrichment.processors.cisa_kev import CISAKEVMapper
 from packages.enrichment.processors.cnnvd import CNNVDMapper
@@ -106,6 +107,9 @@ class ObservationProcessingRuntime:
             "cnvd": CNVDHTMLMapper(),
             "cnnvd": CNNVDMapper(),
         }
+        self._asset_mappers: dict[str, EnrichmentMapper] = {
+            "shodan_internetdb": ShodanInternetDBAssetMapper(),
+        }
         self._incident_ingress = incident_ingress
         self._incident_promotion = incident_promotion
         self._source_definitions = dict(source_definitions or {})
@@ -181,6 +185,32 @@ class ObservationProcessingRuntime:
             if source.retention_mode is RetentionMode.TIME_BOUNDED:
                 if source.source_class == "internet_asset_intelligence":
                     asset = map_asset_observation(envelope)
+                    mapper = self._asset_mappers.get(source.adapter_type)
+                    if mapper is not None and asset.vulnerabilities:
+                        ack = await self._evidence_ingress.accept(session, source, envelope)
+                        candidate = mapper.map(envelope)
+                        normalization = await self._writer.apply(
+                            session,
+                            source=source,
+                            observation=ack,
+                            candidate=candidate,
+                            processor_name=mapper.PROCESSOR_NAME,
+                            processor_version=mapper.PROCESSOR_VERSION,
+                        )
+                        return PostIngressResult(
+                            observation_id=observation_id,
+                            source_id=source.source_id,
+                            handler="asset_vulnerability_association",
+                            status=PostIngressStatus.PROCESSED,
+                            metadata_complete=replay.metadata_complete,
+                            output_refs={
+                                "ip": asset.ip,
+                                "vulnerabilities": asset.vulnerabilities,
+                                "knowledge_revision": normalization.knowledge_revision,
+                                "object_ids": normalization.object_ids,
+                                "relation_ids": normalization.relation_ids,
+                            },
+                        )
                     return PostIngressResult(
                         observation_id=observation_id,
                         source_id=source.source_id,
@@ -192,6 +222,7 @@ class ObservationProcessingRuntime:
                             "port": asset.port,
                             "product": asset.product,
                             "version": asset.version,
+                            "vulnerabilities": asset.vulnerabilities,
                             "relation_context": asset.relation_context,
                         },
                         detail=(

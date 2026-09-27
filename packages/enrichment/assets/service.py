@@ -96,6 +96,7 @@ def map_asset_observation(envelope: IngestEnvelope) -> AssetObservation:
         isp=_optional_string(payload.get("isp")),
         asn=_optional_string(payload.get("asn")),
         cpe=_string_list(payload.get("cpe")),
+        vulnerabilities=_cve_list(payload.get("vulns")),
         location=_json_object(payload.get("location")),
         discovery_context=_json_object(envelope.request_metadata.get("discovery_context")),
         relation_context=_json_object(envelope.request_metadata.get("relation_context")),
@@ -106,6 +107,15 @@ def _string_list(value: object) -> list[str]:
     if not isinstance(value, list):
         return []
     return [item for item in value if isinstance(item, str)]
+
+
+def _cve_list(value: object) -> list[str]:
+    result: list[str] = []
+    for item in _string_list(value):
+        normalized = item.strip().upper()
+        if normalized.startswith("CVE-") and normalized not in result:
+            result.append(normalized)
+    return result
 
 
 def _optional_string(value: object) -> str | None:

@@ -83,7 +83,7 @@ The registry is broader than the processors already implemented. The current imp
 | Exploit state | `known_exploited`, `has-poc`, exploit maturity | CISA KEV writes `known_exploited`; NVD references explicitly tagged `Exploit` now materialize canonical `ExploitArtifact` + `has-poc` with exact reference evidence. Broader exploit-feed coverage remains future work |
 | Exploit likelihood | EPSS probability/percentile at observed time | GitHub Advisory EPSS snapshots remain evidence-backed; dedicated FIRST EPSS is now an owned on-demand authority source and writes `epss_probability/percentile` with `source_semantics=first_epss` and `score_date`, preserving point-in-time identity |
 | Advisory/reference | canonical advisory/document associations | GitHub Advisory now writes canonical `Document` + `described-by`; vendor/advisory breadth remains incomplete |
-| Asset exposure | `InternetAsset --asset-potentially-affected--> Vulnerability` | provider-neutral `AssetObservation` exists; applicability join remains backlog |
+| Asset exposure | `InternetAsset --asset-potentially-affected--> Vulnerability` | Shodan InternetDB explicit host-level `vulns[]` assertions now materialize canonical evidence-backed edges; CPE/version-derived applicability join remains backlog |
 | Research/paper | `discusses-vulnerability` | managed semantic extraction exists; benchmark bridge remains backlog |
 | Incident context | strong-anchor Incident↔Vulnerability bridge | Incident lifecycle exists; canonical benchmark bridge remains backlog |
 
@@ -95,7 +95,7 @@ The active M3 implementation backlog is therefore:
 2. CVE 5.x / CSAF applicability beyond the current GitHub Advisory, OSV, and NVD CPE assertions;
 3. advisory/document association coverage beyond GitHub Advisory;
 4. broader PoC/ExploitArtifact source coverage beyond NVD explicit `Exploit` tags;
-5. AssetObservation → Product/SoftwareVersion → Vulnerability deterministic join;
+5. AssetObservation → Product/SoftwareVersion → Vulnerability deterministic join beyond the current provider-explicit InternetDB assertion;
 6. paper `discusses-vulnerability` benchmark bridge;
 7. Incident → Vulnerability strong-anchor benchmark bridge.
 
@@ -155,6 +155,15 @@ The expanded 12-CVE result is persisted as formal TD3 benchmark evidence under d
 `real-structured:b1d05c8777ccfd4b02ce5f14c91056f4de826fdfa069af9fa4699081a0a48c6c`.
 The corresponding CompetitionReport is `b6f24b2d-2123-45db-99fd-c156a7f6eaaa` and records
 M3 precision/recall as 1.0 while leaving unsupported competition areas explicitly unevaluated.
+
+Asset exposure now has its first real positive smoke rather than a contract-only dimension. A
+passive Shodan InternetDB lookup for the public security-test host at `44.238.29.244` returned one
+explicit host-level vulnerability association, `CVE-2014-4078`. Production post-ingress preserved
+the raw Evidence and materialized
+`InternetAsset(internet-asset:ip:44.238.29.244) --asset-potentially-affected--> CVE-2014-4078`;
+the independent InternetDB evaluator produced **1 formal fact / 1 TP / 0 FP / 0 FN**. This is a
+positive-path smoke only, not evidence that arbitrary CPE/version observations can yet be joined to
+vulnerability applicability. Asset observations without explicit `vulns[]` remain context-only.
 
 M3 exposes closed-set status as resolved/conflict/unknown/missing over the shared vocabulary. The conversion of those gaps into M4 `EvidenceNeed`, Perception and investigation policy remains owned by `packages.investigation`; M3 state specifications do not become a parallel investigation requirement protocol.
 

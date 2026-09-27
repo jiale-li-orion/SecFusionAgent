@@ -339,8 +339,22 @@ cases and **24 formal facts / 24 TP / 0 FP / 0 FN**, with no missing or extra fa
 intentionally ignores GitHub EPSS so source-specific failures cannot be hidden by a second provider
 carrying a numerically similar score.
 
-The next priority is AssetObservation → vulnerability applicability and CVE 5.x / CSAF semantics,
-followed by paper/incident benchmark bridges and broader advisory/PoC source coverage.
+The next priority is CPE/version-derived AssetObservation applicability and CVE 5.x / CSAF
+semantics, followed by paper/incident benchmark bridges and broader advisory/PoC source coverage.
+
+Asset exposure also has a separate source-specific positive smoke. `scripts/evaluate_asset_exposure.py`
+constructs gold directly from Shodan InternetDB's explicit host-level `vulns[]` response and scores
+only active canonical `asset-potentially-affected` relations backed by `shodan-internetdb-assets`
+Evidence. On the public security-test host `44.238.29.244`, InternetDB currently reports
+`CVE-2014-4078`; the production path and independent evaluator agree on **1 gold fact / 1 TP / 0 FP
+/ 0 FN**. The canonical asset identity is host-level (`internet-asset:ip:<ip>`) because InternetDB
+returns vulnerability association at host scope even though service observations are emitted per
+port. This benchmark deliberately does not infer affectedness from CPE alone.
+
+The asset result expands formal dimensional coverage but is intentionally small. The next asset
+step is the harder deterministic join `AssetObservation → Product/SoftwareVersion → source-specific
+applicability → Vulnerability`, including negative/wrong-version traps; until that lands, the 1/1
+positive smoke must not be described as general asset affectedness accuracy.
 
 ### Formal TD3 checkpoint — 2026-09-27
 

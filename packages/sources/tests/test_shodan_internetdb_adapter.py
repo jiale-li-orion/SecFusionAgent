@@ -80,3 +80,29 @@ async def test_internetdb_404_is_no_observation() -> None:
             trigger=AcquisitionTrigger.INVESTIGATION,
         )
     assert results == []
+
+
+@pytest.mark.asyncio
+async def test_internetdb_preserves_explicit_vulnerability_associations() -> None:
+    payload = {
+        "ip": "44.238.29.244",
+        "ports": [80],
+        "hostnames": ["ec2-44-238-29-244.us-west-2.compute.amazonaws.com"],
+        "cpes": ["cpe:/a:microsoft:internet_information_services:8.5"],
+        "tags": [],
+        "vulns": ["CVE-2014-4078"],
+    }
+
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, json=payload, request=request)
+        )
+    ) as client:
+        results = await ShodanInternetDBAdapter(client, now=lambda: NOW).query(
+            SOURCE,
+            QuerySpec(filters={"ip": "44.238.29.244"}),
+            acquisition_run_id="00000000-0000-0000-0000-000000000902",
+            trigger=AcquisitionTrigger.INVESTIGATION,
+        )
+    assert len(results) == 1
+    assert results[0].json_payload["vulns"] == ["CVE-2014-4078"]
