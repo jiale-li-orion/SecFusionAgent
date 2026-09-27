@@ -30,6 +30,7 @@ from packages.task_runtime.context.materializer import (
     FragmentCacheClass,
     FragmentTrustClass,
     MaterializedFragment,
+    PromptAssembly,
 )
 from packages.task_runtime.context.service import refresh_context
 from packages.task_runtime.contracts.roles import canonical_roles
@@ -68,6 +69,27 @@ class EmptyPlannerCapabilityContextProvider:
         return PlannerCapabilityContext()
 
 
+class PromptAssemblyRecorder(Protocol):
+    async def persist(
+        self,
+        session: AsyncSession,
+        *,
+        assembly: PromptAssembly,
+        context_manifest_ref: str,
+    ) -> None: ...
+
+
+class NullPromptAssemblyRecorder:
+    async def persist(
+        self,
+        session: AsyncSession,
+        *,
+        assembly: PromptAssembly,
+        context_manifest_ref: str,
+    ) -> None:
+        del session, assembly, context_manifest_ref
+
+
 class ModelInvestigationPlanner:
     def __init__(
         self,
@@ -78,6 +100,7 @@ class ModelInvestigationPlanner:
         skill_resolver: SkillResolver | None = None,
         skill_store: SkillStore | None = None,
         capability_context_provider: PlannerCapabilityContextProvider | None = None,
+        prompt_assembly_recorder: PromptAssemblyRecorder | None = None,
         stream_name: str = "secfusion:task-events",
     ) -> None:
         self._session_factory = session_factory
@@ -88,6 +111,7 @@ class ModelInvestigationPlanner:
         self._capability_context_provider = (
             capability_context_provider or EmptyPlannerCapabilityContextProvider()
         )
+        self._prompt_assembly_recorder = prompt_assembly_recorder or NullPromptAssemblyRecorder()
         self._stream_name = stream_name
 
     async def next_action(self, frame: InvestigationFrame) -> InvestigationAction:
@@ -163,12 +187,25 @@ class ModelInvestigationPlanner:
                 percept_refs=[item.source_ref for item in ephemeral],
                 execution_profile_revision=capability_context.execution_profile_revision,
             )
+            await self._prompt_assembly_recorder.persist(
+                session,
+                assembly=assembly,
+                context_manifest_ref=f"context:{manifest.context_id}",
+            )
 
         request = assembly.to_model_request()
         request = request.model_copy(
             update={
                 "metadata": {
                     **request.metadata,
+                    "model_purpose": "m5.investigation_plan",
+                    "prompt_revision": "investigation-model-v1",
+                    "request_owner_ref": f"task-run:{frame.task_run_id}",
+                    "execution_id": assembly.execution_id,
+                    "task_run_id": assembly.task_run_id,
+                    "case_id": frame.state.case_id,
+                    "prompt_assembly_id": assembly.assembly_id,
+                    "budget_ref": manifest.budget_ref,
                     "planner": "investigation-model-v1",
                     "iteration": frame.iteration,
                     "selected_need_id": (

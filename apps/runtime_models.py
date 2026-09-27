@@ -18,6 +18,8 @@ _MODEL_MODULES = (
     "packages.task_runtime.storage.models",
     "packages.investigation.skills.storage",
     "packages.runtime.storage.models",
+    "packages.runtime.model.storage",
+    "packages.evaluation.benchmark.storage",
     "packages.enrichment.runtime.state_models",
     "packages.shared.storage.models",
 )

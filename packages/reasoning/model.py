@@ -80,6 +80,9 @@ class ModelDecisionPlanner:
                 ),
             },
             metadata={
+                "model_purpose": "m6.decision",
+                "prompt_revision": self.PROMPT_REVISION,
+                "request_owner_ref": f"case:{state.case_id}",
                 "planner": self.PROMPT_REVISION,
                 "model_provider": f"{self._provider.name}@{self._provider.version}",
                 "case_id": state.case_id,

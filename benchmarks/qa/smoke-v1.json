@@ -1,0 +1,57 @@
+{
+  "suite_id": "m6-qa-harness-smoke",
+  "suite_revision": 1,
+  "gold_revision": "qa-smoke-v1",
+  "evaluator_revision": "qa-v1",
+  "purpose": "Synthetic scorer/runtime smoke only; not competition evidence",
+  "cases": [
+    {
+      "case_id": "qa-direct-cvss-smoke",
+      "tags": ["synthetic", "direct"],
+      "gold": {
+        "case_id": "qa-direct-cvss-smoke",
+        "required_facts": ["cvss:9.8"],
+        "required_citation_facts": ["cvss:9.8"],
+        "completion_expectation": "answered"
+      },
+      "prediction": {
+        "case_id": "qa-direct-cvss-smoke",
+        "conclusion_facts": ["cvss:9.8"],
+        "citations": [
+          {
+            "conclusion_fact": "cvss:9.8",
+            "evidence_ref": "evidence:synthetic-nvd",
+            "supports": true
+          }
+        ],
+        "completion_status": "answered",
+        "interactive_latency_seconds": 0.8
+      }
+    },
+    {
+      "case_id": "qa-multihop-fix-smoke",
+      "tags": ["synthetic", "multi-hop"],
+      "gold": {
+        "case_id": "qa-multihop-fix-smoke",
+        "required_facts": ["fixed-release:0.22.0"],
+        "required_relation_paths": [["vulnerability", "fix-commit", "release:0.22.0"]],
+        "required_citation_facts": ["fixed-release:0.22.0"],
+        "completion_expectation": "answered"
+      },
+      "prediction": {
+        "case_id": "qa-multihop-fix-smoke",
+        "conclusion_facts": ["fixed-release:0.22.0"],
+        "relation_paths": [["vulnerability", "fix-commit", "release:0.22.0"]],
+        "citations": [
+          {
+            "conclusion_fact": "fixed-release:0.22.0",
+            "evidence_ref": "evidence:synthetic-release",
+            "supports": true
+          }
+        ],
+        "completion_status": "answered",
+        "interactive_latency_seconds": 1.2
+      }
+    }
+  ]
+}

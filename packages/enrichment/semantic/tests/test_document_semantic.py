@@ -15,7 +15,7 @@ from packages.intelligence.documents.service import ManagedDocumentResult, Manag
 from packages.intelligence.ingestion.evidence import EvidenceIngress
 from packages.intelligence.knowledge.read import get_object_by_id
 from packages.intelligence.storage.artifacts import MemoryArtifactStore
-from packages.intelligence.storage.document_models import InsightCandidateModel
+from packages.intelligence.storage.document_models import DocumentChunkModel, InsightCandidateModel
 from packages.intelligence.storage.models import ProcessingRunModel
 from packages.monitoring.storage.models import AcquisitionRunModel
 from packages.shared.db import Base
@@ -140,6 +140,41 @@ async def test_semantic_document_enrichment_requires_verbatim_evidence() -> None
             assert run is not None
             assert run.model == provider.name
             assert run.prompt_version == DocumentSemanticService.PROMPT_VERSION
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_staged_semantic_commit_rejects_changed_document_coordinate() -> None:
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    provider = FakeModelProvider()
+    service = DocumentSemanticService(provider)
+    try:
+        result = await _seed_document(factory)
+        async with factory() as session:
+            prepared = await service.prepare(
+                session,
+                source=SOURCE,
+                document_revision_id=result.document_revision_id,
+            )
+        inferred = await service.infer(prepared, source=SOURCE)
+
+        async with factory() as session, session.begin():
+            chunk = await session.get(DocumentChunkModel, prepared.chunks[0].chunk_id)
+            assert chunk is not None
+            chunk.content_hash = "f" * 64
+
+        with pytest.raises(RuntimeError, match="chunks changed"):
+            async with factory() as session, session.begin():
+                await service.commit(
+                    session,
+                    source=SOURCE,
+                    prepared=prepared,
+                    inferred=inferred,
+                )
     finally:
         await engine.dispose()
 

@@ -133,6 +133,21 @@ class DecisionRuntime:
         citation_sources: list[CitationSource],
     ) -> DecisionRuntimeOutcome:
         proposal = await planner.plan(state, citation_sources=citation_sources)
+        return await self.commit_proposal(
+            session,
+            state=state,
+            proposal=proposal,
+            citation_sources=citation_sources,
+        )
+
+    async def commit_proposal(
+        self,
+        session: AsyncSession,
+        *,
+        state: InvestigationState,
+        proposal: DecisionDraft | ContinuationRequest,
+        citation_sources: list[CitationSource],
+    ) -> DecisionRuntimeOutcome:
         if isinstance(proposal, DecisionDraft):
             decision, committed = await self.finalize(
                 session,

@@ -112,6 +112,11 @@ class NormativeKnowledgeService:
                         "text": chunk.text,
                     },
                     metadata={
+                        "model_purpose": "m3.normative_extract",
+                        "prompt_revision": self.PROMPT_VERSION,
+                        "request_owner_ref": f"processing-run:{run_id}",
+                        "processing_run_id": run_id,
+                        "document_revision_id": document_revision_id,
                         "prompt_version": self.PROMPT_VERSION,
                         "source_id": source.source_id,
                         "source_class": source.source_class,

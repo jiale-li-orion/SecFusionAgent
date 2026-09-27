@@ -40,6 +40,12 @@ The scheduler process also calls stale-run recovery. Recovery changes durable ru
 
 Monitoring writes `collection.requested` and other domain events into the shared outbox inside PostgreSQL transactions. `apps.worker.scheduler` dispatches committed events to Celery. Broker delivery is at-least-once, so collection consumers and downstream writes must remain idempotent.
 
+## Design → implementation map
+
+TD1 的 M1 责任已经落到四个明确 owner：`packages.sources` 持有 source capability；`scheduler/service.py` 决定 due work；`run_service.py` 持有 acquisition lifecycle；`acquisition/service.py` 持有 query-time provider read；`runtime.py` 只根据 `RetentionMode` 把一次 run 交给对应 downstream owner。前端 Runtime Workbench 展示的 source health 直接读取这些 durable `SourceStateModel`，不是单独维护的演示状态。
+
+比赛口径也保持分离：来源类别覆盖来自 versioned source inventory；监测时效和运行健康来自真实 acquisition state。provider 临时不可达不会让一个已拥有的 source category 从覆盖定义里消失，反过来一次 live probe 成功也不会凭空增加产品 coverage。
+
 ## Dependency boundary
 
 Allowed package dependencies: `shared`, `sources`, `intelligence`, `monitoring`.

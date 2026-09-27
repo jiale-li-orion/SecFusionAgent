@@ -4,10 +4,14 @@ import json
 from typing import Any, TypeVar
 
 import httpx
-from pydantic import BaseModel
+from pydantic import BaseModel, JsonValue
 
 from packages.intelligence.retrieval.contracts import EmbeddingBatch
-from packages.shared.model_provider import StructuredModelRequest
+from packages.shared.model_provider import (
+    ProviderModelResult,
+    ProviderUsage,
+    StructuredModelRequest,
+)
 
 TStructured = TypeVar("TStructured", bound=BaseModel)
 
@@ -57,6 +61,13 @@ class OpenAICompatibleProvider:
         request: StructuredModelRequest,
         response_model: type[TStructured],
     ) -> TStructured:
+        return (await self.generate_structured_result(request, response_model)).output
+
+    async def generate_structured_result(
+        self,
+        request: StructuredModelRequest,
+        response_model: type[TStructured],
+    ) -> ProviderModelResult[TStructured]:
         if not self._chat_model:
             raise ValueError("chat model is not configured")
         schema = response_model.model_json_schema()
@@ -83,8 +94,10 @@ class OpenAICompatibleProvider:
                 },
             },
         }
+        response_format_fallback = False
         response = await self._post("/chat/completions", payload)
         if response.status_code in {400, 422}:
+            response_format_fallback = True
             payload["response_format"] = {"type": "json_object"}
             response = await self._post("/chat/completions", payload)
         data = _response_json(response)
@@ -103,11 +116,34 @@ class OpenAICompatibleProvider:
         except json.JSONDecodeError as exc:
             raise AIProviderResponseError("chat response content is not valid JSON") from exc
         try:
-            return response_model.model_validate(parsed)
+            output = response_model.model_validate(parsed)
         except Exception as exc:
             raise AIProviderResponseError(
                 f"chat response does not satisfy {response_model.__name__}"
             ) from exc
+        usage = _provider_usage(data.get("usage"))
+        provider_request_id = response.headers.get("x-request-id")
+        if not provider_request_id:
+            raw_id = data.get("id")
+            provider_request_id = raw_id if isinstance(raw_id, str) and raw_id else None
+        actual_model_raw = data.get("model")
+        actual_model = (
+            actual_model_raw
+            if isinstance(actual_model_raw, str) and actual_model_raw
+            else self._chat_model
+        )
+        response_metadata: dict[str, JsonValue] = {
+            "response_format": "json_object" if response_format_fallback else "json_schema",
+            "response_format_fallback": response_format_fallback,
+            "http_status": response.status_code,
+        }
+        return ProviderModelResult(
+            output=output,
+            actual_model=actual_model,
+            provider_request_id=provider_request_id,
+            usage=usage,
+            response_metadata=response_metadata,
+        )
 
     async def embed(self, texts: list[str]) -> EmbeddingBatch:
         if not self._embedding_model:
@@ -195,3 +231,29 @@ def _response_json(response: httpx.Response) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise AIProviderResponseError("model provider response must be an object")
     return payload
+
+
+def _provider_usage(value: object) -> ProviderUsage | None:
+    if not isinstance(value, dict):
+        return None
+    prompt_details = value.get("prompt_tokens_details")
+    completion_details = value.get("completion_tokens_details")
+    cached_tokens = (
+        prompt_details.get("cached_tokens") if isinstance(prompt_details, dict) else None
+    )
+    reasoning_tokens = (
+        completion_details.get("reasoning_tokens") if isinstance(completion_details, dict) else None
+    )
+    return ProviderUsage(
+        input_tokens=_non_negative_int(value.get("prompt_tokens")),
+        output_tokens=_non_negative_int(value.get("completion_tokens")),
+        total_tokens=_non_negative_int(value.get("total_tokens")),
+        cached_input_tokens=_non_negative_int(cached_tokens),
+        reasoning_tokens=_non_negative_int(reasoning_tokens),
+    )
+
+
+def _non_negative_int(value: object) -> int | None:
+    if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+        return value
+    return None

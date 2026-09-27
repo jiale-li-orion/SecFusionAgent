@@ -66,6 +66,12 @@ Boundary errors are translated into project source errors such as authentication
 
 A reachable provider is not automatically authoritative. `source_role`, `authority_scope`, `source_family`, and `upstream_source` remain attached to source definitions so later conflict/corroboration logic can distinguish authority and source independence.
 
+## Design → implementation map
+
+TD1 的“来源能力 ≠ 调度状态 ≠ 产品 coverage”在实现里分别落到三个位置：`SourceDefinition/SourceAdapter` 描述 provider 能做什么；`packages.monitoring` 决定何时做并保存 cursor/backoff；`config/source-inventory.json` 冻结八类产品 coverage denominator。`registry/sync.py` 只把 declarative source definition 同步进 PostgreSQL，不把一次 live probe 或一个 runtime failure 改写成产品 taxonomy。
+
+固定 source 的 runtime construction 统一经 `adapters/factory.py`；target-dependent provider 走 resolver/query path。这样 TD1 的 acquisition/authority contract 可以新增 provider 而不要求 M2/M3/M5 认识 SDK-specific 类型。
+
 ## Dependency boundary
 
 Allowed package dependencies: `shared`, `sources`.

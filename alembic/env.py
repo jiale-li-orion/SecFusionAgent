@@ -15,6 +15,7 @@ from packages.intelligence.storage import normative_models as normative_models
 from packages.intelligence.storage import projection_models as projection_models
 from packages.investigation.storage import models as investigation_models  # noqa: F401
 from packages.monitoring.storage import models as monitoring_models  # noqa: F401
+from packages.runtime.model import storage as runtime_model_storage  # noqa: F401
 from packages.shared.config import get_settings
 from packages.shared.db import Base
 from packages.shared.storage import models as shared_models  # noqa: F401

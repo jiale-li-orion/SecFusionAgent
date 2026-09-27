@@ -48,6 +48,12 @@ Child Task creation validates parent TaskRun state, allowed task kinds, effect c
 
 The durable protocol, centralized task admission, context revisioning, Task Event plane, delegation ceilings, dependency wake, queued-run claim and replay semantics are implemented. The current production worker has Role dispatch for `EnrichmentRole` and `InvestigationRole`; adding another Role should extend the worker composition map rather than Task Runtime schema. Slice 9 adds the pure `a2a/` compatibility adapter above these contracts; A2A correlation never replaces internal Task/Context identity.
 
+## Design → implementation map
+
+TD2 里的概念接口 `TaskRuntime.start/resume/delegate/wait/complete` 没有被做成一个 god service，而是拆成 durable primitive：`storage.service.create_task_run / transition_task_run / update_task_context / append_task_event`、`context.handoff.create_child_task_run`、`scheduler.DependencyWakeScheduler` 和 `scheduler.QueuedRoleExecutor`。新任务的 executable contract 则统一从 `admission.TaskContractService.admit` 进入；contract patch/cancel 属于既有 contract/run lifecycle，不是假装存在于 admission service 上的 API。
+
+TD2 的 Role registry 目前由确定性的 `canonical_roles()` 实现。domain contract compiler 分别位于 `packages.enrichment.runtime.admission` 与 `packages.investigation.runtime.admission`，由 `apps.task_admission` 注入。这样 API、worker 和 background trigger 可以共享一条 admission path，而 generic Task Runtime 仍不需要认识 CVE、Case 或 EvidenceNeed。
+
 ## Dependency boundary
 
 Allowed package dependencies: `shared`, `task_runtime`. Domain packages may depend on Task Runtime to run their Role workloads. Task Runtime does not import vulnerability, Incident, enrichment, or investigation domain state.

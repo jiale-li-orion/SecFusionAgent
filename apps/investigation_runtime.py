@@ -9,7 +9,7 @@ from apps.investigation_delegation import (
     DelegatedEnrichmentPolicy,
     EnrichmentDelegationAdapter,
 )
-from packages.enrichment.providers.factory import create_configured_ai_provider
+from apps.model_runtime import RuntimePromptAssemblyRecorder, create_recorded_model_provider
 from packages.investigation.perception.runtime import PerceptionRuntime
 from packages.investigation.runtime.planner import ModelInvestigationPlanner
 from packages.investigation.runtime.role import InvestigationRoleRuntime
@@ -35,7 +35,7 @@ def create_configured_investigation_runtime(
         raise InvestigationRuntimeUnavailable(
             "InvestigationRole requires SECFUSION_MODEL_BASE_URL and SECFUSION_MODEL_NAME"
         )
-    provider = create_configured_ai_provider(settings, client)
+    provider = create_recorded_model_provider(settings, session_factory, client)
     if provider is None:
         raise InvestigationRuntimeUnavailable("configured model provider is unavailable")
 
@@ -53,6 +53,7 @@ def create_configured_investigation_runtime(
                 "ephemeral_observation_is_not_evidence": True,
             },
         ),
+        prompt_assembly_recorder=RuntimePromptAssemblyRecorder(),
         stream_name=settings.task_event_stream_name,
     )
     delegation = EnrichmentDelegationAdapter(

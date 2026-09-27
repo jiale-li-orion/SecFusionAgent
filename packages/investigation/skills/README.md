@@ -18,7 +18,13 @@ The built-in five TD2 seed skills are `candidate` until M7 replay/regression pro
 
 ## Current boundary
 
-Skill storage, deterministic resolution, progressive disclosure and candidate seeds are implemented. Automatic Experience compression, `SkillPatchCandidate`, regression replay and promotion are intentionally absent until M7; candidate presence must not be described as learned/adaptive Skill behavior.
+Skill storage, deterministic resolution, progressive disclosure and candidate seeds are implemented. Experience compression and `SkillPatchCandidate` proposal are implemented under `packages.investigation.experience`; replay/regression and activation are implemented by `packages.evaluation.skill_promotion`. This package intentionally does **not** own promotion authority.
+
+The built-in seed Skills still remain `candidate` because the existence of the M7 gate does not itself produce validation evidence. A Skill becomes online-selectable only after a concrete replay suite writes the required validation/promotion reference and its status moves to `validated/active`.
+
+## Design → implementation map
+
+TD2 的渐进披露在代码里对应 `SkillStore.search_manifests → get_procedure → get_step → get_provenance`；`SkillResolver.resolve` 只在当前 Task/EvidenceNeed/object/capability 条件内做确定性选择。Experience-derived patch 由 `ExperienceCompressor.propose_patch` 生成新 immutable version，随后交给 `packages.evaluation.SkillPromotionGate`；Skill package 本身没有“自动学习成功就激活”的捷径。
 
 ## Verification
 

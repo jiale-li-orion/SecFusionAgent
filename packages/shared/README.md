@@ -11,7 +11,8 @@
 - collection/incident TTL and scheduler timing;
 - S3-compatible evidence storage;
 - provider credentials;
-- OpenAI-compatible model/embedding endpoint configuration.
+- OpenAI-compatible model/embedding endpoint configuration;
+- local Runtime Workbench enablement.
 
 Adding a deployment-varying value requires a typed setting. Security or protocol invariants that should not vary by deployment stay in their owner module instead of becoming environment variables.
 
@@ -27,9 +28,9 @@ A broker success followed by database failure can redeliver an event. Consumers 
 
 ## Model provider protocol
 
-`model_provider.ModelProvider` defines model-independent structured generation. `StructuredModelRequest` separates system instruction, data, and metadata. Concrete OpenAI-compatible configuration/HTTP behavior currently lives in `packages.enrichment.providers` because M1–M3 model use is an enrichment concern.
+`model_provider.ModelProvider` defines model-independent structured generation. `StructuredModelRequest` separates system instruction, data, and metadata. The same protocol is now consumed by M3 semantic enrichment, M5 Investigation planning and M6 Decision planning. Concrete OpenAI-compatible HTTP/configuration code still lives in `packages.enrichment.providers` and is injected only at `apps/*` composition boundaries; domain packages do not gain credentials or network authority from the shared protocol.
 
-Future M4 runtime may add additional provider contracts only after its Task/Tool/Policy design is frozen; those contracts should not be guessed into this module early.
+Moving that concrete adapter into a neutral provider package is now a packaging cleanup, not a missing Agent contract. Such a move must preserve `ModelProvider` and domain ownership rather than making `shared` depend on Agent semantics.
 
 ## Dependency boundary
 

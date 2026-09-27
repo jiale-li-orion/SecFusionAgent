@@ -34,6 +34,12 @@ Current host probe finds Docker and `/dev/kvm`; OpenShell and Firecracker binari
 
 Capability/Policy/Budget/Execution/Sandbox control-plane contracts and durable audit state exist. WATCH wake now creates a fresh BudgetAccount and ExecutionEnvelope in the same transaction as the TaskRun, inheriting the prior episode's capability/identity/network/sandbox ceilings while refreshing deadline and trace provenance. TD2's planned `runtime/identity/`, `runtime/network/`, and independent `runtime/audit/` owners have not yet been split out: identity/network constraints currently travel through ExecutionEnvelope, Policy and Sandbox contracts, while audit records live beside the owning runtime services. Do not create empty packages merely to match the design map; split these owners when a concrete credential/network/audit lifecycle requires independent state or enforcement.
 
+## Design → implementation map
+
+TD2 的 capability stack 已有具体实现：`CapabilityRegistry.visible_capabilities/schema_view/resolve_binding` 负责 discovery/binding；`CapabilityBroker.invoke` 做 invocation-time validation、Policy、Budget 与 executor 调用；`BudgetGovernor` 持有 durable reserve/commit/release；`ExecutionRunService` 持有 ExecutionEnvelope lifecycle；`SandboxBroker` 持有 sandbox create/exec/export/destroy 语义。Identity/network/audit 当前作为 ExecutionEnvelope、Policy、Sandbox 和 owner-local audit state 存在，没有为了目录图额外造空 package。
+
+现在最大的 gap 是 production composition 而不是 contract shape。`apps.investigation_runtime` 当前只开放 local Perception 与 delegation，没有把真实 search/browser/repository/asset capability catalog 接进 active Role。后续应该通过现有 Registry/Binding/Broker 接入这些 executor；直接让 InvestigationRole 调 provider 虽然 demo 更快，但会破坏 TD2 的控制面边界。
+
 ## Dependency boundary
 
 Allowed dependencies: `shared`, `task_runtime`, `runtime`. Execution-control code does not import enrichment/investigation domain facts. Domain Roles request capabilities/policy decisions through public runtime contracts.

@@ -12,9 +12,7 @@ from packages.task_runtime.contracts.models import TaskIntent, TaskKind
 
 @pytest.mark.asyncio
 async def test_runtime_task_admission_compiles_investigation_contract_under_policy() -> None:
-    service = create_task_contract_service(
-        load_runtime_policy(Path("config/runtime-policy.json"))
-    )
+    service = create_task_contract_service(load_runtime_policy(Path("config/runtime-policy.json")))
     request = TaskAdmissionRequest(
         intent=TaskIntent(
             raw_request="Verify the fix boundary for the bound case.",
@@ -44,9 +42,7 @@ async def test_runtime_task_admission_compiles_investigation_contract_under_poli
 
 @pytest.mark.asyncio
 async def test_runtime_task_admission_denies_unmapped_external_principal() -> None:
-    service = create_task_contract_service(
-        load_runtime_policy(Path("config/runtime-policy.json"))
-    )
+    service = create_task_contract_service(load_runtime_policy(Path("config/runtime-policy.json")))
     request = TaskAdmissionRequest(
         intent=TaskIntent(
             raw_request="Verify the fix boundary.",

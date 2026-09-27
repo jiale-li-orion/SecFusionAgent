@@ -6,6 +6,7 @@ from sqlalchemy import select
 
 from apps.enrichment_runtime import create_configured_enrichment_runtime
 from apps.investigation_runtime import create_configured_investigation_runtime
+from apps.model_runtime import record_model_provider
 from apps.task_admission import create_task_contract_service
 from apps.watch_runtime import RuntimeWatchWakeAdmission
 from apps.worker.celery_app import celery_app
@@ -233,21 +234,19 @@ async def _rebuild_knowledge_projections(payload: dict[str, object]) -> int:
 async def _enrich_vulnerability(payload: dict[str, object]) -> int:
     cve_id = payload.get("cve_id")
     object_id = payload.get("object_id")
-    trigger_ref = payload.get("parent_run_id")
+    trigger_ref = payload.get("trigger_ref") or payload.get("parent_run_id")
     if not isinstance(cve_id, str):
         raise ValueError("enrichment.requested payload requires cve_id")
     if not isinstance(object_id, str) or not object_id:
         raise ValueError("enrichment.requested payload requires object_id")
     if not isinstance(trigger_ref, str) or not trigger_ref:
-        raise ValueError("enrichment.requested payload requires parent_run_id trigger provenance")
+        raise ValueError("enrichment.requested payload requires trigger_ref provenance")
 
     settings = get_settings()
     engine = create_engine(settings.database_url)
     factory = create_session_factory(engine)
     artifact_store = create_s3_artifact_store(settings)
-    task_admission = create_task_contract_service(
-        load_runtime_policy(settings.runtime_policy_path)
-    )
+    task_admission = create_task_contract_service(load_runtime_policy(settings.runtime_policy_path))
     await artifact_store.ensure_bucket()
     try:
         async with factory() as session, session.begin():
@@ -311,6 +310,7 @@ async def _index_document_revision(payload: dict[str, object]) -> int:
                     )
 
             if settings.model_name:
+                recorded_provider = record_model_provider(factory, provider)
                 async with factory() as session:
                     revision = await session.get(DocumentRevisionModel, document_revision_id)
                     if revision is None:
@@ -328,16 +328,26 @@ async def _index_document_revision(payload: dict[str, object]) -> int:
                     raise LookupError(f"source definition not found: {source_id}")
                 async with factory() as session, session.begin():
                     if source.source_class == "normative_knowledge":
-                        await NormativeKnowledgeService(provider).extract(
+                        await NormativeKnowledgeService(recorded_provider).extract(
                             session,
                             source=source,
                             document_revision_id=document_revision_id,
                         )
-                    else:
-                        await DocumentSemanticService(provider).extract(
+                if source.source_class != "normative_knowledge":
+                    semantic = DocumentSemanticService(recorded_provider)
+                    async with factory() as session:
+                        prepared = await semantic.prepare(
                             session,
                             source=source,
                             document_revision_id=document_revision_id,
+                        )
+                    inferred = await semantic.infer(prepared, source=source)
+                    async with factory() as session, session.begin():
+                        await semantic.commit(
+                            session,
+                            source=source,
+                            prepared=prepared,
+                            inferred=inferred,
                         )
         return len(lexical.indexed_chunk_ids)
     finally:

@@ -42,9 +42,17 @@ The five TD2 seed skills are currently persisted as `candidate`. Default online 
 
 `trajectory/` records execution/state transitions and references to evidence/percepts/artifacts used during the investigation. Large tool/model output remains in ArtifactStore.
 
-`experience/` stores reusable investigation patterns. Experience can guide planning but does not provide factual authority. Promotion into procedural Skill remains subject to TD2 replay/regression rules.
+`experience/` stores reusable investigation patterns. Experience can guide planning but does not provide factual authority. `ExperienceCompressor` now extracts/merges `ExperiencePattern` and proposes immutable `SkillPatchCandidate` versions while preserving support and counterexample trajectory refs. It can only change procedural material such as guards, fallbacks, stop conditions and capability preferences; it cannot grant Evidence authority or bypass Policy.
 
-`ExperienceCompressor → SkillPatchCandidate → replay/regression → promotion` is still M7 work. Existing Experience/Trajectory/Snapshot storage is substrate, not evidence that adaptive Skill promotion already exists.
+The full control path is now implemented as `Trajectory/Experience → ExperiencePattern → SkillPatchCandidate → packages.evaluation replay suite → SkillPromotionGate → active SkillVersion`. Promotion authority deliberately lives in M7 rather than in the Skill store. Online learning is therefore not “write a successful trajectory into memory”; candidate procedures remain inactive until support/counterexample/regression replay passes.
+
+`replay/` captures a durable reference-preserving checkpoint over Snapshot + Task/Context/Event/Trajectory/runtime-control coordinates and can reconstruct historical M4 state from append-only CaseStateEvents. It fails closed when the pinned Knowledge revision cannot be read exactly, preventing future-world leakage. M1–M3 versioned historical reads are the remaining blocker for true historical Agent re-execution.
+
+## Design → implementation map
+
+TD2 的 M4/M5 没有落成一个“万能 Agent service”。Case lifecycle 由 `cases/` 持有；事实缺口与 durable state write 由 `state/` 持有；read planning/execution 由 `perception/` 持有；bounded Agent loop、delegation、WAIT/WATCH 在 `runtime/`；程序性先验在 `skills/`；运行经验在 `trajectory/experience`；historical coordinate 在 `replay/`。这些 owner 通过 ID/revision/reference 连接，而不是通过共享可变 dict。
+
+当前 production composition 位于 `apps/investigation_runtime.py`：Context/Skill/model/local Perception/delegation 已接入；external Capability catalog/binding/executor 尚未接入，因此真实 search/browser/repository/asset tool action 会 fail unavailable，而不是绕开 Policy 直接调用 provider。这是当前 M5 最主要的实现边界。
 
 ## Dependency boundary
 
