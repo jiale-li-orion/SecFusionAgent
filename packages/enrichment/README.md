@@ -109,6 +109,11 @@ association with `150 TP / 0 FP / 0 FN`. This result is scoped to the selected s
 new source semantics are added to the formal denominator only after their canonical mapping is
 implemented and evidence-bound.
 
+A separate recent CISA KEV stratum exercises positive exploit-state coverage: 6 real KEV CVEs,
+51 formal facts overall, `51 TP / 0 FP / 0 FN`, including `known_exploited` **6/6**. Keeping this
+stratum separate prevents a GitHub-heavy sample from making exploit-state look covered when no
+positive KEV case was actually present.
+
 M3 exposes closed-set status as resolved/conflict/unknown/missing over the shared vocabulary. The conversion of those gaps into M4 `EvidenceNeed`, Perception and investigation policy remains owned by `packages.investigation`; M3 state specifications do not become a parallel investigation requirement protocol.
 
 ## Current boundary

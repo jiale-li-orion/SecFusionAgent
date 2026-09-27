@@ -56,7 +56,7 @@ def _bucket(features: dict[str, bool]) -> str:
     return "other_structured"
 
 
-async def _discover(count: int) -> dict[str, Any]:
+async def _discover_github(count: int) -> dict[str, Any]:
     settings = get_settings()
     headers = {
         "Accept": "application/vnd.github+json",
@@ -145,14 +145,79 @@ async def _discover(count: int) -> dict[str, Any]:
     }
 
 
+async def _discover_kev(count: int) -> dict[str, Any]:
+    async with httpx.AsyncClient(
+        timeout=30.0,
+        headers={"User-Agent": "SecFusionAgent-eval-discovery/0.1"},
+    ) as client:
+        response = await client.get(
+            "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        )
+        response.raise_for_status()
+        payload = response.json()
+    if not isinstance(payload, dict) or not isinstance(payload.get("vulnerabilities"), list):
+        raise RuntimeError("CISA KEV discovery response is invalid")
+    candidates = [
+        item
+        for item in payload["vulnerabilities"]
+        if isinstance(item, dict)
+        and isinstance(item.get("cveID"), str)
+        and item["cveID"].startswith("CVE-")
+    ]
+    candidates.sort(
+        key=lambda item: (
+            str(item.get("dateAdded") or ""),
+            str(item.get("cveID") or ""),
+        ),
+        reverse=True,
+    )
+    selected = [
+        {
+            "cve_id": item["cveID"],
+            "date_added": item.get("dateAdded"),
+            "vendor_project": item.get("vendorProject"),
+            "product": item.get("product"),
+            "known_ransomware_campaign_use": item.get("knownRansomwareCampaignUse"),
+        }
+        for item in candidates[:count]
+    ]
+    return {
+        "profile": "recent-cisa-kev-v1",
+        "discovered_at": datetime.now(UTC).isoformat(),
+        "requested_count": count,
+        "selected_count": len(selected),
+        "selection_policy": {
+            "source": "CISA KEV catalog",
+            "requirements": ["cveID"],
+            "ordering": "dateAdded desc, cveID desc",
+            "catalog_version": payload.get("catalogVersion"),
+        },
+        "cases": selected,
+        "cves": [item["cve_id"] for item in selected],
+    }
+
+
+async def _discover(count: int, profile: str) -> dict[str, Any]:
+    if profile == "github-structured":
+        return await _discover_github(count)
+    if profile == "kev-recent":
+        return await _discover_kev(count)
+    raise ValueError(f"unsupported discovery profile: {profile}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Discover a reproducible live M3 CVE stratum")
     parser.add_argument("--count", type=int, default=12)
+    parser.add_argument(
+        "--profile",
+        choices=("github-structured", "kev-recent"),
+        default="github-structured",
+    )
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     if args.count < 1 or args.count > 50:
         raise ValueError("count must be between 1 and 50")
-    result = asyncio.run(_discover(args.count))
+    result = asyncio.run(_discover(args.count, args.profile))
     rendered = json.dumps(result, indent=2, ensure_ascii=False) + "\n"
     if args.output is not None:
         args.output.parent.mkdir(parents=True, exist_ok=True)

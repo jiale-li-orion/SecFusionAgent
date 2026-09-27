@@ -266,5 +266,14 @@ repo for live probing; a competition benchmark must freeze the chosen case list 
 
 Because public NVD access is rate-limited, the discovery/evaluation utilities explicitly throttle
 and retry NVD requests when no API key is configured. Provider transport failures are not counted as
-M3 false negatives. The next priority is KEV-positive coverage and a second source-specific
-applicability path (OSV), then PoC/assets/papers/incidents and larger frozen strata.
+M3 false negatives.
+
+The discovery tool also exposes a `kev-recent` profile. On the 2026-09-27 six-case recent CISA KEV
+stratum (ordered by `dateAdded desc`), production refresh returned one KEV record for every case and
+the independent evaluator produced **51 TP / 0 FP / 0 FN** over 51 formal facts. In particular,
+`exploit_state` was exercised by six positive `known_exploited` facts and scored **6/6**. This
+stratum is intentionally separate from the GitHub-structured sample so positive exploit-state
+coverage is visible rather than diluted by a set with no KEV members.
+
+The next priority is a second source-specific applicability path (OSV), then PoC/assets/papers/
+incidents and larger frozen strata.
