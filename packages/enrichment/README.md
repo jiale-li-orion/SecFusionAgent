@@ -84,7 +84,7 @@ The registry is broader than the processors already implemented. The current imp
 | Exploit likelihood | EPSS probability/percentile at observed time | GitHub Advisory EPSS snapshots remain evidence-backed; dedicated FIRST EPSS is now an owned on-demand authority source and writes `epss_probability/percentile` with `source_semantics=first_epss` and `score_date`, preserving point-in-time identity |
 | Advisory/reference | canonical advisory/document associations | GitHub Advisory now writes canonical `Document` + `described-by`; vendor/advisory breadth remains incomplete |
 | Asset exposure | `InternetAsset --asset-potentially-affected--> Vulnerability` | Shodan InternetDB explicit host-level `vulns[]` assertions now materialize canonical evidence-backed edges; CPE/version-derived applicability join remains backlog |
-| Research/paper | `discusses-vulnerability` | managed semantic extraction exists; benchmark bridge remains backlog |
+| Research/paper | `discusses-vulnerability` | managed research documents now run a deterministic exact-CVE bridge over frozen parsed chunks; semantic extraction remains separate and is not used to create formal gold |
 | Incident context | strong-anchor Incident↔Vulnerability bridge | Incident lifecycle exists; canonical benchmark bridge remains backlog |
 
 Supporting edges such as `release-contains-commit`, `asset-runs-product`, and `asset-version`, and open-text `workaround / mitigation / attack_condition`, can remain canonical evidence-backed knowledge while `benchmarked=False`. `poc_available` is a derived convenience projection; formal PoC gold uses `Vulnerability --has-poc--> ExploitArtifact`.
@@ -96,7 +96,7 @@ The active M3 implementation backlog is therefore:
 3. advisory/document association coverage beyond GitHub Advisory;
 4. broader PoC/ExploitArtifact source coverage beyond NVD explicit `Exploit` tags;
 5. AssetObservation → Product/SoftwareVersion → Vulnerability deterministic join beyond the current provider-explicit InternetDB assertion;
-6. paper `discusses-vulnerability` benchmark bridge;
+6. broader paper association beyond exact CVE anchors, with adjudicated semantic-relation gold;
 7. Incident → Vulnerability strong-anchor benchmark bridge.
 
 Processor-version refresh is expected to be replay-safe. The canonical writer and NVD durable normalizer reactivate an identical immutable claim/relation when a newer processor run supersedes the previous active source projection and then reproduces the same normalized tuple. This prevents mapper upgrades from accidentally making stable facts disappear.
@@ -170,6 +170,17 @@ The formal TD3 checkpoint is deployment `deployment:0ecfd8da773ffe47802c5f52e0a4
 `b4f8c3db23d4707f28ea958d037a5449105d85a5519354fde0fa8b5aeae485fa`). The report passes the M3
 precision/recall development targets for this asset-specific suite and leaves unrelated competition
 areas explicitly `not_evaluated`.
+
+Research/paper enrichment now has a deterministic exact-anchor baseline. Managed research documents
+are parsed and versioned first; a separate `research-exact-cve-bridge` then scans the frozen chunk
+text for strict `CVE-YYYY-NNNN...` identifiers and writes
+`ResearchWork --discusses-vulnerability--> Vulnerability` with Evidence locators bound to the first
+matching chunk/page/character span. Repeated mentions are deduplicated, replay is idempotent, and a
+new paper revision with no exact mention supersedes the old relation instead of leaving stale current
+Knowledge. On arXiv `2504.17473v1` (XZ Utils supply-chain analysis), production PDF parsing found
+exactly `CVE-2024-3094`; independent Atom title/summary gold found the same anchor, producing
+**1 formal fact / 1 TP / 0 FP / 0 FN** in `research_paper`. This proves only exact identifier
+association; open semantic claims such as attack/defense evaluation remain outside formal M3 gold.
 
 M3 exposes closed-set status as resolved/conflict/unknown/missing over the shared vocabulary. The conversion of those gaps into M4 `EvidenceNeed`, Perception and investigation policy remains owned by `packages.investigation`; M3 state specifications do not become a parallel investigation requirement protocol.
 

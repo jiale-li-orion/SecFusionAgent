@@ -334,6 +334,14 @@ with provider-bound Evidence. It is persisted under deployment
 `f9ff8ada-4b11-447a-a8e3-daddae2d384c`. The suite intentionally proves only explicit host-level
 provider assertions; CPE/version-derived asset applicability remains a separate backlog item.
 
+Research/paper exact association is evaluated independently from semantic extraction. Production
+reads the frozen arXiv PDF revision through the managed-document parser and exact-CVE bridge; gold is
+constructed from the separately fetched arXiv Atom title/summary for that same versioned paper ID.
+On `2504.17473v1`, both views contain only `CVE-2024-3094`, yielding **1 TP / 0 FP / 0 FN** for
+`research_paper`. A paper revision mismatch fails closed, and a zero-gold selection is rejected
+rather than inheriting a vacuous score. Open semantic research relations still require human
+annotation/adjudication before they can enter an official benchmark denominator.
+
 FIRST can also be evaluated independently of the mixed structured suite:
 
 ```bash

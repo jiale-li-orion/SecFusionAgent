@@ -15,6 +15,7 @@ from packages.enrichment.processors.cnvd import CNVDHTMLMapper
 from packages.enrichment.processors.epss import FIRSTEPSSMapper
 from packages.enrichment.processors.github_advisory import GitHubAdvisoryMapper
 from packages.enrichment.processors.osv import OSVMapper
+from packages.enrichment.research.exact_cve import ExactCVEResearchBridge
 from packages.intelligence.documents.parsers import (
     HTMLDocumentParser,
     PDFDocumentParser,
@@ -81,6 +82,7 @@ class ObservationProcessingRuntime:
         self._loader = ObservationEnvelopeLoader(artifact_store)
         self._evidence_ingress = EvidenceIngress(artifact_store)
         self._writer = EvidenceBackedKnowledgeWriter()
+        self._research_exact_cve = ExactCVEResearchBridge(self._writer)
         self._managed = ManagedDocumentService(
             self._evidence_ingress,
             {
@@ -128,6 +130,28 @@ class ObservationProcessingRuntime:
         try:
             if source.retention_mode is RetentionMode.DURABLE_MANAGED:
                 managed_result = await self._managed.ingest(session, source, envelope)
+                output_refs: dict[str, object] = {
+                    "object_id": managed_result.object_id,
+                    "document_id": managed_result.document_id,
+                    "document_revision_id": managed_result.document_revision_id,
+                    "chunk_count": managed_result.chunk_count,
+                }
+                if source.source_class == "research_insight":
+                    exact_result = await self._research_exact_cve.enrich_document_revision(
+                        session,
+                        source=source,
+                        replay=replay,
+                        root_object_id=managed_result.object_id,
+                        document_revision_id=managed_result.document_revision_id,
+                    )
+                    output_refs.update(
+                        {
+                            "research_exact_cve_knowledge_revision": (
+                                exact_result.knowledge_revision
+                            ),
+                            "research_exact_cve_relation_ids": exact_result.relation_ids,
+                        }
+                    )
                 return PostIngressResult(
                     observation_id=observation_id,
                     source_id=source.source_id,
@@ -138,12 +162,7 @@ class ObservationProcessingRuntime:
                         else PostIngressStatus.PROCESSED
                     ),
                     metadata_complete=replay.metadata_complete,
-                    output_refs={
-                        "object_id": managed_result.object_id,
-                        "document_id": managed_result.document_id,
-                        "document_revision_id": managed_result.document_revision_id,
-                        "chunk_count": managed_result.chunk_count,
-                    },
+                    output_refs=output_refs,
                 )
 
             if source.retention_mode is RetentionMode.SELECTIVE_INDEX:

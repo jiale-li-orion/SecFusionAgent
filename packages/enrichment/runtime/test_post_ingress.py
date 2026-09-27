@@ -110,6 +110,129 @@ async def test_managed_document_backfill_processes_existing_observation_idempote
 
 
 @pytest.mark.asyncio
+async def test_research_document_exact_cve_mentions_promote_benchmarked_relations() -> None:
+    source = SOURCES["arxiv-ai-security"]
+    engine, factory = await _factory_for(source)
+    store = MemoryArtifactStore()
+    run_id = "00000000-0000-0000-0000-000000001107"
+    try:
+        await _add_run(factory, source, run_id)
+        envelope = IngestEnvelope.for_binary_payload(
+            acquisition_run_id=run_id,
+            trigger=AcquisitionTrigger.INVESTIGATION,
+            source_id=source.source_id,
+            external_object_id="2609.99999",
+            body=(
+                b"We evaluate CVE-2024-3094 in a controlled study. "
+                b"The discussion later repeats cve-2024-3094 and compares CVE-2021-44228."
+            ),
+            media_type="text/plain",
+            canonical_url="https://arxiv.org/abs/2609.99999v1",
+            published_at=NOW,
+            updated_at=NOW,
+            external_revision="2609.99999v1",
+            request_metadata={"title": "Exact CVE Anchor Study"},
+            observed_at=NOW,
+        )
+        observation_id = await _seed_observation(factory, store, source, envelope)
+        runtime = ObservationProcessingRuntime(store)
+        async with factory() as session, session.begin():
+            result = await runtime.process(session, source, observation_id)
+        assert result.status is PostIngressStatus.PROCESSED
+        assert result.handler == "managed_document"
+        relation_ids = result.output_refs["research_exact_cve_relation_ids"]
+        assert isinstance(relation_ids, list)
+        assert len(relation_ids) == 2
+
+        async with factory() as session:
+            relations = list(
+                await session.scalars(
+                    select(RelationModel).where(
+                        RelationModel.relation_type == "discusses-vulnerability",
+                        RelationModel.superseded_revision.is_(None),
+                    )
+                )
+            )
+            assert len(relations) == 2
+            targets: set[str] = set()
+            for relation in relations:
+                target = await session.get(ObjectModel, relation.target_object_id)
+                assert target is not None
+                targets.add(target.canonical_key)
+                assert relation.origin == "deterministic_derived"
+                evidence = await session.scalar(
+                    select(EvidenceLinkModel).where(
+                        EvidenceLinkModel.target_kind == "relation",
+                        EvidenceLinkModel.target_id == relation.relation_id,
+                    )
+                )
+                assert evidence is not None
+                assert evidence.locator["kind"] == "document_chunk"
+                assert evidence.locator["document_revision_id"] == result.output_refs[
+                    "document_revision_id"
+                ]
+            assert targets == {"cve:CVE-2024-3094", "cve:CVE-2021-44228"}
+
+        async with factory() as session, session.begin():
+            replay = await runtime.process(session, source, observation_id)
+        assert replay.status is PostIngressStatus.REPLAY
+        async with factory() as session:
+            assert (
+                await session.scalar(
+                    select(func.count())
+                    .select_from(RelationModel)
+                    .where(RelationModel.relation_type == "discusses-vulnerability")
+                )
+                == 2
+            )
+
+        second_run_id = "00000000-0000-0000-0000-000000001108"
+        await _add_run(factory, source, second_run_id)
+        second_envelope = IngestEnvelope.for_binary_payload(
+            acquisition_run_id=second_run_id,
+            trigger=AcquisitionTrigger.INVESTIGATION,
+            source_id=source.source_id,
+            external_object_id="2609.99999",
+            body=b"This revised paper discusses supply-chain security without naming a CVE.",
+            media_type="text/plain",
+            canonical_url="https://arxiv.org/abs/2609.99999v2",
+            published_at=NOW,
+            updated_at=NOW,
+            external_revision="2609.99999v2",
+            request_metadata={"title": "Exact CVE Anchor Study v2"},
+            observed_at=NOW,
+        )
+        second_observation_id = await _seed_observation(factory, store, source, second_envelope)
+        async with factory() as session, session.begin():
+            second_result = await runtime.process(session, source, second_observation_id)
+        assert second_result.status is PostIngressStatus.PROCESSED
+        assert second_result.output_refs["research_exact_cve_relation_ids"] == []
+        async with factory() as session:
+            assert (
+                await session.scalar(
+                    select(func.count())
+                    .select_from(RelationModel)
+                    .where(
+                        RelationModel.relation_type == "discusses-vulnerability",
+                        RelationModel.superseded_revision.is_(None),
+                    )
+                )
+                == 0
+            )
+            superseded = list(
+                await session.scalars(
+                    select(RelationModel).where(
+                        RelationModel.relation_type == "discusses-vulnerability",
+                        RelationModel.superseded_revision.is_not(None),
+                    )
+                )
+            )
+            assert len(superseded) == 2
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_internetdb_explicit_vulns_promote_asset_exposure_with_evidence() -> None:
     source = SOURCES["shodan-internetdb-assets"]
     engine, factory = await _factory_for(source)
