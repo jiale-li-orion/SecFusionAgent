@@ -76,18 +76,19 @@ async def _register(
             )
             case_refs: list[str] = []
             for cve_id in cases:
+                benchmark_case_id = f"{suite_id}:{cve_id}"
                 expected_behavior: dict[str, JsonValue] = {
                     "formal_dimensions": list(formal_dimensions),
                     "profile": profile,
                 }
                 if provider_snapshot_revision is not None:
                     expected_behavior["provider_snapshot_revision"] = provider_snapshot_revision
-                case_ref = f"{cve_id}@{suite_revision}"
+                case_ref = f"{benchmark_case_id}@{suite_revision}"
                 case_refs.append(case_ref)
                 await store.register_case(
                     session,
                     BenchmarkCase(
-                        case_id=cve_id,
+                        case_id=benchmark_case_id,
                         case_revision=suite_revision,
                         input={"cve_id": cve_id},
                         execution_profile="offline_scorer",
@@ -149,7 +150,7 @@ async def _register(
                 case_run = await store.start_case_run(
                     session,
                     benchmark_run_id=run.benchmark_run_id,
-                    case_ref=f"{cve_id}@{suite_revision}",
+                    case_ref=f"{suite_id}:{cve_id}@{suite_revision}",
                     now=now,
                 )
                 score = EnrichmentScore.model_validate(raw_case["score"])
