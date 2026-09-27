@@ -83,7 +83,7 @@ The registry is broader than the processors already implemented. The current imp
 | Exploit state | `known_exploited`, `has-poc`, exploit maturity | CISA KEV writes `known_exploited`; NVD references explicitly tagged `Exploit` now materialize canonical `ExploitArtifact` + `has-poc` with exact reference evidence. Broader exploit-feed coverage remains future work |
 | Exploit likelihood | EPSS probability/percentile at observed time | GitHub Advisory EPSS snapshots remain evidence-backed; dedicated FIRST EPSS is now an owned on-demand authority source and writes `epss_probability/percentile` with `source_semantics=first_epss` and `score_date`, preserving point-in-time identity |
 | Advisory/reference | canonical advisory/document associations | GitHub Advisory now writes canonical `Document` + `described-by`; vendor/advisory breadth remains incomplete |
-| Asset exposure | `InternetAsset --asset-potentially-affected--> Vulnerability` | Shodan InternetDB explicit host-level `vulns[]` assertions now materialize canonical evidence-backed edges; CPE/version-derived applicability join remains backlog |
+| Asset exposure | `InternetAsset --asset-potentially-affected--> Vulnerability` | Shodan InternetDB explicit host-level `vulns[]` assertions materialize canonical evidence-backed edges. Shodan service observations now also support a deterministic `CPE → full NVD configuration → Vulnerability` join with service-level asset identity, numeric version bounds, AND/OR/negate + companion-CPE evaluation, and dual asset/NVD Evidence. The derived path is regression-tested but is not yet counted as a live-provider benchmark because the dev environment has no authorized Shodan/Censys/FOFA/ZoomEye credential |
 | Research/paper | `discusses-vulnerability` | managed research documents now run a deterministic exact-CVE bridge over frozen parsed chunks; semantic extraction remains separate and is not used to create formal gold |
 | Incident context | strong-anchor Incident↔Vulnerability bridge | Incident lifecycle exists; canonical benchmark bridge remains backlog |
 
@@ -95,7 +95,7 @@ The active M3 implementation backlog is therefore:
 2. CVE 5.x / CSAF applicability beyond the current GitHub Advisory, OSV, and NVD CPE assertions;
 3. advisory/document association coverage beyond GitHub Advisory;
 4. broader PoC/ExploitArtifact source coverage beyond NVD explicit `Exploit` tags;
-5. AssetObservation → Product/SoftwareVersion → Vulnerability deterministic join beyond the current provider-explicit InternetDB assertion;
+5. broaden the implemented AssetObservation → CPE Product/SoftwareVersion → NVD applicability join to authorized live asset snapshots and additional non-numeric/version-scheme comparators;
 6. broader paper association beyond exact CVE anchors, with adjudicated semantic-relation gold;
 7. Incident → Vulnerability strong-anchor benchmark bridge.
 
@@ -177,6 +177,17 @@ The formal TD3 checkpoint is deployment `deployment:0ecfd8da773ffe47802c5f52e0a4
 `b4f8c3db23d4707f28ea958d037a5449105d85a5519354fde0fa8b5aeae485fa`). The report passes the M3
 precision/recall development targets for this asset-specific suite and leaves unrelated competition
 areas explicitly `not_evaluated`.
+
+The harder CPE-derived asset path is now implemented separately from that provider-explicit smoke.
+For Shodan service observations, the join creates service-level `InternetAsset` identity plus
+non-benchmarked `asset-runs-product` / `asset-version` support edges, then emits
+`asset-potentially-affected` only when the asset CPE set satisfies the complete current NVD
+`nvd_cpe` configuration tree. The regression fixture covers: affected `0.10.1` with the required
+hardware companion, exclusive-bound `0.11.1` rejection, and rejection when the companion CPE is
+missing. A positive derived relation carries Evidence from both the asset Observation and the NVD
+applicability Observation. This path is deliberately **not** added to the live M3 denominator yet:
+no authorized service-level asset provider credential is configured in the dev environment, so the
+current evidence is deterministic regression rather than a claimed live accuracy result.
 
 Research/paper enrichment now has a deterministic exact-anchor baseline. Managed research documents
 are parsed and versioned first; a separate `research-exact-cve-bridge` then scans the frozen chunk

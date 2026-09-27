@@ -380,8 +380,10 @@ cases and **24 formal facts / 24 TP / 0 FP / 0 FN**, with no missing or extra fa
 intentionally ignores GitHub EPSS so source-specific failures cannot be hidden by a second provider
 carrying a numerically similar score.
 
-The next priority is CPE/version-derived AssetObservation applicability and CVE 5.x / CSAF
-semantics, followed by paper/incident benchmark bridges and broader advisory/PoC source coverage.
+The next live structured priority is CVE 5.x / CSAF applicability. The CPE/version-derived asset
+join itself is now implemented and regression-tested against positive, wrong-version, and
+missing-companion cases, but it remains outside the live denominator until an authorized
+service-level asset snapshot can be frozen and independently scored.
 
 Asset exposure also has a separate source-specific positive smoke. `scripts/evaluate_asset_exposure.py`
 constructs gold directly from Shodan InternetDB's explicit host-level `vulns[]` response and scores
@@ -392,10 +394,15 @@ Evidence. On the public security-test host `44.238.29.244`, InternetDB currently
 returns vulnerability association at host scope even though service observations are emitted per
 port. This benchmark deliberately does not infer affectedness from CPE alone.
 
-The asset result expands formal dimensional coverage but is intentionally small. The next asset
-step is the harder deterministic join `AssetObservation → Product/SoftwareVersion → source-specific
-applicability → Vulnerability`, including negative/wrong-version traps; until that lands, the 1/1
-positive smoke must not be described as general asset affectedness accuracy.
+The asset result expands formal dimensional coverage but is intentionally small. A harder
+deterministic join now exists for Shodan service observations:
+`AssetObservation → CPE Product/SoftwareVersion → full NVD CPE configuration → Vulnerability`.
+Its regression includes a true affected case, an exclusive-bound wrong-version case, and a
+missing-companion case; only the true case produces `asset-potentially-affected`, and the relation
+is backed by both asset and NVD Evidence. Because the current dev environment has no authorized
+service-level asset feed, those regression cases are **not** promoted into the live formal
+denominator. The InternetDB 1/1 suite therefore remains the only formal live asset checkpoint and
+must not be described as general asset affectedness accuracy.
 
 ### Formal TD3 checkpoint — 2026-09-27
 

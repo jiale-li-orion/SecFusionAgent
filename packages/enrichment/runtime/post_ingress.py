@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from packages.enrichment.assets.cpe_join import AssetCPEApplicabilityJoinService
 from packages.enrichment.assets.internetdb import ShodanInternetDBAssetMapper
 from packages.enrichment.assets.service import map_asset_observation
 from packages.enrichment.processors.cisa_kev import CISAKEVMapper
@@ -112,6 +113,7 @@ class ObservationProcessingRuntime:
         self._asset_mappers: dict[str, EnrichmentMapper] = {
             "shodan_internetdb": ShodanInternetDBAssetMapper(),
         }
+        self._asset_cpe_join = AssetCPEApplicabilityJoinService(self._writer)
         self._incident_ingress = incident_ingress
         self._incident_promotion = incident_promotion
         self._source_definitions = dict(source_definitions or {})
@@ -230,6 +232,30 @@ class ObservationProcessingRuntime:
                                 "relation_ids": normalization.relation_ids,
                             },
                         )
+                    if source.adapter_type == "shodan" and asset.provider == "shodan" and asset.cpe:
+                        ack = await self._evidence_ingress.accept(session, source, envelope)
+                        join_result = await self._asset_cpe_join.enrich(
+                            session,
+                            source=source,
+                            envelope=envelope,
+                            observation=ack,
+                        )
+                        if join_result is not None:
+                            return PostIngressResult(
+                                observation_id=observation_id,
+                                source_id=source.source_id,
+                                handler="asset_cpe_applicability_join",
+                                status=PostIngressStatus.PROCESSED,
+                                metadata_complete=replay.metadata_complete,
+                                output_refs={
+                                    "ip": asset.ip,
+                                    "port": asset.port,
+                                    "cpe": asset.cpe,
+                                    "knowledge_revision": join_result.knowledge_revision,
+                                    "object_ids": join_result.object_ids,
+                                    "relation_ids": join_result.relation_ids,
+                                },
+                            )
                     return PostIngressResult(
                         observation_id=observation_id,
                         source_id=source.source_id,
