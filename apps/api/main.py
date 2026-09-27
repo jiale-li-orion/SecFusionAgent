@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from apps.api.routes.a2a import router as a2a_router
 from apps.api.routes.knowledge import router as knowledge_router
 from apps.runtime_models import register_runtime_models
 from packages.shared.config import get_settings
@@ -20,6 +21,7 @@ def create_app() -> FastAPI:
         await engine.dispose()
 
     app = FastAPI(title="SecFusionAgent", version="0.1.0", lifespan=lifespan)
+    app.include_router(a2a_router)
     app.include_router(knowledge_router)
 
     @app.get("/health/live", tags=["health"])

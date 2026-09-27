@@ -20,7 +20,7 @@
 
 Prompt/Role text cannot bypass PolicyDecision. Side-effect commit, credential issuance, network egress, sandbox selection and child execution remain explicit decision points.
 
-`WATCH_RESUME` is enforced before a relevant world change can create a fresh WATCH TaskRun. The production runtime policy catalog is loaded from `config/runtime-policy.json`; policy revision must match the TaskContract revision, implicit deny remains the default for unmatched decision points, and unmet obligations prevent TaskRun creation. Capability visibility/invocation policies still require a production Capability catalog before active external observation can be enabled in the worker-side Investigation composition.
+`TASK_ADMISSION` is evaluated after a domain compiler has produced a prospective TaskContract but before any TaskRun exists; its PolicyRequest therefore uses `intent_ref` plus the prospective contract coordinates rather than inventing a fake run ID. `WATCH_RESUME` is enforced before a relevant world change can create a fresh WATCH TaskRun. The production runtime policy catalog is loaded from `config/runtime-policy.json`; policy revision must match the TaskContract revision, implicit deny remains the default for unmatched decision points, and unmet obligations prevent TaskRun creation. Capability visibility/invocation policies still require a production Capability catalog before active external observation can be enabled in the worker-side Investigation composition.
 
 ## Sandbox
 

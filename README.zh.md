@@ -15,7 +15,7 @@ SecFusionAgent 面向 AI 安全漏洞、研究进展与安全事件构建持续�
 
 ## 项目状态
 
-SecFusionAgent 当前已经推进到 **Technical Design 2 Slice 8 runtime 闭环**。在 M1–M3 evidence/data plane 之上，仓库已具备 durable Task Runtime 与双工 TaskEvent bus、M3 `EnrichmentRole`、M4 Investigation State / Perception、有界 `InvestigationRole`、Context handoff/materialization、Skill resolution、Capability/Policy/Budget 控制面、Sandbox v1 控制面契约，以及 canonical `VerifyFixBoundary` E2E。异步链现在真实经过 `InvestigationRole → delegated EnrichmentRole → queued TaskEvent → Redis consumer group → Celery Role dispatch → PostgreSQL claim → durable Knowledge update → relevance wake → parent claim/resume → local Evidence Perception → StatePatch Gate → completion`。WATCH 使用 terminal short episode；relevant world change 必须先通过 `WATCH_RESUME` policy，随后才创建 fresh Context/Budget/Execution envelope 与 queued Investigation TaskRun。真实 OpenShell/Firecracker substrate 验收、TD2 context 对照评测、production external Capability catalog/binding composition、M6 Decision/A2A 与 M7 replay/SkillPatch 仍是后续边界。
+SecFusionAgent 当前已经推进到 **Technical Design 2 Slice 10 replay / promotion control path 实现阶段**，Slice 9 Decision/A2A 已闭环。在 M1–M3 evidence/data plane 之上，仓库已具备 durable Task Runtime 与双工 TaskEvent bus、统一 `TaskIntent → task_admission → TaskContract` 编译入口、M3 `EnrichmentRole`、M4 Investigation State / Perception、有界 `InvestigationRole`、Context handoff/materialization、Skill resolution、Capability/Policy/Budget 控制面、Sandbox v1 控制面契约、canonical VERIFY/WATCH 异步执行、M6 typed Decision Runtime、A2A compatibility mapping，以及 M7 checkpoint/replay/promotion contract。background enrichment 已改为先经过统一 task admission policy，再生成可执行 TaskContract，不再直接绕过入口构造 contract。M7 已能持久化 Task/Context/Trajectory/runtime checkpoint，做 loop topology、context handoff、policy、sandbox、Skill、Capability 的单变量 intervention，从 append-only M4 event 恢复历史 InvestigationState，并在 pinned M1–M3 Knowledge revision 无法由当前 projection 精确提供时 fail closed；Experience-derived Skill 只有在 support/counterexample/regression replay 均留下 durable evidence 后才能晋级。当前仍开放的边界是 OpenShell/Firecracker 真实 substrate 验收、TD2 Context 对照评测、production external Capability catalog/binding、完整 A2A SendMessage/Subscribe/push transport，以及支持真实历史 Agent re-execution 的 M1–M3 versioned read path。
 
 当前本地质量门：
 
@@ -25,7 +25,7 @@ mypy        静态类型检查
 pytest      领域、重放、状态迁移与契约测试
 ```
 
-主仓库 CI 持续运行 `ruff`、`mypy` 与 `pytest`。当前本地 fast gate 为 **308 passed + 11 个默认跳过的 infrastructure tests**，`mypy` 对 **368 个 source files** 无错误；`make integration-core` 真实运行 **10/10** PostgreSQL/pgvector/FTS、隔离 Redis domain、Task Runtime/Event Plane scheduling、EnrichmentRole、InvestigationRole 与 runtime control plane tests。`make integration-object-store` 验证真实 S3-compatible ArtifactStore round trip。上一版 live probe 快照为 **41 OK / 10 provider-blocked / 5 transient failures / 1 rate-limited / 7 auth-required**；它只作为时点连通性报告，不作为验收 gate。SQLite/fixture 继续承担快速确定性测试，不替代真实基础设施证据。
+主仓库 CI 持续运行 `ruff`、`mypy` 与 `pytest`。当前本地 fast gate 为 **347 passed + 11 个默认跳过的 infrastructure tests**，`mypy` 对 **402 个 source files** 无错误；`make integration-core` 真实运行 **10/10** PostgreSQL/pgvector/FTS、隔离 Redis domain、Task Runtime/Event Plane scheduling、EnrichmentRole、InvestigationRole 与 runtime control plane tests。`make integration-object-store` 验证真实 S3-compatible ArtifactStore round trip。上一版 live probe 快照为 **41 OK / 10 provider-blocked / 5 transient failures / 1 rate-limited / 7 auth-required**；它只作为时点连通性报告，不作为验收 gate。SQLite/fixture 继续承担快速确定性测试，不替代真实基础设施证据。
 
 ## 系统概览
 
@@ -319,8 +319,7 @@ GitHub Pages、Archify、双语展示与 CI/CD 发布规则见 [`WEB-PRESENTATIO
 
 - 完成 Sandbox v1 的真实 substrate 验收，覆盖 filesystem/network/credential isolation、OpenShell container 与 Firecracker microVM；
 - 跑 TD2 `reference vs summary` Context 对照，测 token cost、critical-context retention 与 stale-context failure rate；
-- 实现 M6 `DecisionResult` 与 A2A Task/Artifact/stream/push mapping，同时保持 Task Runtime authority；
-- 实现 M7 checkpoint/replay 与 `Experience → SkillPatchCandidate → regression → promotion` gate；
+- 增加 M1–M3 versioned historical read path，并把 M7 replay executor 接到真实 Agent re-execution，而不是在历史 world 不可用时读取 latest projection；
 - 用户提供模型端点/凭据后跑一次真实 semantic+dense provider E2E，并在合适 target-repo OSV `GIT fixed` 样本上验证 deterministic fix-boundary promotion；
 - 继续显式维护 provider blocker，并补充 poisoned source、indirect prompt injection、malicious tool output 与 privilege boundary 安全回归。
 

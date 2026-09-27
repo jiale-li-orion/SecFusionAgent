@@ -35,6 +35,7 @@ def build_investigation_contract(
     required_need_ids: list[str],
     policy_revision: str,
     contract_revision: int = 1,
+    on_behalf_of: str | None = None,
     allow_wait: bool = True,
 ) -> TaskContract:
     allowed = {
@@ -57,6 +58,7 @@ def build_investigation_contract(
         task_contract_id=task_contract_id,
         contract_revision=contract_revision,
         principal=principal,
+        on_behalf_of=on_behalf_of,
         task_kind=task_kind,
         target_resources=[f"case:{case_id}", *[f"object:{item}" for item in target_object_ids]],
         desired_state=desired.model_dump(mode="json"),

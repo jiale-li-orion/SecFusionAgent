@@ -5,11 +5,13 @@ from collections.abc import Iterable
 from packages.enrichment.runtime.role import EnrichmentTaskDesiredState
 from packages.enrichment.runtime.state import EnrichmentStatus
 from packages.intelligence.knowledge.vocabulary import VOCABULARY_REVISION, EnrichmentDimension
+from packages.task_runtime.admission import TaskAdmissionRequest, TaskContractService
 from packages.task_runtime.contracts.models import (
     CancellationSemantics,
     DelegationCeiling,
     EffectCeiling,
     TaskContract,
+    TaskIntent,
     TaskKind,
 )
 
@@ -71,6 +73,7 @@ async def ensure_background_vulnerability_enrichment_run(
     cve_id: str,
     trigger_ref: str,
     stream_name: str,
+    task_contract_service: TaskContractService,
     policy_revision: str = "policy-v1",
 ) -> str:
     from uuid import NAMESPACE_URL, uuid5
@@ -103,15 +106,28 @@ async def ensure_background_vulnerability_enrichment_run(
         or await session.scalar(select(func.max(KnowledgeRevisionModel.revision)))
         or 0
     )
-    contract = build_vulnerability_enrichment_contract(
-        task_contract_id=f"background-enrichment:{object_id}:{trigger_ref}",
-        principal="system:background-enrichment",
-        target_object_id=object_id,
-        cve_id=cve_id,
-        required_dimensions=default_background_vulnerability_dimensions(),
-        policy_revision=policy_revision,
+    dimensions = default_background_vulnerability_dimensions()
+    admission = await task_contract_service.admit(
+        TaskAdmissionRequest(
+            intent=TaskIntent(
+                trigger_ref=trigger_ref,
+                parsed_identifiers=[cve_id.upper()],
+                candidate_task_kind=TaskKind.ENRICHMENT,
+                candidate_targets=[object_id, cve_id.upper()],
+                requested_actions=["enrich_vulnerability"],
+            ),
+            principal="system:background-enrichment",
+            policy_revision=policy_revision,
+            task_contract_id=f"background-enrichment:{object_id}:{trigger_ref}",
+            binding_context={
+                "target_object_id": object_id,
+                "cve_id": cve_id,
+                "required_dimensions": [item.value for item in dimensions],
+                "trigger_ref": trigger_ref,
+            },
+        )
     )
-    contract.target_resources.append(f"processing-run:{trigger_ref}")
+    contract = admission.contract
     manifest = ContextManifest(
         context_id=f"context:background-enrichment:{run_id}",
         context_revision=1,

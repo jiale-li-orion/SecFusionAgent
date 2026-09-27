@@ -2,12 +2,41 @@
   "policy_revision": "policy-v1",
   "rules": [
     {
+      "policy_id": "task-admission-canonical-user-system",
+      "policy_revision": "policy-v1",
+      "decision_points": [
+        "task_admission"
+      ],
+      "principal_patterns": [
+        "user:*",
+        "system:*"
+      ],
+      "action_patterns": [
+        "admit_*"
+      ],
+      "resource_patterns": [
+        "task-kind:*"
+      ],
+      "authorization": "permit",
+      "constraints": [],
+      "obligations": [],
+      "advice": []
+    },
+    {
       "policy_id": "watch-resume-existing-case",
       "policy_revision": "policy-v1",
-      "decision_points": ["watch_resume"],
-      "principal_patterns": ["*"],
-      "action_patterns": ["resume_watch"],
-      "resource_patterns": ["case:*"],
+      "decision_points": [
+        "watch_resume"
+      ],
+      "principal_patterns": [
+        "*"
+      ],
+      "action_patterns": [
+        "resume_watch"
+      ],
+      "resource_patterns": [
+        "case:*"
+      ],
       "authorization": "permit",
       "constraints": [],
       "obligations": [],

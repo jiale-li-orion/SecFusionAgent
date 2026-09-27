@@ -1,1 +1,21 @@
-"""Stable evaluation contracts shared by M1-M3 and later M7 runners."""
+from packages.evaluation.m7_replay import (
+    M7ReplayService,
+    MetricDirection,
+    ReplayCase,
+    ReplayFailureStage,
+    ReplayMetricRule,
+    ReplayObservation,
+    ReplaySuiteReport,
+    ReplayVariant,
+)
+
+__all__ = [
+    "M7ReplayService",
+    "MetricDirection",
+    "ReplayCase",
+    "ReplayFailureStage",
+    "ReplayMetricRule",
+    "ReplayObservation",
+    "ReplaySuiteReport",
+    "ReplayVariant",
+]

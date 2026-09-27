@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
@@ -9,6 +10,7 @@ from redis.asyncio import Redis
 from sqlalchemy import delete, select
 
 from apps.runtime_models import register_runtime_models
+from apps.task_admission import create_task_contract_service
 from packages.enrichment.runtime.executor import EnrichmentOperatorExecution
 from packages.enrichment.runtime.role import EnrichmentRoleRuntime
 from packages.enrichment.runtime.state import (
@@ -30,6 +32,7 @@ from packages.intelligence.storage.knowledge_models import (
     KnowledgeRevisionModel,
     ObjectModel,
 )
+from packages.runtime.policy.loader import load_runtime_policy
 from packages.shared.config import get_settings
 from packages.shared.db import create_engine, create_session_factory
 from packages.task_runtime.contracts.models import ContextManifest, TaskRunStatus
@@ -82,6 +85,9 @@ async def test_real_pg_enrichment_task_state_and_background_replay() -> None:
     role_task_id = f"integration-enrichment:{suffix}"
     role_context_id = f"context:integration-enrichment:{suffix}"
     stream = f"{settings.task_event_stream_name}:enrichment:{suffix}"
+    task_admission = create_task_contract_service(
+        load_runtime_policy(Path(settings.runtime_policy_path))
+    )
     background_run_id: str | None = None
     background_task_id: str | None = None
     background_context_id: str | None = None
@@ -166,6 +172,7 @@ async def test_real_pg_enrichment_task_state_and_background_replay() -> None:
                 cve_id=cve_id,
                 trigger_ref=trigger_ref,
                 stream_name=stream,
+                task_contract_service=task_admission,
             )
             background = await session.get(TaskRunModel, background_run_id)
             assert background is not None
@@ -180,6 +187,7 @@ async def test_real_pg_enrichment_task_state_and_background_replay() -> None:
                 cve_id=cve_id,
                 trigger_ref=trigger_ref,
                 stream_name=stream,
+                task_contract_service=task_admission,
             )
             assert replay_run_id == background_run_id
             matching_runs = list(

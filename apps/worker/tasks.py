@@ -6,6 +6,7 @@ from sqlalchemy import select
 
 from apps.enrichment_runtime import create_configured_enrichment_runtime
 from apps.investigation_runtime import create_configured_investigation_runtime
+from apps.task_admission import create_task_contract_service
 from apps.watch_runtime import RuntimeWatchWakeAdmission
 from apps.worker.celery_app import celery_app
 from packages.enrichment.normative.service import NormativeKnowledgeService
@@ -244,6 +245,9 @@ async def _enrich_vulnerability(payload: dict[str, object]) -> int:
     engine = create_engine(settings.database_url)
     factory = create_session_factory(engine)
     artifact_store = create_s3_artifact_store(settings)
+    task_admission = create_task_contract_service(
+        load_runtime_policy(settings.runtime_policy_path)
+    )
     await artifact_store.ensure_bucket()
     try:
         async with factory() as session, session.begin():
@@ -253,6 +257,7 @@ async def _enrich_vulnerability(payload: dict[str, object]) -> int:
                 cve_id=cve_id,
                 trigger_ref=trigger_ref,
                 stream_name=settings.task_event_stream_name,
+                task_contract_service=task_admission,
             )
             task_run = await get_task_run(session, task_run_id)
             if task_run.status in TERMINAL_TASK_RUN_STATUSES:

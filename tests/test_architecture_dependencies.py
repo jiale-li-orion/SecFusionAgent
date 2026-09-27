@@ -21,9 +21,18 @@ ALLOWED_PACKAGE_DEPENDENCIES = {
         "enrichment",
         "task_runtime",
     },
-    "evaluation": {"shared", "sources", "intelligence", "evaluation"},
+    "evaluation": {
+        "shared",
+        "sources",
+        "intelligence",
+        "investigation",
+        "task_runtime",
+        "runtime",
+        "evaluation",
+    },
     "task_runtime": {"shared", "task_runtime"},
     "runtime": {"shared", "task_runtime", "runtime"},
+    "reasoning": {"shared", "investigation", "reasoning"},
 }
 
 

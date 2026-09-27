@@ -6,6 +6,8 @@
 
 `contracts/` exposes `TaskIntent`, immutable versioned `TaskContract`, `TaskRun`, `RoleProfile`, `ContextManifest`, `ExecutionEnvelope`, TaskEvent types, delegation/effect ceilings, and conformance helpers. A TaskRun references fixed contract/context revisions; terminal TaskRun states never return to running.
 
+`admission/` owns the shared `TaskIntent → TaskContract` admission seam. The deterministic parser extracts stable identifiers/resource refs but deliberately does not infer a TaskKind from open-ended natural language. `TaskContractService` requires an explicit candidate kind, calls a domain-owned compiler through a port, verifies that the compiler cannot change principal/kind/policy/contract identity, then requires a task-admission authorization before returning an executable contract. Domain bindings such as Case IDs, EvidenceNeed IDs and canonical object IDs enter as explicit admission binding context rather than being smuggled through model text. The production background-enrichment trigger is the first worker path using this shared seam.
+
 `context/` owns ContextManifest derivation and compatibility operations. `inherit / filter / pin / refresh / diff / fork / merge` preserve references and revisions. Child/peer results carry `based_on_context_revision`; compatibility checks distinguish valid, rebase-required, stale, and conflict outcomes. Summaries are presentation/model material and do not replace evidence/state/artifact references.
 
 `ContextMaterializer` converts a pinned manifest plus explicitly selected disclosure/dynamic/ephemeral fragments into a `PromptAssembly`. Every materialized fragment preserves source reference/revision, trust class, cache class and content hash. Prompt assembly identity includes context revision, platform/execution/policy/state revisions, percept refs and ordered fragment IDs; changing any model-visible selection reason or percept therefore changes replay identity. Untrusted external/evidence/state fragments are emitted as model data rather than system instructions.
@@ -44,7 +46,7 @@ Child Task creation validates parent TaskRun state, allowed task kinds, effect c
 
 ## Current boundary
 
-The durable protocol, context revisioning, Task Event plane, delegation ceilings, dependency wake, queued-run claim and replay semantics are implemented. The current production worker has Role dispatch for `EnrichmentRole` and `InvestigationRole`; adding another Role should extend the worker composition map rather than Task Runtime schema. A2A mapping remains Slice 9 work rather than part of this scheduler.
+The durable protocol, centralized task admission, context revisioning, Task Event plane, delegation ceilings, dependency wake, queued-run claim and replay semantics are implemented. The current production worker has Role dispatch for `EnrichmentRole` and `InvestigationRole`; adding another Role should extend the worker composition map rather than Task Runtime schema. Slice 9 adds the pure `a2a/` compatibility adapter above these contracts; A2A correlation never replaces internal Task/Context identity.
 
 ## Dependency boundary
 

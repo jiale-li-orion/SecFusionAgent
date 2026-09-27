@@ -126,6 +126,27 @@ class EvidenceNeed(BaseModel):
     updated_at: datetime
 
 
+class DecisionCommit(BaseModel):
+    decision_id: str
+    case_id: str
+    base_case_revision: int = Field(ge=0)
+    decision: dict[str, JsonValue]
+    producer: str = "M6DecisionRuntime"
+
+    @model_validator(mode="after")
+    def validate_commit(self) -> DecisionCommit:
+        if not self.decision_id.strip() or not self.case_id.strip() or not self.producer.strip():
+            raise ValueError("DecisionCommit identity/producer cannot be empty")
+        payload_id = self.decision.get("decision_id")
+        payload_case = self.decision.get("case_id")
+        payload_revision = self.decision.get("case_revision")
+        if payload_id != self.decision_id or payload_case != self.case_id:
+            raise ValueError("DecisionCommit payload identity mismatch")
+        if payload_revision != self.base_case_revision:
+            raise ValueError("DecisionCommit payload revision mismatch")
+        return self
+
+
 class CaseStateEventType(StrEnum):
     FACT_CONFIRMED = "fact_confirmed"
     FACT_RETRACTED = "fact_retracted"

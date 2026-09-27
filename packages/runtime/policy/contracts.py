@@ -49,6 +49,10 @@ class PolicyRequest(BaseModel):
     def validate_request(self) -> PolicyRequest:
         if not self.principal.strip() or not self.action.strip() or not self.resource.strip():
             raise ValueError("PolicyRequest principal/action/resource cannot be empty")
+        if self.decision_point is PolicyDecisionPoint.TASK_ADMISSION:
+            if "intent_ref" not in self.context:
+                raise ValueError("task_admission PolicyRequest context requires intent_ref")
+            return self
         if "task_contract_id" not in self.context or "task_run_id" not in self.context:
             raise ValueError("PolicyRequest context requires task_contract_id and task_run_id")
         return self

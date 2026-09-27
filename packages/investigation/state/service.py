@@ -17,6 +17,7 @@ from packages.intelligence.retrieval.validation import (
 from packages.investigation.state.contracts import (
     CaseStateEvent,
     CaseStateEventType,
+    DecisionCommit,
     EvidenceNeed,
     EvidenceNeedContract,
     EvidenceNeedStatus,
@@ -51,6 +52,12 @@ class StatePatchApplyResult(BaseModel):
     replay: bool = False
 
 
+class DecisionCommitResult(BaseModel):
+    state: InvestigationState
+    event: CaseStateEvent
+    replay: bool = False
+
+
 class EvidenceNeedOpenResult(BaseModel):
     need: EvidenceNeed
     state: InvestigationState
@@ -70,6 +77,103 @@ class InvestigationStateService:
         if current is None:
             current = await self._rebuild_current(session, case)
         return _state_view(current)
+
+    async def get_state_at_revision(
+        self,
+        session: AsyncSession,
+        case_id: str,
+        case_revision: int,
+    ) -> InvestigationState:
+        """Materialize M4 state from append-only events without touching the current projection."""
+
+        case = await session.get(InvestigationCaseModel, case_id)
+        if case is None:
+            raise LookupError(f"investigation case not found: {case_id}")
+        if case_revision < 0 or case_revision > case.current_revision:
+            raise ValueError(
+                "historical case revision outside durable range: "
+                f"requested={case_revision}, current={case.current_revision}"
+            )
+        events = list(
+            await session.scalars(
+                select(CaseStateEventModel)
+                .where(
+                    CaseStateEventModel.case_id == case_id,
+                    CaseStateEventModel.case_revision <= case_revision,
+                )
+                .order_by(CaseStateEventModel.case_revision)
+            )
+        )
+        if case_revision > 0 and (not events or events[-1].case_revision != case_revision):
+            raise RuntimeError(f"case event history is incomplete at revision {case_revision}")
+
+        buckets: dict[str, dict[tuple[str, str | None], dict[str, object]]] = {
+            "confirmed": {},
+            "tentative": {},
+            "conflicts": {},
+            "unknowns": {},
+            "hypotheses": {},
+        }
+        current_decision: dict[str, JsonValue] | None = None
+        open_need_ids: list[str] = []
+        last_world_revision = case.initial_knowledge_revision
+        last_perception_at: datetime | None = None
+        for event in events:
+            _replay_event(buckets, event)
+            if event.event_type == CaseStateEventType.DECISION_CHANGED.value:
+                decision = event.payload.get("decision")
+                current_decision = (
+                    cast(dict[str, JsonValue], decision) if isinstance(decision, dict) else None
+                )
+            elif event.event_type == CaseStateEventType.EVIDENCE_NEED_OPENED.value:
+                need_id = event.payload.get("need_id")
+                if isinstance(need_id, str) and need_id not in open_need_ids:
+                    open_need_ids.append(need_id)
+            elif event.event_type == CaseStateEventType.EVIDENCE_NEED_RESOLVED.value:
+                need_id = event.payload.get("need_id")
+                if isinstance(need_id, str):
+                    open_need_ids = [item for item in open_need_ids if item != need_id]
+            elif event.event_type == CaseStateEventType.PERCEPTION_RECORDED.value:
+                world_revision = event.payload.get("world_revision")
+                perceived_at = _payload_datetime(event.payload.get("perceived_at"))
+                if isinstance(world_revision, int):
+                    last_world_revision = world_revision
+                if perceived_at is not None:
+                    last_perception_at = perceived_at
+
+        updated_at = (
+            _utc_datetime(events[-1].created_at) if events else _utc_datetime(case.created_at)
+        )
+        return InvestigationState(
+            case_id=case.case_id,
+            case_revision=case_revision,
+            goal=case.goal,
+            targets=list(case.target_object_ids),
+            confirmed=[
+                InvestigationStateItem.model_validate(item)
+                for item in buckets["confirmed"].values()
+            ],
+            tentative=[
+                InvestigationStateItem.model_validate(item)
+                for item in buckets["tentative"].values()
+            ],
+            conflicts=[
+                InvestigationStateItem.model_validate(item)
+                for item in buckets["conflicts"].values()
+            ],
+            unknowns=[
+                InvestigationStateItem.model_validate(item) for item in buckets["unknowns"].values()
+            ],
+            hypotheses=[
+                InvestigationStateItem.model_validate(item)
+                for item in buckets["hypotheses"].values()
+            ],
+            evidence_need_ids=open_need_ids,
+            current_decision=current_decision,
+            last_world_revision=last_world_revision,
+            last_perception_at=last_perception_at,
+            updated_at=updated_at,
+        )
 
     async def rebuild(self, session: AsyncSession, case_id: str) -> InvestigationState:
         case = await session.get(InvestigationCaseModel, case_id)
@@ -387,6 +491,48 @@ class InvestigationStateService:
         return StatePatchApplyResult(
             state=_state_view(current),
             events=events,
+            replay=False,
+        )
+
+    async def commit_decision(
+        self,
+        session: AsyncSession,
+        commit: DecisionCommit,
+    ) -> DecisionCommitResult:
+        case = await _lock_case(session, commit.case_id)
+        existing = await session.scalar(
+            select(CaseStateEventModel).where(
+                CaseStateEventModel.case_id == commit.case_id,
+                CaseStateEventModel.patch_id == commit.decision_id,
+                CaseStateEventModel.operation_index == 0,
+                CaseStateEventModel.event_type == CaseStateEventType.DECISION_CHANGED.value,
+            )
+        )
+        if existing is not None:
+            return DecisionCommitResult(
+                state=await self.get_state(session, commit.case_id),
+                event=_event_view(existing),
+                replay=True,
+            )
+        _require_revision(case, commit.base_case_revision)
+        event = await _append_event(
+            session,
+            case,
+            event_type=CaseStateEventType.DECISION_CHANGED,
+            proposition=None,
+            target_ref=None,
+            evidence_refs=[],
+            writer=commit.producer,
+            reason_code="decision_accepted",
+            payload={"decision": commit.decision},
+            created_at=self._now(),
+            patch_id=commit.decision_id,
+            operation_index=0,
+        )
+        current = await self._rebuild_current(session, case, force=True)
+        return DecisionCommitResult(
+            state=_state_view(current),
+            event=event,
             replay=False,
         )
 

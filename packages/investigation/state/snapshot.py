@@ -38,6 +38,7 @@ class InvestigationSnapshotService:
         *,
         case_id: str,
         policy_revision: str,
+        knowledge_revision: int | None = None,
         incident_revision: str | None = None,
         document_index_revision: str | None = None,
         experience_revision: str | None = None,
@@ -52,11 +53,19 @@ class InvestigationSnapshotService:
             raise ValueError("InvestigationSnapshot policy_revision cannot be empty")
         state = await self._state_service.get_state(session, case_id)
         latest_world_revision = await current_knowledge_revision(session)
+        pinned_world_revision = (
+            latest_world_revision if knowledge_revision is None else knowledge_revision
+        )
+        if pinned_world_revision is not None:
+            if pinned_world_revision < 0:
+                raise ValueError("InvestigationSnapshot knowledge_revision cannot be negative")
+            if latest_world_revision is not None and pinned_world_revision > latest_world_revision:
+                raise ValueError("InvestigationSnapshot cannot pin a future knowledge revision")
         model = InvestigationSnapshotModel(
             snapshot_id=str(uuid4()),
             case_id=case_id,
             case_revision=state.case_revision,
-            knowledge_revision=latest_world_revision,
+            knowledge_revision=pinned_world_revision,
             incident_revision=incident_revision,
             document_index_revision=document_index_revision,
             experience_revision=experience_revision,

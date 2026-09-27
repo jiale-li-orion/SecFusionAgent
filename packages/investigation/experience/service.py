@@ -66,6 +66,14 @@ class ExperienceVersion(BaseModel):
     supersedes_version_id: str | None = None
 
 
+class ExperienceSupportRecord(BaseModel):
+    trajectory_id: str
+    outcome: str
+    evaluation: dict[str, object] = Field(default_factory=dict)
+    evaluator: str
+    created_at: datetime
+
+
 class ExperienceStore:
     """Versioned policy memory. It never grants evidence authority."""
 
@@ -364,6 +372,29 @@ class ExperienceStore:
             if len(result) >= limit:
                 break
         return result
+
+    async def list_support_records(
+        self,
+        session: AsyncSession,
+        experience_version_id: str,
+    ) -> list[ExperienceSupportRecord]:
+        rows = list(
+            await session.scalars(
+                select(ExperienceSupportModel)
+                .where(ExperienceSupportModel.experience_version_id == experience_version_id)
+                .order_by(ExperienceSupportModel.created_at, ExperienceSupportModel.trajectory_id)
+            )
+        )
+        return [
+            ExperienceSupportRecord(
+                trajectory_id=row.trajectory_id,
+                outcome=row.outcome,
+                evaluation=dict(row.evaluation),
+                evaluator=row.evaluator,
+                created_at=row.created_at,
+            )
+            for row in rows
+        ]
 
     async def _recompute_validation(
         self,
