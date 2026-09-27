@@ -16,7 +16,7 @@ from packages.sources.errors import SourceSchemaChanged
 
 class GitHubAdvisoryMapper:
     PROCESSOR_NAME = "github-advisory-enrichment"
-    PROCESSOR_VERSION = "3"
+    PROCESSOR_VERSION = "4"
 
     def map(self, envelope: IngestEnvelope) -> EnrichmentCandidate:
         payload = envelope.json_payload
@@ -97,12 +97,16 @@ class GitHubAdvisoryMapper:
                 )
 
         relations: list[RelationCandidate] = []
+        relations.append(_advisory_relation(payload, ghsa_id))
         vulnerabilities = payload.get("vulnerabilities")
         if isinstance(vulnerabilities, list):
             for index, item in enumerate(vulnerabilities):
                 relation = _package_relation(item, index)
                 if relation is not None:
                     relations.append(relation)
+                applicability = _applicability_relation(item, index)
+                if applicability is not None:
+                    relations.append(applicability)
                 fixed = _fixed_version_relation(item, index)
                 if fixed is not None:
                     relations.append(fixed)
@@ -124,7 +128,13 @@ class GitHubAdvisoryMapper:
                 "epss_probability",
                 "epss_percentile",
             ],
-            replace_relation_types=["affects-package", "fixed-version", "has-weakness"],
+            replace_relation_types=[
+                "affects-package",
+                "applicability-status",
+                "fixed-version",
+                "has-weakness",
+                "described-by",
+            ],
         )
 
 
@@ -154,6 +164,55 @@ def _package_relation(value: Any, index: int) -> RelationCandidate | None:
         ),
         qualifier=qualifier,
         locator={"kind": "jsonpath", "path": f"$.vulnerabilities[{index}]"},
+    )
+
+
+def _applicability_relation(value: Any, index: int) -> RelationCandidate | None:
+    if not isinstance(value, dict):
+        return None
+    package = value.get("package")
+    vulnerable_range = value.get("vulnerable_version_range")
+    if not isinstance(package, dict) or not isinstance(vulnerable_range, str):
+        return None
+    ecosystem = package.get("ecosystem")
+    name = package.get("name")
+    if not isinstance(ecosystem, str) or not isinstance(name, str):
+        return None
+    return RelationCandidate(
+        relation_type="applicability-status",
+        target=ObjectCandidate(
+            object_type="Package",
+            canonical_key=f"package:{ecosystem.lower()}:{name.lower()}",
+            properties={"name": name, "ecosystem": ecosystem},
+        ),
+        qualifier={
+            "state": "affected",
+            "source_semantics": "github_advisory_range",
+            "version_range": vulnerable_range,
+        },
+        locator={
+            "kind": "jsonpath",
+            "path": f"$.vulnerabilities[{index}].vulnerable_version_range",
+        },
+    )
+
+
+def _advisory_relation(payload: dict[str, Any], ghsa_id: str) -> RelationCandidate:
+    properties: dict[str, JsonValue] = {
+        "document_kind": "github_advisory",
+        "ghsa_id": ghsa_id,
+    }
+    html_url = payload.get("html_url")
+    if isinstance(html_url, str) and html_url:
+        properties["url"] = html_url
+    return RelationCandidate(
+        relation_type="described-by",
+        target=ObjectCandidate(
+            object_type="Document",
+            canonical_key=f"document:github-advisory:{ghsa_id.lower()}",
+            properties=properties,
+        ),
+        locator={"kind": "jsonpath", "path": "$.ghsa_id"},
     )
 
 

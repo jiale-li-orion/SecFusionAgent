@@ -21,6 +21,7 @@ from packages.shared.config import get_settings
 from packages.shared.db import create_engine, create_session_factory
 from packages.sources.adapters.factory import create_source_adapter
 from packages.sources.contracts import AcquisitionTrigger, QuerySpec
+from packages.sources.errors import SourceFetchFailed, SourceRateLimited
 from packages.sources.registry.loader import load_source_definitions
 
 DEFAULT_CVES = (
@@ -54,6 +55,8 @@ async def _run(cves: list[str]) -> dict[str, Any]:
     acquisition = AcquisitionService(factory)
     writer = EvidenceBackedKnowledgeWriter()
     output: dict[str, Any] = {"cases": {}}
+    nvd_interval_seconds = 0.7 if settings.nvd_api_key else 6.5
+    next_nvd_request_at = 0.0
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -71,19 +74,38 @@ async def _run(cves: list[str]) -> dict[str, Any]:
                 adapters=adapters,
             )
 
+            async def query_nvd(cve_id: str):
+                nonlocal next_nvd_request_at
+                loop = asyncio.get_running_loop()
+                for attempt in range(6):
+                    wait_seconds = max(0.0, next_nvd_request_at - loop.time())
+                    if wait_seconds:
+                        await asyncio.sleep(wait_seconds)
+                    next_nvd_request_at = loop.time() + nvd_interval_seconds
+                    try:
+                        return await acquisition.query(
+                            nvd,
+                            adapters[nvd.source_id],
+                            QuerySpec(filters={"cve_id": cve_id}),
+                            parent_run_id=None,
+                            trigger=AcquisitionTrigger.ON_DEMAND,
+                        )
+                    except (SourceRateLimited, SourceFetchFailed):
+                        if attempt == 5:
+                            raise
+                        next_nvd_request_at = max(
+                            next_nvd_request_at,
+                            loop.time() + nvd_interval_seconds,
+                        )
+                raise RuntimeError("unreachable NVD retry loop")
+
             for raw_cve in cves:
                 cve_id = raw_cve.upper()
                 case: dict[str, Any] = {
                     "nvd_normalizations": 0,
                     "provider_results": {},
                 }
-                nvd_envelopes = await acquisition.query(
-                    nvd,
-                    adapters[nvd.source_id],
-                    QuerySpec(filters={"cve_id": cve_id}),
-                    parent_run_id=None,
-                    trigger=AcquisitionTrigger.ON_DEMAND,
-                )
+                nvd_envelopes = await query_nvd(cve_id)
                 for envelope in nvd_envelopes:
                     async with factory() as session, session.begin():
                         observation = await ingress.accept(session, nvd, envelope)

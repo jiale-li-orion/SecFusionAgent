@@ -29,6 +29,7 @@ from packages.intelligence.storage.knowledge_models import (
     ObjectModel,
     RelationModel,
 )
+from packages.shared.config import get_settings
 from packages.shared.db import create_engine, create_session_factory
 
 DEFAULT_CVES = (
@@ -42,9 +43,11 @@ FORMAL_DIMENSIONS = {
     EnrichmentDimension.SEVERITY,
     EnrichmentDimension.WEAKNESS,
     EnrichmentDimension.PRODUCT_PACKAGE,
+    EnrichmentDimension.VERSION_APPLICABILITY,
     EnrichmentDimension.FIX_REMEDIATION,
     EnrichmentDimension.EXPLOIT_STATE,
     EnrichmentDimension.EXPLOIT_LIKELIHOOD,
+    EnrichmentDimension.ADVISORY_REFERENCE,
 }
 
 
@@ -71,6 +74,7 @@ def _relation_fact(
     relation_type: str,
     target_key: str,
     target_type: str,
+    qualifier: dict[str, Any] | None = None,
 ) -> EnrichmentFactKey:
     term = canonical_term("relation", relation_type)
     if term is None:
@@ -83,6 +87,8 @@ def _relation_fact(
         predicate_or_relation_type=relation_type,
         normalized_value_or_target_id=target_key,
         target_object_type=target_type,
+        qualifier_keys=tuple(sorted((qualifier or {}).keys())),
+        normalized_qualifier=_json_normalized(qualifier or {}),
     )
 
 
@@ -142,7 +148,20 @@ def _first_patched_version(value: Any) -> str | None:
 
 
 async def _fetch_gold_snapshot(cves: list[str]) -> dict[str, Any]:
+    settings = get_settings()
     headers = {"Accept": "application/json", "User-Agent": "SecFusionAgent-eval/0.1"}
+    github_headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "SecFusionAgent-eval/0.1",
+    }
+    if settings.github_token:
+        github_headers["Authorization"] = f"Bearer {settings.github_token}"
+    nvd_headers = dict(headers)
+    if settings.nvd_api_key:
+        nvd_headers["apiKey"] = settings.nvd_api_key
+    nvd_interval_seconds = 0.7 if settings.nvd_api_key else 6.5
+    next_nvd_request_at = 0.0
+
     async with httpx.AsyncClient(timeout=30.0, headers=headers) as client:
         kev_response = await client.get(
             "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
@@ -157,10 +176,36 @@ async def _fetch_gold_snapshot(cves: list[str]) -> dict[str, Any]:
 
         cases: dict[str, Any] = {}
         for cve_id in cves:
-            nvd_response = await client.get(
-                "https://services.nvd.nist.gov/rest/json/cves/2.0",
-                params={"cveId": cve_id},
-            )
+            loop = asyncio.get_running_loop()
+            nvd_response: httpx.Response | None = None
+            for attempt in range(6):
+                wait_seconds = max(0.0, next_nvd_request_at - loop.time())
+                if wait_seconds:
+                    await asyncio.sleep(wait_seconds)
+                next_nvd_request_at = loop.time() + nvd_interval_seconds
+                try:
+                    nvd_response = await client.get(
+                        "https://services.nvd.nist.gov/rest/json/cves/2.0",
+                        params={"cveId": cve_id},
+                        headers=nvd_headers,
+                    )
+                except httpx.TransportError:
+                    if attempt == 5:
+                        raise
+                    nvd_response = None
+                else:
+                    if nvd_response.status_code not in {403, 429} and not (
+                        500 <= nvd_response.status_code < 600
+                    ):
+                        break
+                    if attempt == 5:
+                        nvd_response.raise_for_status()
+                next_nvd_request_at = max(
+                    next_nvd_request_at,
+                    loop.time() + nvd_interval_seconds,
+                )
+            if nvd_response is None:
+                raise RuntimeError("NVD request retry loop produced no response")
             nvd_response.raise_for_status()
             nvd_payload = nvd_response.json()
             vulnerabilities = nvd_payload.get("vulnerabilities", [])
@@ -173,10 +218,7 @@ async def _fetch_gold_snapshot(cves: list[str]) -> dict[str, Any]:
             github_response = await client.get(
                 "https://api.github.com/advisories",
                 params={"cve_id": cve_id},
-                headers={
-                    "Accept": "application/vnd.github+json",
-                    "User-Agent": "SecFusionAgent-eval/0.1",
-                },
+                headers=github_headers,
             )
             github_response.raise_for_status()
             github_payload = github_response.json()
@@ -257,6 +299,14 @@ def _gold_from_snapshot(
             if isinstance(ghsa_id, str):
                 case_diag["github_advisories"].append(ghsa_id)
                 diagnostics["advisory_gold"] += 1
+                fact = _relation_fact(
+                    root_key,
+                    "described-by",
+                    f"document:github-advisory:{ghsa_id.lower()}",
+                    "Document",
+                )
+                gold.append(fact)
+                support[fact].add("github-global-advisories")
             for cwe_id in _github_cwes(advisory):
                 fact = _relation_fact(
                     root_key,
@@ -311,6 +361,23 @@ def _gold_from_snapshot(
                 if isinstance(vulnerable_range, str) and vulnerable_range:
                     case_diag["vulnerable_ranges"].append(vulnerable_range)
                     diagnostics["github_vulnerable_range_gold"] += 1
+                    if isinstance(package, dict):
+                        ecosystem = package.get("ecosystem")
+                        name = package.get("name")
+                        if isinstance(ecosystem, str) and isinstance(name, str):
+                            fact = _relation_fact(
+                                root_key,
+                                "applicability-status",
+                                f"package:{ecosystem.lower()}:{name.lower()}",
+                                "Package",
+                                qualifier={
+                                    "state": "affected",
+                                    "source_semantics": "github_advisory_range",
+                                    "version_range": vulnerable_range,
+                                },
+                            )
+                            gold.append(fact)
+                            support[fact].add("github-global-advisories")
                 patched = _first_patched_version(vulnerability.get("first_patched_version"))
                 if patched:
                     case_diag["first_patched_versions"].append(patched)
@@ -399,13 +466,16 @@ async def _current_predictions(
             term = canonical_term("relation", relation.relation_type)
             if term is None or not term.benchmarked or term.dimension not in FORMAL_DIMENSIONS:
                 continue
-            if term.required_qualifier_keys:
-                continue
+            qualifier = _benchmark_relation_qualifier(
+                relation.relation_type,
+                relation.qualifier,
+            )
             fact = _relation_fact(
                 root.canonical_key,
                 relation.relation_type,
                 target.canonical_key,
                 target.object_type,
+                qualifier=qualifier,
             )
             predictions.append(
                 await _prediction_for_target(
@@ -417,6 +487,23 @@ async def _current_predictions(
                 )
             )
     return predictions
+
+
+def _benchmark_relation_qualifier(
+    relation_type: str,
+    qualifier: dict[str, Any],
+) -> dict[str, Any]:
+    if relation_type != "applicability-status":
+        return {}
+    allowed = (
+        "state",
+        "source_semantics",
+        "version_range",
+        "platform",
+        "configuration",
+        "justification",
+    )
+    return {key: qualifier[key] for key in allowed if key in qualifier}
 
 
 async def _prediction_for_target(
@@ -562,7 +649,7 @@ async def _run(cves: list[str]) -> dict[str, Any]:
         "case_scores": _case_scores(cves, gold, predicted),
         "missing_facts": [item.model_dump(mode="json") for item in missing],
         "extra_facts": [item.model_dump(mode="json") for item in extras],
-        "diagnostics_not_in_formal_score": diagnostics,
+        "structured_diagnostics": diagnostics,
     }
     return report
 

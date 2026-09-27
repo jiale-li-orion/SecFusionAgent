@@ -78,11 +78,11 @@ The registry is broader than the processors already implemented. The current imp
 | Severity | CVSS score/vector/version/severity | NVD deterministic normalization writes all four canonical fields, including `cvss_version` |
 | Weakness | `Vulnerability --has-weakness--> Weakness` | NVD and GitHub Advisory deterministically map CWE identifiers to canonical `Weakness` objects with evidence |
 | Product/package | `affects-product`, `affects-package` | package relations exist; broader product identity mapping continues |
-| Version applicability | scoped `applicability-status` relation | relation/qualifier contract frozen; unified CVE/OSV/NVD/CSAF evaluator remains backlog |
+| Version applicability | scoped `applicability-status` relation | GitHub Advisory vulnerable ranges now write source-scoped `affected` assertions with `source_semantics=github_advisory_range`; unified CVE/OSV/NVD/CSAF evaluator remains backlog |
 | Fix/remediation | `fixed-version`, `fixed-by` | GitHub Advisory `first_patched_version` now writes canonical `SoftwareVersion` + `fixed-version`; repository graph/fix-boundary remains available |
 | Exploit state | `known_exploited`, `has-poc`, exploit maturity | KEV available; PoC/ExploitArtifact processor remains backlog |
 | Exploit likelihood | EPSS probability/percentile at observed time | GitHub Advisory EPSS snapshot writes canonical probability/percentile claims with provider evidence; dedicated point-in-time EPSS source remains future hardening |
-| Advisory/reference | canonical advisory/document associations | source references exist; canonical relation coverage remains incomplete |
+| Advisory/reference | canonical advisory/document associations | GitHub Advisory now writes canonical `Document` + `described-by`; vendor/advisory breadth remains incomplete |
 | Asset exposure | `InternetAsset --asset-potentially-affected--> Vulnerability` | provider-neutral `AssetObservation` exists; applicability join remains backlog |
 | Research/paper | `discusses-vulnerability` | managed semantic extraction exists; benchmark bridge remains backlog |
 | Incident context | strong-anchor Incident↔Vulnerability bridge | Incident lifecycle exists; canonical benchmark bridge remains backlog |
@@ -92,15 +92,22 @@ Supporting edges such as `release-contains-commit`, `asset-runs-product`, and `a
 The active M3 implementation backlog is therefore:
 
 1. Product/Package/SoftwareVersion alias normalization beyond the current ecosystem+package+version identity;
-2. CVE/OSV/NVD/CSAF source-specific applicability evaluators and scoped `applicability-status` materialization;
+2. CVE/OSV/NVD/CSAF source-specific applicability evaluators beyond the current GitHub Advisory range assertion;
 3. PoC/ExploitArtifact processor;
 4. dedicated point-in-time EPSS ingestion independent of GitHub advisory snapshots;
-5. canonical advisory/document association coverage;
+5. advisory/document association coverage beyond GitHub Advisory;
 6. AssetObservation → Product/SoftwareVersion → Vulnerability deterministic join;
 7. paper `discusses-vulnerability` benchmark bridge;
 8. Incident → Vulnerability strong-anchor benchmark bridge.
 
 Processor-version refresh is expected to be replay-safe. The canonical writer and NVD durable normalizer reactivate an identical immutable claim/relation when a newer processor run supersedes the previous active source projection and then reproduces the same normalized tuple. This prevents mapper upgrades from accidentally making stable facts disappear.
+
+The deterministic structured path is continuously checked against live provider gold rather than
+fixtures alone. The 2026-09-27 recent 12-CVE stratum exercises 150 formal facts across severity,
+weakness, package, qualifier-aware applicability, fixed-version, EPSS likelihood, and advisory
+association with `150 TP / 0 FP / 0 FN`. This result is scoped to the selected structured stratum;
+new source semantics are added to the formal denominator only after their canonical mapping is
+implemented and evidence-bound.
 
 M3 exposes closed-set status as resolved/conflict/unknown/missing over the shared vocabulary. The conversion of those gaps into M4 `EvidenceNeed`, Perception and investigation policy remains owned by `packages.investigation`; M3 state specifications do not become a parallel investigation requirement protocol.
 

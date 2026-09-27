@@ -228,26 +228,43 @@ uv run pytest packages/evaluation -q
 current canonical M3 output against fresh structured provider records. It deliberately does not
 reuse production mappers to construct gold. The current v1 probe fetches NVD, GitHub Advisory,
 OSV, and CISA KEV records, then constructs gold independently from production mappers. The current
-formal slice covers canonical severity, weakness/CWE, package, fixed-version, positive KEV state,
-and EPSS likelihood facts whose identity/semantics are stable enough for non-circular comparison.
+formal slice covers canonical severity, weakness/CWE, package, qualifier-aware version
+applicability, fixed-version, positive KEV state, EPSS likelihood, and GitHub advisory/document
+association facts whose identity/semantics are stable enough for non-circular comparison.
 
 Example:
 
 ```bash
+uv run python scripts/discover_real_enrichment_cases.py \
+  --count 12 --output /tmp/secfusion-m3-stratum.json
+
 uv run python scripts/evaluate_real_enrichment.py \
   CVE-2025-47828 CVE-2024-13980 CVE-2024-13981 \
   CVE-2024-13984 CVE-2024-13985 CVE-2026-48746 \
   --output /tmp/secfusion-real-enrichment-eval.json
 ```
 
-The output still reports structured gold opportunities intentionally excluded from the formal
-score while their canonical contract remains incomplete, notably vulnerable-version applicability
-and advisory/document association. This separation matters: a high score on the implemented
-structured slice must not be presented as competition-wide enrichment precision/recall.
+The output still reports structured diagnostics for source fields and future denominator expansion.
+This separation matters: a high score on the implemented structured slice must not be presented as
+competition-wide enrichment precision/recall.
 
-After the 2026-09-27 deterministic refresh (`cvss_version`, canonical CWE relations, GitHub
-`fixed-version`, and EPSS), the six-case real-data probe expanded from 26 to **49 formal gold
-facts** and produced **49 TP / 0 FP / 0 FN** (`micro precision = 1.0`, `micro recall = 1.0`) on
-that frozen structured slice. This is an implementation checkpoint, not a claim that all twelve
-`enrichment-v1` dimensions are complete. The next denominator expansion is version applicability
-and advisory/reference, followed by PoC/assets/papers/incidents and larger real-CVE strata.
+After the 2026-09-27 deterministic refresh and second denominator expansion (`cvss_version`,
+canonical CWE relations, GitHub `fixed-version`, EPSS, qualifier-aware GitHub advisory ranges,
+and GHSA `described-by`), the six-case real-data probe now contains **57 formal gold facts** and
+produces **57 TP / 0 FP / 0 FN** (`micro precision = 1.0`, `micro recall = 1.0`) on that frozen
+structured slice. Version-applicability facts compare package identity plus
+`state/source_semantics/version_range`; they are not reduced to an unscoped boolean edge. This is
+an implementation checkpoint, not a claim that all twelve `enrichment-v1` dimensions are complete.
+
+A second reproducible live stratum is selected independently from the latest 100 GitHub Global
+Advisories (`updated desc`, CVE-bearing, not withdrawn), prioritizing `range+fix`, `range-only`, and
+`CWE+EPSS` cases. On the 2026-09-27 **12-CVE recent structured stratum**, the expanded formal slice
+contains **150 gold facts** and produces **150 TP / 0 FP / 0 FN**. Gold-bearing dimension counts are:
+severity 48, weakness 15, product/package 14, version applicability 22, fix/remediation 15,
+exploit likelihood 24, and advisory/reference 12. The discovery manifest is written outside the
+repo for live probing; a competition benchmark must freeze the chosen case list as a suite revision.
+
+Because public NVD access is rate-limited, the discovery/evaluation utilities explicitly throttle
+and retry NVD requests when no API key is configured. Provider transport failures are not counted as
+M3 false negatives. The next priority is KEV-positive coverage and a second source-specific
+applicability path (OSV), then PoC/assets/papers/incidents and larger frozen strata.

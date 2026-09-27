@@ -31,7 +31,7 @@ Every accepted claim/relation must resolve to an Observation/Artifact and locato
 - semantic writes outside canonical shape remain `exploratory` instead of changing the canonical benchmark vocabulary.
 - processor-version replay of an unchanged normalized tuple reactivates the existing immutable claim/relation after source-scoped supersession, so deterministic reprocessing cannot silently erase stable current facts.
 
-Current deterministic structured coverage includes NVD CVSS score/severity/vector/version, NVD/GitHub CWE → canonical `Weakness` relations, GitHub package and first-patched `SoftwareVersion` relations, GitHub EPSS probability/percentile, OSV/package mappings, and CISA KEV state. Source-native fields remain alongside canonical projections when their broader semantics are not yet unified.
+Current deterministic structured coverage includes NVD CVSS score/severity/vector/version, NVD/GitHub CWE → canonical `Weakness` relations, GitHub package and first-patched `SoftwareVersion` relations, GitHub source-scoped vulnerable-range `applicability-status`, GitHub advisory `Document`/`described-by`, GitHub EPSS probability/percentile, OSV/package mappings, and CISA KEV state. Source-native fields remain alongside canonical projections when their broader semantics are not yet unified.
 
 `knowledge/vocabulary.py` owns the executable `enrichment-v1` registry used by both writes and M7 scoring. It records term dimension, benchmark status, subject/target shape, required qualifier keys, canonical object types, source-specific field rules, and applicability states.
 

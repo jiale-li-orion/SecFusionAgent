@@ -51,8 +51,19 @@ def test_github_mapper_builds_package_relation() -> None:
     assert package.qualifier["first_patched_version"] == "0.11.1"
     fixed = next(item for item in candidate.relations if item.relation_type == "fixed-version")
     assert fixed.target.canonical_key == "software-version:pip:vllm:0.11.1"
+    applicability = next(
+        item for item in candidate.relations if item.relation_type == "applicability-status"
+    )
+    assert applicability.target.canonical_key == "package:pip:vllm"
+    assert applicability.qualifier == {
+        "state": "affected",
+        "source_semantics": "github_advisory_range",
+        "version_range": "< 0.11.1",
+    }
     weakness = next(item for item in candidate.relations if item.relation_type == "has-weakness")
     assert weakness.target.canonical_key == "weakness:CWE-306"
+    advisory = next(item for item in candidate.relations if item.relation_type == "described-by")
+    assert advisory.target.canonical_key == "document:github-advisory:ghsa-aaaa-bbbb-cccc"
 
 
 def test_osv_mapper_builds_purl_and_version_relation() -> None:

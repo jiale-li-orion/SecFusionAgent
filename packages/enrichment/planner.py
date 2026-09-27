@@ -34,6 +34,8 @@ class VulnerabilityEnrichmentPlanner:
             or "epss_percentile" not in predicates
             or "has-weakness" not in relation_types
             or "fixed-version" not in relation_types
+            or "applicability-status" not in relation_types
+            or "described-by" not in relation_types
         )
         if needs_github:
             jobs.append(
