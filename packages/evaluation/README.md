@@ -341,3 +341,24 @@ carrying a numerically similar score.
 
 The next priority is AssetObservation → vulnerability applicability and CVE 5.x / CSAF semantics,
 followed by paper/incident benchmark bridges and broader advisory/PoC source coverage.
+
+### Formal TD3 checkpoint — 2026-09-27
+
+The 204-fact structured result is also persisted in the TD3 Benchmark Runtime rather than existing
+only as a local JSON probe:
+
+- Deployment: `deployment:2e302ddbca7b1b3ef6bdc39fdc733f65`
+- Git coordinate: `a9241081cb05b1ec8c6eefbf55380885e42f7656`
+- M3 suite: `m3-real-structured@3`
+- M3 run: `ffd7a7e3-8b14-4958-8304-fb5bc160fa51`
+- Gold revision: `real-structured:b1d05c8777ccfd4b02ce5f14c91056f4de826fdfa069af9fa4699081a0a48c6c`
+- M1 suite/run on the same deployment: `m1-monitoring-window@4` / `410ed858-b0a2-4442-8689-136957ef129c`
+- CompetitionReport: `b6f24b2d-2123-45db-99fd-c156a7f6eaaa`
+- Report digest: `59bd696f64c26a5e338cf95a25a61bcd08c82d0e80b498bb1b4ce0edd2160aa7`
+- Frozen M3 JSON digest: `sha256:7bd3fda088be6e659f47f7d5502944421ec073fe2b0c570b95a39ad3bef7ad56`
+
+The report passes the current source-category target (8 observed, threshold 7) and the M3
+precision/recall development targets (both 1.0, threshold 0.95). M1 monitoring latency remains
+`not_evaluated` because the selected fixed window contains no eligible `scheduled` samples; M6 QA,
+Agent runtime, and fault/recovery remain explicitly unevaluated rather than receiving inferred or
+zero-filled scores.

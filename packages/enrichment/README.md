@@ -149,6 +149,13 @@ checks FIRST in isolation: on the same frozen 12-CVE structured stratum all 12 c
 producing **24 formal facts / 24 TP / 0 FP / 0 FN**. This source-specific runner ignores GitHub EPSS,
 so a FIRST regression cannot be hidden by another provider carrying a numerically similar score.
 
+The expanded 12-CVE result is persisted as formal TD3 benchmark evidence under deployment
+`deployment:2e302ddbca7b1b3ef6bdc39fdc733f65`, suite `m3-real-structured@3`, run
+`ffd7a7e3-8b14-4958-8304-fb5bc160fa51`, and gold revision
+`real-structured:b1d05c8777ccfd4b02ce5f14c91056f4de826fdfa069af9fa4699081a0a48c6c`.
+The corresponding CompetitionReport is `b6f24b2d-2123-45db-99fd-c156a7f6eaaa` and records
+M3 precision/recall as 1.0 while leaving unsupported competition areas explicitly unevaluated.
+
 M3 exposes closed-set status as resolved/conflict/unknown/missing over the shared vocabulary. The conversion of those gaps into M4 `EvidenceNeed`, Perception and investigation policy remains owned by `packages.investigation`; M3 state specifications do not become a parallel investigation requirement protocol.
 
 ## Current boundary
