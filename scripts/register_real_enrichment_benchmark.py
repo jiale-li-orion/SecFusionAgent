@@ -6,6 +6,8 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
+from pydantic import JsonValue
+
 from apps.evaluation_runtime import (
     M3BenchmarkRecorder,
     ensure_benchmark_deployment_revision,
@@ -37,6 +39,8 @@ async def _register(
     gold_revision = report.get("gold_revision")
     profile = report.get("profile")
     formal_dimensions = report.get("formal_dimensions")
+    provider_snapshot_revision = report.get("provider_snapshot_revision")
+    gold_source_mode = report.get("gold_source_mode")
     if not isinstance(cases, list) or not all(isinstance(item, str) for item in cases):
         raise ValueError("benchmark report cases are invalid")
     if not isinstance(case_scores, dict):
@@ -49,6 +53,12 @@ async def _register(
         isinstance(item, str) for item in formal_dimensions
     ):
         raise ValueError("benchmark report formal_dimensions are invalid")
+    if provider_snapshot_revision is not None and not isinstance(
+        provider_snapshot_revision, str
+    ):
+        raise ValueError("benchmark report provider_snapshot_revision is invalid")
+    if gold_source_mode not in {None, "live_snapshot", "frozen_snapshot_replay"}:
+        raise ValueError("benchmark report gold_source_mode is invalid")
 
     register_runtime_models()
     settings = get_settings()
@@ -66,6 +76,12 @@ async def _register(
             )
             case_refs: list[str] = []
             for cve_id in cases:
+                expected_behavior: dict[str, JsonValue] = {
+                    "formal_dimensions": list(formal_dimensions),
+                    "profile": profile,
+                }
+                if provider_snapshot_revision is not None:
+                    expected_behavior["provider_snapshot_revision"] = provider_snapshot_revision
                 case_ref = f"{cve_id}@{suite_revision}"
                 case_refs.append(case_ref)
                 await store.register_case(
@@ -76,17 +92,27 @@ async def _register(
                         input={"cve_id": cve_id},
                         execution_profile="offline_scorer",
                         target_refs=[f"cve:{cve_id}"],
-                        expected_behavior={
-                            "formal_dimensions": list(formal_dimensions),
-                            "profile": profile,
-                        },
+                        world_snapshot_ref=provider_snapshot_revision,
+                        expected_behavior=expected_behavior,
                         gold_ref=f"{gold_revision}#{cve_id}",
-                        tags=["real-structured", "live-provider-gold"],
+                        tags=[
+                            "real-structured",
+                            (
+                                "frozen-provider-snapshot"
+                                if gold_source_mode == "frozen_snapshot_replay"
+                                else "live-provider-gold"
+                            ),
+                        ],
                         latency_class="offline",
                         replay_tier="R0",
                         created_at=now,
                     ),
                 )
+            scoring_profile: dict[str, JsonValue] = {
+                "formal_dimensions": list(formal_dimensions)
+            }
+            if provider_snapshot_revision is not None:
+                scoring_profile["provider_snapshot_revision"] = provider_snapshot_revision
             suite = BenchmarkSuite(
                 suite_id=suite_id,
                 suite_revision=suite_revision,
@@ -95,7 +121,8 @@ async def _register(
                 case_refs=case_refs,
                 gold_revision=gold_revision,
                 evaluator_revision=profile,
-                scoring_profile={"formal_dimensions": list(formal_dimensions)},
+                default_world_snapshot_ref=provider_snapshot_revision,
+                scoring_profile=scoring_profile,
                 created_at=now,
             )
             await store.register_suite(session, suite)
@@ -103,11 +130,16 @@ async def _register(
                 session,
                 suite_ref=f"{suite_id}@{suite_revision}",
                 deployment_revision_id=resolved_deployment_id,
-                execution_mode=BenchmarkExecutionMode.LIVE_EXTERNAL,
+                execution_mode=(
+                    BenchmarkExecutionMode.FROZEN_REPLAY
+                    if gold_source_mode == "frozen_snapshot_replay"
+                    else BenchmarkExecutionMode.LIVE_EXTERNAL
+                ),
                 environment=settings.environment,
                 model_config_ref=(
                     f"model:{settings.model_name}" if settings.model_name else "model:unconfigured"
                 ),
+                world_snapshot_ref=provider_snapshot_revision,
                 now=now,
             )
             for cve_id in cases:

@@ -39,6 +39,7 @@ DEFAULT_CVES = (
     "CVE-2024-13984",
     "CVE-2024-13985",
 )
+PROVIDER_SNAPSHOT_SCHEMA = "real-structured-provider-snapshot-v1"
 FORMAL_DIMENSIONS = {
     EnrichmentDimension.SEVERITY,
     EnrichmentDimension.WEAKNESS,
@@ -493,10 +494,68 @@ async def _fetch_gold_snapshot(cves: list[str]) -> dict[str, Any]:
                 "known_exploited": cve_id in kev_ids,
             }
         return {
+            "snapshot_schema": PROVIDER_SNAPSHOT_SCHEMA,
             "fetched_at": datetime.now(UTC).isoformat(),
             "cisa_catalog_version": kev_payload.get("catalogVersion"),
             "cases": cases,
         }
+
+
+def _provider_snapshot_revision(snapshot: dict[str, Any]) -> str:
+    payload = json.dumps(
+        snapshot,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode()
+    return f"provider-snapshot:{sha256(payload).hexdigest()}"
+
+
+def _validate_provider_snapshot(snapshot: dict[str, Any], cves: list[str]) -> None:
+    if snapshot.get("snapshot_schema") != PROVIDER_SNAPSHOT_SCHEMA:
+        raise ValueError(
+            f"unsupported provider snapshot schema: {snapshot.get('snapshot_schema')!r}"
+        )
+    fetched_at = snapshot.get("fetched_at")
+    if not isinstance(fetched_at, str) or not fetched_at:
+        raise ValueError("provider snapshot fetched_at is missing")
+    cases = snapshot.get("cases")
+    if not isinstance(cases, dict):
+        raise ValueError("provider snapshot cases must be an object")
+    expected = [item.upper() for item in cves]
+    actual = list(cases)
+    if set(actual) != set(expected) or len(actual) != len(expected):
+        raise ValueError(
+            "provider snapshot case set does not match requested CVEs: "
+            f"expected={expected} actual={actual}"
+        )
+    for cve_id in expected:
+        case = cases.get(cve_id)
+        if not isinstance(case, dict):
+            raise ValueError(f"provider snapshot case is invalid: {cve_id}")
+        if not isinstance(case.get("nvd"), dict):
+            raise ValueError(f"provider snapshot NVD record is missing: {cve_id}")
+        if not isinstance(case.get("github"), list):
+            raise ValueError(f"provider snapshot GitHub records are invalid: {cve_id}")
+        if not isinstance(case.get("osv"), list):
+            raise ValueError(f"provider snapshot OSV records are invalid: {cve_id}")
+        if not isinstance(case.get("known_exploited"), bool):
+            raise ValueError(f"provider snapshot KEV state is invalid: {cve_id}")
+        first_epss = case.get("first_epss")
+        if first_epss is not None and not isinstance(first_epss, dict):
+            raise ValueError(f"provider snapshot FIRST EPSS record is invalid: {cve_id}")
+
+
+def _load_provider_snapshot(path: Path) -> dict[str, Any]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError("provider snapshot root must be an object")
+    return payload
+
+
+def _write_provider_snapshot(path: Path, snapshot: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(snapshot, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
 def _gold_from_snapshot(
@@ -1005,8 +1064,13 @@ def _case_scores(
     return result
 
 
-async def _run(cves: list[str]) -> dict[str, Any]:
-    snapshot = await _fetch_gold_snapshot(cves)
+async def _evaluate_snapshot(
+    cves: list[str],
+    snapshot: dict[str, Any],
+    *,
+    gold_source_mode: str,
+) -> dict[str, Any]:
+    _validate_provider_snapshot(snapshot, cves)
     gold, support, diagnostics = _gold_from_snapshot(snapshot)
 
     register_runtime_models()
@@ -1042,6 +1106,9 @@ async def _run(cves: list[str]) -> dict[str, Any]:
     report = {
         "profile": "real-structured-v1",
         "gold_revision": _gold_revision(gold),
+        "provider_snapshot_schema": PROVIDER_SNAPSHOT_SCHEMA,
+        "provider_snapshot_revision": _provider_snapshot_revision(snapshot),
+        "gold_source_mode": gold_source_mode,
         "fetched_at": snapshot["fetched_at"],
         "cisa_catalog_version": snapshot["cisa_catalog_version"],
         "cases": cves,
@@ -1071,14 +1138,53 @@ async def _run(cves: list[str]) -> dict[str, Any]:
     return report
 
 
+async def _run(
+    cves: list[str],
+    snapshot: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    if snapshot is None:
+        snapshot = await _fetch_gold_snapshot(cves)
+        source_mode = "live_snapshot"
+    else:
+        source_mode = "frozen_snapshot_replay"
+    return await _evaluate_snapshot(cves, snapshot, gold_source_mode=source_mode)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Evaluate canonical enrichment on live structured provider gold"
+        description="Evaluate canonical enrichment on live or frozen structured provider gold"
     )
-    parser.add_argument("cves", nargs="*", default=list(DEFAULT_CVES))
+    parser.add_argument("cves", nargs="*")
+    parser.add_argument("--snapshot-input", type=Path)
+    parser.add_argument("--snapshot-output", type=Path)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
-    report = asyncio.run(_run([item.upper() for item in args.cves]))
+    if args.snapshot_input is not None and args.snapshot_output is not None:
+        raise ValueError("--snapshot-input and --snapshot-output are mutually exclusive")
+
+    if args.snapshot_input is not None:
+        snapshot = _load_provider_snapshot(args.snapshot_input)
+        raw_cases = snapshot.get("cases")
+        if not isinstance(raw_cases, dict):
+            raise ValueError("provider snapshot cases must be an object")
+        cves = [item.upper() for item in args.cves] if args.cves else list(raw_cases)
+        _validate_provider_snapshot(snapshot, cves)
+        report = asyncio.run(
+            _evaluate_snapshot(
+                cves,
+                snapshot,
+                gold_source_mode="frozen_snapshot_replay",
+            )
+        )
+    else:
+        cves = [item.upper() for item in args.cves] if args.cves else list(DEFAULT_CVES)
+        snapshot = asyncio.run(_fetch_gold_snapshot(cves))
+        _validate_provider_snapshot(snapshot, cves)
+        if args.snapshot_output is not None:
+            _write_provider_snapshot(args.snapshot_output, snapshot)
+        report = asyncio.run(
+            _evaluate_snapshot(cves, snapshot, gold_source_mode="live_snapshot")
+        )
     if args.output is not None:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n")

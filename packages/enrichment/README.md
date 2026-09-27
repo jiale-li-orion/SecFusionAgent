@@ -156,6 +156,13 @@ The expanded 12-CVE result is persisted as formal TD3 benchmark evidence under d
 The corresponding CompetitionReport is `b6f24b2d-2123-45db-99fd-c156a7f6eaaa` and records
 M3 precision/recall as 1.0 while leaving unsupported competition areas explicitly unevaluated.
 
+The structured evaluator now supports frozen provider-world replay. A live run may persist the raw
+NVD/GHSA/OSV/FIRST/KEV-derived snapshot and its `provider-snapshot:<sha256>` coordinate; later code
+revisions can score current canonical Knowledge against that exact snapshot without contacting live
+providers. TD3 binds the snapshot digest to Suite/Case/Run world coordinates and records replay as
+`FROZEN_REPLAY`. Historical reports created before raw snapshot persistence remain live/frozen-gold
+checkpoints only; they are not backfilled with an invented world snapshot.
+
 Asset exposure now has its first real positive smoke rather than a contract-only dimension. A
 passive Shodan InternetDB lookup for the public security-test host at `44.238.29.244` returned one
 explicit host-level vulnerability association, `CVE-2014-4078`. Production post-ingress preserved

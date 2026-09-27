@@ -112,6 +112,21 @@ The fixed suite must include at least:
 
 A benchmark case freezes `world_snapshot`, source availability, source revisions, vocabulary revision, and evaluator revision. Historical evaluation must not silently consume later provider updates, patches, or postmortems.
 
+For the main structured M3 runner, the world snapshot is now an executable artifact rather than a
+documentation convention. `scripts/evaluate_real_enrichment.py --snapshot-output ...` writes the
+raw NVD / GitHub Advisory / OSV / FIRST EPSS / KEV-derived provider inputs used to build gold, under
+schema `real-structured-provider-snapshot-v1`. The canonical JSON bytes are hashed into a
+`provider-snapshot:<sha256>` coordinate. A later run can use `--snapshot-input ...`; the requested
+CVE set and snapshot schema must match exactly or evaluation fails closed. Reports record
+`provider_snapshot_revision` and `gold_source_mode`, and TD3 registration binds that coordinate to
+`BenchmarkSuite.default_world_snapshot_ref`, each `BenchmarkCase.world_snapshot_ref`, and the
+`BenchmarkRun.world_snapshot_ref`. Snapshot replay is registered as `FROZEN_REPLAY` rather than
+`LIVE_EXTERNAL`.
+
+This contract starts with snapshots explicitly frozen after the feature landed. The earlier
+204-fact, PoC, and NVD-CPE reports contain frozen gold facts but did not retain the raw multi-provider
+snapshot, so they are **not** retroactively relabeled as frozen-world replay runs.
+
 ## Deterministic baseline comparison
 
 The baseline used to measure Agent/semantic gain contains no LLM planner or free semantic relation generation. It performs exact identifier normalization, structured provider lookup, fixed schema projection, product/package identity mapping, source-specific applicability evaluation, repository graph closure, KEV/EPSS exact joins, asset observation joins, exact paper association, EvidenceRef binding, conflict preservation, and unknown-on-miss behavior.
@@ -241,7 +256,13 @@ uv run python scripts/discover_real_enrichment_cases.py \
 uv run python scripts/evaluate_real_enrichment.py \
   CVE-2025-47828 CVE-2024-13980 CVE-2024-13981 \
   CVE-2024-13984 CVE-2024-13985 CVE-2026-48746 \
+  --snapshot-output /tmp/secfusion-provider-snapshot.json \
   --output /tmp/secfusion-real-enrichment-eval.json
+
+# Re-score a later deployment against exactly the same provider world:
+uv run python scripts/evaluate_real_enrichment.py \
+  --snapshot-input /tmp/secfusion-provider-snapshot.json \
+  --output /tmp/secfusion-real-enrichment-replay.json
 ```
 
 The output still reports structured diagnostics for source fields and future denominator expansion.
@@ -275,7 +296,8 @@ improvement, and is recorded as such so benchmark changes cannot be mistaken for
 
 Because public NVD access is rate-limited, the discovery/evaluation utilities explicitly throttle
 and retry NVD requests when no API key is configured. Provider transport failures are not counted as
-M3 false negatives.
+M3 false negatives. GitHub/NVD/other live-provider rate limits affect acquisition of a **new** gold
+snapshot, but no longer block regression scoring once a provider snapshot has been frozen.
 
 The discovery tool also exposes a `kev-recent` profile. On the 2026-09-27 six-case recent CISA KEV
 stratum (ordered by `dateAdded desc`), production refresh returned one KEV record for every case and
