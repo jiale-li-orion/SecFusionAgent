@@ -102,9 +102,11 @@ The active M3 implementation backlog is therefore:
 Processor-version refresh is expected to be replay-safe. The canonical writer and NVD durable normalizer reactivate an identical immutable claim/relation when a newer processor run supersedes the previous active source projection and then reproduces the same normalized tuple. This prevents mapper upgrades from accidentally making stable facts disappear.
 
 The deterministic structured path is continuously checked against live provider gold rather than
-fixtures alone. The 2026-09-27 recent 12-CVE stratum exercises 150 formal facts across severity,
-weakness, package, qualifier-aware applicability, fixed-version, EPSS likelihood, and advisory
-association with `150 TP / 0 FP / 0 FN`. This result is scoped to the selected structured stratum;
+fixtures alone. After adding NVD CPE applicability, FIRST point-in-time EPSS, and independent OSV
+strong-alias gold following, the frozen 2026-09-27 recent 12-CVE stratum now exercises **204 formal
+facts** with **204 TP / 0 FP / 0 FN**. Gold-bearing dimension counts are: severity 48, weakness 15,
+product/package 16, qualifier-aware version applicability 47, fix/remediation 18, exploit
+likelihood 48, and advisory/reference 12. This result is scoped to the selected structured stratum;
 new source semantics are added to the formal denominator only after their canonical mapping is
 implemented and evidence-bound.
 
@@ -143,8 +145,9 @@ For `CVE-2026-7273`, the live source returned probability `0.02501`, percentile 
 `score_date=2026-09-27`; both formal point-in-time facts scored **2/2** with evidence. Combined
 `exploit_likelihood` for the case is **4/4** when the GitHub snapshot and FIRST point-in-time
 assertions are kept as distinct source/time facts. `scripts/evaluate_first_epss.py` additionally
-checks FIRST in isolation and currently reports **2 TP / 0 FP / 0 FN**, preventing GitHub from
-masking a FIRST-specific regression.
+checks FIRST in isolation: on the same frozen 12-CVE structured stratum all 12 cases were evaluable,
+producing **24 formal facts / 24 TP / 0 FP / 0 FN**. This source-specific runner ignores GitHub EPSS,
+so a FIRST regression cannot be hidden by another provider carrying a numerically similar score.
 
 M3 exposes closed-set status as resolved/conflict/unknown/missing over the shared vocabulary. The conversion of those gaps into M4 `EvidenceNeed`, Perception and investigation policy remains owned by `packages.investigation`; M3 state specifications do not become a parallel investigation requirement protocol.
 

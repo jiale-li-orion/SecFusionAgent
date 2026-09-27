@@ -258,11 +258,20 @@ an implementation checkpoint, not a claim that all twelve `enrichment-v1` dimens
 
 A second reproducible live stratum is selected independently from the latest 100 GitHub Global
 Advisories (`updated desc`, CVE-bearing, not withdrawn), prioritizing `range+fix`, `range-only`, and
-`CWE+EPSS` cases. On the 2026-09-27 **12-CVE recent structured stratum**, the expanded formal slice
-contains **150 gold facts** and produces **150 TP / 0 FP / 0 FN**. Gold-bearing dimension counts are:
-severity 48, weakness 15, product/package 14, version applicability 22, fix/remediation 15,
-exploit likelihood 24, and advisory/reference 12. The discovery manifest is written outside the
-repo for live probing; a competition benchmark must freeze the chosen case list as a suite revision.
+`CWE+EPSS` cases. On the frozen 2026-09-27 **12-CVE recent structured stratum**, the formal slice has
+now expanded from 150 to **204 gold facts** and produces **204 TP / 0 FP / 0 FN**. Gold-bearing
+dimension counts are: severity 48, weakness 15, product/package 16, version applicability 47,
+fix/remediation 18, exploit likelihood 48, and advisory/reference 12. The increase comes from NVD
+CPE configuration assertions, FIRST point-in-time EPSS, and OSV GHSA-native package/range/fix
+records reached through explicit strong aliases. The discovery manifest is written outside the repo
+for live probing; a competition benchmark must freeze the chosen case list as a suite revision.
+
+The main evaluator independently follows OSV CVE→GHSA strong aliases when the CVE conversion record
+does not carry package identity. This mirrors the source semantics but does not reuse the production
+OSV mapper. Before that evaluator fix, 24 valid OSV-native Knowledge facts appeared as false
+positives; after adding the missing gold records, the same database state moved from `180 TP / 24 FP
+/ 0 FN` to **204 TP / 0 FP / 0 FN**. This is an evaluator correction, not a production precision
+improvement, and is recorded as such so benchmark changes cannot be mistaken for model/system gain.
 
 Because public NVD access is rate-limited, the discovery/evaluation utilities explicitly throttle
 and retry NVD requests when no API key is configured. Provider transport failures are not counted as
@@ -325,9 +334,10 @@ uv run python scripts/evaluate_first_epss.py \
   --output /tmp/m3-first-epss.json
 ```
 
-The current source-specific run is **2 TP / 0 FP / 0 FN**, with no missing or extra facts. This
-runner intentionally ignores GitHub EPSS so source-specific failures cannot be hidden by a second
-provider carrying a numerically similar score.
+On the frozen 12-CVE structured stratum, the current source-specific FIRST run has 12/12 evaluable
+cases and **24 formal facts / 24 TP / 0 FP / 0 FN**, with no missing or extra facts. This runner
+intentionally ignores GitHub EPSS so source-specific failures cannot be hidden by a second provider
+carrying a numerically similar score.
 
 The next priority is AssetObservation → vulnerability applicability and CVE 5.x / CSAF semantics,
 followed by paper/incident benchmark bridges and broader advisory/PoC source coverage.
