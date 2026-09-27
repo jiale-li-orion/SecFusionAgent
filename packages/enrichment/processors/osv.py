@@ -14,7 +14,7 @@ from packages.sources.errors import SourceSchemaChanged
 
 class OSVMapper:
     PROCESSOR_NAME = "osv-enrichment"
-    PROCESSOR_VERSION = "1"
+    PROCESSOR_VERSION = "2"
 
     def map(self, envelope: IngestEnvelope) -> EnrichmentCandidate:
         payload = envelope.json_payload
@@ -61,6 +61,10 @@ class OSVMapper:
                 relation = _affected_relation(item, index)
                 if relation is not None:
                     relations.append(relation)
+                applicability = _applicability_relation(item, index)
+                if applicability is not None:
+                    relations.append(applicability)
+                relations.extend(_fixed_version_relations(item, index))
         return EnrichmentCandidate(
             root_identifiers=identifiers,
             claims=claims,
@@ -72,7 +76,7 @@ class OSVMapper:
                 "osv_published",
                 "osv_withdrawn",
             ],
-            replace_relation_types=["affects-package"],
+            replace_relation_types=["affects-package", "applicability-status", "fixed-version"],
         )
 
 
@@ -105,6 +109,111 @@ def _affected_relation(value: Any, index: int) -> RelationCandidate | None:
         ),
         qualifier=qualifier,
         locator={"kind": "jsonpath", "path": f"$.affected[{index}]"},
+    )
+
+
+def _applicability_relation(value: Any, index: int) -> RelationCandidate | None:
+    package_target = _package_target(value)
+    if package_target is None:
+        return None
+    qualifier: dict[str, Any] = {
+        "state": "affected",
+        "source_semantics": "osv_range",
+    }
+    if isinstance(value, dict):
+        ranges = value.get("ranges")
+        versions = value.get("versions")
+        if isinstance(ranges, list):
+            qualifier["ranges"] = ranges
+        if isinstance(versions, list):
+            qualifier["versions"] = versions
+    return RelationCandidate(
+        relation_type="applicability-status",
+        target=package_target,
+        qualifier=qualifier,
+        locator={"kind": "jsonpath", "path": f"$.affected[{index}]"},
+    )
+
+
+def _fixed_version_relations(value: Any, index: int) -> list[RelationCandidate]:
+    if not isinstance(value, dict):
+        return []
+    package = value.get("package")
+    if not isinstance(package, dict):
+        return []
+    name = package.get("name")
+    ecosystem = package.get("ecosystem")
+    if not isinstance(name, str) or not isinstance(ecosystem, str):
+        return []
+    ranges = value.get("ranges")
+    if not isinstance(ranges, list):
+        return []
+    result: list[RelationCandidate] = []
+    seen: set[str] = set()
+    for range_index, range_item in enumerate(ranges):
+        if not isinstance(range_item, dict):
+            continue
+        range_type = range_item.get("type")
+        if range_type not in {"ECOSYSTEM", "SEMVER"}:
+            continue
+        events = range_item.get("events")
+        if not isinstance(events, list):
+            continue
+        for event_index, event in enumerate(events):
+            if not isinstance(event, dict):
+                continue
+            fixed = event.get("fixed")
+            if not isinstance(fixed, str) or not fixed or fixed in seen:
+                continue
+            seen.add(fixed)
+            ecosystem_key = ecosystem.lower()
+            name_key = name.lower()
+            result.append(
+                RelationCandidate(
+                    relation_type="fixed-version",
+                    target=ObjectCandidate(
+                        object_type="SoftwareVersion",
+                        canonical_key=(f"software-version:{ecosystem_key}:{name_key}:{fixed}"),
+                        properties={
+                            "version": fixed,
+                            "package_name": name,
+                            "ecosystem": ecosystem,
+                        },
+                        identifiers={"package_version": [f"{ecosystem_key}:{name_key}@{fixed}"]},
+                    ),
+                    qualifier={
+                        "ecosystem": ecosystem,
+                        "package_name": name,
+                        "range_type": range_type,
+                    },
+                    locator={
+                        "kind": "jsonpath",
+                        "path": (
+                            f"$.affected[{index}].ranges[{range_index}].events[{event_index}].fixed"
+                        ),
+                    },
+                )
+            )
+    return result
+
+
+def _package_target(value: Any) -> ObjectCandidate | None:
+    if not isinstance(value, dict):
+        return None
+    package = value.get("package")
+    if not isinstance(package, dict):
+        return None
+    name = package.get("name")
+    ecosystem = package.get("ecosystem")
+    if not isinstance(name, str) or not isinstance(ecosystem, str):
+        return None
+    purl = package.get("purl")
+    identifiers = {"purl": [purl]} if isinstance(purl, str) else {}
+    return ObjectCandidate(
+        object_type="Package",
+        canonical_key=f"package:{ecosystem.lower()}:{name.lower()}",
+        properties={"name": name, "ecosystem": ecosystem},
+        identifiers=identifiers,
     )
 
 

@@ -68,7 +68,27 @@ class OSVAdapter:
             if "HTTP 404" in str(exc):
                 return []
             raise
-        return [envelope]
+        results = [envelope]
+        payload = envelope.json_payload
+        if vulnerability_id.upper().startswith("CVE-") and not _has_package_affected(payload):
+            seen_ids = {envelope.external_object_id}
+            for alias in _ghsa_aliases(payload):
+                try:
+                    alias_envelope = await self._query_id(
+                        source,
+                        alias,
+                        acquisition_run_id=acquisition_run_id,
+                        trigger=trigger,
+                    )
+                except SourceFetchFailed as exc:
+                    if "HTTP 404" in str(exc):
+                        continue
+                    raise
+                if alias_envelope.external_object_id in seen_ids:
+                    continue
+                seen_ids.add(alias_envelope.external_object_id)
+                results.append(alias_envelope)
+        return results
 
     async def _query_id(
         self,
@@ -115,3 +135,27 @@ def _optional_datetime(value: Any) -> datetime | None:
     if not isinstance(value, str):
         raise SourceSchemaChanged("OSV timestamp is not a string")
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def _has_package_affected(payload: dict[str, Any]) -> bool:
+    affected = payload.get("affected")
+    if not isinstance(affected, list):
+        return False
+    return any(
+        isinstance(item, dict)
+        and isinstance(item.get("package"), dict)
+        and isinstance(item["package"].get("name"), str)
+        and isinstance(item["package"].get("ecosystem"), str)
+        for item in affected
+    )
+
+
+def _ghsa_aliases(payload: dict[str, Any]) -> list[str]:
+    aliases = payload.get("aliases")
+    if not isinstance(aliases, list):
+        return []
+    result: list[str] = []
+    for alias in aliases:
+        if isinstance(alias, str) and alias.startswith("GHSA-") and alias not in result:
+            result.append(alias)
+    return result

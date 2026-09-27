@@ -66,6 +66,8 @@ Boundary errors are translated into project source errors such as authentication
 
 A reachable provider is not automatically authoritative. `source_role`, `authority_scope`, `source_family`, and `upstream_source` remain attached to source definitions so later conflict/corroboration logic can distinguish authority and source independence.
 
+OSV exact CVE lookup has one additional identity-preserving rule. Some OSV `CVE-*` conversion records contain only GIT ranges and omit package identity, while a strong `GHSA-*` alias for the same vulnerability carries the ecosystem-native package/range record. When a CVE lookup has no package-bearing `affected[]`, `OSVAdapter` follows strong GHSA aliases and returns both envelopes. The conversion and native records remain separate Evidence observations; downstream identity merge is justified by the explicit CVE↔GHSA alias, not by text similarity. This preserves commit-level evidence while recovering package/version applicability without inventing package identity.
+
 ## Design → implementation map
 
 TD1 的“来源能力 ≠ 调度状态 ≠ 产品 coverage”在实现里分别落到三个位置：`SourceDefinition/SourceAdapter` 描述 provider 能做什么；`packages.monitoring` 决定何时做并保存 cursor/backoff；`config/source-inventory.json` 冻结八类产品 coverage denominator。`registry/sync.py` 只把 declarative source definition 同步进 PostgreSQL，不把一次 live probe 或一个 runtime failure 改写成产品 taxonomy。

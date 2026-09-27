@@ -44,7 +44,16 @@ class VulnerabilityEnrichmentPlanner:
                     query=QuerySpec(filters={"cve_id": cve_id.upper()}),
                 )
             )
-        if not any(predicate.startswith("osv_") for predicate in predicates):
+        has_osv_applicability = any(
+            relation.relation_type == "applicability-status"
+            and relation.qualifier.get("source_id") == "osv-vulnerabilities"
+            and relation.qualifier.get("source_semantics") == "osv_range"
+            for relation in view.relations
+        )
+        if (
+            not any(predicate.startswith("osv_") for predicate in predicates)
+            or not has_osv_applicability
+        ):
             jobs.append(
                 EnrichmentJobSpec(
                     source_id="osv-vulnerabilities",

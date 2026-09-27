@@ -60,3 +60,60 @@ async def test_provider_query_adapters_return_ingest_envelopes(
     assert len(results) == 1
     assert results[0].external_object_id == expected_id
     assert results[0].content_hash
+
+
+@pytest.mark.asyncio
+async def test_osv_cve_query_follows_ghsa_alias_when_conversion_record_has_no_package() -> None:
+    primary = {
+        "id": "CVE-2026-57443",
+        "aliases": ["GHSA-q986-4x7x-gx39"],
+        "modified": "2026-09-25T20:00:00Z",
+        "affected": [
+            {
+                "ranges": [
+                    {
+                        "type": "GIT",
+                        "repo": "https://github.com/example/project",
+                        "events": [{"introduced": "abc"}, {"fixed": "def"}],
+                    }
+                ]
+            }
+        ],
+    }
+    native = {
+        "id": "GHSA-q986-4x7x-gx39",
+        "aliases": ["CVE-2026-57443"],
+        "modified": "2026-09-25T21:00:00Z",
+        "affected": [
+            {
+                "package": {
+                    "name": "example-project",
+                    "ecosystem": "PyPI",
+                    "purl": "pkg:pypi/example-project",
+                },
+                "ranges": [
+                    {
+                        "type": "ECOSYSTEM",
+                        "events": [{"introduced": "0"}, {"fixed": "1.2.3"}],
+                    }
+                ],
+            }
+        ],
+    }
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        payload = native if request.url.path.endswith("GHSA-q986-4x7x-gx39") else primary
+        return httpx.Response(200, json=payload, request=request)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        results = await OSVAdapter(client).query(
+            SOURCES["osv-vulnerabilities"],
+            QuerySpec(filters={"cve_id": "CVE-2026-57443"}),
+            acquisition_run_id="query-run",
+            trigger=AcquisitionTrigger.ON_DEMAND,
+        )
+
+    assert [item.external_object_id for item in results] == [
+        "CVE-2026-57443",
+        "GHSA-q986-4x7x-gx39",
+    ]

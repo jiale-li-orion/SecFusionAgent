@@ -69,6 +69,18 @@ def test_github_mapper_builds_package_relation() -> None:
 def test_osv_mapper_builds_purl_and_version_relation() -> None:
     candidate = OSVMapper().map(_envelope("osv_cve.json", "CVE-2026-42424"))
     assert candidate.root_identifiers["ghsa"] == ["GHSA-aaaa-bbbb-cccc"]
-    relation = candidate.relations[0]
-    assert relation.target.identifiers == {"purl": ["pkg:pypi/vllm"]}
-    assert relation.qualifier["versions"] == ["0.10.0", "0.11.0"]
+    package = next(item for item in candidate.relations if item.relation_type == "affects-package")
+    assert package.target.identifiers == {"purl": ["pkg:pypi/vllm"]}
+    assert package.qualifier["versions"] == ["0.10.0", "0.11.0"]
+    applicability = next(
+        item for item in candidate.relations if item.relation_type == "applicability-status"
+    )
+    assert applicability.target.canonical_key == "package:pypi:vllm"
+    assert applicability.qualifier["state"] == "affected"
+    assert applicability.qualifier["source_semantics"] == "osv_range"
+    assert applicability.qualifier["versions"] == ["0.10.0", "0.11.0"]
+    ranges = applicability.qualifier["ranges"]
+    assert isinstance(ranges, list)
+    assert len(ranges) == 2
+    fixed = [item for item in candidate.relations if item.relation_type == "fixed-version"]
+    assert [item.target.canonical_key for item in fixed] == ["software-version:pypi:vllm:0.11.1"]

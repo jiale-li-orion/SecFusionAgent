@@ -275,5 +275,13 @@ the independent evaluator produced **51 TP / 0 FP / 0 FN** over 51 formal facts.
 stratum is intentionally separate from the GitHub-structured sample so positive exploit-state
 coverage is visible rather than diluted by a set with no KEV members.
 
-The next priority is a second source-specific applicability path (OSV), then PoC/assets/papers/
-incidents and larger frozen strata.
+OSV applicability is evaluated with a separate source-specific diagnostic so GitHub assertions do
+not mask OSV failures. A CVE conversion record with no package does not create an empty "success":
+the benchmark independently follows strong GHSA aliases and requires package-bearing native OSV
+records. On the same 12-CVE recent manifest, 9 cases were OSV-evaluable and produced **44 formal
+facts / 44 TP / 0 FP / 0 FN**: product/package 11, `osv_range` applicability 19, and
+fixed/remediation 14. Three OSV-unavailable cases are explicit non-denominator cases. A zero-fact
+OSV selection fails closed rather than inheriting the scorer's mathematical `0/0 -> 1.0` default.
+
+The next priority is PoC/ExploitArtifact, then assets/papers/incidents and broader CVE/NVD/CSAF
+applicability coverage.

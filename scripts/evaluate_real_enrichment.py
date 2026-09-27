@@ -112,6 +112,43 @@ def _nvd_primary_metric(cve: dict[str, Any]) -> dict[str, Any] | None:
     return None
 
 
+def _osv_applicability_qualifier(affected: dict[str, Any]) -> dict[str, Any]:
+    qualifier: dict[str, Any] = {
+        "state": "affected",
+        "source_semantics": "osv_range",
+    }
+    ranges = affected.get("ranges")
+    versions = affected.get("versions")
+    if isinstance(ranges, list):
+        qualifier["ranges"] = ranges
+    if isinstance(versions, list):
+        qualifier["versions"] = versions
+    return qualifier
+
+
+def _osv_fixed_versions(affected: dict[str, Any]) -> list[str]:
+    result: list[str] = []
+    ranges = affected.get("ranges")
+    if not isinstance(ranges, list):
+        return result
+    for range_item in ranges:
+        if not isinstance(range_item, dict) or range_item.get("type") not in {
+            "ECOSYSTEM",
+            "SEMVER",
+        }:
+            continue
+        events = range_item.get("events")
+        if not isinstance(events, list):
+            continue
+        for event in events:
+            if not isinstance(event, dict):
+                continue
+            fixed = event.get("fixed")
+            if isinstance(fixed, str) and fixed and fixed not in result:
+                result.append(fixed)
+    return result
+
+
 def _nvd_cwes(cve: dict[str, Any]) -> list[str]:
     result: list[str] = []
     for weakness in cve.get("weaknesses", []):
@@ -252,6 +289,8 @@ def _gold_from_snapshot(
         "github_vulnerable_range_gold": 0,
         "github_epss_gold": 0,
         "advisory_gold": 0,
+        "osv_applicability_gold": 0,
+        "osv_fixed_version_gold": 0,
         "per_case": {},
     }
 
@@ -264,6 +303,8 @@ def _gold_from_snapshot(
             "vulnerable_ranges": [],
             "epss": [],
             "github_advisories": [],
+            "osv_affected_packages": [],
+            "osv_fixed_versions": [],
         }
         metric = _nvd_primary_metric(cve)
         if metric is not None:
@@ -389,14 +430,59 @@ def _gold_from_snapshot(
                             fact = _relation_fact(
                                 root_key,
                                 "fixed-version",
-                                (
-                                    f"software-version:{ecosystem.lower()}:"
-                                    f"{name.lower()}:{patched}"
-                                ),
+                                (f"software-version:{ecosystem.lower()}:{name.lower()}:{patched}"),
                                 "SoftwareVersion",
                             )
                             gold.append(fact)
                             support[fact].add("github-global-advisories")
+
+        osv_payload = source_data.get("osv")
+        if isinstance(osv_payload, dict):
+            affected_items = osv_payload.get("affected")
+            if isinstance(affected_items, list):
+                for affected in affected_items:
+                    if not isinstance(affected, dict):
+                        continue
+                    package = affected.get("package")
+                    if not isinstance(package, dict):
+                        continue
+                    ecosystem = package.get("ecosystem")
+                    name = package.get("name")
+                    if not isinstance(ecosystem, str) or not isinstance(name, str):
+                        continue
+                    package_key = f"package:{ecosystem.lower()}:{name.lower()}"
+                    case_diag["osv_affected_packages"].append(package_key)
+                    package_fact = _relation_fact(
+                        root_key,
+                        "affects-package",
+                        package_key,
+                        "Package",
+                    )
+                    gold.append(package_fact)
+                    support[package_fact].add("osv-vulnerabilities")
+
+                    applicability_fact = _relation_fact(
+                        root_key,
+                        "applicability-status",
+                        package_key,
+                        "Package",
+                        qualifier=_osv_applicability_qualifier(affected),
+                    )
+                    gold.append(applicability_fact)
+                    support[applicability_fact].add("osv-vulnerabilities")
+                    diagnostics["osv_applicability_gold"] += 1
+
+                    for fixed in _osv_fixed_versions(affected):
+                        case_diag["osv_fixed_versions"].append(fixed)
+                        fixed_fact = _relation_fact(
+                            root_key,
+                            "fixed-version",
+                            (f"software-version:{ecosystem.lower()}:{name.lower()}:{fixed}"),
+                            "SoftwareVersion",
+                        )
+                        gold.append(fixed_fact)
+                        support[fixed_fact].add("osv-vulnerabilities")
+                        diagnostics["osv_fixed_version_gold"] += 1
 
         if source_data["known_exploited"] is True:
             fact = _claim_fact(root_key, "known_exploited", True)
@@ -499,6 +585,8 @@ def _benchmark_relation_qualifier(
         "state",
         "source_semantics",
         "version_range",
+        "ranges",
+        "versions",
         "platform",
         "configuration",
         "justification",

@@ -39,7 +39,12 @@ PROVIDER_IDS = (
 )
 
 
-async def _run(cves: list[str]) -> dict[str, Any]:
+async def _run(
+    cves: list[str],
+    *,
+    refresh_nvd: bool = True,
+    provider_ids: tuple[str, ...] = PROVIDER_IDS,
+) -> dict[str, Any]:
     register_runtime_models()
     settings = get_settings()
     engine = create_engine(settings.database_url)
@@ -60,9 +65,12 @@ async def _run(cves: list[str]) -> dict[str, Any]:
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
+            required_source_ids = tuple(
+                dict.fromkeys(((nvd.source_id,) if refresh_nvd else ()) + provider_ids)
+            )
             adapters = {
                 source_id: create_source_adapter(sources[source_id], client, settings)
-                for source_id in (nvd.source_id, *PROVIDER_IDS)
+                for source_id in required_source_ids
             }
             provider_service = VulnerabilityEnrichmentService(
                 factory,
@@ -105,18 +113,19 @@ async def _run(cves: list[str]) -> dict[str, Any]:
                     "nvd_normalizations": 0,
                     "provider_results": {},
                 }
-                nvd_envelopes = await query_nvd(cve_id)
-                for envelope in nvd_envelopes:
-                    async with factory() as session, session.begin():
-                        observation = await ingress.accept(session, nvd, envelope)
-                        result = await NVDCanonicalNormalizer().normalize(
-                            session,
-                            nvd,
-                            envelope,
-                            observation,
-                        )
-                    case["nvd_normalizations"] += 1
-                    case["nvd_knowledge_revision"] = result.knowledge_revision
+                if refresh_nvd:
+                    nvd_envelopes = await query_nvd(cve_id)
+                    for envelope in nvd_envelopes:
+                        async with factory() as session, session.begin():
+                            observation = await ingress.accept(session, nvd, envelope)
+                            result = await NVDCanonicalNormalizer().normalize(
+                                session,
+                                nvd,
+                                envelope,
+                                observation,
+                            )
+                        case["nvd_normalizations"] += 1
+                        case["nvd_knowledge_revision"] = result.knowledge_revision
 
                 async with factory() as session:
                     view = await get_vulnerability_by_cve(session, cve_id)
@@ -125,7 +134,7 @@ async def _run(cves: list[str]) -> dict[str, Any]:
                     output["cases"][cve_id] = case
                     continue
 
-                for source_id in PROVIDER_IDS:
+                for source_id in provider_ids:
                     job = EnrichmentJobSpec(
                         source_id=source_id,
                         query=QuerySpec(filters={"cve_id": cve_id}),
@@ -159,9 +168,24 @@ def main() -> None:
         description="Re-run deterministic structured enrichment for selected real CVEs"
     )
     parser.add_argument("cves", nargs="*", default=list(DEFAULT_CVES))
+    parser.add_argument("--skip-nvd", action="store_true")
+    parser.add_argument(
+        "--provider",
+        action="append",
+        choices=PROVIDER_IDS,
+        dest="providers",
+        help="Refresh only selected structured provider(s); repeat for multiple providers",
+    )
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
-    result = asyncio.run(_run([item.upper() for item in args.cves]))
+    providers = tuple(args.providers) if args.providers else PROVIDER_IDS
+    result = asyncio.run(
+        _run(
+            [item.upper() for item in args.cves],
+            refresh_nvd=not args.skip_nvd,
+            provider_ids=providers,
+        )
+    )
     rendered = json.dumps(result, indent=2, ensure_ascii=False) + "\n"
     if args.output is not None:
         args.output.parent.mkdir(parents=True, exist_ok=True)
