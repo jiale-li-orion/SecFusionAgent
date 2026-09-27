@@ -19,20 +19,19 @@ class GitHubRepoMapper:
     PROCESSOR_VERSION = "2"
 
     def map(self, envelope: IngestEnvelope) -> EnrichmentCandidate:
-        object_type = envelope.request_metadata.get("object_type", "repository")
+        object_type, repo_full_name, repo_locator = _development_context(envelope)
         if object_type == "repository":
             return _map_repository(envelope.json_payload)
-        repo_full_name = envelope.request_metadata.get("repo_full_name")
-        if not isinstance(repo_full_name, str) or not repo_full_name:
-            raise SourceSchemaChanged("GitHub development object has no repo_full_name metadata")
+        if repo_full_name is None:
+            raise SourceSchemaChanged("GitHub development object has no recoverable repo identity")
         if object_type == "issue":
-            return _map_issue(repo_full_name, envelope.json_payload)
+            return _map_issue(repo_full_name, envelope.json_payload, repo_locator)
         if object_type == "pull_request":
-            return _map_pull_request(repo_full_name, envelope.json_payload)
+            return _map_pull_request(repo_full_name, envelope.json_payload, repo_locator)
         if object_type == "commit":
-            return _map_commit(repo_full_name, envelope.json_payload)
+            return _map_commit(repo_full_name, envelope.json_payload, repo_locator)
         if object_type == "release":
-            return _map_release(repo_full_name, envelope.json_payload)
+            return _map_release(repo_full_name, envelope.json_payload, repo_locator)
         raise SourceSchemaChanged(f"unsupported GitHub structured object_type={object_type!r}")
 
 
@@ -98,7 +97,9 @@ def _map_repository(payload: dict[str, Any]) -> EnrichmentCandidate:
     )
 
 
-def _map_issue(full_name: str, payload: dict[str, Any]) -> EnrichmentCandidate:
+def _map_issue(
+    full_name: str, payload: dict[str, Any], repo_locator: dict[str, JsonValue]
+) -> EnrichmentCandidate:
     number = _required_int(payload, "number", "issue")
     issue_id = payload.get("id")
     identifiers = {"github_issue": [f"{full_name}#{number}"]}
@@ -117,13 +118,15 @@ def _map_issue(full_name: str, payload: dict[str, Any]) -> EnrichmentCandidate:
     return EnrichmentCandidate(
         root_object=root,
         claims=claims,
-        relations=[_belongs_to_repo(full_name)],
+        relations=[_belongs_to_repo(full_name, repo_locator)],
         replace_predicates=[item.predicate for item in claims],
         replace_relation_types=["belongs-to-repo"],
     )
 
 
-def _map_pull_request(full_name: str, payload: dict[str, Any]) -> EnrichmentCandidate:
+def _map_pull_request(
+    full_name: str, payload: dict[str, Any], repo_locator: dict[str, JsonValue]
+) -> EnrichmentCandidate:
     number = _required_int(payload, "number", "pull request")
     pull_id = payload.get("id")
     identifiers = {"github_pull_request": [f"{full_name}#{number}"]}
@@ -147,7 +150,7 @@ def _map_pull_request(full_name: str, payload: dict[str, Any]) -> EnrichmentCand
         value = _json_scalar(payload.get(field))
         if value is not None:
             claims.append(_claim(predicate, value, f"$.{field}"))
-    relations = [_belongs_to_repo(full_name)]
+    relations = [_belongs_to_repo(full_name, repo_locator)]
     merge_sha = payload.get("merge_commit_sha")
     if isinstance(merge_sha, str) and merge_sha:
         relations.append(
@@ -177,7 +180,9 @@ def _map_pull_request(full_name: str, payload: dict[str, Any]) -> EnrichmentCand
     )
 
 
-def _map_commit(full_name: str, payload: dict[str, Any]) -> EnrichmentCandidate:
+def _map_commit(
+    full_name: str, payload: dict[str, Any], repo_locator: dict[str, JsonValue]
+) -> EnrichmentCandidate:
     sha = payload.get("sha")
     if not isinstance(sha, str) or not sha:
         raise SourceSchemaChanged("GitHub commit payload has no sha")
@@ -205,7 +210,7 @@ def _map_commit(full_name: str, payload: dict[str, Any]) -> EnrichmentCandidate:
                     claims.append(
                         _claim(f"github_commit_{prefix}_date", date, f"$.commit.{actor}.date")
                     )
-    relations = [_belongs_to_repo(full_name)]
+    relations = [_belongs_to_repo(full_name, repo_locator)]
     parents = payload.get("parents")
     if isinstance(parents, list):
         for index, parent in enumerate(parents):
@@ -229,7 +234,9 @@ def _map_commit(full_name: str, payload: dict[str, Any]) -> EnrichmentCandidate:
     )
 
 
-def _map_release(full_name: str, payload: dict[str, Any]) -> EnrichmentCandidate:
+def _map_release(
+    full_name: str, payload: dict[str, Any], repo_locator: dict[str, JsonValue]
+) -> EnrichmentCandidate:
     release_id = _required_int(payload, "id", "release")
     tag_name = payload.get("tag_name")
     if not isinstance(tag_name, str) or not tag_name:
@@ -270,7 +277,7 @@ def _map_release(full_name: str, payload: dict[str, Any]) -> EnrichmentCandidate
     return EnrichmentCandidate(
         root_object=root,
         claims=claims,
-        relations=[_belongs_to_repo(full_name)],
+        relations=[_belongs_to_repo(full_name, repo_locator)],
         replace_predicates=[item.predicate for item in claims],
         replace_relation_types=["belongs-to-repo"],
     )
@@ -332,11 +339,79 @@ def _commit_object(
     )
 
 
-def _belongs_to_repo(full_name: str) -> RelationCandidate:
+def _belongs_to_repo(
+    full_name: str, locator: dict[str, JsonValue] | None = None
+) -> RelationCandidate:
     return RelationCandidate(
         relation_type="belongs-to-repo",
         target=_repo_object(full_name),
-        locator={"kind": "request_metadata", "path": "$.repo_full_name"},
+        locator=locator or {"kind": "request_metadata", "path": "$.repo_full_name"},
+    )
+
+
+def _development_context(
+    envelope: IngestEnvelope,
+) -> tuple[str, str | None, dict[str, JsonValue]]:
+    metadata_type = envelope.request_metadata.get("object_type")
+    metadata_repo = envelope.request_metadata.get("repo_full_name")
+    if isinstance(metadata_type, str) and metadata_type:
+        if metadata_type == "repository":
+            return metadata_type, None, {"kind": "request_metadata", "path": "$.repo_full_name"}
+        if isinstance(metadata_repo, str) and metadata_repo:
+            return (
+                metadata_type,
+                metadata_repo,
+                {"kind": "request_metadata", "path": "$.repo_full_name"},
+            )
+
+    payload = envelope.json_payload
+    base = payload.get("base")
+    if isinstance(base, dict):
+        repo = base.get("repo")
+        if isinstance(repo, dict):
+            full_name = repo.get("full_name")
+            if isinstance(full_name, str) and full_name and isinstance(payload.get("number"), int):
+                html_url = payload.get("html_url")
+                external_id = envelope.external_object_id
+                if (isinstance(html_url, str) and "/pull/" in html_url) or "#pull-" in external_id:
+                    return (
+                        "pull_request",
+                        full_name,
+                        {"kind": "jsonpath", "path": "$.base.repo.full_name"},
+                    )
+
+    repository_url = payload.get("repository_url")
+    if isinstance(repository_url, str) and "/repos/" in repository_url:
+        full_name = repository_url.split("/repos/", 1)[1].strip("/")
+        if full_name and isinstance(payload.get("number"), int):
+            return (
+                "issue",
+                full_name,
+                {"kind": "jsonpath", "path": "$.repository_url"},
+            )
+
+    html_url = payload.get("html_url")
+    if isinstance(html_url, str) and html_url.startswith("https://github.com/"):
+        path = html_url.removeprefix("https://github.com/").split("?", 1)[0].strip("/")
+        parts = path.split("/")
+        if len(parts) >= 4 and parts[2] == "commit" and isinstance(payload.get("sha"), str):
+            return (
+                "commit",
+                "/".join(parts[:2]),
+                {"kind": "jsonpath", "path": "$.html_url"},
+            )
+        if len(parts) >= 4 and parts[2] == "releases" and isinstance(payload.get("id"), int):
+            return (
+                "release",
+                "/".join(parts[:2]),
+                {"kind": "jsonpath", "path": "$.html_url"},
+            )
+
+    full_name = payload.get("full_name")
+    if isinstance(full_name, str) and full_name:
+        return "repository", None, {"kind": "jsonpath", "path": "$.full_name"}
+    raise SourceSchemaChanged(
+        "GitHub structured payload has no deterministic object_type/repo identity"
     )
 
 

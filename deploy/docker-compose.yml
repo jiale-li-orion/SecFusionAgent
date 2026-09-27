@@ -39,6 +39,14 @@ services:
     ports:
       - "6380:6379"
 
+  redis-task-bus:
+    image: public.ecr.aws/docker/library/redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    ports:
+      - "6381:6379"
+    volumes:
+      - secfusion-redis-task-bus:/data
+
   minio:
     image: minio/minio:latest
     command: server /data --console-address ":9001"
@@ -75,4 +83,5 @@ volumes:
   localstack-data:
   secfusion-postgres:
   secfusion-redis-broker:
+  secfusion-redis-task-bus:
   secfusion-minio:

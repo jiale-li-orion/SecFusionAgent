@@ -22,6 +22,10 @@ class OSVMapper:
         if not isinstance(vulnerability_id, str):
             raise SourceSchemaChanged("OSV payload has no id")
         identifiers: dict[str, list[str]] = {"osv": [vulnerability_id]}
+        if vulnerability_id.startswith("CVE-"):
+            identifiers.setdefault("cve", []).append(vulnerability_id.upper())
+        elif vulnerability_id.startswith("GHSA-"):
+            identifiers.setdefault("ghsa", []).append(vulnerability_id)
         aliases = payload.get("aliases")
         if isinstance(aliases, list):
             for alias in aliases:

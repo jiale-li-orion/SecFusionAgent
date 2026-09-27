@@ -75,6 +75,7 @@ class EvidenceIngress:
                 observation_id=observation_id,
                 source_id=source.source_id,
                 acquisition_run_id=envelope.acquisition_run_id,
+                acquisition_trigger=envelope.trigger.value,
                 external_object_id=envelope.external_object_id,
                 external_revision=envelope.external_revision,
                 canonical_url=envelope.canonical_url,
@@ -82,6 +83,8 @@ class EvidenceIngress:
                 updated_at=envelope.updated_at,
                 observed_at=envelope.observed_at,
                 content_hash=envelope.content_hash,
+                request_metadata=dict(envelope.request_metadata),
+                request_metadata_captured=True,
                 idempotency_key=effective_idempotency_key,
                 created_at=accepted_at,
             )

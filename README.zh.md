@@ -15,7 +15,7 @@ SecFusionAgent 面向 AI 安全漏洞、研究进展与安全事件构建持续�
 
 ## 项目状态
 
-SecFusionAgent 当前处于 **M1–M3 数据平面 / M3→M4 storage-read handoff 已验证 / semantic enrichment contract 已冻结** 阶段。数据平面已经覆盖 Hot Bug、durable evidence / canonical knowledge、provider 富化、Incident Watch、HTML/PDF/plain 受管文档、GitHub development objects、五类物化当前视图、time-bounded Internet asset observation，以及 Case / Trajectory / Experience 存储接缝。`enrichment-v1` 已固定 canonical/source-specific/exploratory vocabulary ownership 与 closed-set enrichment 评测单元；canonical CWE/PoC/EPSS/applicability/asset join/paper relation 等剩余工作继续作为显式 M3 implementation backlog。`make verify-m3` 把 fast test、source ownership/lifecycle check、真实 PostgreSQL/pgvector/FTS、隔离 Redis failure domain、outbox→Celery 重放/幂等与真实 S3-compatible ArtifactStore round trip 串成 storage/read handoff 的可重复 gate。M4 的任务路由、查询构造、retrieval / Perception、Investigation State、Agent Runtime 与 M6 Decision 留在数据平面之外，由 Technical Design 2 约束。
+SecFusionAgent 当前已经完成 **Technical Design 2 Slice 7 canonical VERIFY 闭环，并实现了 Slice 8 的 scheduling/wake substrate**。在 M1–M3 evidence/data plane 之上，仓库已具备 durable Task Runtime 与双工 TaskEvent bus、M3 `EnrichmentRole`、M4 Investigation State / Perception、有界 `InvestigationRole`、Context handoff/materialization、Skill resolution、Capability/Policy/Budget 控制面、Sandbox v1 控制面契约，以及 canonical `VerifyFixBoundary` E2E。VERIFY 缺证据分支现在真实经过 `InvestigationRole → delegated EnrichmentRole → durable Knowledge update → TaskEvent/Redis wake → parent resume → local Evidence Perception → StatePatch Gate → completion`。Slice 8 同时新增正式 Task Runtime scheduler owner、可 replay 的 Redis consumer-group wake、terminal 的短 WATCH episode，以及 relevant world change 后派生 fresh queued WATCH TaskRun。Slice 8 剩余工作是 queued Investigation run 的 live worker composition 与 `WATCH_RESUME` policy live path；真实 OpenShell/Firecracker substrate 验收、TD2 context 对照评测、M6 Decision/A2A 与 M7 replay/SkillPatch 仍是后续边界。
 
 当前本地质量门：
 
@@ -25,7 +25,7 @@ mypy        静态类型检查
 pytest      领域、重放、状态迁移与契约测试
 ```
 
-主仓库 CI 持续运行 `ruff`、`mypy` 与 `pytest`。当前 fast gate 为 **119 passed + 6 个默认跳过的 infrastructure tests**；`make integration-core` 真实运行 **5/5** PostgreSQL/pgvector/FTS、Redis、outbox/Celery 与 M3 handoff test；`make integration-object-store` 验证真实 S3-compatible ArtifactStore round trip。上一版 live probe 快照为 **41 OK / 10 provider-blocked / 5 transient failures / 1 rate-limited / 7 auth-required**。它只作为时点连通性报告，不再作为 M3 验收 gate；反爬、网络、限流与凭据问题留到后续 provider hardening。SQLite/fixture 只作为快速确定性测试，不作为基础设施通过证据。
+主仓库 CI 持续运行 `ruff`、`mypy` 与 `pytest`。当前本地 fast gate 为 **303 passed + 11 个默认跳过的 infrastructure tests**，`mypy` 对 **360 个 source files** 无错误；`make integration-core` 真实运行 **10/10** PostgreSQL/pgvector/FTS、隔离 Redis domain、Task Runtime/Event Plane scheduling、EnrichmentRole、InvestigationRole 与 runtime control plane tests。`make integration-object-store` 验证真实 S3-compatible ArtifactStore round trip。上一版 live probe 快照为 **41 OK / 10 provider-blocked / 5 transient failures / 1 rate-limited / 7 auth-required**；它只作为时点连通性报告，不作为验收 gate。SQLite/fixture 继续承担快速确定性测试，不替代真实基础设施证据。
 
 ## 系统概览
 
@@ -49,10 +49,12 @@ pytest      领域、重放、状态迁移与契约测试
 | Current Projection | knowledge / incident 变化 → 事务性 outbox → vulnerability / affected-version / fix-status / repo-security / incident 视图 | 为后续 retrieval 提供低成本当前状态，同时保留底层历史、证据与冲突 |
 | Internet Asset Observation | on-demand Shodan / Censys / FOFA / ZoomEye → provider-normalized AssetObservation → 显式 EvidenceIngress promotion | 保留 query/provider/time provenance，同时避免把高时效资产结果默认变成长久知识 |
 | Investigation Memory | Case → append-only Trajectory → Experience candidate / version / evaluation | 为后续 Agent 调查保存可评测、可版本化的 procedural experience |
+| Task / Investigation Runtime | TaskContract → durable TaskRun/TaskEvent → versioned ContextManifest → bounded Role episode → wait/resume/replay | 给 Agent 工作明确的生命周期、委派、上下文与完成语义，避免退化为无界 chat loop |
+| Canonical VERIFY | VerifyFixBoundary Skill + ModelInvestigationPlanner → Perception → Capability/Policy/Budget → Evidence promotion 或 delegated EnrichmentRole → StatePatch Gate | 让 fix boundary 验证通过 durable evidence 闭环，同时保持 model output 不拥有事实权威 |
 
 内置来源定义位于 [`config/sources/`](config/sources/)；来源是否进入热缓存、durable 语料、结构化索引或 incident staging，由 `SourceDefinition.retention_mode` 明确决定。
 
-Website 投影的具体来源承诺由 [`config/source-inventory.json`](config/source-inventory.json) 跟踪。当前 inventory 已把 **99/99 个 website 条目**映射到 fixed/grouped source owner 或 executable dynamic resolver；主仓库现有 **63 个 SourceDefinition**，63 个都有 live probe owner，真实 PostgreSQL registry 也会同步全部 63 条定义与状态。`make source-inventory-check` 检查中文 catalog identity 与中英文 catalog structural parity，`make verify-data-sources` 继续运行确定性的 source/runtime ownership tests；`make probe-live-sources` 只保留为手动连通性报告。Lifecycle tests 进一步要求每条来源都有可执行的数据流归属：`time_bounded` source 不进入 scheduler 且必须有 downstream consumer，Hot Bug adapter 必须同时拥有 hot/durable normalizer，Incident adapter 必须注册 signal extractor。
+Website 投影的具体来源承诺由 [`config/source-inventory.json`](config/source-inventory.json) 跟踪。当前 inventory 已把 **99/99 个 website 条目**映射到 fixed/grouped source owner 或 executable dynamic resolver；主仓库现有 **64 个 SourceDefinition**，真实 PostgreSQL registry 会同步全部 64 条定义与状态。`make source-inventory-check` 检查中文 catalog identity 与中英文 catalog structural parity，`make verify-data-sources` 继续运行确定性的 source/runtime ownership tests；`make probe-live-sources` 只保留为手动连通性报告。Lifecycle tests 进一步要求每条来源都有可执行的数据流归属：`time_bounded` source 不进入 scheduler 且必须有 downstream consumer，Hot Bug adapter 必须同时拥有 hot/durable normalizer，Incident adapter 必须注册 signal extractor。
 
 ## 证据与知识模型
 
@@ -313,16 +315,14 @@ GitHub Pages、Archify、双语展示与 CI/CD 发布规则见 [`WEB-PRESENTATIO
 
 ## 路线图
 
-下一个工程边界是从已经验证的 M3 handoff 进入 Investigation / Retrieval / Reasoning plane：
+下一个工程边界从 canonical VERIFY 闭环之后继续推进：
 
-- 用户提供模型端点/凭据后跑一次真实 semantic+dense provider E2E；
-- 出现合适 target-repo OSV `GIT fixed` 样本后验证真实 deterministic fix-boundary promotion；
-- 显式维护 provider blocker，同时保持已经闭合的 source lifecycle contract；
-- 继续扩展 Incident primary / forensic follow-up 与 on-chain telemetry；
-- 实现 Technical Design 2 的快速路径：`TaskSpec → ContextBinding → ExecutionProfile → L0/L1 query`；
-- 在已验证的 M3 状态之上实现 M4 `InvestigationState / EvidenceNeed / StatePatch / InvestigationSnapshot` 与本地 Perception 读取；
-- 在主动 Agent 调查前补齐动态能力可见集、层级预算、BoundedLoop 与 sandbox / network / identity enforcement；
-- 实现 M6 `DecisionResult`，并为 routing、perception、state integration、evidence use 建立固定 M7 replay / evaluation；
-- 针对被投毒来源、indirect prompt injection、恶意 tool output 与权限边界补充安全回归。
+- 完成 Sandbox v1 的真实 substrate 验收，覆盖 filesystem/network/credential isolation、OpenShell container 与 Firecracker microVM；
+- 跑 TD2 `reference vs summary` Context 对照，测 token cost、critical-context retention 与 stale-context failure rate；
+- 完成 Slice 8 的 live composition：补 `WATCH_RESUME` policy enforcement，并把 queued Investigation TaskRun 接进统一 Role executor；Redis/relevance/replay wake substrate 已经完成；
+- 实现 M6 `DecisionResult` 与 A2A Task/Artifact/stream/push mapping，同时保持 Task Runtime authority；
+- 实现 M7 checkpoint/replay 与 `Experience → SkillPatchCandidate → regression → promotion` gate；
+- 用户提供模型端点/凭据后跑一次真实 semantic+dense provider E2E，并在合适 target-repo OSV `GIT fixed` 样本上验证 deterministic fix-boundary promotion；
+- 继续显式维护 provider blocker，并补充 poisoned source、indirect prompt injection、malicious tool output 与 privilege boundary 安全回归。
 
 Requirements-SPEC 仍是产品范围的权威；路线图排序依据依赖与集成风险，而不是 UI 完成度。

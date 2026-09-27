@@ -15,6 +15,10 @@ _MODEL_MODULES = (
     "packages.intelligence.storage.document_models",
     "packages.intelligence.storage.normative_models",
     "packages.investigation.storage.models",
+    "packages.task_runtime.storage.models",
+    "packages.investigation.skills.storage",
+    "packages.runtime.storage.models",
+    "packages.enrichment.runtime.state_models",
     "packages.shared.storage.models",
 )
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from packages.shared.db import Base
@@ -22,6 +22,7 @@ class ObservationModel(Base):
     acquisition_run_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("acquisition_runs.run_id", ondelete="SET NULL"), index=True
     )
+    acquisition_trigger: Mapped[str] = mapped_column(String(32), nullable=False, default="replay")
     external_object_id: Mapped[str] = mapped_column(String(256), nullable=False, index=True)
     external_revision: Mapped[str | None] = mapped_column(String(256), index=True)
     canonical_url: Mapped[str | None] = mapped_column(Text)
@@ -29,6 +30,8 @@ class ObservationModel(Base):
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     content_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    request_metadata: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
+    request_metadata_captured: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     idempotency_key: Mapped[str] = mapped_column(String(64), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 

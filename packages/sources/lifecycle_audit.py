@@ -34,6 +34,7 @@ TIME_BOUNDED_ADAPTERS = frozenset(
         "oscs",
         "osv",
         "shodan",
+        "shodan_internetdb",
         "censys_asset",
         "fofa_asset",
         "zoomeye_asset",

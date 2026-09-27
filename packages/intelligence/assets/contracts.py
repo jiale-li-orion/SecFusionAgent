@@ -27,6 +27,8 @@ class AssetObservation(BaseModel):
     asn: str | None = None
     cpe: list[str] = Field(default_factory=list)
     location: dict[str, JsonValue] = Field(default_factory=dict)
+    discovery_context: dict[str, JsonValue] = Field(default_factory=dict)
+    relation_context: dict[str, JsonValue] = Field(default_factory=dict)
 
 
 class AssetObservationResult(BaseModel):

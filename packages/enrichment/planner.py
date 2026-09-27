@@ -1,14 +1,17 @@
 from __future__ import annotations
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from packages.intelligence.knowledge.read import KnowledgeObjectView
+from packages.intelligence.knowledge.vocabulary import EnrichmentDimension
 from packages.sources.contracts import QuerySpec
 
 
 class EnrichmentJobSpec(BaseModel):
     source_id: str
     query: QuerySpec
+    operator_id: str | None = None
+    relevant_dimensions: list[EnrichmentDimension] = Field(default_factory=list)
 
 
 class VulnerabilityEnrichmentPlanner:

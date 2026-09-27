@@ -19,6 +19,7 @@ class InvestigationCaseModel(Base):
     constraints: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
     rubric: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
     status: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    current_revision: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -104,6 +105,74 @@ class ExperienceModel(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class PerceptionEventModel(Base):
+    __tablename__ = "perception_events"
+    __table_args__ = (
+        UniqueConstraint(
+            "task_run_id",
+            "request_id",
+            name="uq_perception_event_task_request",
+        ),
+    )
+
+    perception_event_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    case_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("investigation_cases.case_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    task_run_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("task_runs.run_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    request_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    need_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey("evidence_needs.need_id", ondelete="SET NULL"),
+        index=True,
+    )
+    request_json: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    plan_json: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    percept_ref: Mapped[str] = mapped_column(String(256), nullable=False)
+    evidence_refs: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    observation_refs: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    cost: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
+    world_revision: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    failure_class: Mapped[str | None] = mapped_column(String(128), index=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    finished_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class InvestigationSnapshotModel(Base):
+    __tablename__ = "investigation_snapshots"
+
+    snapshot_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    case_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("investigation_cases.case_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    case_revision: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    knowledge_revision: Mapped[int | None] = mapped_column(Integer, index=True)
+    incident_revision: Mapped[str | None] = mapped_column(String(128))
+    document_index_revision: Mapped[str | None] = mapped_column(String(128))
+    experience_revision: Mapped[str | None] = mapped_column(String(128))
+    policy_revision: Mapped[str] = mapped_column(String(128), nullable=False)
+    capability_registry_revision: Mapped[str | None] = mapped_column(String(128))
+    routing_query_planner_revision: Mapped[str | None] = mapped_column(String(128))
+    model_revision: Mapped[str | None] = mapped_column(String(128))
+    prompt_assembly_revision: Mapped[str | None] = mapped_column(String(128))
+    source_availability_snapshot: Mapped[dict[str, object]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class ExperienceVersionModel(Base):
     __tablename__ = "experience_versions"
     __table_args__ = (
@@ -180,3 +249,100 @@ class ExperienceSupportModel(Base):
     evaluation: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
     evaluator: Mapped[str] = mapped_column(String(128), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class CaseStateEventModel(Base):
+    __tablename__ = "case_state_events"
+    __table_args__ = (
+        UniqueConstraint("case_id", "case_revision", name="uq_case_state_revision"),
+        UniqueConstraint(
+            "case_id",
+            "patch_id",
+            "operation_index",
+            name="uq_case_state_patch_operation",
+        ),
+    )
+
+    event_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    case_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("investigation_cases.case_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    case_revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    base_case_revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    event_type: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    patch_id: Mapped[str | None] = mapped_column(String(128), index=True)
+    operation_index: Mapped[int | None] = mapped_column(Integer)
+    proposition: Mapped[str | None] = mapped_column(Text)
+    target_ref: Mapped[str | None] = mapped_column(String(512), index=True)
+    evidence_refs: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    writer: Mapped[str] = mapped_column(String(256), nullable=False, index=True)
+    reason_code: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+
+
+class EvidenceNeedModel(Base):
+    __tablename__ = "evidence_needs"
+
+    need_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    case_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("investigation_cases.case_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    derived_from_enrichment_requirement: Mapped[str | None] = mapped_column(String(256), index=True)
+    proposition_or_question: Mapped[str] = mapped_column(Text, nullable=False)
+    purpose: Mapped[str] = mapped_column(String(256), nullable=False)
+    target_objects: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    evidence_contract: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
+    preferred_source_roles: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    rejected_evidence_patterns: Mapped[list[str]] = mapped_column(
+        JSON, nullable=False, default=list
+    )
+    freshness_requirement: Mapped[dict[str, object]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
+    completion_predicate: Mapped[dict[str, object]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
+    priority: Mapped[int] = mapped_column(Integer, nullable=False, default=50, index=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    resolution_evidence_refs: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    opened_revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    updated_revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class InvestigationStateCurrentModel(Base):
+    __tablename__ = "investigation_state_current"
+
+    case_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("investigation_cases.case_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    case_revision: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    goal: Mapped[str] = mapped_column(Text, nullable=False)
+    targets: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    confirmed: Mapped[list[dict[str, object]]] = mapped_column(JSON, nullable=False, default=list)
+    tentative: Mapped[list[dict[str, object]]] = mapped_column(JSON, nullable=False, default=list)
+    conflicts: Mapped[list[dict[str, object]]] = mapped_column(JSON, nullable=False, default=list)
+    unknowns: Mapped[list[dict[str, object]]] = mapped_column(JSON, nullable=False, default=list)
+    hypotheses: Mapped[list[dict[str, object]]] = mapped_column(JSON, nullable=False, default=list)
+    open_questions: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    decision_variables: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    evidence_need_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    active_skills: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    normative_context_refs: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    unresolved_applicability: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    current_decision: Mapped[dict[str, object] | None] = mapped_column(JSON)
+    last_world_revision: Mapped[int | None] = mapped_column(Integer, index=True)
+    last_perception_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

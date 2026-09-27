@@ -4,9 +4,11 @@
 
 ## Vulnerability enrichment runtime
 
-`VulnerabilityEnrichmentPlanner` performs the current deterministic first-pass routing. It inspects the existing vulnerability view and schedules provider jobs only for missing source-specific/canonical information. The current built-in path can request CISA KEV, GitHub Global Advisories, and OSV; worker composition also invokes GitHub reference graph and deterministic fix-boundary services.
+`runtime/` implements the M3 `EnrichmentRole` adapter on the shared Task Runtime. `EnrichmentStateBuilder` materializes the twelve `enrichment-v1` dimensions as `resolved / conflict / unknown / missing`; `EnrichmentDimensionSpec` is an internal vocabulary-derived state specification, not a second M4 requirement protocol. Execution block/failure stays in `EnrichmentAttempt` rather than adding a fifth domain state.
 
-`VulnerabilityEnrichmentService` uses `monitoring.AcquisitionService` for fresh reads. Each returned envelope is accepted through `EvidenceIngress` before a processor creates `EnrichmentCandidate` output. Processors do not turn raw HTTP results directly into Knowledge.
+`EnrichmentStatePlanner` selects from the closed operator registry according to missing dimensions and prior attempts. An operator declares dimensions it directly produces separately from dimensions it only enables, preventing a provider range/reference from being misreported as a resolved canonical fact. Background `enrichment.requested` work and delegated child EnrichmentTask use the same `EnrichmentRole`, state builder, operator path, EvidenceIngress and Knowledge Writer.
+
+`VulnerabilityEnrichmentService` remains the provider-query primitive used by the Role and by deterministic tests. It uses `monitoring.AcquisitionService` for fresh reads. Each returned envelope is accepted through `EvidenceIngress` before a processor creates `EnrichmentCandidate` output. Processors do not turn raw HTTP results directly into Knowledge.
 
 ## Deterministic enrichment baseline
 
@@ -98,7 +100,11 @@ The active M3 implementation backlog is therefore:
 7. paper `discusses-vulnerability` benchmark bridge;
 8. Incident → Vulnerability strong-anchor benchmark bridge.
 
-M3 exposes closed-set status as resolved/conflict/unknown/missing over the shared vocabulary. The conversion of those gaps into `EvidenceNeed`, Perception, tools, and runtime policy is owned by Technical Design 2; this package must not introduce a parallel `EnrichmentRequirement` protocol.
+M3 exposes closed-set status as resolved/conflict/unknown/missing over the shared vocabulary. The conversion of those gaps into M4 `EvidenceNeed`, Perception and investigation policy remains owned by `packages.investigation`; M3 state specifications do not become a parallel investigation requirement protocol.
+
+## Current boundary
+
+The EnrichmentRole runtime, closed operator registry, deterministic fixed-point loop, background/delegated TaskRun reuse, EvidenceIngress and Knowledge write path are implemented. The remaining gaps are content/coverage gaps in the enrichment matrix above, plus later M7 replay-driven Skill improvement; they are not reasons to add another enrichment scheduler or a second task protocol.
 
 ## Adding an enrichment processor
 
@@ -115,9 +121,9 @@ If a new semantic relation is useful but not yet stable enough for the closed be
 
 ## Dependency boundary
 
-Allowed package dependencies: `shared`, `sources`, `intelligence`, `monitoring`, `enrichment`.
+Allowed package dependencies: `shared`, `sources`, `intelligence`, `monitoring`, `task_runtime`, `enrichment`.
 
-This module must not import M4 investigation/runtime policy or M7 evaluation implementation into processing decisions.
+This module may use the shared Task Runtime to host `EnrichmentRole`, but it must not import M4 investigation state/runtime policy or M7 evaluation implementation into M3 processing decisions.
 
 ## Verification
 

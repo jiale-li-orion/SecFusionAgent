@@ -60,7 +60,7 @@ The subpackages keep lifecycle-specific storage out of the generic Knowledge mod
 - `promotion/` — explicit hot/source state → durable Evidence/Knowledge promotion;
 - `structured/` — GitHub `Repo / Issue / PullRequest / Commit / Release` mapping and graph relations;
 - `documents/` — managed document identity, revision, parser output, chunks, and InsightCandidate state;
-- `retrieval/` — PostgreSQL lexical/dense index build/read contracts for managed chunks;
+- `retrieval/` — PostgreSQL lexical/dense index build/read contracts plus reference-preserving Knowledge/Evidence context reads used by M4 Perception; retrieval returns candidates/refs and never grants factual authority by itself;
 - `incident/` — Redis signal/candidate correlation plus durable Incident revisions/timeline/source links after promotion; each source stream arrives with one primary role/path, while promotion and later material updates change Incident state rather than mutating the source definition;
 - `assets/` — provider-neutral time-bounded `AssetObservation` normalization;
 - `projections/` — materialized current views over durable state.
@@ -76,6 +76,8 @@ Incident signal input follows the single-valued `source_role` / `retention_mode`
 A managed document keeps provider/source revision identity separately from parsed/indexed state. Parsers support the media types explicitly registered by the collection runtime. A new parser or media type must be wired in both the parser layer and runtime ownership tests; recognizing a MIME type in a source definition without a parser owner is invalid.
 
 Document indexing produces lexical state first. Dense embedding and semantic extraction are optional runtime continuations when model configuration exists; lack of model credentials does not invalidate the lexical document path.
+
+`retrieval/context.py`, `operators.py`, and `validation.py` form the current M3→M4 read seam. They resolve current Knowledge/Evidence references and validate world revision/freshness for Investigation context. They intentionally remain below Investigation policy: deciding which evidence need to pursue, whether to perform external observation, and how to integrate a Percept belongs to `packages.investigation`.
 
 ## Current projections
 

@@ -3,14 +3,27 @@ from pathlib import Path
 
 PACKAGE_ROOT = Path("packages")
 
+ALLOWED_CROSS_PACKAGE_PREFIXES = {
+    "investigation": ("packages.intelligence.retrieval",),
+}
+
 ALLOWED_PACKAGE_DEPENDENCIES = {
     "shared": {"shared"},
     "sources": {"shared", "sources"},
     "intelligence": {"shared", "sources", "intelligence"},
-    "investigation": {"shared", "investigation"},
+    "investigation": {"shared", "investigation", "task_runtime"},
     "monitoring": {"shared", "sources", "intelligence", "monitoring"},
-    "enrichment": {"shared", "sources", "intelligence", "monitoring", "enrichment"},
+    "enrichment": {
+        "shared",
+        "sources",
+        "intelligence",
+        "monitoring",
+        "enrichment",
+        "task_runtime",
+    },
     "evaluation": {"shared", "sources", "intelligence", "evaluation"},
+    "task_runtime": {"shared", "task_runtime"},
+    "runtime": {"shared", "task_runtime", "runtime"},
 }
 
 
@@ -31,12 +44,22 @@ def test_package_dependency_direction() -> None:
                 if len(parts) < 2:
                     continue
                 target = parts[1]
-                if target not in allowed:
+                allowed_prefixes = ALLOWED_CROSS_PACKAGE_PREFIXES.get(owner, ())
+                if target not in allowed and not imported.startswith(allowed_prefixes):
                     violations.append(
                         f"{path}: {owner} -> {target} is outside allowed dependency set "
-                        f"{sorted(allowed)}"
+                        f"{sorted(allowed)} and public cross-package prefixes "
+                        f"{list(allowed_prefixes)}"
                     )
     assert violations == [], "\n".join(violations)
+
+
+def test_investigation_skills_are_not_owned_by_task_runtime() -> None:
+    misplaced = sorted((PACKAGE_ROOT / "task_runtime" / "skills").rglob("*.py"))
+    assert misplaced == [], (
+        "investigation Skill runtime belongs under packages/investigation/skills: "
+        + ", ".join(str(path) for path in misplaced)
+    )
 
 
 def _internal_imports(path: Path) -> list[str]:

@@ -24,6 +24,7 @@ from packages.sources.adapters.osv import OSVAdapter
 from packages.sources.adapters.rss_incident import RSSIncidentAdapter
 from packages.sources.adapters.scholarly_search import ScholarlySearchAdapter
 from packages.sources.adapters.shodan import ShodanAdapter
+from packages.sources.adapters.shodan_internetdb import ShodanInternetDBAdapter
 from packages.sources.adapters.slowmist_hacked import SlowMistHackedAdapter
 from packages.sources.adapters.x_user_signal import XUserSignalAdapter
 from packages.sources.contracts import SourceAdapter, SourceDefinition
@@ -68,6 +69,8 @@ def create_source_adapter(
         return HTMLIncidentAdapter(client)
     if source.adapter_type == "shodan":
         return ShodanAdapter(client, api_key=settings.shodan_api_key)
+    if source.adapter_type == "shodan_internetdb":
+        return ShodanInternetDBAdapter(client)
     if source.adapter_type == "slowmist_hacked":
         return SlowMistHackedAdapter(client)
     if source.adapter_type == "x_user_signal":

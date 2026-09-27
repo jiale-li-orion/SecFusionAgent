@@ -1,0 +1,37 @@
+{
+  "source_id": "shodan-internetdb-assets",
+  "adapter_type": "shodan_internetdb",
+  "source_class": "internet_asset_intelligence",
+  "authority_scope": [
+    "host_observation",
+    "service_port",
+    "hostname",
+    "software_fingerprint",
+    "observation_time"
+  ],
+  "source_role": "telemetry",
+  "source_family": "shodan",
+  "access_mode": "public_https_api",
+  "update_semantics": "on_demand_observation",
+  "discovery_method": {
+    "base_url": "https://internetdb.shodan.io"
+  },
+  "time_semantics": {
+    "observed_at": "collector_clock"
+  },
+  "identity_semantics": {
+    "external_object_id": "ip + port + transport"
+  },
+  "rate_limit_policy": {
+    "provider": "shodan-internetdb",
+    "passive_database": true
+  },
+  "access_rights": {
+    "classification": "public_api"
+  },
+  "retention_mode": "time_bounded",
+  "schedule_policy": {
+    "enabled": false
+  },
+  "schema_version": "1"
+}

@@ -688,7 +688,8 @@
       "mode": "fixed_provider",
       "coverage": "owned",
       "source_ids": [
-        "shodan-assets"
+        "shodan-assets",
+        "shodan-internetdb-assets"
       ]
     },
     {

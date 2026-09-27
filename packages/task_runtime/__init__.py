@@ -1,0 +1,1 @@
+"""Shared task runtime protocol."""

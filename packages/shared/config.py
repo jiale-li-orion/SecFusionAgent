@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://secfusion:secfusion@localhost:5432/secfusion"
     redis_broker_url: str = "redis://localhost:6379/0"
     redis_hot_cache_url: str = "redis://localhost:6380/0"
+    redis_task_bus_url: str = "redis://localhost:6381/0"
+    task_event_stream_name: str = "secfusion:task-events"
+    task_event_scheduler_group: str = "secfusion-task-scheduler"
+    task_event_claim_idle_ms: int = 30_000
     hot_cache_ttl_seconds: int = 30 * 24 * 60 * 60
     incident_signal_ttl_seconds: int = 7 * 24 * 60 * 60
     source_registry_path: Path = Path("config/sources")
@@ -23,6 +27,7 @@ class Settings(BaseSettings):
     s3_access_key: str = "secfusion"
     s3_secret_key: str = "change-me"
     s3_bucket: str = "secfusion-evidence"
+    runtime_artifact_bucket: str = "secfusion-runtime-artifacts"
     s3_region: str = "us-east-1"
 
     nvd_api_key: str | None = None

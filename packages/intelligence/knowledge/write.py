@@ -16,6 +16,7 @@ from packages.intelligence.knowledge.contracts import (
     KnowledgeOrigin,
     ObjectCandidate,
 )
+from packages.intelligence.knowledge.identity import stable_object_id
 from packages.intelligence.knowledge.vocabulary import (
     VocabularyScope,
     canonical_term,
@@ -355,7 +356,7 @@ async def _upsert_object(
     )
     if obj is None:
         obj = ObjectModel(
-            object_id=_stable_id(f"object:{candidate.object_type}:{candidate.canonical_key}"),
+            object_id=stable_object_id(candidate.object_type, candidate.canonical_key),
             object_type=candidate.object_type,
             canonical_key=candidate.canonical_key,
             properties=candidate.properties,

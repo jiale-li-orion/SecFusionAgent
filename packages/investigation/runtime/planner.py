@@ -1,0 +1,267 @@
+from __future__ import annotations
+
+from hashlib import sha256
+from typing import Protocol, cast
+
+from pydantic import BaseModel, Field, JsonValue
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from packages.investigation.perception.contracts import Percept
+from packages.investigation.runtime.context import (
+    materialize_investigation_context_fragments,
+    materialize_investigation_prompt,
+)
+from packages.investigation.runtime.contracts import (
+    DelegationAction,
+    InvestigationAction,
+    InvestigationFrame,
+    InvestigationPlannerDecision,
+    PerceptionAction,
+    StatePatchAction,
+)
+from packages.investigation.skills.contracts import SkillDisclosureLevel
+from packages.investigation.skills.materialize import materialize_skill_selection
+from packages.investigation.skills.resolver import SkillResolutionContext, SkillResolver
+from packages.investigation.skills.service import SkillStore
+from packages.shared.model_provider import ModelProvider
+from packages.task_runtime.context.contracts import ContextRefresh
+from packages.task_runtime.context.materializer import (
+    ContextMaterializer,
+    FragmentCacheClass,
+    FragmentTrustClass,
+    MaterializedFragment,
+)
+from packages.task_runtime.context.service import refresh_context
+from packages.task_runtime.contracts.roles import canonical_roles
+from packages.task_runtime.storage.service import (
+    get_task_context,
+    update_task_context,
+)
+
+
+class PlannerCapabilityContext(BaseModel):
+    capability_view_revision: str = "capability-view:none"
+    execution_profile_revision: str | None = None
+    visible_capability_classes: list[str] = Field(default_factory=list)
+    disclosure_fragments: list[MaterializedFragment] = Field(default_factory=list)
+    dynamic_fragments: list[MaterializedFragment] = Field(default_factory=list)
+    runtime_disclosure_refs: set[str] = Field(default_factory=set)
+
+
+class PlannerCapabilityContextProvider(Protocol):
+    async def resolve(
+        self,
+        *,
+        task_run_id: str,
+        frame: InvestigationFrame,
+    ) -> PlannerCapabilityContext: ...
+
+
+class EmptyPlannerCapabilityContextProvider:
+    async def resolve(
+        self,
+        *,
+        task_run_id: str,
+        frame: InvestigationFrame,
+    ) -> PlannerCapabilityContext:
+        del task_run_id, frame
+        return PlannerCapabilityContext()
+
+
+class ModelInvestigationPlanner:
+    def __init__(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+        provider: ModelProvider,
+        *,
+        materializer: ContextMaterializer,
+        skill_resolver: SkillResolver | None = None,
+        skill_store: SkillStore | None = None,
+        capability_context_provider: PlannerCapabilityContextProvider | None = None,
+        stream_name: str = "secfusion:task-events",
+    ) -> None:
+        self._session_factory = session_factory
+        self._provider = provider
+        self._materializer = materializer
+        self._skill_store = skill_store or SkillStore()
+        self._skill_resolver = skill_resolver or SkillResolver(self._skill_store)
+        self._capability_context_provider = (
+            capability_context_provider or EmptyPlannerCapabilityContextProvider()
+        )
+        self._stream_name = stream_name
+
+    async def next_action(self, frame: InvestigationFrame) -> InvestigationAction:
+        capability_context = await self._capability_context_provider.resolve(
+            task_run_id=frame.task_run_id,
+            frame=frame,
+        )
+        async with self._session_factory() as session, session.begin():
+            manifest = await get_task_context(session, frame.task_run_id)
+            context_fragments = await materialize_investigation_context_fragments(
+                session,
+                manifest,
+            )
+            object_types = _object_types(context_fragments)
+            role = canonical_roles()["InvestigationRole"]
+            selection = await self._skill_resolver.resolve(
+                session,
+                task=frame.task_contract,
+                role=role,
+                context=SkillResolutionContext(
+                    task_run_id=frame.task_run_id,
+                    object_types=object_types,
+                    visible_capability_classes=capability_context.visible_capability_classes,
+                    available_inputs=[
+                        "task_contract",
+                        "investigation_state",
+                        *(["last_percept"] if frame.last_percept is not None else []),
+                    ],
+                    state_signature=f"case:{frame.state.case_id}@{frame.state.case_revision}",
+                    capability_view_revision=capability_context.capability_view_revision,
+                ),
+                evidence_need=frame.selected_need,
+            )
+            if selection.selected_skill_ref is not None and selection.selected_skill_ref not in set(
+                manifest.skill_selection_refs
+            ):
+                manifest = refresh_context(
+                    manifest,
+                    ContextRefresh(
+                        context_revision=manifest.context_revision + 1,
+                        knowledge_revision=manifest.knowledge_revision,
+                        investigation_state_ref=manifest.investigation_state_ref,
+                        add_skill_selection_refs=[selection.selected_skill_ref],
+                        cache_hint=None,
+                    ),
+                )
+                await update_task_context(
+                    session,
+                    run_id=frame.task_run_id,
+                    manifest=manifest,
+                    stream_name=self._stream_name,
+                    producer="InvestigationRole:SkillResolver",
+                )
+
+            skill_fragments = await materialize_skill_selection(
+                session,
+                selection=selection,
+                disclosure_level=SkillDisclosureLevel.PROCEDURE,
+                store=self._skill_store,
+            )
+            ephemeral = _percept_fragments(frame.last_percept)
+            assembly = await materialize_investigation_prompt(
+                session,
+                task_run_id=frame.task_run_id,
+                materializer=self._materializer,
+                disclosure_fragments=[
+                    *capability_context.disclosure_fragments,
+                    *skill_fragments,
+                ],
+                additional_dynamic_fragments=capability_context.dynamic_fragments,
+                ephemeral_fragments=ephemeral,
+                runtime_disclosure_refs=capability_context.runtime_disclosure_refs,
+                percept_refs=[item.source_ref for item in ephemeral],
+                execution_profile_revision=capability_context.execution_profile_revision,
+            )
+
+        request = assembly.to_model_request()
+        request = request.model_copy(
+            update={
+                "metadata": {
+                    **request.metadata,
+                    "planner": "investigation-model-v1",
+                    "iteration": frame.iteration,
+                    "selected_need_id": (
+                        frame.selected_need.need_id if frame.selected_need is not None else None
+                    ),
+                    "model_provider": f"{self._provider.name}@{self._provider.version}",
+                }
+            }
+        )
+        decision = await self._provider.generate_structured(
+            request,
+            InvestigationPlannerDecision,
+        )
+        return _normalize_action(
+            decision.action,
+            frame=frame,
+            assembly_hash=assembly.assembly_hash,
+            provider_ref=f"{self._provider.name}@{self._provider.version}",
+            budget_ref=manifest.budget_ref,
+        )
+
+
+def _object_types(fragments: list[MaterializedFragment]) -> list[str]:
+    result: set[str] = set()
+    for fragment in fragments:
+        if fragment.kind != "knowledge_object" or not isinstance(fragment.content, dict):
+            continue
+        object_type = fragment.content.get("object_type")
+        if isinstance(object_type, str) and object_type:
+            result.add(object_type)
+    return sorted(result)
+
+
+def _percept_fragments(percept: Percept | None) -> list[MaterializedFragment]:
+    if percept is None:
+        return []
+    source_ref = (
+        percept.percept_id
+        if percept.percept_id.startswith("percept:")
+        else f"percept:{percept.percept_id}"
+    )
+    return [
+        MaterializedFragment.build(
+            kind="percept",
+            source_ref=source_ref,
+            source_revision=percept.request_id,
+            trust_class=FragmentTrustClass.UNTRUSTED_EXTERNAL,
+            cache_class=FragmentCacheClass.EPHEMERAL,
+            content=cast(JsonValue, percept.model_dump(mode="json")),
+        )
+    ]
+
+
+def _normalize_action(
+    action: InvestigationAction,
+    *,
+    frame: InvestigationFrame,
+    assembly_hash: str,
+    provider_ref: str,
+    budget_ref: str,
+) -> InvestigationAction:
+    if isinstance(action, PerceptionAction):
+        request_id = f"perception:{frame.task_run_id}:{frame.iteration}:{assembly_hash[:16]}"
+        request = action.request.model_copy(
+            update={
+                "request_id": request_id,
+                "case_id": frame.state.case_id,
+                "need_id": frame.selected_need.need_id if frame.selected_need else None,
+                "budget_ref": budget_ref,
+            }
+        )
+        return PerceptionAction(request=request)
+    if isinstance(action, StatePatchAction):
+        patch_id = f"patch:{frame.task_run_id}:{frame.iteration}:{assembly_hash[:16]}"
+        patch = action.patch.model_copy(
+            update={
+                "patch_id": patch_id,
+                "case_id": frame.state.case_id,
+                "base_case_revision": frame.state.case_revision,
+                "producer": f"InvestigationRole:model:{provider_ref}",
+                "model_prompt_revision": assembly_hash,
+            }
+        )
+        return StatePatchAction(patch=patch)
+    if isinstance(action, DelegationAction):
+        identity = sha256(
+            (
+                f"{frame.task_run_id}|{frame.iteration}|{assembly_hash}|"
+                f"{action.request.target_object_id}|{action.request.cve_id}|"
+                f"{','.join(sorted(action.request.required_dimensions))}"
+            ).encode()
+        ).hexdigest()[:24]
+        return DelegationAction(
+            request=action.request.model_copy(update={"delegation_id": f"delegation:{identity}"})
+        )
+    return action

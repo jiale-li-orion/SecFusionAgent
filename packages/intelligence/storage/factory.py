@@ -6,7 +6,11 @@ from packages.intelligence.storage.artifacts import S3ArtifactStore
 from packages.shared.config import Settings
 
 
-def create_s3_artifact_store(settings: Settings) -> S3ArtifactStore:
+def create_s3_artifact_store(
+    settings: Settings,
+    *,
+    bucket: str | None = None,
+) -> S3ArtifactStore:
     client = boto3.client(
         "s3",
         endpoint_url=settings.s3_endpoint_url,
@@ -14,4 +18,4 @@ def create_s3_artifact_store(settings: Settings) -> S3ArtifactStore:
         aws_secret_access_key=settings.s3_secret_key,
         region_name=settings.s3_region,
     )
-    return S3ArtifactStore(client, bucket=settings.s3_bucket)
+    return S3ArtifactStore(client, bucket=bucket or settings.s3_bucket)

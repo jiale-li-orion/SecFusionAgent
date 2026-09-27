@@ -43,7 +43,7 @@ class AssetObservationService:
         )
         return [
             AssetObservationResult(
-                observation=_map_asset_observation(envelope),
+                observation=map_asset_observation(envelope),
                 envelope=envelope,
             )
             for envelope in envelopes
@@ -58,7 +58,7 @@ class AssetObservationService:
         return await self._evidence_ingress.accept(session, source, result.envelope)
 
 
-def _map_asset_observation(envelope: IngestEnvelope) -> AssetObservation:
+def map_asset_observation(envelope: IngestEnvelope) -> AssetObservation:
     payload = envelope.json_payload
     ip_value = payload.get("ip")
     if isinstance(ip_value, int) and not isinstance(ip_value, bool):
@@ -97,6 +97,8 @@ def _map_asset_observation(envelope: IngestEnvelope) -> AssetObservation:
         asn=_optional_string(payload.get("asn")),
         cpe=_string_list(payload.get("cpe")),
         location=_json_object(payload.get("location")),
+        discovery_context=_json_object(envelope.request_metadata.get("discovery_context")),
+        relation_context=_json_object(envelope.request_metadata.get("relation_context")),
     )
 
 

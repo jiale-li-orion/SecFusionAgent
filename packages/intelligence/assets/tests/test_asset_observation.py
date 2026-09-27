@@ -119,7 +119,7 @@ async def test_shodan_requires_explicit_api_key() -> None:
 
 
 def test_asset_observation_accepts_provider_neutral_normalized_payload() -> None:
-    from packages.enrichment.assets.service import _map_asset_observation
+    from packages.enrichment.assets.service import map_asset_observation
     from packages.sources.contracts import IngestEnvelope
 
     envelope = IngestEnvelope.for_json_payload(
@@ -146,7 +146,7 @@ def test_asset_observation_accepts_provider_neutral_normalized_payload() -> None
         request_metadata={"provider": "censys", "query": "vllm"},
         observed_at=NOW,
     )
-    observation = _map_asset_observation(envelope)
+    observation = map_asset_observation(envelope)
     assert observation.provider == "censys"
     assert observation.ip == "198.51.100.20"
     assert observation.port == 443

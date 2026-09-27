@@ -1,4 +1,4 @@
-.PHONY: sync lint format typecheck test check site-check site-status dev-up dev-down migrate sync-sources worker worker-collection scheduler probe-nvd promote-hot
+.PHONY: sync lint format typecheck test check site-check site-status dev-up dev-down migrate sync-sources sync-skills worker worker-collection scheduler task-event-dispatcher task-event-scheduler probe-nvd promote-hot
 
 WIKI_PATH ?= ../SecFusionAgent.wiki
 SITE_STATUS_OUTPUT ?= $(WIKI_PATH)/site/project-status.json
@@ -27,17 +27,21 @@ site-status:
 	python3 scripts/build_site_status.py --repo . --wiki $(WIKI_PATH) --output $(SITE_STATUS_OUTPUT)
 
 dev-up:
-	docker compose -f deploy/docker-compose.yml up -d postgres redis-broker redis-cache minio
+	docker compose -f deploy/docker-compose.yml up -d postgres redis-broker redis-cache redis-task-bus minio
 
 .PHONY: dev-up-core
 dev-up-core:
-	docker compose -f deploy/docker-compose.yml up -d --wait postgres redis-broker redis-cache
+	docker compose -f deploy/docker-compose.yml up -d --wait postgres redis-broker redis-cache redis-task-bus
 
 .PHONY: integration-core
-integration-core: dev-up-core migrate sync-sources
+integration-core: dev-up-core migrate sync-sources sync-skills
 	SECFUSION_RUN_INTEGRATION=1 uv run pytest -m integration \
 		tests/integration/test_core_infrastructure.py \
-		tests/integration/test_m3_handoff.py
+		tests/integration/test_m3_handoff.py \
+		tests/integration/test_task_runtime_protocol.py \
+		tests/integration/test_enrichment_task_runtime.py \
+		tests/integration/test_investigation_runtime.py \
+		tests/integration/test_runtime_control_plane.py
 
 dev-down:
 	docker compose -f deploy/docker-compose.yml down
@@ -48,6 +52,9 @@ migrate:
 sync-sources:
 	uv run python -m scripts.sync_sources
 
+sync-skills:
+	uv run python -m scripts.sync_skills
+
 worker:
 	uv run celery -A apps.worker.celery_app:celery_app worker -l INFO -Q collection,enrichment,indexing
 
@@ -56,6 +63,12 @@ worker-collection:
 
 scheduler:
 	uv run python -m apps.worker.scheduler
+
+task-event-dispatcher:
+	uv run python -m apps.worker.task_event_dispatcher
+
+task-event-scheduler:
+	uv run python -m apps.worker.task_event_scheduler
 
 probe-nvd:
 	uv run python -m scripts.probe_nvd_hot --limit 20

@@ -15,7 +15,7 @@ The Agent here sits on top of a verifiable data plane. External reads carry acqu
 
 ## Project status
 
-SecFusionAgent is at the **M1–M3 Data Plane / M3→M4 storage-read handoff verified / semantic-enrichment contract frozen** stage. The data plane covers hot vulnerability working sets, durable evidence/canonical knowledge, provider enrichment, Incident Watch, managed HTML/PDF/plain documents, GitHub development objects, materialized current views, time-bounded Internet asset observations and the Case/Trajectory/Experience storage seam. `enrichment-v1` now fixes canonical/source-specific/exploratory vocabulary ownership and the closed-set enrichment evaluation unit; remaining canonical-CWE/PoC/EPSS/applicability/asset-join/paper-relation work stays explicit M3 implementation backlog. `make verify-m3` verifies the storage/read handoff with fast tests, source ownership/lifecycle checks, real PostgreSQL/pgvector/FTS, separated Redis failure domains, outbox→Celery replay/idempotency and a real S3-compatible ArtifactStore round trip. M4 task routing, query construction, retrieval/perception, investigation state, Agent runtime and M6 decision remain outside the M1–M3 data-plane implementation and are specified in Technical Design 2.
+SecFusionAgent has reached **Technical Design 2 Slice 7 canonical VERIFY closure, with the Slice 8 scheduling/wake substrate now implemented** on top of the M1–M3 evidence/data plane. The repository contains the durable Task Runtime and duplex TaskEvent bus, M3 `EnrichmentRole`, M4 Investigation State/Perception, bounded `InvestigationRole`, Context handoff/materialization, Skill resolution, Capability/Policy/Budget control planes, Sandbox v1 control-plane contracts, and a canonical `VerifyFixBoundary` E2E. The VERIFY path covers direct external observation promotion and the missing-evidence branch `InvestigationRole → delegated EnrichmentRole → durable Knowledge update → TaskEvent/Redis wake → parent resume → local Evidence Perception → StatePatch Gate → completion`. Slice 8 now also has an explicit Task Runtime scheduler owner, replay-safe Redis consumer-group wake semantics, terminal short WATCH episodes, and world-change derivation of a fresh queued WATCH TaskRun. Remaining Slice 8 work is live worker composition for those queued Investigation runs and the `WATCH_RESUME` policy path. Real OpenShell/Firecracker substrate acceptance, TD2 context-ablation evaluation, M6 Decision/A2A and M7 replay/SkillPatch also remain open boundaries.
 
 The current local quality gate:
 
@@ -25,7 +25,7 @@ mypy        static type checking
 pytest      domain, replay, state-transition and contract tests
 ```
 
-Repository CI continuously runs `ruff`, `mypy`, and `pytest`. The current fast gate is **119 passed + 6 infrastructure tests skipped by default**. `make integration-core` runs **5/5** real PostgreSQL/pgvector/FTS, Redis, outbox/Celery and M3-handoff tests; `make integration-object-store` runs the real S3-compatible ArtifactStore round trip. The last recorded live-probe snapshot is **41 OK / 10 provider-blocked / 5 transient failures / 1 rate-limited / 7 auth-required**. It is a point-in-time reachability report, not an M3 acceptance gate; anti-bot, network, rate-limit and credential handling remain later provider-hardening work. Fast SQLite/fixture tests remain useful for deterministic contracts but are not treated as infrastructure evidence.
+Repository CI continuously runs `ruff`, `mypy`, and `pytest`. The current local fast gate is **303 passed + 11 infrastructure tests skipped by default**, with `mypy` clean across **360 source files**. `make integration-core` runs **10/10** real PostgreSQL/pgvector/FTS, separated Redis domains, Task Runtime/Event Plane scheduling, EnrichmentRole, InvestigationRole and runtime-control-plane tests; `make integration-object-store` runs the real S3-compatible ArtifactStore round trip. The last recorded live-probe snapshot is **41 OK / 10 provider-blocked / 5 transient failures / 1 rate-limited / 7 auth-required**. It is a point-in-time reachability report rather than an acceptance gate; anti-bot, network, rate-limit and credential handling remain provider-hardening work. Fast SQLite/fixture tests remain useful for deterministic contracts but are not treated as infrastructure evidence.
 
 ## System overview
 
@@ -49,10 +49,12 @@ The system maintains source protocols, runtime lifecycle, canonical knowledge an
 | Current Projection | knowledge / incident change → transactional outbox → vulnerability / affected-version / fix-status / repo-security / incident views | Provide low-cost retrieval-ready current state while preserving underlying history, evidence and conflicts |
 | Internet Asset Observation | on-demand Shodan / Censys / FOFA / ZoomEye → provider-normalized AssetObservation → explicit EvidenceIngress promotion | Preserve query/provider/time provenance without turning volatile asset search results into permanent knowledge by default |
 | Investigation Memory | Case → append-only Trajectory → Experience candidate / version / evaluation | Store evaluable, versioned procedural experience for later Agent investigation |
+| Task / Investigation Runtime | TaskContract → durable TaskRun/TaskEvent → versioned ContextManifest → bounded Role episode → wait/resume/replay | Give Agent work explicit lifecycle, delegation, context and completion semantics instead of an unbounded chat loop |
+| Canonical VERIFY | VerifyFixBoundary Skill + ModelInvestigationPlanner → Perception → Capability/Policy/Budget → Evidence promotion or delegated EnrichmentRole → StatePatch Gate | Verify a fix boundary through durable evidence while keeping model output outside fact authority |
 
 Built-in source definitions live in [`config/sources/`](config/sources/); whether a source enters the hot cache, the durable corpus, the structured index or incident staging is decided explicitly by `SourceDefinition.retention_mode`.
 
-The concrete source commitments projected by the website are tracked in [`config/source-inventory.json`](config/source-inventory.json). The current inventory maps **99/99 website entries** to either a fixed/grouped source owner or an executable dynamic resolver. The repository currently contains **63 SourceDefinition records**, all of which have a live-probe owner; the real PostgreSQL registry also syncs all 63 definitions and source states. `make source-inventory-check` verifies Chinese-catalog identity plus bilingual catalog structural parity, while `make verify-data-sources` adds deterministic source/runtime ownership tests. `make probe-live-sources` is kept as a manual reachability report. Lifecycle tests additionally require every configured retention mode to have an executable runtime owner: `time_bounded` sources stay out of the scheduler and have an explicit downstream consumer, every Hot Bug adapter has both hot and durable normalization, and every Incident adapter has a registered signal extractor.
+The concrete source commitments projected by the website are tracked in [`config/source-inventory.json`](config/source-inventory.json). The current inventory maps **99/99 website entries** to either a fixed/grouped source owner or an executable dynamic resolver. The repository currently contains **64 SourceDefinition records**; the real PostgreSQL registry syncs all 64 definitions and source states. `make source-inventory-check` verifies Chinese-catalog identity plus bilingual catalog structural parity, while `make verify-data-sources` adds deterministic source/runtime ownership tests. `make probe-live-sources` is kept as a manual reachability report. Lifecycle tests additionally require every configured retention mode to have an executable runtime owner: `time_bounded` sources stay out of the scheduler and have an explicit downstream consumer, every Hot Bug adapter has both hot and durable normalization, and every Incident adapter has a registered signal extractor.
 
 ## Evidence and knowledge model
 
@@ -312,16 +314,14 @@ Repository organization and contribution rules are defined by [`PRODUCT-REPO-STA
 
 ## Roadmap
 
-The next engineering boundary is the transition from the verified M3 handoff into the Investigation / Retrieval / Reasoning plane:
+The next engineering boundary starts after the canonical VERIFY closure rather than below M4:
 
-- run one live semantic+dense provider E2E once model credentials/endpoint are supplied;
-- validate deterministic fix-boundary promotion on a real target-repo OSV `GIT fixed` sample when one is available;
-- keep provider-access blockers explicit while preserving the closed source-lifecycle contracts;
-- extend Incident primary/forensic follow-up and on-chain telemetry beyond the current source set;
-- implement the Technical Design 2 fast path: `TaskSpec → ContextBinding → ExecutionProfile → L0/L1 query`;
-- add M4 `InvestigationState / EvidenceNeed / StatePatch / InvestigationSnapshot` and local Perception reads over the verified M3 state;
-- add dynamic capability visibility, hierarchical budgets, bounded loops and sandbox/network/identity enforcement before active Agent investigation;
-- establish M6 `DecisionResult` plus fixed M7 replay/evaluation protocols for routing, perception, state integration and evidence use;
-- add security regression for poisoned sources, indirect prompt injection, malicious tool output and privilege boundaries.
+- complete real Sandbox v1 substrate acceptance for filesystem/network/credential isolation, OpenShell containers and Firecracker microVMs;
+- run the TD2 `reference vs summary` context evaluation for token cost, critical-context retention and stale-context failure rate;
+- finish Slice 8 live composition by enforcing `WATCH_RESUME` policy and wiring queued Investigation TaskRuns into the unified Role executor; the Redis/relevance/replay wake substrate is already in place;
+- implement M6 `DecisionResult` and A2A Task/Artifact/stream/push mappings without bypassing Task Runtime authority;
+- implement M7 checkpoint/replay and `Experience → SkillPatchCandidate → regression → promotion` gates;
+- run one live semantic+dense provider E2E once model credentials/endpoint are supplied and validate deterministic fix-boundary promotion on a real target-repo OSV `GIT fixed` sample;
+- keep provider-access blockers explicit and extend security regression for poisoned sources, indirect prompt injection, malicious tool output and privilege boundaries.
 
 Requirements remain the authority for product scope; roadmap ordering follows dependency and integration risk rather than UI completeness.

@@ -1,0 +1,90 @@
+from __future__ import annotations
+
+from enum import StrEnum
+from typing import Annotated, Literal, Protocol
+
+from pydantic import BaseModel, Field
+
+from packages.investigation.perception.contracts import Percept, PerceptionRequest
+from packages.investigation.state.contracts import EvidenceNeed, InvestigationState, StatePatch
+from packages.task_runtime.contracts.models import TaskContract
+
+
+class InvestigationActionKind(StrEnum):
+    PERCEIVE = "perceive"
+    DELEGATE = "delegate"
+    PATCH = "patch"
+    WAIT = "wait"
+    STOP = "stop"
+
+
+class PerceptionAction(BaseModel):
+    kind: Literal[InvestigationActionKind.PERCEIVE] = InvestigationActionKind.PERCEIVE
+    request: PerceptionRequest
+
+
+class EnrichmentDelegationRequest(BaseModel):
+    delegation_id: str
+    target_object_id: str
+    cve_id: str
+    required_dimensions: list[str] = Field(min_length=1)
+    reason: str
+
+
+class DelegationAction(BaseModel):
+    kind: Literal[InvestigationActionKind.DELEGATE] = InvestigationActionKind.DELEGATE
+    request: EnrichmentDelegationRequest
+
+
+class DelegationResult(BaseModel):
+    child_run_id: str
+    child_context_ref: str
+    child_execution_ref: str
+
+
+class InvestigationDelegationPort(Protocol):
+    async def delegate_enrichment(
+        self,
+        *,
+        parent_run_id: str,
+        request: EnrichmentDelegationRequest,
+    ) -> DelegationResult: ...
+
+
+class StatePatchAction(BaseModel):
+    kind: Literal[InvestigationActionKind.PATCH] = InvestigationActionKind.PATCH
+    patch: StatePatch
+
+
+class WaitAction(BaseModel):
+    kind: Literal[InvestigationActionKind.WAIT] = InvestigationActionKind.WAIT
+    reason: str = "waiting_for_world_update"
+
+
+class StopAction(BaseModel):
+    kind: Literal[InvestigationActionKind.STOP] = InvestigationActionKind.STOP
+    reason: str
+
+
+InvestigationAction = Annotated[
+    PerceptionAction | DelegationAction | StatePatchAction | WaitAction | StopAction,
+    Field(discriminator="kind"),
+]
+
+
+class InvestigationPlannerDecision(BaseModel):
+    action: InvestigationAction
+    decision_note: str | None = None
+
+
+class InvestigationFrame(BaseModel):
+    task_run_id: str
+    task_contract: TaskContract
+    state: InvestigationState
+    selected_need: EvidenceNeed | None = None
+    iteration: int
+    last_percept: Percept | None = None
+
+
+class InvestigationPlanner(Protocol):
+    async def next_action(self, frame: InvestigationFrame) -> InvestigationAction: ...

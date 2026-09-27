@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from packages.investigation.state.contracts import CaseLifecycle
 from packages.investigation.storage.models import (
     InvestigationCaseModel,
     InvestigationTrajectoryModel,
@@ -58,18 +59,23 @@ class TrajectoryService:
         case = await session.get(InvestigationCaseModel, case_id)
         if case is None:
             raise LookupError(f"investigation case not found: {case_id}")
-        if case.status == "closed":
-            raise ValueError("cannot start a trajectory for a closed case")
-        if case.status == "running":
-            running = await session.scalar(
-                select(InvestigationTrajectoryModel.trajectory_id).where(
-                    InvestigationTrajectoryModel.case_id == case_id,
-                    InvestigationTrajectoryModel.status == "running",
-                )
+        if case.status in {CaseLifecycle.CLOSED.value, CaseLifecycle.CANCELLED.value}:
+            raise ValueError(f"cannot start a trajectory for a {case.status} case")
+        running = await session.scalar(
+            select(InvestigationTrajectoryModel.trajectory_id).where(
+                InvestigationTrajectoryModel.case_id == case_id,
+                InvestigationTrajectoryModel.status == "running",
             )
-            if running is not None:
-                raise ValueError("investigation case already has a running trajectory")
-        case.status = "running"
+        )
+        if running is not None:
+            raise ValueError("investigation case already has a running trajectory")
+        if case.status in {
+            "open",
+            "running",
+            CaseLifecycle.CREATED.value,
+            CaseLifecycle.WAITING.value,
+        }:
+            case.status = CaseLifecycle.ACTIVE.value
         model = InvestigationTrajectoryModel(
             trajectory_id=str(uuid4()),
             case_id=case_id,
@@ -168,9 +174,6 @@ class TrajectoryService:
         )
         trajectory.outcome_summary = outcome_summary or {}
         trajectory.cost = cost
-        case = await session.get(InvestigationCaseModel, trajectory.case_id)
-        if case is not None and case.status == "running":
-            case.status = "open"
         await session.flush()
         return _trajectory_view(trajectory)
 

@@ -1,0 +1,67 @@
+{
+  "status": "pre-schema-asset-seed",
+  "case_key": "huggingface-agent-intrusion-2026",
+  "observed_at": "2026-09-26T16:24:22Z",
+  "discovery_target": {
+    "hostname": "datasets-server.huggingface.co",
+    "dns_context": {
+      "source": "public DNS intelligence",
+      "observed_ipv4_candidates": [
+        "18.165.98.58",
+        "18.165.98.65",
+        "18.165.98.76",
+        "18.165.98.79"
+      ],
+      "note": "These are CDN-edge addresses associated with the public hostname; they do not establish origin-server identity."
+    }
+  },
+  "provider": {
+    "name": "Shodan InternetDB",
+    "query": "ip=18.165.98.58",
+    "endpoint": "https://internetdb.shodan.io/18.165.98.58",
+    "access_mode": "public passive asset database",
+    "active_scan_performed": false
+  },
+  "raw_result": {
+    "ip": "18.165.98.58",
+    "ports": [80],
+    "hostnames": [
+      "server-18-165-98-58.iad55.r.cloudfront.net"
+    ],
+    "cpes": [
+      "cpe:/a:amazon:amazon_cloudfront"
+    ],
+    "tags": [
+      "cloud",
+      "cdn"
+    ],
+    "vulns": []
+  },
+  "normalized_candidate": {
+    "ip": "18.165.98.58",
+    "port": 80,
+    "transport": "tcp",
+    "hostnames": [
+      "server-18-165-98-58.iad55.r.cloudfront.net"
+    ],
+    "product": "Amazon CloudFront",
+    "version": null,
+    "cpe": [
+      "cpe:/a:amazon:amazon_cloudfront"
+    ],
+    "organization": null,
+    "asn": null
+  },
+  "relation_to_case": {
+    "type": "public-service-asset-observation",
+    "scope": "datasets-server public endpoint",
+    "strength": "context-only",
+    "note": "This snapshot shows a public CDN edge currently associated with the Dataset Server hostname context. It does not prove Hugging Face ownership of the IP, origin infrastructure identity, compromise, attack-path participation, or exposure of an internal worker."
+  },
+  "guardrails": [
+    "Do not treat a CDN edge IP as the application origin.",
+    "Do not infer that ports absent from InternetDB are closed.",
+    "Do not infer compromise or attack-chain participation from presence in this snapshot.",
+    "Do not merge this observation with a durable InternetAsset object until the final asset source/query ownership contract is fixed."
+  ]
+}

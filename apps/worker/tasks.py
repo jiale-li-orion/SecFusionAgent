@@ -2,6 +2,7 @@ import asyncio
 from pathlib import Path
 
 import httpx
+from sqlalchemy import select
 
 from apps.worker.celery_app import celery_app
 from packages.enrichment.graph.fix_boundary import DeterministicFixBoundaryService
@@ -9,6 +10,10 @@ from packages.enrichment.graph.github_references import GitHubReferenceGraphServ
 from packages.enrichment.normative.service import NormativeKnowledgeService
 from packages.enrichment.planner import VulnerabilityEnrichmentPlanner
 from packages.enrichment.providers.factory import create_configured_ai_provider
+from packages.enrichment.runtime.executor import DefaultEnrichmentOperatorExecutor
+from packages.enrichment.runtime.role import EnrichmentRoleRuntime
+from packages.enrichment.runtime.state_models import EnrichmentAttemptModel
+from packages.enrichment.runtime.tasks import ensure_background_vulnerability_enrichment_run
 from packages.enrichment.semantic.documents import DocumentSemanticService
 from packages.enrichment.service import VulnerabilityEnrichmentService
 from packages.intelligence.ingestion.evidence import EvidenceIngress
@@ -18,12 +23,15 @@ from packages.intelligence.retrieval.indexing import DocumentIndexService
 from packages.intelligence.storage.document_models import DocumentRevisionModel
 from packages.intelligence.storage.evidence_models import ObservationModel
 from packages.intelligence.storage.factory import create_s3_artifact_store
+from packages.investigation.state.world_change import KnowledgeChangeNotice, WorldChangeService
 from packages.monitoring.acquisition.service import AcquisitionService
 from packages.monitoring.runtime import execute_collection_run
 from packages.shared.config import get_settings
 from packages.shared.db import create_engine, create_session_factory
 from packages.sources.adapters.factory import create_source_adapter
 from packages.sources.registry.loader import load_source_definitions
+from packages.task_runtime.contracts.models import TERMINAL_TASK_RUN_STATUSES
+from packages.task_runtime.storage.service import get_task_run
 
 
 @celery_app.task(name="secfusion.collection.run")
@@ -54,9 +62,15 @@ def index_document_revision(payload: dict[str, object]) -> int:
 async def _rebuild_knowledge_projections(payload: dict[str, object]) -> int:
     revision = payload.get("revision")
     object_ids = payload.get("object_ids")
+    claim_ids = payload.get("claim_ids", [])
+    relation_ids = payload.get("relation_ids", [])
     if not isinstance(revision, int) or not isinstance(object_ids, list):
         raise ValueError("knowledge.changed payload requires revision and object_ids")
+    if not isinstance(claim_ids, list) or not isinstance(relation_ids, list):
+        raise ValueError("knowledge.changed claim_ids/relation_ids must be lists")
     normalized_ids = [item for item in object_ids if isinstance(item, str)]
+    normalized_claim_ids = [item for item in claim_ids if isinstance(item, str)]
+    normalized_relation_ids = [item for item in relation_ids if isinstance(item, str)]
     settings = get_settings()
     engine = create_engine(settings.database_url)
     factory = create_session_factory(engine)
@@ -71,6 +85,15 @@ async def _rebuild_knowledge_projections(payload: dict[str, object]) -> int:
                     upstream_revision=revision,
                 )
                 changed += sum(1 for result in results if result.changed)
+            await WorldChangeService().process(
+                session,
+                KnowledgeChangeNotice(
+                    revision=revision,
+                    object_ids=normalized_ids,
+                    claim_ids=normalized_claim_ids,
+                    relation_ids=normalized_relation_ids,
+                ),
+            )
         return changed
     finally:
         await engine.dispose()
@@ -78,11 +101,14 @@ async def _rebuild_knowledge_projections(payload: dict[str, object]) -> int:
 
 async def _enrich_vulnerability(payload: dict[str, object]) -> int:
     cve_id = payload.get("cve_id")
-    parent_run_id = payload.get("parent_run_id")
+    object_id = payload.get("object_id")
+    trigger_ref = payload.get("parent_run_id")
     if not isinstance(cve_id, str):
         raise ValueError("enrichment.requested payload requires cve_id")
-    if parent_run_id is not None and not isinstance(parent_run_id, str):
-        raise ValueError("enrichment.requested parent_run_id must be a string")
+    if not isinstance(object_id, str) or not object_id:
+        raise ValueError("enrichment.requested payload requires object_id")
+    if not isinstance(trigger_ref, str) or not trigger_ref:
+        raise ValueError("enrichment.requested payload requires parent_run_id trigger provenance")
 
     settings = get_settings()
     engine = create_engine(settings.database_url)
@@ -100,6 +126,25 @@ async def _enrich_vulnerability(payload: dict[str, object]) -> int:
         "github-target-repos",
     ]
     try:
+        async with factory() as session, session.begin():
+            task_run_id = await ensure_background_vulnerability_enrichment_run(
+                session,
+                object_id=object_id,
+                cve_id=cve_id,
+                trigger_ref=trigger_ref,
+                stream_name=settings.task_event_stream_name,
+            )
+            task_run = await get_task_run(session, task_run_id)
+            if task_run.status in TERMINAL_TASK_RUN_STATUSES:
+                attempted = set(
+                    await session.scalars(
+                        select(EnrichmentAttemptModel.operator_id).where(
+                            EnrichmentAttemptModel.task_run_id == task_run_id
+                        )
+                    )
+                )
+                return len(attempted)
+
         async with httpx.AsyncClient(timeout=30.0) as client:
             adapters = {
                 source_id: create_source_adapter(
@@ -109,42 +154,44 @@ async def _enrich_vulnerability(payload: dict[str, object]) -> int:
                 )
                 for source_id in provider_ids
             }
-            service = VulnerabilityEnrichmentService(
+            acquisition = AcquisitionService(factory)
+            evidence_ingress = EvidenceIngress(artifact_store)
+            writer = EvidenceBackedKnowledgeWriter()
+            provider_service = VulnerabilityEnrichmentService(
                 factory,
-                AcquisitionService(factory),
-                EvidenceIngress(artifact_store),
-                EvidenceBackedKnowledgeWriter(),
+                acquisition,
+                evidence_ingress,
+                writer,
                 VulnerabilityEnrichmentPlanner(),
                 source_definitions,
                 adapters,
             )
-            results = await service.enrich_cve(
-                cve_id,
-                parent_run_id=parent_run_id,
-            )
-            graph_results = await GitHubReferenceGraphService(
+            graph_service = GitHubReferenceGraphService(
                 factory,
-                AcquisitionService(factory),
-                EvidenceIngress(artifact_store),
-                EvidenceBackedKnowledgeWriter(),
+                acquisition,
+                evidence_ingress,
+                writer,
                 source_definitions,
                 adapters,
-            ).enrich_cve(
-                cve_id,
-                parent_run_id=parent_run_id,
             )
-            fix_results = await DeterministicFixBoundaryService(
+            fix_service = DeterministicFixBoundaryService(
                 factory,
-                AcquisitionService(factory),
-                EvidenceIngress(artifact_store),
-                EvidenceBackedKnowledgeWriter(),
+                acquisition,
+                evidence_ingress,
+                writer,
                 source_definitions,
                 adapters,
-            ).enrich_cve(
-                cve_id,
-                parent_run_id=parent_run_id,
             )
-            return len(results) + len(graph_results) + len(fix_results)
+            outcome = await EnrichmentRoleRuntime(
+                factory,
+                DefaultEnrichmentOperatorExecutor(
+                    provider_service,
+                    graph_service,
+                    fix_service,
+                ),
+                stream_name=settings.task_event_stream_name,
+            ).run(task_run_id)
+            return len(outcome.result.attempted_operators)
     finally:
         await engine.dispose()
 

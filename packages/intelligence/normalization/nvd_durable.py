@@ -10,6 +10,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.intelligence.ingestion.evidence import ObservationAck
+from packages.intelligence.knowledge.identity import (
+    cve_canonical_key,
+    vulnerability_cve_object_id,
+)
 from packages.intelligence.knowledge.vocabulary import (
     VocabularyScope,
     classify_term,
@@ -102,13 +106,13 @@ class ProjectedVulnerabilityCanonicalNormalizer:
         if not isinstance(cve_id, str):
             raise ValueError("NVD canonical normalization requires cve_id")
 
-        object_id = _stable_id(f"object:vulnerability:cve:{cve_id.upper()}")
+        object_id = vulnerability_cve_object_id(cve_id)
         vulnerability = await session.get(ObjectModel, object_id)
         if vulnerability is None:
             vulnerability = ObjectModel(
                 object_id=object_id,
                 object_type="Vulnerability",
-                canonical_key=f"cve:{cve_id.upper()}",
+                canonical_key=cve_canonical_key(cve_id),
                 properties={"display_name": cve_id.upper()},
                 created_revision=revision.revision,
             )

@@ -19,9 +19,21 @@ from packages.intelligence.hot_cache.redis import RedisHotBugCache
 from packages.intelligence.ingestion.evidence import EvidenceIngress
 from packages.intelligence.retrieval.contracts import EmbeddingBatch
 from packages.intelligence.retrieval.indexing import DocumentIndexService
+from packages.intelligence.retrieval.operators import (
+    DenseRetrievalOperator,
+    LexicalRetrievalOperator,
+)
 from packages.intelligence.storage.artifacts import MemoryArtifactStore
 from packages.intelligence.storage.knowledge_models import KnowledgeRevisionModel, ObjectModel
 from packages.intelligence.storage.projection_models import CurrentProjectionModel
+from packages.investigation.perception.contracts import (
+    EvidenceRequirement,
+    PerceptionOperation,
+    PerceptionRequest,
+    PerceptionTarget,
+)
+from packages.investigation.perception.planner import PerceptionPlanner
+from packages.investigation.perception.runtime import PerceptionRuntime
 from packages.monitoring.storage.models import AcquisitionRunModel
 from packages.shared.config import get_settings
 from packages.shared.db import create_engine, create_session_factory
@@ -141,6 +153,53 @@ async def test_postgres_fts_pgvector_and_managed_document_roundtrip() -> None:
                 assert distance is not None
                 assert float(distance) == pytest.approx(0.0)
 
+                lexical_candidates = await LexicalRetrievalOperator().search(
+                    session,
+                    query="authentication",
+                    source_ids=[SOURCE.source_id],
+                )
+                assert lexical_candidates
+                assert lexical_candidates[0].source_id == SOURCE.source_id
+                assert lexical_candidates[0].score_channels["lexical"] > 0
+
+                dense_candidates = await DenseRetrievalOperator().search(
+                    session,
+                    query_vector=[1.0, 0.0, 0.0],
+                    source_ids=[SOURCE.source_id],
+                )
+                assert dense_candidates
+                assert dense_candidates[0].source_id == SOURCE.source_id
+                assert dense_candidates[0].score_channels["dense"] == pytest.approx(1.0)
+
+                request = PerceptionRequest(
+                    request_id=f"integration-perception-{external_id}",
+                    operation=PerceptionOperation.SEARCH,
+                    target=PerceptionTarget(
+                        query_text="authentication",
+                        query_vector=[1.0, 0.0, 0.0],
+                        source_ids=[SOURCE.source_id],
+                    ),
+                    evidence_requirement=EvidenceRequirement(
+                        min_independent_sources=1,
+                        max_candidates=5,
+                    ),
+                )
+                percept = await PerceptionRuntime().execute(
+                    session,
+                    request=request,
+                    plan=PerceptionPlanner().plan(request),
+                )
+                assert percept.candidate_evidence
+                assert percept.independent_source_keys == ["family:arxiv"]
+                assert percept.unresolved == []
+                assert percept.operator_counts == {"lexical": 1, "dense": 1}
+                merged = next(
+                    item
+                    for item in percept.candidate_evidence
+                    if "lexical" in item.score_channels and "dense" in item.score_channels
+                )
+                assert merged.source_id == SOURCE.source_id
+
                 extension = await session.scalar(
                     text("SELECT extversion FROM pg_extension WHERE extname='vector'")
                 )
@@ -156,6 +215,7 @@ async def test_real_redis_hot_cache_and_failure_domains() -> None:
     settings = get_settings()
     hot_client = Redis.from_url(settings.redis_hot_cache_url, decode_responses=True)
     broker_client = Redis.from_url(settings.redis_broker_url, decode_responses=True)
+    task_bus_client = Redis.from_url(settings.redis_task_bus_url, decode_responses=True)
     cache = RedisHotBugCache(hot_client)
     external_id = f"CVE-INTEGRATION-{uuid4()}"
     record = HotBugRecord(
@@ -172,8 +232,10 @@ async def test_real_redis_hot_cache_and_failure_domains() -> None:
     try:
         broker_policy = await broker_client.config_get("maxmemory-policy")
         hot_policy = await hot_client.config_get("maxmemory-policy")
+        task_bus_policy = await task_bus_client.config_get("maxmemory-policy")
         assert broker_policy.get("maxmemory-policy") == "noeviction"
         assert hot_policy.get("maxmemory-policy") == "allkeys-lfu"
+        assert task_bus_policy.get("maxmemory-policy") == "noeviction"
 
         await cache.admit(record, ttl_seconds=30)
         assert await cache.get(record.source_id, external_id) is not None
@@ -192,6 +254,7 @@ async def test_real_redis_hot_cache_and_failure_domains() -> None:
         await cache.evict(record.source_id, external_id)
         await hot_client.aclose()
         await broker_client.aclose()
+        await task_bus_client.aclose()
 
 
 @pytest.mark.asyncio

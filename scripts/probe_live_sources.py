@@ -30,6 +30,7 @@ from packages.sources.adapters.osv import OSVAdapter
 from packages.sources.adapters.rss_incident import RSSIncidentAdapter
 from packages.sources.adapters.scholarly_search import ScholarlySearchAdapter
 from packages.sources.adapters.shodan import ShodanAdapter
+from packages.sources.adapters.shodan_internetdb import ShodanInternetDBAdapter
 from packages.sources.adapters.slowmist_hacked import SlowMistHackedAdapter
 from packages.sources.adapters.x_user_signal import XUserSignalAdapter
 from packages.sources.contracts import (
@@ -72,6 +73,7 @@ async def _main(*, strict: bool, json_output: bool) -> int:
         html_index = HTMLIndexAdapter(client)
         arxiv = ArxivAdapter(client)
         shodan = ShodanAdapter(client, api_key=settings.shodan_api_key)
+        shodan_internetdb = ShodanInternetDBAdapter(client)
         slowmist_hacked = SlowMistHackedAdapter(client)
         x_signal = XUserSignalAdapter(client, bearer_token=settings.x_bearer_token)
         censys = CensysAssetAdapter(
@@ -500,6 +502,16 @@ async def _main(*, strict: bool, json_output: bool) -> int:
                 lambda: shodan.query(
                     sources["shodan-assets"],
                     QuerySpec(filters={"query": 'product:"vLLM"', "page": 1, "minify": True}),
+                    acquisition_run_id=run_id,
+                    trigger=trigger,
+                ),
+            ),
+            (
+                "shodan-internetdb-assets",
+                "query:ip:1.1.1.1",
+                lambda: shodan_internetdb.query(
+                    sources["shodan-internetdb-assets"],
+                    QuerySpec(filters={"ip": "1.1.1.1"}),
                     acquisition_run_id=run_id,
                     trigger=trigger,
                 ),
