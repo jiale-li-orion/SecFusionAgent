@@ -173,6 +173,13 @@ product/package **7/7** and version applicability **31/31**. Gold revision is
 `cve5-applicability:a04299a83da1cf7ffcfc27f3a70043f3091605b42e7576879fbda9e8534399c9`;
 the frozen provider snapshot is
 `provider-snapshot:5a1ec3550991c39ad632e138ce973ae0edbee9576498ec68a004c324ef964934`.
+This source-specific result is persisted in TD3 as deployment
+`deployment:2a602ddc91ebae16bb8dda4991cf7a85`, suite `m3-cve5-applicability@1`, run
+`0765bba7-b09d-43d9-9146-d8ea1d558bab`, and CompetitionReport
+`af7f9661-54f9-48aa-a3c1-03a4dbf306c3` (digest
+`53eac867cff992904209d8b9aeef4a1917777da274f90f0172308bed12b498cf`). The report records M3
+precision/recall as 1.0 for this frozen CVE5 slice while leaving unrelated M1/M6/Agent areas
+explicitly `not_evaluated`.
 
 The structured evaluator now supports frozen provider-world replay. A live run may persist the raw
 NVD/GHSA/OSV/FIRST/KEV-derived snapshot and its `provider-snapshot:<sha256>` coordinate; later code

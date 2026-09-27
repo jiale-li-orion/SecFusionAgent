@@ -392,6 +392,12 @@ and the exact provider-world coordinate is
 `provider-snapshot:5a1ec3550991c39ad632e138ce973ae0edbee9576498ec68a004c324ef964934`.
 This benchmark also exercises explicit `not_affected` and `unknown` fallback semantics rather than
 counting only positive affected ranges.
+The durable TD3 coordinates are deployment `deployment:2a602ddc91ebae16bb8dda4991cf7a85`, suite
+`m3-cve5-applicability@1`, run `0765bba7-b09d-43d9-9146-d8ea1d558bab`, and CompetitionReport
+`af7f9661-54f9-48aa-a3c1-03a4dbf306c3` with digest
+`53eac867cff992904209d8b9aeef4a1917777da274f90f0172308bed12b498cf`. The report passes the M3
+precision/recall development targets for this suite; source coverage, QA and Agent metrics remain
+explicitly unevaluated rather than being filled with synthetic zeros.
 
 The next live structured priority is CSAF/VEX applicability. The CPE/version-derived asset join
 itself is implemented and regression-tested against positive, wrong-version, and missing-companion
