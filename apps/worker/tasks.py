@@ -4,33 +4,30 @@ from pathlib import Path
 import httpx
 from sqlalchemy import select
 
+from apps.enrichment_runtime import create_configured_enrichment_runtime
+from apps.investigation_runtime import create_configured_investigation_runtime
+from apps.watch_runtime import RuntimeWatchWakeAdmission
 from apps.worker.celery_app import celery_app
-from packages.enrichment.graph.fix_boundary import DeterministicFixBoundaryService
-from packages.enrichment.graph.github_references import GitHubReferenceGraphService
 from packages.enrichment.normative.service import NormativeKnowledgeService
-from packages.enrichment.planner import VulnerabilityEnrichmentPlanner
 from packages.enrichment.providers.factory import create_configured_ai_provider
-from packages.enrichment.runtime.executor import DefaultEnrichmentOperatorExecutor
-from packages.enrichment.runtime.role import EnrichmentRoleRuntime
 from packages.enrichment.runtime.state_models import EnrichmentAttemptModel
 from packages.enrichment.runtime.tasks import ensure_background_vulnerability_enrichment_run
 from packages.enrichment.semantic.documents import DocumentSemanticService
-from packages.enrichment.service import VulnerabilityEnrichmentService
-from packages.intelligence.ingestion.evidence import EvidenceIngress
-from packages.intelligence.knowledge.write import EvidenceBackedKnowledgeWriter
 from packages.intelligence.projections.service import CurrentProjectionService
 from packages.intelligence.retrieval.indexing import DocumentIndexService
 from packages.intelligence.storage.document_models import DocumentRevisionModel
 from packages.intelligence.storage.evidence_models import ObservationModel
 from packages.intelligence.storage.factory import create_s3_artifact_store
+from packages.investigation.runtime.watch import WatchWakeService
 from packages.investigation.state.world_change import KnowledgeChangeNotice, WorldChangeService
-from packages.monitoring.acquisition.service import AcquisitionService
 from packages.monitoring.runtime import execute_collection_run
+from packages.runtime.execution.service import ExecutionRunService
+from packages.runtime.policy.loader import load_runtime_policy
 from packages.shared.config import get_settings
 from packages.shared.db import create_engine, create_session_factory
-from packages.sources.adapters.factory import create_source_adapter
 from packages.sources.registry.loader import load_source_definitions
-from packages.task_runtime.contracts.models import TERMINAL_TASK_RUN_STATUSES
+from packages.task_runtime.contracts.models import TERMINAL_TASK_RUN_STATUSES, TaskRunStatus
+from packages.task_runtime.scheduler import QueuedRoleExecutor
 from packages.task_runtime.storage.service import get_task_run
 
 
@@ -54,9 +51,131 @@ def enrich_vulnerability(payload: dict[str, object]) -> int:
     return asyncio.run(_enrich_vulnerability(payload))
 
 
+@celery_app.task(name="secfusion.enrichment.run")
+def run_enrichment(run_id: str) -> str:
+    return asyncio.run(_run_enrichment(run_id))
+
+
 @celery_app.task(name="secfusion.indexing.document_revision")
 def index_document_revision(payload: dict[str, object]) -> int:
     return asyncio.run(_index_document_revision(payload))
+
+
+@celery_app.task(name="secfusion.investigation.run")
+def run_investigation(run_id: str) -> str:
+    return asyncio.run(_run_investigation(run_id))
+
+
+async def _run_investigation(run_id: str) -> str:
+    settings = get_settings()
+    if not settings.model_base_url or not settings.model_name:
+        raise RuntimeError("InvestigationRole model provider is not configured")
+    engine = create_engine(settings.database_url)
+    factory = create_session_factory(engine)
+    execution_service = ExecutionRunService()
+    try:
+        async with httpx.AsyncClient(timeout=settings.model_timeout_seconds) as client:
+            runtime = create_configured_investigation_runtime(
+                settings,
+                factory,
+                client,
+                execution_service=execution_service,
+            )
+
+            async def execute_role(claimed_run_id: str) -> object:
+                async with factory() as session, session.begin():
+                    claimed = await get_task_run(session, claimed_run_id)
+                    await execution_service.start(session, claimed.execution_envelope_ref)
+                try:
+                    outcome = await runtime.run(claimed_run_id)
+                except Exception as exc:
+                    async with factory() as session, session.begin():
+                        claimed = await get_task_run(session, claimed_run_id)
+                        await execution_service.finish(
+                            session,
+                            claimed.execution_envelope_ref,
+                            status="failed",
+                            stop_reason=f"investigation_runtime_error:{type(exc).__name__}",
+                        )
+                    raise
+                if outcome.run_status in {
+                    TaskRunStatus.COMPLETED,
+                    TaskRunStatus.FAILED,
+                    TaskRunStatus.CANCELLED,
+                    TaskRunStatus.TIMED_OUT,
+                    TaskRunStatus.BLOCKED,
+                }:
+                    async with factory() as session, session.begin():
+                        claimed = await get_task_run(session, claimed_run_id)
+                        await execution_service.finish(
+                            session,
+                            claimed.execution_envelope_ref,
+                            status=outcome.run_status.value,
+                            stop_reason=outcome.result.stop_reason,
+                        )
+                return outcome
+
+            result = await QueuedRoleExecutor(
+                factory,
+                {"InvestigationRole": execute_role},
+                stream_name=settings.task_event_stream_name,
+            ).execute(run_id)
+            return result.final_status.value
+    finally:
+        await engine.dispose()
+
+
+async def _run_enrichment(run_id: str) -> str:
+    settings = get_settings()
+    engine = create_engine(settings.database_url)
+    factory = create_session_factory(engine)
+    execution_service = ExecutionRunService()
+    artifact_store = create_s3_artifact_store(settings)
+    await artifact_store.ensure_bucket()
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            runtime = create_configured_enrichment_runtime(
+                settings,
+                factory,
+                client,
+                artifact_store,
+            )
+
+            async def execute_role(claimed_run_id: str) -> object:
+                async with factory() as session, session.begin():
+                    claimed = await get_task_run(session, claimed_run_id)
+                    await execution_service.start(session, claimed.execution_envelope_ref)
+                try:
+                    outcome = await runtime.run(claimed_run_id)
+                except Exception as exc:
+                    async with factory() as session, session.begin():
+                        claimed = await get_task_run(session, claimed_run_id)
+                        await execution_service.finish(
+                            session,
+                            claimed.execution_envelope_ref,
+                            status="failed",
+                            stop_reason=f"enrichment_runtime_error:{type(exc).__name__}",
+                        )
+                    raise
+                if outcome.run_status in TERMINAL_TASK_RUN_STATUSES:
+                    async with factory() as session, session.begin():
+                        claimed = await get_task_run(session, claimed_run_id)
+                        await execution_service.finish(
+                            session,
+                            claimed.execution_envelope_ref,
+                            status=outcome.run_status.value,
+                            stop_reason=outcome.result.stop_reason,
+                        )
+                return outcome
+
+            result = await QueuedRoleExecutor(
+                factory,
+                {"EnrichmentRole": execute_role},
+                stream_name=settings.task_event_stream_name,
+            ).execute(run_id)
+            return result.final_status.value
+    finally:
+        await engine.dispose()
 
 
 async def _rebuild_knowledge_projections(payload: dict[str, object]) -> int:
@@ -75,6 +194,11 @@ async def _rebuild_knowledge_projections(payload: dict[str, object]) -> int:
     engine = create_engine(settings.database_url)
     factory = create_session_factory(engine)
     service = CurrentProjectionService()
+    watch_policy = load_runtime_policy(settings.runtime_policy_path)
+    watch_wake = WatchWakeService(
+        admission_port=RuntimeWatchWakeAdmission(watch_policy),
+        stream_name=settings.task_event_stream_name,
+    )
     changed = 0
     try:
         async with factory() as session, session.begin():
@@ -85,7 +209,7 @@ async def _rebuild_knowledge_projections(payload: dict[str, object]) -> int:
                     upstream_revision=revision,
                 )
                 changed += sum(1 for result in results if result.changed)
-            await WorldChangeService().process(
+            impacts = await WorldChangeService().process(
                 session,
                 KnowledgeChangeNotice(
                     revision=revision,
@@ -94,6 +218,12 @@ async def _rebuild_knowledge_projections(payload: dict[str, object]) -> int:
                     relation_ids=normalized_relation_ids,
                 ),
             )
+            for impact in impacts:
+                await watch_wake.spawn_for_world_change(
+                    session,
+                    impact=impact,
+                    trigger_ref=f"knowledge-revision:{revision}",
+                )
         return changed
     finally:
         await engine.dispose()
@@ -115,16 +245,6 @@ async def _enrich_vulnerability(payload: dict[str, object]) -> int:
     factory = create_session_factory(engine)
     artifact_store = create_s3_artifact_store(settings)
     await artifact_store.ensure_bucket()
-    source_definitions = {
-        item.source_id: item
-        for item in load_source_definitions(Path(settings.source_registry_path))
-    }
-    provider_ids = [
-        "cisa-kev",
-        "github-global-advisories",
-        "osv-vulnerabilities",
-        "github-target-repos",
-    ]
     try:
         async with factory() as session, session.begin():
             task_run_id = await ensure_background_vulnerability_enrichment_run(
@@ -146,50 +266,11 @@ async def _enrich_vulnerability(payload: dict[str, object]) -> int:
                 return len(attempted)
 
         async with httpx.AsyncClient(timeout=30.0) as client:
-            adapters = {
-                source_id: create_source_adapter(
-                    source_definitions[source_id],
-                    client,
-                    settings,
-                )
-                for source_id in provider_ids
-            }
-            acquisition = AcquisitionService(factory)
-            evidence_ingress = EvidenceIngress(artifact_store)
-            writer = EvidenceBackedKnowledgeWriter()
-            provider_service = VulnerabilityEnrichmentService(
+            outcome = await create_configured_enrichment_runtime(
+                settings,
                 factory,
-                acquisition,
-                evidence_ingress,
-                writer,
-                VulnerabilityEnrichmentPlanner(),
-                source_definitions,
-                adapters,
-            )
-            graph_service = GitHubReferenceGraphService(
-                factory,
-                acquisition,
-                evidence_ingress,
-                writer,
-                source_definitions,
-                adapters,
-            )
-            fix_service = DeterministicFixBoundaryService(
-                factory,
-                acquisition,
-                evidence_ingress,
-                writer,
-                source_definitions,
-                adapters,
-            )
-            outcome = await EnrichmentRoleRuntime(
-                factory,
-                DefaultEnrichmentOperatorExecutor(
-                    provider_service,
-                    graph_service,
-                    fix_service,
-                ),
-                stream_name=settings.task_event_stream_name,
+                client,
+                artifact_store,
             ).run(task_run_id)
             return len(outcome.result.attempted_operators)
     finally:

@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from decimal import Decimal
 from uuid import uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from apps.runtime_models import register_runtime_models
+from apps.watch_runtime import RuntimeWatchWakeAdmission
 from packages.intelligence.storage.evidence_models import ObservationModel
 from packages.intelligence.storage.knowledge_models import (
     EvidenceLinkModel,
@@ -43,15 +45,22 @@ from packages.investigation.state.contracts import (
 from packages.investigation.state.service import InvestigationStateService
 from packages.investigation.state.world_change import KnowledgeChangeNotice, WorldChangeService
 from packages.investigation.storage.models import InvestigationCaseModel
+from packages.runtime.budget import BudgetGovernor, BudgetLimits
+from packages.runtime.execution.service import ExecutionRunService
+from packages.runtime.policy.contracts import Authorization, PolicyDecisionPoint, PolicyObligation
+from packages.runtime.policy.engine import RuntimePolicyRule, StaticPolicyEngine
 from packages.shared.db import Base
 from packages.sources.storage.models import SourceModel
+from packages.task_runtime.contracts.execution import ExecutionEnvelope
 from packages.task_runtime.contracts.models import (
     ContextManifest,
+    ExecutionProfile,
     TaskEventType,
     TaskKind,
     TaskRunStatus,
 )
 from packages.task_runtime.contracts.roles import canonical_roles
+from packages.task_runtime.storage.models import TaskRunModel
 from packages.task_runtime.storage.service import (
     create_task_run,
     get_task_context,
@@ -61,6 +70,24 @@ from packages.task_runtime.storage.service import (
 
 NOW = datetime(2026, 9, 27, 4, 30, tzinfo=UTC)
 STREAM = "secfusion:task-events:investigation-role-test"
+
+
+def _watch_policy(*, permit: bool = True, obligation: bool = False) -> StaticPolicyEngine:
+    return StaticPolicyEngine(
+        policy_revision="policy-v1",
+        rules=[
+            RuntimePolicyRule(
+                policy_id="watch-resume-test",
+                policy_revision="policy-v1",
+                decision_points=[PolicyDecisionPoint.WATCH_RESUME],
+                principal_patterns=["user:alice"],
+                action_patterns=["resume_watch"],
+                resource_patterns=["case:*"],
+                authorization=Authorization.PERMIT if permit else Authorization.DENY,
+                obligations=([PolicyObligation(kind="fresh_world_revision")] if obligation else []),
+            )
+        ],
+    )
 
 
 async def _database():
@@ -212,6 +239,41 @@ async def _create_run(
         run_id=run_id,
         now=NOW,
     )
+    await BudgetGovernor(now=lambda: NOW).create_account(
+        session,
+        account_id=manifest.budget_ref,
+        task_run_id=run_id,
+        limits=BudgetLimits(
+            quantities={
+                "agent_turns": Decimal("8"),
+                "tool_calls": Decimal("4"),
+            }
+        ),
+    )
+    await ExecutionRunService(now=lambda: NOW).create(
+        session,
+        ExecutionEnvelope(
+            execution_id=f"execution:{run_id}",
+            task_contract_id=contract.task_contract_id,
+            task_run_id=run_id,
+            case_id=case_id,
+            role_revision="InvestigationRole@1",
+            context_manifest_revision=1,
+            execution_profile=(
+                ExecutionProfile.WATCH
+                if task_kind is TaskKind.WATCH_INCIDENT
+                else ExecutionProfile.VERIFY
+            ),
+            capability_scope=[],
+            deadline_at=NOW.replace(hour=5),
+            budget_ref=manifest.budget_ref,
+            policy_revision=contract.policy_revision,
+            identity_scope=["public"],
+            network_policy="proxied",
+            side_effect_policy="internal-state",
+            sandbox_profile_revision="process_restricted@1",
+        ),
+    )
     return run_id
 
 
@@ -339,6 +401,72 @@ async def test_investigation_role_perceives_evidence_commits_state_and_completes
 
 
 @pytest.mark.asyncio
+async def test_watch_resume_policy_fails_closed_before_new_task_run_is_created() -> None:
+    engine, factory = await _database()
+    try:
+        async with factory() as session, session.begin():
+            case_id, object_id, need_id, _ = await _seed_case_need_and_evidence(session)
+            old_run_id = await _create_run(
+                session,
+                case_id=case_id,
+                object_id=object_id,
+                need_id=need_id,
+                task_kind=TaskKind.WATCH_INCIDENT,
+            )
+        await InvestigationRoleRuntime(
+            factory,
+            _WaitPlanner(),
+            stream_name=STREAM,
+            now=lambda: NOW,
+        ).run(old_run_id)
+
+        async with factory() as session, session.begin():
+            revision = KnowledgeRevisionModel(committed_at=NOW)
+            session.add(revision)
+            await session.flush()
+            impacts = await WorldChangeService(now=lambda: NOW).process(
+                session,
+                KnowledgeChangeNotice(revision=revision.revision, object_ids=[object_id]),
+            )
+            denied = await WatchWakeService(
+                admission_port=RuntimeWatchWakeAdmission(
+                    _watch_policy(permit=False),
+                    now=lambda: NOW,
+                ),
+                stream_name=STREAM,
+                now=lambda: NOW,
+            ).spawn_for_world_change(
+                session,
+                impact=impacts[0],
+                trigger_ref=f"knowledge-revision:{revision.revision}",
+            )
+            assert denied.disposition is WatchWakeDisposition.POLICY_DENIED
+            assert denied.policy_authorization == Authorization.DENY.value
+            assert denied.run_id is not None
+            assert await session.get(TaskRunModel, denied.run_id) is None
+
+            obligation_blocked = await WatchWakeService(
+                admission_port=RuntimeWatchWakeAdmission(
+                    _watch_policy(obligation=True),
+                    now=lambda: NOW,
+                ),
+                stream_name=STREAM,
+                now=lambda: NOW,
+            ).spawn_for_world_change(
+                session,
+                impact=impacts[0],
+                trigger_ref=f"knowledge-revision:{revision.revision}:obligation",
+            )
+            assert (
+                obligation_blocked.disposition is WatchWakeDisposition.POLICY_OBLIGATION_UNSATISFIED
+            )
+            assert obligation_blocked.run_id is not None
+            assert await session.get(TaskRunModel, obligation_blocked.run_id) is None
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_relevant_world_change_spawns_new_watch_run_and_replay_is_idempotent() -> None:
     engine, factory = await _database()
     try:
@@ -371,7 +499,14 @@ async def test_relevant_world_change_spawns_new_watch_run_and_replay_is_idempote
                 ),
             )
             assert len(impacts) == 1 and impacts[0].case_activated is True
-            watch_wake = WatchWakeService(stream_name=STREAM, now=lambda: NOW)
+            watch_wake = WatchWakeService(
+                admission_port=RuntimeWatchWakeAdmission(
+                    _watch_policy(),
+                    now=lambda: NOW,
+                ),
+                stream_name=STREAM,
+                now=lambda: NOW,
+            )
             wake = await watch_wake.spawn_for_world_change(
                 session,
                 impact=impacts[0],
@@ -383,12 +518,38 @@ async def test_relevant_world_change_spawns_new_watch_run_and_replay_is_idempote
             new_run = await get_task_run(session, wake.run_id)
             new_context = await get_task_context(session, wake.run_id)
             old_context = await get_task_context(session, old_run_id)
+            new_budget = await BudgetGovernor(now=lambda: NOW).snapshot(
+                session,
+                new_context.budget_ref,
+            )
+            old_budget = await BudgetGovernor(now=lambda: NOW).snapshot(
+                session,
+                old_context.budget_ref,
+            )
+            new_execution = await ExecutionRunService(now=lambda: NOW).get(
+                session,
+                new_run.execution_envelope_ref,
+            )
+            old_run = await get_task_run(session, old_run_id)
+            old_execution = await ExecutionRunService(now=lambda: NOW).get(
+                session,
+                old_run.execution_envelope_ref,
+            )
             assert new_run.status is TaskRunStatus.QUEUED
             assert new_context.parent_context_id == old_context.context_id
             assert new_context.knowledge_revision == revision.revision
             assert new_context.investigation_state_ref == f"case:{case_id}@1"
             assert new_context.skill_selection_refs == []
             assert new_context.budget_ref == f"budget:{wake.run_id}"
+            assert new_budget.limits == old_budget.limits
+            assert new_execution.execution_profile is ExecutionProfile.WATCH
+            assert new_execution.capability_scope == old_execution.capability_scope
+            assert new_execution.identity_scope == old_execution.identity_scope
+            assert new_execution.network_policy == old_execution.network_policy
+            assert new_execution.trace_context["watch_previous_run_id"] == old_run_id
+            assert (
+                new_execution.trace_context["watch_policy_decision_ref"] == wake.policy_decision_ref
+            )
 
             replay = await watch_wake.spawn_for_world_change(
                 session,
@@ -398,7 +559,6 @@ async def test_relevant_world_change_spawns_new_watch_run_and_replay_is_idempote
             assert replay.disposition is WatchWakeDisposition.REPLAY
             assert replay.run_id == wake.run_id
 
-            old_run = await get_task_run(session, old_run_id)
             assert old_run.status is TaskRunStatus.COMPLETED
             assert old_run.stop_reason == "waiting_for_world_update"
     finally:

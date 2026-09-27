@@ -22,11 +22,13 @@ from packages.task_runtime.contracts.execution import (
     ExecutionEnvelope,
     validate_child_execution_envelope,
 )
+from packages.task_runtime.contracts.models import TaskRunStatus
 from packages.task_runtime.contracts.roles import canonical_roles
 from packages.task_runtime.storage.service import (
     get_task_context,
     get_task_contract_for_run,
     get_task_run,
+    transition_task_run,
 )
 
 
@@ -173,6 +175,16 @@ class EnrichmentDelegationAdapter:
                     + ",".join(sorted(errors))
                 )
             await self._execution.create(session, child_envelope)
+            if child_run.status is TaskRunStatus.SUBMITTED:
+                child_run = await transition_task_run(
+                    session,
+                    run_id=child_run_id,
+                    target=TaskRunStatus.QUEUED,
+                    payload_ref=f"queue:delegated-enrichment:{request.delegation_id}",
+                    idempotency_key=f"queue:delegated-enrichment:{child_run_id}",
+                    stream_name=self._stream_name,
+                    producer="InvestigationRole",
+                )
 
         return DelegationResult(
             child_run_id=child_run_id,

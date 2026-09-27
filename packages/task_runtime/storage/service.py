@@ -211,6 +211,48 @@ async def create_task_run(
     return _task_run_view(model)
 
 
+async def claim_queued_task_run(
+    session: AsyncSession,
+    *,
+    run_id: str,
+    stream_name: str,
+    producer: str = "task-runtime-executor",
+    now: datetime | None = None,
+) -> TaskRun | None:
+    """Atomically claim a queued TaskRun for exactly one Role executor.
+
+    A caller that loses the row-lock race observes the post-claim status and returns
+    `None` rather than entering the Role handler. Role implementations may accept an
+    already-running run for recovery, but normal worker dispatch must pass through this
+    claim boundary to prevent concurrent duplicate execution.
+    """
+
+    model = await session.scalar(
+        select(TaskRunModel).where(TaskRunModel.run_id == run_id).with_for_update()
+    )
+    if model is None:
+        raise LookupError(f"task run not found: {run_id}")
+    if TaskRunStatus(model.status) is not TaskRunStatus.QUEUED:
+        return None
+
+    instant = now or datetime.now(UTC)
+    model.status = TaskRunStatus.RUNNING.value
+    model.updated_at = instant
+    await append_task_event(
+        session,
+        task_run_id=run_id,
+        event_type=TaskEventType.TASK_STARTED,
+        producer=producer,
+        base_context_revision=model.context_revision,
+        payload_ref=f"role-claim:{model.role_id}@{model.role_version}",
+        idempotency_key=f"role-claim:{run_id}:{model.context_revision}",
+        stream_name=stream_name,
+        now=instant,
+    )
+    await session.flush()
+    return _task_run_view(model)
+
+
 async def get_context_manifest(session: AsyncSession, ref: str) -> ContextManifest:
     model = await _context_from_ref(session, ref)
     return ContextManifest.model_validate(model.manifest_json)

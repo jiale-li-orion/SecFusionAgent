@@ -4,7 +4,7 @@
 
 ## Processes
 
-`celery_app.py` configures the Celery application using the dedicated broker Redis and defines queue routing. Current queue families are collection, normalization, enrichment, and indexing/projection.
+`celery_app.py` configures the Celery application using the dedicated broker Redis and defines queue routing. Current queue families are collection, normalization, enrichment, investigation, and indexing/projection.
 
 `scheduler.py` is a lightweight control loop. Each tick:
 
@@ -17,7 +17,7 @@ The scheduler never performs provider collection inline.
 
 `task_event_dispatcher.py` is the independent Task Event Plane delivery loop. It reads committed `task_event_deliveries` from PostgreSQL and publishes them to `redis_task_bus_url` Redis Streams. It does not reuse Celery broker routing.
 
-`task_event_scheduler.py` is the consumer-side Task Event Plane loop. It reads the Task Bus through a Redis consumer group, reloads each event from PostgreSQL, applies the deterministic Task Runtime dependency relevance gate, commits any parent `waiting_dependency → queued` transition, then acknowledges the Redis message. Unacknowledged messages are reclaimable after `task_event_claim_idle_ms`; replay is safe because the source `event_id` is part of the durable wake idempotency key.
+`task_event_scheduler.py` is the consumer-side Task Event Plane loop. It reads the Task Bus through a Redis consumer group, reloads each event from PostgreSQL, applies the deterministic Task Runtime dependency relevance gate, and maps durable queued-Role `TaskPatched` events to coarse Celery tasks. Database scheduling commits before broker dispatch; Redis `XACK` happens only after any required Celery send succeeds. Unacknowledged messages are reclaimable after `task_event_claim_idle_ms`; replay may redeliver the coarse task, while the PostgreSQL queued-run claim prevents concurrent Role execution.
 
 ## Outbox topic routing
 
@@ -40,11 +40,10 @@ Unknown topics fail explicitly instead of being dropped.
 - collection delegates to `packages.monitoring.runtime.execute_collection_run`;
 - knowledge/incident change tasks rebuild current projections;
 - vulnerability enrichment creates or resumes a deterministic background Enrichment TaskRun and executes the shared `EnrichmentRole`; provider/graph primitives still use acquisition, EvidenceIngress and Knowledge Writer;
+- delegated EnrichmentRole and queued InvestigationRole execute through `QueuedRoleExecutor`; `apps/enrichment_runtime.py` and `apps/investigation_runtime.py` own their production composition;
 - document indexing always builds lexical state first, then optionally builds dense embeddings and semantic/normative extraction when model configuration is present.
 
-Task Event scheduling intentionally stops at `TaskRun.status = queued`. The worker/runtime composition that executes a queued `InvestigationRole` remains separate from transport and relevance logic, so Redis delivery cannot itself invoke an LLM or bypass Capability/Policy controls.
-
-The current explicit gap is a unified queued-Role executor. `EnrichmentRole` already has a production background composition in `tasks.py`; `InvestigationRole` does not yet have an equivalent production factory that assembles model provider, Context/Skill/Capability view, Perception, Policy/Budget/Execution, delegation and optional Sandbox backends. Until that owner exists, Task Event scheduling may queue an Investigation TaskRun but must not invent a second ad-hoc composition inside the Redis consumer.
+Task Event scheduling and Role execution remain separate boundaries: Redis delivery only chooses the coarse Role task; the Celery handler constructs the domain runtime and the Task Runtime executor performs the durable claim. The current Investigation production factory is intentionally local-Perception-first. It does not advertise or invoke external/sandbox capabilities until a production Capability catalog/binding/executor is configured, so missing execution-control composition fails as unavailable capability rather than bypassing Policy.
 
 Celery uses late acknowledgement, reject-on-worker-loss, prefetch 1, and at-least-once delivery semantics. Task handlers therefore rely on run ids, EvidenceIngress idempotency, Knowledge processing-run identity, and revision-aware projection rebuilds rather than assuming exactly-once broker delivery.
 

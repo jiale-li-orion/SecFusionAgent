@@ -30,11 +30,11 @@ TaskEvent append acquires the TaskRun row before allocating sequence/idempotency
 
 Task Event delivery is independent from Celery broker and Hot Cache Redis. Healthy-path dispatch preserves task-local sequence order, while consumers must still tolerate retry gaps and duplicate delivery.
 
-`scheduler/` owns generic TaskRun dependency wake semantics. A waiting parent records a structured `task_dependency:<child_run_id>` stop reason; relevant child `EnrichmentStateChanged` or terminal TaskEvents can move that parent from `waiting_dependency` to `queued`. Wake identity is derived from the durable source `event_id` and checked before status mutation, so an old Redis delivery replay cannot accidentally wake a later wait cycle. Domain-specific Case/WATCH relevance remains outside Task Runtime.
+`scheduler/` owns generic TaskRun dependency wake and queued-Role dispatch semantics. A waiting parent records a structured `task_dependency:<child_run_id>` stop reason; relevant child `EnrichmentStateChanged` or terminal TaskEvents can move that parent from `waiting_dependency` to `queued`. Wake identity is derived from the durable source `event_id` and checked before status mutation, so an old Redis delivery replay cannot accidentally wake a later wait cycle. `QueuedRoleExecutor` then atomically claims `queued → running` under the TaskRun row lock before entering an injected Role handler; duplicate broker delivery therefore cannot execute the same queued episode concurrently. Domain-specific Case/WATCH relevance remains outside Task Runtime.
 
 The Redis consumer uses a consumer group with `XAUTOCLAIM` before reading fresh entries. Database scheduling commits before `XACK`; consumer loss therefore replays an event, while PostgreSQL wake idempotency prevents duplicate state transitions.
 
-The scheduler deliberately owns only lifecycle/relevance transitions. It does not instantiate domain Roles or model/tool providers. A queued TaskRun is an executable intent; the worker-side Role executor is a separate composition boundary.
+The scheduler deliberately owns lifecycle/relevance/claim semantics, not domain composition. It does not instantiate model/tool providers. A queued TaskRun is executable intent; `apps.worker` maps the durable queued event to a coarse-grained Role task and injects the domain Role handler into `QueuedRoleExecutor`.
 
 ## Delegation and execution envelopes
 
@@ -44,7 +44,7 @@ Child Task creation validates parent TaskRun state, allowed task kinds, effect c
 
 ## Current boundary
 
-The durable protocol, context revisioning, Task Event plane, delegation ceilings, dependency wake and replay semantics are implemented. The remaining TD2 runtime-level gap is not another Task schema: it is the production executor that claims queued Role runs and dispatches them to the correct bounded Role composition. A2A mapping remains Slice 9 work rather than part of this scheduler.
+The durable protocol, context revisioning, Task Event plane, delegation ceilings, dependency wake, queued-run claim and replay semantics are implemented. The current production worker has Role dispatch for `EnrichmentRole` and `InvestigationRole`; adding another Role should extend the worker composition map rather than Task Runtime schema. A2A mapping remains Slice 9 work rather than part of this scheduler.
 
 ## Dependency boundary
 

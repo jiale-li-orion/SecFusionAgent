@@ -56,7 +56,7 @@ sync-skills:
 	uv run python -m scripts.sync_skills
 
 worker:
-	uv run celery -A apps.worker.celery_app:celery_app worker -l INFO -Q collection,enrichment,indexing
+	uv run celery -A apps.worker.celery_app:celery_app worker -l INFO -Q collection,enrichment,investigation,indexing
 
 worker-collection:
 	uv run celery -A apps.worker.celery_app:celery_app worker -l INFO -Q collection

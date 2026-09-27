@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     hot_cache_ttl_seconds: int = 30 * 24 * 60 * 60
     incident_signal_ttl_seconds: int = 7 * 24 * 60 * 60
     source_registry_path: Path = Path("config/sources")
+    runtime_policy_path: Path = Path("config/runtime-policy.json")
     collection_run_timeout_seconds: int = 15 * 60
     scheduler_tick_seconds: int = 5
 

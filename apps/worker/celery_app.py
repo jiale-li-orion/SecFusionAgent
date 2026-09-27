@@ -22,6 +22,7 @@ celery_app.conf.update(
         "secfusion.collection.*": {"queue": "collection"},
         "secfusion.normalization.*": {"queue": "normalization"},
         "secfusion.enrichment.*": {"queue": "enrichment"},
+        "secfusion.investigation.*": {"queue": "investigation"},
         "secfusion.projection.*": {"queue": "indexing"},
         "secfusion.indexing.*": {"queue": "indexing"},
     },

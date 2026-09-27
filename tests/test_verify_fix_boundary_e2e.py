@@ -114,12 +114,18 @@ from packages.task_runtime.events.redis_stream import (
     dispatch_pending_task_events,
     read_task_event_messages,
 )
-from packages.task_runtime.scheduler import DependencyWakeDisposition, DependencyWakeScheduler
+from packages.task_runtime.scheduler import (
+    DependencyWakeDisposition,
+    DependencyWakeScheduler,
+    QueuedRoleExecutor,
+    RoleDispatchDisposition,
+)
 from packages.task_runtime.storage.models import TaskRunModel
 from packages.task_runtime.storage.service import (
     create_task_run,
     get_task_context,
     get_task_event,
+    get_task_run,
     list_task_events,
 )
 
@@ -1034,18 +1040,31 @@ async def test_verify_fix_boundary_delegates_missing_fix_then_resumes_from_durab
             )
         assert child is not None
         assert child.role_id == "EnrichmentRole"
+        assert child.status == "queued"
         child_executor = _DurableFixEnrichmentExecutor(factory=factory, object_id=object_id)
-        child_outcome = await EnrichmentRoleRuntime(
+        child_runtime = EnrichmentRoleRuntime(
             factory,
             child_executor,
             stream_name=STREAM,
             now=lambda: NOW,
-        ).run(child.run_id)
-        assert child_outcome.run_status is TaskRunStatus.COMPLETED
-        assert (
-            child_outcome.result.dimension_status[EnrichmentDimension.FIX_REMEDIATION].value
-            == "resolved"
         )
+
+        async def run_child(claimed_run_id: str) -> object:
+            async with factory() as session, session.begin():
+                claimed = await get_task_run(session, claimed_run_id)
+                await execution_service.start(session, claimed.execution_envelope_ref)
+            return await child_runtime.run(claimed_run_id)
+
+        child_dispatch = await QueuedRoleExecutor(
+            factory,
+            {"EnrichmentRole": run_child},
+            stream_name=STREAM,
+        ).execute(child.run_id)
+        assert child_dispatch.disposition is RoleDispatchDisposition.EXECUTED
+        async with factory() as session:
+            child_after = await get_task_run(session, child.run_id)
+        child_outcome = child_after
+        assert child_outcome.status is TaskRunStatus.COMPLETED
 
         async with factory() as session:
             fixed_relations = list(
@@ -1103,9 +1122,16 @@ async def test_verify_fix_boundary_delegates_missing_fix_then_resumes_from_durab
             queued_parent = await session.get(TaskRunModel, run_id)
             assert queued_parent is not None and queued_parent.status == "queued"
 
-        completed = await parent_runtime.run(run_id)
-        assert completed.run_status is TaskRunStatus.COMPLETED
-        assert completed.result.resolved_need_ids == [need.need.need_id]
+        async def run_parent(claimed_run_id: str) -> object:
+            return await parent_runtime.run(claimed_run_id)
+
+        parent_dispatch = await QueuedRoleExecutor(
+            factory,
+            {"InvestigationRole": run_parent},
+            stream_name=STREAM,
+        ).execute(run_id)
+        assert parent_dispatch.disposition is RoleDispatchDisposition.EXECUTED
+        assert parent_dispatch.final_status is TaskRunStatus.COMPLETED
         assert len(provider.requests) == 3
         assert "fixed-version" in str(provider.requests[1].data)
 

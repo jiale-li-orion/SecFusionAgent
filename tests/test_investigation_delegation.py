@@ -211,6 +211,7 @@ async def test_delegated_enrichment_creates_bounded_child_context_budget_and_exe
 
         assert child.parent_run_id == parent_run_id
         assert child.role_id == "EnrichmentRole"
+        assert child.status is TaskRunStatus.QUEUED
         assert child_contract.task_kind is TaskKind.ENRICHMENT
         assert child_context.parent_context_id is not None
         assert child_context.object_refs == [object_id]

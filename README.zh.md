@@ -15,7 +15,7 @@ SecFusionAgent 面向 AI 安全漏洞、研究进展与安全事件构建持续�
 
 ## 项目状态
 
-SecFusionAgent 当前已经完成 **Technical Design 2 Slice 7 canonical VERIFY 闭环，并实现了 Slice 8 的 scheduling/wake substrate**。在 M1–M3 evidence/data plane 之上，仓库已具备 durable Task Runtime 与双工 TaskEvent bus、M3 `EnrichmentRole`、M4 Investigation State / Perception、有界 `InvestigationRole`、Context handoff/materialization、Skill resolution、Capability/Policy/Budget 控制面、Sandbox v1 控制面契约，以及 canonical `VerifyFixBoundary` E2E。VERIFY 缺证据分支现在真实经过 `InvestigationRole → delegated EnrichmentRole → durable Knowledge update → TaskEvent/Redis wake → parent resume → local Evidence Perception → StatePatch Gate → completion`。Slice 8 同时新增正式 Task Runtime scheduler owner、可 replay 的 Redis consumer-group wake、terminal 的短 WATCH episode，以及 relevant world change 后派生 fresh queued WATCH TaskRun。Slice 8 剩余工作是 queued Investigation run 的 live worker composition 与 `WATCH_RESUME` policy live path；真实 OpenShell/Firecracker substrate 验收、TD2 context 对照评测、M6 Decision/A2A 与 M7 replay/SkillPatch 仍是后续边界。
+SecFusionAgent 当前已经推进到 **Technical Design 2 Slice 8 runtime 闭环**。在 M1–M3 evidence/data plane 之上，仓库已具备 durable Task Runtime 与双工 TaskEvent bus、M3 `EnrichmentRole`、M4 Investigation State / Perception、有界 `InvestigationRole`、Context handoff/materialization、Skill resolution、Capability/Policy/Budget 控制面、Sandbox v1 控制面契约，以及 canonical `VerifyFixBoundary` E2E。异步链现在真实经过 `InvestigationRole → delegated EnrichmentRole → queued TaskEvent → Redis consumer group → Celery Role dispatch → PostgreSQL claim → durable Knowledge update → relevance wake → parent claim/resume → local Evidence Perception → StatePatch Gate → completion`。WATCH 使用 terminal short episode；relevant world change 必须先通过 `WATCH_RESUME` policy，随后才创建 fresh Context/Budget/Execution envelope 与 queued Investigation TaskRun。真实 OpenShell/Firecracker substrate 验收、TD2 context 对照评测、production external Capability catalog/binding composition、M6 Decision/A2A 与 M7 replay/SkillPatch 仍是后续边界。
 
 当前本地质量门：
 
@@ -25,7 +25,7 @@ mypy        静态类型检查
 pytest      领域、重放、状态迁移与契约测试
 ```
 
-主仓库 CI 持续运行 `ruff`、`mypy` 与 `pytest`。当前本地 fast gate 为 **303 passed + 11 个默认跳过的 infrastructure tests**，`mypy` 对 **360 个 source files** 无错误；`make integration-core` 真实运行 **10/10** PostgreSQL/pgvector/FTS、隔离 Redis domain、Task Runtime/Event Plane scheduling、EnrichmentRole、InvestigationRole 与 runtime control plane tests。`make integration-object-store` 验证真实 S3-compatible ArtifactStore round trip。上一版 live probe 快照为 **41 OK / 10 provider-blocked / 5 transient failures / 1 rate-limited / 7 auth-required**；它只作为时点连通性报告，不作为验收 gate。SQLite/fixture 继续承担快速确定性测试，不替代真实基础设施证据。
+主仓库 CI 持续运行 `ruff`、`mypy` 与 `pytest`。当前本地 fast gate 为 **308 passed + 11 个默认跳过的 infrastructure tests**，`mypy` 对 **368 个 source files** 无错误；`make integration-core` 真实运行 **10/10** PostgreSQL/pgvector/FTS、隔离 Redis domain、Task Runtime/Event Plane scheduling、EnrichmentRole、InvestigationRole 与 runtime control plane tests。`make integration-object-store` 验证真实 S3-compatible ArtifactStore round trip。上一版 live probe 快照为 **41 OK / 10 provider-blocked / 5 transient failures / 1 rate-limited / 7 auth-required**；它只作为时点连通性报告，不作为验收 gate。SQLite/fixture 继续承担快速确定性测试，不替代真实基础设施证据。
 
 ## 系统概览
 
@@ -319,7 +319,6 @@ GitHub Pages、Archify、双语展示与 CI/CD 发布规则见 [`WEB-PRESENTATIO
 
 - 完成 Sandbox v1 的真实 substrate 验收，覆盖 filesystem/network/credential isolation、OpenShell container 与 Firecracker microVM；
 - 跑 TD2 `reference vs summary` Context 对照，测 token cost、critical-context retention 与 stale-context failure rate；
-- 完成 Slice 8 的 live composition：补 `WATCH_RESUME` policy enforcement，并把 queued Investigation TaskRun 接进统一 Role executor；Redis/relevance/replay wake substrate 已经完成；
 - 实现 M6 `DecisionResult` 与 A2A Task/Artifact/stream/push mapping，同时保持 Task Runtime authority；
 - 实现 M7 checkpoint/replay 与 `Experience → SkillPatchCandidate → regression → promotion` gate；
 - 用户提供模型端点/凭据后跑一次真实 semantic+dense provider E2E，并在合适 target-repo OSV `GIT fixed` 样本上验证 deterministic fix-boundary promotion；

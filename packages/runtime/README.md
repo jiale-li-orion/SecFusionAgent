@@ -20,7 +20,7 @@
 
 Prompt/Role text cannot bypass PolicyDecision. Side-effect commit, credential issuance, network egress, sandbox selection and child execution remain explicit decision points.
 
-`WATCH_RESUME` exists as a typed decision point but is not yet wired into the live WATCH wake path. The wake service therefore remains an incomplete production boundary until a permit/deny decision is enforced before the derived WATCH run becomes executable.
+`WATCH_RESUME` is enforced before a relevant world change can create a fresh WATCH TaskRun. The production runtime policy catalog is loaded from `config/runtime-policy.json`; policy revision must match the TaskContract revision, implicit deny remains the default for unmatched decision points, and unmet obligations prevent TaskRun creation. Capability visibility/invocation policies still require a production Capability catalog before active external observation can be enabled in the worker-side Investigation composition.
 
 ## Sandbox
 
@@ -32,7 +32,7 @@ Current host probe finds Docker and `/dev/kvm`; OpenShell and Firecracker binari
 
 ## Current boundary
 
-Capability/Policy/Budget/Execution/Sandbox control-plane contracts and durable audit state exist. TD2's planned `runtime/identity/`, `runtime/network/`, and independent `runtime/audit/` owners have not yet been split out: identity/network constraints currently travel through ExecutionEnvelope, Policy and Sandbox contracts, while audit records live beside the owning runtime services. Do not create empty packages merely to match the design map; split these owners when a concrete credential/network/audit lifecycle requires independent state or enforcement.
+Capability/Policy/Budget/Execution/Sandbox control-plane contracts and durable audit state exist. WATCH wake now creates a fresh BudgetAccount and ExecutionEnvelope in the same transaction as the TaskRun, inheriting the prior episode's capability/identity/network/sandbox ceilings while refreshing deadline and trace provenance. TD2's planned `runtime/identity/`, `runtime/network/`, and independent `runtime/audit/` owners have not yet been split out: identity/network constraints currently travel through ExecutionEnvelope, Policy and Sandbox contracts, while audit records live beside the owning runtime services. Do not create empty packages merely to match the design map; split these owners when a concrete credential/network/audit lifecycle requires independent state or enforcement.
 
 ## Dependency boundary
 

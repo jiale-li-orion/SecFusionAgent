@@ -1,0 +1,78 @@
+from __future__ import annotations
+
+from decimal import Decimal
+
+import httpx
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from apps.investigation_delegation import (
+    DelegatedEnrichmentPolicy,
+    EnrichmentDelegationAdapter,
+)
+from packages.enrichment.providers.factory import create_configured_ai_provider
+from packages.investigation.perception.runtime import PerceptionRuntime
+from packages.investigation.runtime.planner import ModelInvestigationPlanner
+from packages.investigation.runtime.role import InvestigationRoleRuntime
+from packages.runtime.budget import BudgetGovernor
+from packages.runtime.execution.service import ExecutionRunService
+from packages.shared.config import Settings
+from packages.task_runtime.context.materializer import ContextMaterializer
+
+
+class InvestigationRuntimeUnavailable(RuntimeError):
+    pass
+
+
+def create_configured_investigation_runtime(
+    settings: Settings,
+    session_factory: async_sessionmaker[AsyncSession],
+    client: httpx.AsyncClient,
+    *,
+    budget_governor: BudgetGovernor | None = None,
+    execution_service: ExecutionRunService | None = None,
+) -> InvestigationRoleRuntime:
+    if not settings.model_base_url or not settings.model_name:
+        raise InvestigationRuntimeUnavailable(
+            "InvestigationRole requires SECFUSION_MODEL_BASE_URL and SECFUSION_MODEL_NAME"
+        )
+    provider = create_configured_ai_provider(settings, client)
+    if provider is None:
+        raise InvestigationRuntimeUnavailable("configured model provider is unavailable")
+
+    budget = budget_governor or BudgetGovernor()
+    execution = execution_service or ExecutionRunService()
+    planner = ModelInvestigationPlanner(
+        session_factory,
+        provider,
+        materializer=ContextMaterializer(
+            platform_invariant_revision="investigation-runtime-v1",
+            platform_invariant={
+                "fact_authority": "Evidence/Knowledge references only",
+                "state_write": "StatePatch gate only",
+                "external_execution": "Capability/Policy control plane only",
+                "ephemeral_observation_is_not_evidence": True,
+            },
+        ),
+        stream_name=settings.task_event_stream_name,
+    )
+    delegation = EnrichmentDelegationAdapter(
+        session_factory,
+        policy=DelegatedEnrichmentPolicy(
+            budget_quantities={
+                "agent_turns": Decimal("1"),
+                "tool_calls": Decimal("4"),
+            },
+            capability_scope=[],
+            identity_scope=[],
+        ),
+        budget_governor=budget,
+        execution_service=execution,
+        stream_name=settings.task_event_stream_name,
+    )
+    return InvestigationRoleRuntime(
+        session_factory,
+        planner,
+        perception_runtime=PerceptionRuntime(),
+        delegation_port=delegation,
+        stream_name=settings.task_event_stream_name,
+    )

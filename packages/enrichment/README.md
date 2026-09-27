@@ -104,7 +104,7 @@ M3 exposes closed-set status as resolved/conflict/unknown/missing over the share
 
 ## Current boundary
 
-The EnrichmentRole runtime, closed operator registry, deterministic fixed-point loop, background/delegated TaskRun reuse, EvidenceIngress and Knowledge write path are implemented. The remaining gaps are content/coverage gaps in the enrichment matrix above, plus later M7 replay-driven Skill improvement; they are not reasons to add another enrichment scheduler or a second task protocol.
+The EnrichmentRole runtime, closed operator registry, deterministic fixed-point loop, background/delegated TaskRun reuse, EvidenceIngress and Knowledge write path are implemented. Delegated EnrichmentTask is now queued through the shared Task Runtime and dispatched through the same Task Event → worker Role path as InvestigationRole; the worker composition lives in `apps/enrichment_runtime.py` rather than inside the Task Runtime. The remaining gaps are content/coverage gaps in the enrichment matrix above, plus later M7 replay-driven Skill improvement; they are not reasons to add another enrichment scheduler or a second task protocol.
 
 ## Adding an enrichment processor
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import UTC, datetime
 from enum import StrEnum
+from typing import Protocol
 from uuid import NAMESPACE_URL, uuid5
 
 from pydantic import BaseModel
@@ -36,6 +37,9 @@ class WatchWakeDisposition(StrEnum):
     NO_WATCH_TEMPLATE = "no_watch_template"
     TEMPLATE_NOT_TERMINAL = "template_not_terminal"
     TEMPLATE_NOT_WAITING = "template_not_waiting"
+    POLICY_DENIED = "policy_denied"
+    POLICY_OBLIGATION_UNSATISFIED = "policy_obligation_unsatisfied"
+    POLICY_INDETERMINATE = "policy_indeterminate"
 
 
 class WatchWakeResult(BaseModel):
@@ -43,6 +47,34 @@ class WatchWakeResult(BaseModel):
     trigger_ref: str
     disposition: WatchWakeDisposition
     run_id: str | None = None
+    policy_decision_ref: str | None = None
+    policy_authorization: str | None = None
+
+
+class WatchWakeAdmission(BaseModel):
+    allowed: bool
+    denial_reason: WatchWakeDisposition | None = None
+    policy_decision_ref: str | None = None
+    policy_authorization: str | None = None
+    budget_ref: str | None = None
+    execution_envelope_ref: str | None = None
+    capability_envelope_ref: str | None = None
+
+
+class WatchWakeAdmissionPort(Protocol):
+    async def admit(
+        self,
+        session: AsyncSession,
+        *,
+        contract: TaskContract,
+        template_run_id: str,
+        template_execution_envelope_ref: str,
+        previous_context: ContextManifest,
+        case_id: str,
+        trigger_ref: str,
+        run_id: str,
+        world_revision: int,
+    ) -> WatchWakeAdmission: ...
 
 
 class WatchWakeService:
@@ -51,11 +83,13 @@ class WatchWakeService:
     def __init__(
         self,
         *,
+        admission_port: WatchWakeAdmissionPort,
         state_service: InvestigationStateService | None = None,
         stream_name: str = "secfusion:task-events",
         now: Callable[[], datetime] | None = None,
     ) -> None:
         self._state_service = state_service or InvestigationStateService()
+        self._admission = admission_port
         self._stream_name = stream_name
         self._now = now or (lambda: datetime.now(UTC))
 
@@ -81,6 +115,16 @@ class WatchWakeService:
                 case_id=impact.case_id,
                 trigger_ref=trigger_ref,
                 disposition=WatchWakeDisposition.NOT_ACTIVATED,
+            )
+
+        run_id = _watch_wake_run_id(impact.case_id, trigger_ref)
+        existing_run = await session.get(TaskRunModel, run_id)
+        if existing_run is not None:
+            return WatchWakeResult(
+                case_id=impact.case_id,
+                trigger_ref=trigger_ref,
+                disposition=WatchWakeDisposition.REPLAY,
+                run_id=run_id,
             )
 
         template = await session.scalar(
@@ -119,15 +163,6 @@ class WatchWakeService:
                 run_id=template.run_id,
             )
 
-        run_id = _watch_wake_run_id(impact.case_id, trigger_ref)
-        if await session.get(TaskRunModel, run_id) is not None:
-            return WatchWakeResult(
-                case_id=impact.case_id,
-                trigger_ref=trigger_ref,
-                disposition=WatchWakeDisposition.REPLAY,
-                run_id=run_id,
-            )
-
         contract_model = await session.get(
             TaskContractVersionModel,
             template.task_contract_version_id,
@@ -140,6 +175,32 @@ class WatchWakeService:
             raise RuntimeError("WATCH template references missing contract/context version")
         contract = TaskContract.model_validate(contract_model.contract_json)
         previous = ContextManifest.model_validate(context_model.manifest_json)
+        admission = await self._admission.admit(
+            session,
+            contract=contract,
+            template_run_id=template.run_id,
+            template_execution_envelope_ref=template.execution_envelope_ref,
+            previous_context=previous,
+            case_id=impact.case_id,
+            trigger_ref=trigger_ref,
+            run_id=run_id,
+            world_revision=impact.world_revision,
+        )
+        if not admission.allowed:
+            return WatchWakeResult(
+                case_id=impact.case_id,
+                trigger_ref=trigger_ref,
+                disposition=admission.denial_reason or WatchWakeDisposition.POLICY_DENIED,
+                run_id=run_id,
+                policy_decision_ref=admission.policy_decision_ref,
+                policy_authorization=admission.policy_authorization,
+            )
+        if (
+            admission.budget_ref is None
+            or admission.execution_envelope_ref is None
+            or admission.capability_envelope_ref is None
+        ):
+            raise RuntimeError("WATCH admission permitted without execution-control refs")
         state = await self._state_service.get_state(session, impact.case_id)
         manifest = ContextManifest(
             context_id=f"context:watch-wake:{run_id}",
@@ -158,8 +219,8 @@ class WatchWakeService:
             skill_selection_refs=[],
             experience_pattern_refs=[],
             policy_context_ref=previous.policy_context_ref,
-            capability_envelope_ref=f"capability:watch:{run_id}",
-            budget_ref=f"budget:{run_id}",
+            capability_envelope_ref=admission.capability_envelope_ref,
+            budget_ref=admission.budget_ref,
             cache_hint=None,
         )
         await create_task_run(
@@ -167,7 +228,7 @@ class WatchWakeService:
             contract=contract,
             manifest=manifest,
             role=canonical_roles()["InvestigationRole"],
-            execution_envelope_ref=f"execution:{run_id}",
+            execution_envelope_ref=admission.execution_envelope_ref,
             stream_name=self._stream_name,
             case_id=impact.case_id,
             run_id=run_id,
@@ -189,6 +250,8 @@ class WatchWakeService:
             trigger_ref=trigger_ref,
             disposition=WatchWakeDisposition.QUEUED,
             run_id=run_id,
+            policy_decision_ref=admission.policy_decision_ref,
+            policy_authorization=admission.policy_authorization,
         )
 
 

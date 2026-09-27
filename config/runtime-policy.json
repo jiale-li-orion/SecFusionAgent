@@ -1,0 +1,17 @@
+{
+  "policy_revision": "policy-v1",
+  "rules": [
+    {
+      "policy_id": "watch-resume-existing-case",
+      "policy_revision": "policy-v1",
+      "decision_points": ["watch_resume"],
+      "principal_patterns": ["*"],
+      "action_patterns": ["resume_watch"],
+      "resource_patterns": ["case:*"],
+      "authorization": "permit",
+      "constraints": [],
+      "obligations": [],
+      "advice": []
+    }
+  ]
+}
