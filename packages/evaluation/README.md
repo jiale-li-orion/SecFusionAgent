@@ -340,7 +340,10 @@ constructed from the separately fetched arXiv Atom title/summary for that same v
 On `2504.17473v1`, both views contain only `CVE-2024-3094`, yielding **1 TP / 0 FP / 0 FN** for
 `research_paper`. A paper revision mismatch fails closed, and a zero-gold selection is rejected
 rather than inheriting a vacuous score. Open semantic research relations still require human
-annotation/adjudication before they can enter an official benchmark denominator.
+annotation/adjudication before they can enter an official benchmark denominator. The formal run is
+deployment `deployment:3b37e7acdfd8e9d6154fc33899c5b597`, suite `m3-research-exact-cve@1`, run
+`bcfb869d-4f3f-4f06-8cf2-7d875c364837`, CompetitionReport
+`b8bc4b81-f24c-4a77-aa8f-e95179e687f4`.
 
 FIRST can also be evaluated independently of the mixed structured suite:
 

@@ -181,6 +181,10 @@ Knowledge. On arXiv `2504.17473v1` (XZ Utils supply-chain analysis), production 
 exactly `CVE-2024-3094`; independent Atom title/summary gold found the same anchor, producing
 **1 formal fact / 1 TP / 0 FP / 0 FN** in `research_paper`. This proves only exact identifier
 association; open semantic claims such as attack/defense evaluation remain outside formal M3 gold.
+The formal TD3 checkpoint is deployment `deployment:3b37e7acdfd8e9d6154fc33899c5b597`, suite
+`m3-research-exact-cve@1`, run `bcfb869d-4f3f-4f06-8cf2-7d875c364837`, with CompetitionReport
+`b8bc4b81-f24c-4a77-aa8f-e95179e687f4` (digest
+`6a30dd968d8165f2d1cc285022f2526a6453d43c602ca7d22d706f716072d013`).
 
 M3 exposes closed-set status as resolved/conflict/unknown/missing over the shared vocabulary. The conversion of those gaps into M4 `EvidenceNeed`, Perception and investigation policy remains owned by `packages.investigation`; M3 state specifications do not become a parallel investigation requirement protocol.
 
