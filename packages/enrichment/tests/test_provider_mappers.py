@@ -43,8 +43,16 @@ def test_github_mapper_builds_package_relation() -> None:
     candidate = GitHubAdvisoryMapper().map(_envelope("github_advisory.json", "GHSA-aaaa-bbbb-cccc"))
     assert candidate.root_identifiers["cve"] == ["CVE-2026-42424"]
     assert candidate.root_identifiers["ghsa"] == ["GHSA-aaaa-bbbb-cccc"]
-    assert candidate.relations[0].target.canonical_key == "package:pip:vllm"
-    assert candidate.relations[0].qualifier["first_patched_version"] == "0.11.1"
+    values = {claim.predicate: claim.value for claim in candidate.claims}
+    assert values["epss_probability"] == 0.01152
+    assert values["epss_percentile"] == 0.65554
+    package = next(item for item in candidate.relations if item.relation_type == "affects-package")
+    assert package.target.canonical_key == "package:pip:vllm"
+    assert package.qualifier["first_patched_version"] == "0.11.1"
+    fixed = next(item for item in candidate.relations if item.relation_type == "fixed-version")
+    assert fixed.target.canonical_key == "software-version:pip:vllm:0.11.1"
+    weakness = next(item for item in candidate.relations if item.relation_type == "has-weakness")
+    assert weakness.target.canonical_key == "weakness:CWE-306"
 
 
 def test_osv_mapper_builds_purl_and_version_relation() -> None:

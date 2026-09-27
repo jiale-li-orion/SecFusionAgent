@@ -10,8 +10,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.intelligence.ingestion.evidence import ObservationAck
+from packages.intelligence.knowledge.contracts import ObjectCandidate, RelationCandidate
 from packages.intelligence.knowledge.identity import (
     cve_canonical_key,
+    stable_object_id,
     vulnerability_cve_object_id,
 )
 from packages.intelligence.knowledge.vocabulary import (
@@ -29,6 +31,7 @@ from packages.intelligence.storage.knowledge_models import (
     KnowledgeChangeModel,
     KnowledgeRevisionModel,
     ObjectModel,
+    RelationModel,
 )
 from packages.intelligence.storage.models import ProcessingRunModel
 from packages.shared.storage.models import OutboxEventModel
@@ -44,12 +47,14 @@ class ProjectedVulnerabilityCanonicalNormalizer:
         processor_name: str,
         projection: HotBugNormalizer,
         locator_for: Callable[[str], dict[str, object]],
+        relations_for: Callable[[dict[str, object]], list[RelationCandidate]] | None = None,
         now: Callable[[], datetime] | None = None,
     ) -> None:
         self._processor_name = processor_name
         self._now = now or (lambda: datetime.now(UTC))
         self._projection = projection
         self._locator_for = locator_for
+        self._relations_for = relations_for
 
     async def normalize(
         self,
@@ -157,7 +162,18 @@ class ProjectedVulnerabilityCanonicalNormalizer:
         for predicate, value in projection.items():
             if predicate == "cve_id" or value is None:
                 continue
-            claim_id = _stable_id(f"claim:{object_id}:{predicate}:{observation.observation_id}")
+            value_fingerprint = sha256(
+                json.dumps(
+                    value,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    ensure_ascii=False,
+                ).encode()
+            ).hexdigest()
+            claim_id = _stable_id(
+                f"claim:{object_id}:{predicate}:{observation.observation_id}:"
+                f"{value_fingerprint}"
+            )
             claim = await session.get(ClaimModel, claim_id)
             if claim is None:
                 claim = ClaimModel(
@@ -199,12 +215,108 @@ class ProjectedVulnerabilityCanonicalNormalizer:
                         locator_hash=locator_hash,
                     )
                 )
+            else:
+                claim.superseded_revision = None
             claim_ids.append(claim_id)
+
+        relation_ids: list[str] = []
+        object_ids: list[str] = [object_id]
+        relation_candidates = (
+            self._relations_for(dict(projection)) if self._relations_for is not None else []
+        )
+        relation_types = {item.relation_type for item in relation_candidates}
+        for relation_type in relation_types:
+            await _supersede_source_relations(
+                session,
+                subject_id=object_id,
+                relation_type=relation_type,
+                source_id=source.source_id,
+                superseded_revision=revision.revision,
+            )
+        for relation_candidate in relation_candidates:
+            target = await _upsert_related_object(
+                session,
+                relation_candidate.target,
+                revision.revision,
+            )
+            if target.object_id not in object_ids:
+                object_ids.append(target.object_id)
+            relation_scope = classify_term(
+                "relation",
+                relation_candidate.relation_type,
+                origin="deterministic_derived",
+                subject_type="Vulnerability",
+                target_type=relation_candidate.target.object_type,
+                qualifier_keys=relation_candidate.qualifier.keys(),
+            )
+            if relation_scope is VocabularyScope.UNREGISTERED:
+                raise ValueError(
+                    f"unregistered canonical relation type: {relation_candidate.relation_type}"
+                )
+            fingerprint = sha256(
+                json.dumps(
+                    relation_candidate.qualifier,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ).encode()
+            ).hexdigest()
+            relation_id = _stable_id(
+                f"relation:{object_id}:{relation_candidate.relation_type}:{target.object_id}:"
+                f"{observation.observation_id}:{fingerprint}"
+            )
+            existing_relation = await session.get(RelationModel, relation_id)
+            if existing_relation is None:
+                session.add(
+                    RelationModel(
+                        relation_id=relation_id,
+                        source_object_id=object_id,
+                        relation_type=relation_candidate.relation_type,
+                        target_object_id=target.object_id,
+                        qualifier={
+                            **relation_candidate.qualifier,
+                            "source_id": source.source_id,
+                            **vocabulary_metadata(relation_scope),
+                        },
+                        origin="deterministic_derived",
+                        lifecycle="accepted",
+                        processing_run_id=run_id,
+                        created_revision=revision.revision,
+                    )
+                )
+                relation_locator = relation_candidate.locator
+                locator_hash = sha256(
+                    json.dumps(
+                        relation_locator,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    ).encode()
+                ).hexdigest()
+                session.add(
+                    EvidenceLinkModel(
+                        evidence_link_id=_stable_id(
+                            f"evidence-link:relation:{relation_id}:"
+                            f"{observation.observation_id}:{locator_hash}"
+                        ),
+                        target_kind="relation",
+                        target_id=relation_id,
+                        observation_id=observation.observation_id,
+                        artifact_id=observation.artifact_id,
+                        locator=relation_locator,
+                        locator_hash=locator_hash,
+                    )
+                )
+            else:
+                existing_relation.superseded_revision = None
+            relation_ids.append(relation_id)
 
         change = KnowledgeChangeModel(
             change_id=_stable_id(f"knowledge-change:{run_id}"),
             revision=revision.revision,
-            changed_ids={"objects": [object_id], "claims": claim_ids, "relations": []},
+            changed_ids={
+                "objects": object_ids,
+                "claims": claim_ids,
+                "relations": relation_ids,
+            },
             cause_processing_run_id=run_id,
             cause_observation_id=observation.observation_id,
             committed_at=now,
@@ -217,9 +329,9 @@ class ProjectedVulnerabilityCanonicalNormalizer:
                 aggregate_id=object_id,
                 payload={
                     "revision": revision.revision,
-                    "object_ids": [object_id],
+                    "object_ids": object_ids,
                     "claim_ids": claim_ids,
-                    "relation_ids": [],
+                    "relation_ids": relation_ids,
                 },
                 status="pending",
                 attempts=0,
@@ -251,11 +363,14 @@ class ProjectedVulnerabilityCanonicalNormalizer:
 
 
 class NVDCanonicalNormalizer(ProjectedVulnerabilityCanonicalNormalizer):
+    PROCESSOR_VERSION = "3"
+
     def __init__(self, *, now: Callable[[], datetime] | None = None) -> None:
         super().__init__(
             processor_name="nvd-canonical-normalizer",
             projection=NVDHotBugNormalizer(),
             locator_for=_nvd_locator_for,
+            relations_for=_nvd_relations,
             now=now,
         )
 
@@ -287,12 +402,37 @@ def _nvd_locator_for(predicate: str) -> dict[str, object]:
         "cvss_score": "$.cve.metrics",
         "cvss_severity": "$.cve.metrics",
         "cvss_vector": "$.cve.metrics",
+        "cvss_version": "$.cve.metrics",
         "cwes": "$.cve.weaknesses",
         "references": "$.cve.references",
         "published": "$.cve.published",
         "last_modified": "$.cve.lastModified",
     }
     return {"kind": "jsonpath", "path": paths.get(predicate, "$.cve")}
+
+
+def _nvd_relations(projection: dict[str, object]) -> list[RelationCandidate]:
+    raw = projection.get("cwes")
+    if not isinstance(raw, list):
+        return []
+    relations: list[RelationCandidate] = []
+    for value in raw:
+        if not isinstance(value, str) or not value.startswith("CWE-"):
+            continue
+        cwe_id = value.upper()
+        relations.append(
+            RelationCandidate(
+                relation_type="has-weakness",
+                target=ObjectCandidate(
+                    object_type="Weakness",
+                    canonical_key=f"weakness:{cwe_id}",
+                    properties={"cwe_id": cwe_id},
+                    identifiers={"cwe": [cwe_id]},
+                ),
+                locator={"kind": "jsonpath", "path": "$.cve.weaknesses"},
+            )
+        )
+    return relations
 
 
 async def _supersede_source_claims(
@@ -316,3 +456,75 @@ async def _supersede_source_claims(
     for claim in current:
         if claim.qualifier.get("source_id") == source_id:
             claim.superseded_revision = superseded_revision
+
+
+async def _supersede_source_relations(
+    session: AsyncSession,
+    *,
+    subject_id: str,
+    relation_type: str,
+    source_id: str,
+    superseded_revision: int,
+) -> None:
+    current = list(
+        await session.scalars(
+            select(RelationModel).where(
+                RelationModel.source_object_id == subject_id,
+                RelationModel.relation_type == relation_type,
+                RelationModel.lifecycle == "accepted",
+                RelationModel.superseded_revision.is_(None),
+            )
+        )
+    )
+    for relation in current:
+        if relation.qualifier.get("source_id") == source_id:
+            relation.superseded_revision = superseded_revision
+
+
+async def _upsert_related_object(
+    session: AsyncSession,
+    candidate: ObjectCandidate,
+    revision: int,
+) -> ObjectModel:
+    obj = await session.scalar(
+        select(ObjectModel).where(
+            ObjectModel.object_type == candidate.object_type,
+            ObjectModel.canonical_key == candidate.canonical_key,
+        )
+    )
+    if obj is None:
+        obj = ObjectModel(
+            object_id=stable_object_id(candidate.object_type, candidate.canonical_key),
+            object_type=candidate.object_type,
+            canonical_key=candidate.canonical_key,
+            properties=candidate.properties,
+            created_revision=revision,
+        )
+        session.add(obj)
+    elif candidate.properties:
+        obj.properties = {**obj.properties, **candidate.properties}
+    for namespace, values in candidate.identifiers.items():
+        for value in values:
+            existing = await session.scalar(
+                select(ExternalIdentifierModel).where(
+                    ExternalIdentifierModel.namespace == namespace,
+                    ExternalIdentifierModel.value == value,
+                )
+            )
+            if existing is None:
+                session.add(
+                    ExternalIdentifierModel(
+                        external_identifier_id=_stable_id(
+                            f"external-id:{namespace}:{value}"
+                        ),
+                        namespace=namespace,
+                        value=value,
+                        object_id=obj.object_id,
+                    )
+                )
+            elif existing.object_id != obj.object_id:
+                raise ValueError(
+                    f"identifier collision for {namespace}:{value}: "
+                    f"{existing.object_id} != {obj.object_id}"
+                )
+    return obj

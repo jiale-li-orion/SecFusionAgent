@@ -75,13 +75,13 @@ The registry is broader than the processors already implemented. The current imp
 | Dimension | v1 benchmark surface | Current implementation state |
 |---|---|---|
 | Identity | M2 diagnostic, not M3 P/R | CVE/GHSA/OSV/CNVD/CNNVD and repository identities largely available |
-| Severity | CVSS score/vector/version/severity | NVD/CVE raw fields available; canonicalization continues |
-| Weakness | `Vulnerability --has-weakness--> Weakness` | raw NVD/GHSA CWE fields exist; canonical relation mapping remains backlog |
+| Severity | CVSS score/vector/version/severity | NVD deterministic normalization writes all four canonical fields, including `cvss_version` |
+| Weakness | `Vulnerability --has-weakness--> Weakness` | NVD and GitHub Advisory deterministically map CWE identifiers to canonical `Weakness` objects with evidence |
 | Product/package | `affects-product`, `affects-package` | package relations exist; broader product identity mapping continues |
 | Version applicability | scoped `applicability-status` relation | relation/qualifier contract frozen; unified CVE/OSV/NVD/CSAF evaluator remains backlog |
-| Fix/remediation | `fixed-version`, `fixed-by` | GitHub graph/fix-boundary available; unified version identity remains backlog |
+| Fix/remediation | `fixed-version`, `fixed-by` | GitHub Advisory `first_patched_version` now writes canonical `SoftwareVersion` + `fixed-version`; repository graph/fix-boundary remains available |
 | Exploit state | `known_exploited`, `has-poc`, exploit maturity | KEV available; PoC/ExploitArtifact processor remains backlog |
-| Exploit likelihood | EPSS probability/percentile at observed time | source/processor remains backlog |
+| Exploit likelihood | EPSS probability/percentile at observed time | GitHub Advisory EPSS snapshot writes canonical probability/percentile claims with provider evidence; dedicated point-in-time EPSS source remains future hardening |
 | Advisory/reference | canonical advisory/document associations | source references exist; canonical relation coverage remains incomplete |
 | Asset exposure | `InternetAsset --asset-potentially-affected--> Vulnerability` | provider-neutral `AssetObservation` exists; applicability join remains backlog |
 | Research/paper | `discusses-vulnerability` | managed semantic extraction exists; benchmark bridge remains backlog |
@@ -91,20 +91,26 @@ Supporting edges such as `release-contains-commit`, `asset-runs-product`, and `a
 
 The active M3 implementation backlog is therefore:
 
-1. Product/Package/SoftwareVersion canonical identity and PURL/CPE/ecosystem alias mapping;
-2. CVE/OSV/NVD/CSAF source-specific applicability evaluators;
-3. raw CWE → canonical `has-weakness` mapping;
-4. PoC/ExploitArtifact processor;
-5. EPSS point-in-time source/claims;
+1. Product/Package/SoftwareVersion alias normalization beyond the current ecosystem+package+version identity;
+2. CVE/OSV/NVD/CSAF source-specific applicability evaluators and scoped `applicability-status` materialization;
+3. PoC/ExploitArtifact processor;
+4. dedicated point-in-time EPSS ingestion independent of GitHub advisory snapshots;
+5. canonical advisory/document association coverage;
 6. AssetObservation → Product/SoftwareVersion → Vulnerability deterministic join;
 7. paper `discusses-vulnerability` benchmark bridge;
 8. Incident → Vulnerability strong-anchor benchmark bridge.
+
+Processor-version refresh is expected to be replay-safe. The canonical writer and NVD durable normalizer reactivate an identical immutable claim/relation when a newer processor run supersedes the previous active source projection and then reproduces the same normalized tuple. This prevents mapper upgrades from accidentally making stable facts disappear.
 
 M3 exposes closed-set status as resolved/conflict/unknown/missing over the shared vocabulary. The conversion of those gaps into M4 `EvidenceNeed`, Perception and investigation policy remains owned by `packages.investigation`; M3 state specifications do not become a parallel investigation requirement protocol.
 
 ## Current boundary
 
-The EnrichmentRole runtime, closed operator registry, deterministic fixed-point loop, background/delegated TaskRun reuse, EvidenceIngress and Knowledge write path are implemented. Delegated EnrichmentTask is now queued through the shared Task Runtime and dispatched through the same Task Event → worker Role path as InvestigationRole; the worker composition lives in `apps/enrichment_runtime.py` rather than inside the Task Runtime. The remaining gaps are content/coverage gaps in the enrichment matrix above, plus later M7 replay-driven Skill improvement; they are not reasons to add another enrichment scheduler or a second task protocol.
+The EnrichmentRole runtime, closed operator registry, deterministic fixed-point loop, background/delegated TaskRun reuse, EvidenceIngress and Knowledge write path are implemented. Delegated and background EnrichmentTask creation now passes through the shared Task admission seam and is dispatched through the same Task Event → worker Role path as InvestigationRole; the worker composition lives in `apps/enrichment_runtime.py` rather than inside the Task Runtime. M7 replay/promotion infrastructure now exists, so the remaining M3 gaps are the concrete content/coverage items in the matrix above and the absence of validated enrichment Skill patches—not another scheduler or task protocol.
+
+## Design → implementation map
+
+TD1 定义 M3 只生产 evidence-backed field/relation；TD2 允许这类工作作为 Role 执行，但没有搬走 authority。`runtime/admission.py` 把已绑定的 vulnerability/object 与 required dimensions 编译为 Enrichment TaskContract；`runtime/role.py` 跑 deterministic-first fixed-point loop；`runtime/operators.py` 选择 closed operators；provider/graph/fix primitive 在需要新材料时重新进入 M1 acquisition，最终仍通过 EvidenceIngress 和 `EvidenceBackedKnowledgeWriter` 写回。Task-local `EnrichmentState` 只表示工作进度，不替代 canonical Knowledge，也不替代 M4 EvidenceNeed。
 
 ## Adding an enrichment processor
 

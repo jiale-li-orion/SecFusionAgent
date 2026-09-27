@@ -26,6 +26,7 @@ from packages.intelligence.storage.knowledge_models import (
     KnowledgeChangeModel,
     KnowledgeRevisionModel,
     ObjectModel,
+    RelationModel,
 )
 from packages.intelligence.storage.models import ProcessingRunModel
 from packages.monitoring.storage.models import AcquisitionRunModel
@@ -128,10 +129,13 @@ async def test_hot_bug_promotion_is_durable_traceable_and_idempotent() -> None:
             assert await _count(session, ObservationModel) == 1
             assert await _count(session, EvidenceArtifactModel) == 1
             assert await _count(session, KnowledgeRevisionModel) == 1
-            assert await _count(session, ObjectModel) == 1
-            assert await _count(session, ExternalIdentifierModel) == 1
+            assert await _count(session, ObjectModel) == 2
+            assert await _count(session, ExternalIdentifierModel) == 2
             assert await _count(session, ClaimModel) > 0
-            assert await _count(session, EvidenceLinkModel) == await _count(session, ClaimModel)
+            assert await _count(session, RelationModel) == 1
+            assert await _count(session, EvidenceLinkModel) == (
+                await _count(session, ClaimModel) + await _count(session, RelationModel)
+            )
             assert await _count(session, KnowledgeChangeModel) == 1
             assert await _count(session, OutboxEventModel) == 2
             topics = set(await session.scalars(select(OutboxEventModel.topic)))
@@ -146,6 +150,17 @@ async def test_hot_bug_promotion_is_durable_traceable_and_idempotent() -> None:
             assert cvss.qualifier["vocabulary_scope"] == "canonical"
             assert cvss.evidence[0].source_id == source.source_id
             assert cvss.evidence[0].locator["kind"] == "jsonpath"
+            cvss_version = next(
+                claim for claim in view.claims if claim.predicate == "cvss_version"
+            )
+            assert cvss_version.value == "3.1"
+            weakness = next(
+                relation for relation in view.relations if relation.relation_type == "has-weakness"
+            )
+            assert weakness.target.object_type == "Weakness"
+            assert weakness.target.canonical_key == "weakness:CWE-306"
+            assert weakness.target.external_identifiers == {"cwe": ["CWE-306"]}
+            assert weakness.evidence[0].source_id == source.source_id
 
         async with factory() as session, session.begin():
             replay = await promotion.promote_hot_bug(session, source, "CVE-2026-42424")
@@ -157,6 +172,7 @@ async def test_hot_bug_promotion_is_durable_traceable_and_idempotent() -> None:
             assert await _count(session, KnowledgeRevisionModel) == 1
             assert await _count(session, KnowledgeChangeModel) == 1
             assert await _count(session, ProcessingRunModel) == 1
+            assert await _count(session, RelationModel) == 1
         await redis_client.aclose()
     finally:
         await engine.dispose()

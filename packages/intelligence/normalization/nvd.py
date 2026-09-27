@@ -16,7 +16,7 @@ class NVDHotBugNormalizer:
         cve_id = cve.get("id")
         if not isinstance(cve_id, str):
             raise SourceSchemaChanged("NVD cve.id is missing")
-        score, severity, vector = _cvss(cve.get("metrics"))
+        score, severity, vector, version = _cvss(cve.get("metrics"))
         return {
             "cve_id": cve_id,
             "status": _json_scalar(cve.get("vulnStatus")),
@@ -24,6 +24,7 @@ class NVDHotBugNormalizer:
             "cvss_score": score,
             "cvss_severity": severity,
             "cvss_vector": vector,
+            "cvss_version": version,
             "cwes": _cwes(cve.get("weaknesses")),
             "references": _references(cve.get("references")),
             "published": _json_scalar(cve.get("published")),
@@ -31,9 +32,9 @@ class NVDHotBugNormalizer:
         }
 
 
-def _cvss(metrics: Any) -> tuple[float | None, str | None, str | None]:
+def _cvss(metrics: Any) -> tuple[float | None, str | None, str | None, str | None]:
     if not isinstance(metrics, dict):
-        return None, None, None
+        return None, None, None, None
     for key in ("cvssMetricV40", "cvssMetricV31", "cvssMetricV30", "cvssMetricV2"):
         entries = metrics.get(key)
         if not isinstance(entries, list) or not entries:
@@ -50,12 +51,14 @@ def _cvss(metrics: Any) -> tuple[float | None, str | None, str | None]:
         score = data.get("baseScore")
         severity = data.get("baseSeverity") or primary.get("baseSeverity")
         vector = data.get("vectorString")
+        version = data.get("version")
         return (
             float(score) if isinstance(score, (int, float)) else None,
             severity if isinstance(severity, str) else None,
             vector if isinstance(vector, str) else None,
+            version if isinstance(version, str) else None,
         )
-    return None, None, None
+    return None, None, None, None
 
 
 def _english_description(value: Any) -> str | None:

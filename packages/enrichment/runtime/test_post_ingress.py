@@ -195,7 +195,18 @@ async def test_osv_backfill_builds_package_relation_from_existing_observation() 
         assert result.handler == "time_bounded_enrichment"
         async with factory() as session:
             relations = list(await session.scalars(select(RelationModel)))
-            assert {relation.relation_type for relation in relations} == {"affects-package"}
+            relation_types = {relation.relation_type for relation in relations}
+            assert {"affects-package", "has-weakness"} <= relation_types
+            assert any(
+                relation.relation_type == "affects-package"
+                and relation.qualifier.get("source_id") == "osv-vulnerabilities"
+                for relation in relations
+            )
+            assert any(
+                relation.relation_type == "has-weakness"
+                and relation.qualifier.get("source_id") == "nvd-cves-2"
+                for relation in relations
+            )
     finally:
         await engine.dispose()
 

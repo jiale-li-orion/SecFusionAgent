@@ -156,7 +156,8 @@ class EvidenceBackedKnowledgeWriter:
                 f"claim:{root_object_id}:{claim_candidate.predicate}:"
                 f"{observation.observation_id}:{fingerprint}"
             )
-            if await session.get(ClaimModel, claim_id) is None:
+            existing_claim = await session.get(ClaimModel, claim_id)
+            if existing_claim is None:
                 session.add(
                     ClaimModel(
                         claim_id=claim_id,
@@ -189,6 +190,12 @@ class EvidenceBackedKnowledgeWriter:
                     observation=observation,
                     locator=claim_candidate.locator,
                 )
+            else:
+                # A processor-version refresh can supersede the currently active
+                # source fact before discovering that the normalized tuple is
+                # unchanged. Re-activate the immutable matching fact instead of
+                # leaving the source with no active projection.
+                existing_claim.superseded_revision = None
             claim_ids.append(claim_id)
 
         relation_ids: list[str] = []
@@ -202,7 +209,8 @@ class EvidenceBackedKnowledgeWriter:
                 f"relation:{root_object_id}:{relation_candidate.relation_type}:{target.object_id}:"
                 f"{observation.observation_id}:{fingerprint}"
             )
-            if await session.get(RelationModel, relation_id) is None:
+            existing_relation = await session.get(RelationModel, relation_id)
+            if existing_relation is None:
                 session.add(
                     RelationModel(
                         relation_id=relation_id,
@@ -236,6 +244,8 @@ class EvidenceBackedKnowledgeWriter:
                     observation=observation,
                     locator=relation_candidate.locator,
                 )
+            else:
+                existing_relation.superseded_revision = None
             relation_ids.append(relation_id)
 
         change = KnowledgeChangeModel(

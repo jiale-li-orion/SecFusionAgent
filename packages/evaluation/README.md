@@ -1,6 +1,6 @@
 # `packages.evaluation`
 
-`packages.evaluation` owns executable M1–M3 evaluation contracts. Requirements and Technical Design 1 define what must be measured; this module defines the concrete denominator identities, validation models, aggregation behavior, and regression tests so later benchmark runners do not reinterpret the metrics.
+`packages.evaluation` owns executable evaluation contracts across two layers: TD1's M1–M3 source/enrichment metrics, and TD2's M7 replay/regression and Skill promotion gate. Requirements define the competition-facing outcomes; TD1/TD2 define the frozen runtime semantics; this package turns both into concrete denominators, replay coordinates, pass/fail rules and durable validation results.
 
 ## Competition reporting profile
 
@@ -118,18 +118,136 @@ The baseline used to measure Agent/semantic gain contains no LLM planner or free
 
 Agent/semantic improvements are measured as additional canonical recall/gap resolution under the same gold and evidence rules, with latency/cost reported separately rather than by changing the denominator.
 
-## Current scope
+## M7 replay comparison
 
-This module intentionally stops at M1–M3 contracts. M4–M6 task/tool/policy evaluation, trajectory intervention/replay, QA scoring, and security benchmark runners will be added only after those runtime contracts are frozen.
+`m7_replay.py` compares a baseline and one explicit candidate intervention against the same durable `ReplayCheckpoint`. A replay case pins Task/Context/Trajectory/world/runtime coordinates and expected protocol/domain outcome; an observation is rejected if its case id, variant id or freeze hash drifts from the frozen coordinate.
+
+Candidate variants must declare exactly one intervention. The current replay contract covers loop topology, context handoff, policy revision, sandbox profile, Skill ref and Capability Registry revision. `M7ReplayService` separates protocol failure from quality metrics, then applies explicit metric direction/tolerance rules. A candidate is not considered acceptable merely because the final answer improved if protocol conformance regressed.
+
+`packages.investigation.replay` owns checkpoint capture, historical M4 reconstruction and fail-closed world preparation; this package owns comparison/scoring. True historical Agent re-execution remains blocked when the pinned M1–M3 Knowledge revision is no longer readable through a versioned Knowledge path. The evaluator must not substitute the latest projection.
+
+## Experience → Skill promotion
+
+`skill_promotion.py` is the promotion authority for Experience-derived Skill patches. `SkillPatchCandidate` construction remains under `packages.investigation.experience`; M7 decides whether a candidate may become active.
+
+Promotion requires a fixed replay suite containing support, counterexample and regression cases. The gate verifies that the candidate-declared `support_refs` and `counterexample_refs` are actually represented by suite `source_ref`s, so a patch cannot claim validation on unrelated easy cases. Replay results and validation refs are durable; failed regression blocks activation instead of silently leaving a candidate in online selection.
+
+## Design → implementation map
+
+TD1 的 M1/M3 评测由 `m1_m3.py` 实现：source category、fixed-window delivery、latency 与 evidence-aware enrichment P/R 都有稳定 identity/denominator。TD2 的 M7 评测由 `m7_replay.py` 接 durable ReplayCheckpoint，要求 baseline/candidate 在同一 freeze hash 上比较；`skill_promotion.py` 再把 support/counterexample/regression replay 变成 Skill promotion gate。评测层可以读取 frozen runtime artifact，但不参与在线 Task、Policy 或 Knowledge write。
+
+比赛目标和内部 protocol gate 也保持分离：评委关心监测延迟、富化 P/R、问答准确/多跳和 Agent 自动化；M7 额外检查 Context/Policy/Sandbox/Skill 等实现变更是否破坏协议。内部 replay 通过不能代替比赛 QA 指标。
+
+## Current scope and competition gap
+
+Executable coverage now includes source-category coverage, source delivery/latency, evidence-aware enrichment P/R, frozen replay comparison, Skill promotion regression, and an evaluation-neutral M6 QA scorer. `QAGold + QAPrediction -> QAScore` separates answer accuracy from groundedness, citation correctness/completeness, multi-hop path correctness, unknown/conflict handling, completion semantics and interactive latency. `scripts/run_qa_benchmark.py` can execute a frozen fixture through the same durable Benchmark Runtime; the bundled `benchmarks/qa/smoke-v1.json` is explicitly synthetic harness verification and is not competition evidence.
+
+The remaining competition-critical M6 gap is no longer the scorer substrate. It is the real product benchmark: fixed human/adjudicated questions and world snapshots, Product/Decision -> `QAPrediction` adapters, multi-turn/session cases, and measured live interactive/investigation latency. Security/adversarial and fault-injection cases are specified by Requirements/TD2/TD3 but still need frozen real suites and product/runtime adapters.
+
+## TD3 Benchmark Runtime
+
+`packages.evaluation.benchmark` owns the durable evaluation substrate introduced by TD3:
+
+```text
+DeploymentRevision
+BenchmarkCase@revision
+BenchmarkSuite@revision
+BenchmarkRun
+BenchmarkCaseRun
+MetricObservation@metric-definition-revision
+```
+
+Suite and case revisions are immutable. A `BenchmarkRun` binds one frozen suite/gold revision to one `DeploymentRevision`; a run cannot finish while a case is still active. Metric observations can only be appended to running case runs and must match a registered metric definition's direction/unit. The first observation of a metric revision persists an immutable `MetricDefinition` row containing denominator, aggregation, missing-value policy, direction, unit and a definition digest. Formula changes therefore require a new metric definition revision instead of silently rewriting history.
+
+`CompetitionReportService` only aggregates an explicit list of completed runs from the same deployment revision. It does not search for whichever run is newest and does not mix deployments implicitly. Aggregation reads the durable metric-definition revisions referenced by the observations; a report fails if those definitions are missing or if one metric name mixes revisions. M3 global micro precision/recall are re-derived from summed TP/FP/FN rather than averaging per-case ratios. `generate_and_persist()` stores a durable `CompetitionReport` payload, deterministic content digest, run set and metric-definition refs; repeated exports of the same logical report are idempotent.
+
+Competition target checks are deliberately narrow and factual: source-category count `>=7`, enrichment precision/recall `>=0.95`, QA accuracy `>=0.95`, and interactive QA latency `<=5s`. Missing metrics are `not_evaluated`, never zero-filled. Monitoring latency still reports p50/p95/max/`<=6h` rate because Requirements freeze those statistics, but the competition text does not define one aggregate latency pass formula, so the report does not invent one.
+
+`RegressionGate` compares two explicit reports under version-compatible metric definitions and supports hard floor/ceiling, maximum regression and minimum improvement rules. It fails closed when a required metric is missing or its definition revision changed.
+
+## Reproducible execution entry points
+
+```bash
+# Unit/architecture gate for the evaluation substrate
+make evaluation-check
+
+# Formal batch: freeze one deployment coordinate, then pin every module run to it.
+uv run python scripts/freeze_deployment_revision.py \
+  --output /tmp/deployment.json
+# Read deployment_revision_id from the JSON below as <deployment-id>.
+
+# M1: fixed-window monitoring benchmark. Only scheduled acquisition enters latency.
+# published_at -> earliest Knowledge committed_at is the measured latency.
+uv run python scripts/run_m1_benchmark.py \
+  --window-start 2026-09-27T00:00:00Z \
+  --window-end 2026-09-28T00:00:00Z \
+  --suite-revision 2 \
+  --deployment-revision-id '<deployment-id>' \
+  --output /tmp/m1-benchmark.json
+
+# M3: freeze a real structured-provider report, then register it explicitly.
+uv run python scripts/evaluate_real_enrichment.py \
+  CVE-2025-47828 CVE-2024-13980 CVE-2024-13981 \
+  CVE-2024-13984 CVE-2024-13985 CVE-2026-48746 \
+  --output /tmp/m3-real.json
+uv run python scripts/register_real_enrichment_benchmark.py \
+  /tmp/m3-real.json --suite-revision 1 \
+  --deployment-revision-id '<deployment-id>'
+
+# M6 harness smoke only; the bundled fixture is synthetic.
+uv run python scripts/run_qa_benchmark.py \
+  benchmarks/qa/smoke-v1.json \
+  --deployment-revision-id '<deployment-id>' \
+  --output /tmp/m6-smoke.json
+
+# Export only explicitly selected runs from one DeploymentRevision.
+uv run python scripts/export_competition_report.py \
+  --deployment-revision-id '<deployment-id>' \
+  --run-id '<m1-run-id>' --run-id '<m3-run-id>' \
+  --json-output /tmp/competition-report.json \
+  --markdown-output /tmp/competition-report.md
+```
+
+`capture_current_deployment_revision` reads the actual Alembic revision, source inventory hash, vocabulary revision, runtime policy revision, seed Skill registry digest and non-secret model/config coordinate. A dirty worktree is labeled `HEAD+dirty.<digest>` instead of pretending to be the clean Git commit. For a formal benchmark batch, `freeze_deployment_revision.py` must be run once and its ID pinned into every module runner. Per-run auto-capture remains available for local smoke only; it is intentionally not the release workflow because a concurrently edited dirty worktree can change between two otherwise adjacent runs.
 
 ## Dependency boundary
 
-Allowed dependencies: `shared`, `sources`, `intelligence`, `evaluation`.
+Allowed dependencies follow the architecture gate: `shared`, `sources`, `intelligence`, `investigation`, `task_runtime`, `runtime`, `evaluation`.
 
-Evaluation must not depend on the runtime decisions of `monitoring`, `enrichment`, or future Agent modules; it evaluates their outputs through stable contracts.
+Evaluation must not become an online decision owner. It may consume frozen runtime/investigation contracts and durable replay artifacts, but M1/M3/M5 execution decisions remain in their owning modules.
 
 ## Verification
 
 ```bash
 uv run pytest packages/evaluation -q
 ```
+
+## Live structured enrichment probe
+
+`scripts/evaluate_real_enrichment.py` is a small real-data benchmark runner for checking the
+current canonical M3 output against fresh structured provider records. It deliberately does not
+reuse production mappers to construct gold. The current v1 probe fetches NVD, GitHub Advisory,
+OSV, and CISA KEV records, then constructs gold independently from production mappers. The current
+formal slice covers canonical severity, weakness/CWE, package, fixed-version, positive KEV state,
+and EPSS likelihood facts whose identity/semantics are stable enough for non-circular comparison.
+
+Example:
+
+```bash
+uv run python scripts/evaluate_real_enrichment.py \
+  CVE-2025-47828 CVE-2024-13980 CVE-2024-13981 \
+  CVE-2024-13984 CVE-2024-13985 CVE-2026-48746 \
+  --output /tmp/secfusion-real-enrichment-eval.json
+```
+
+The output still reports structured gold opportunities intentionally excluded from the formal
+score while their canonical contract remains incomplete, notably vulnerable-version applicability
+and advisory/document association. This separation matters: a high score on the implemented
+structured slice must not be presented as competition-wide enrichment precision/recall.
+
+After the 2026-09-27 deterministic refresh (`cvss_version`, canonical CWE relations, GitHub
+`fixed-version`, and EPSS), the six-case real-data probe expanded from 26 to **49 formal gold
+facts** and produced **49 TP / 0 FP / 0 FN** (`micro precision = 1.0`, `micro recall = 1.0`) on
+that frozen structured slice. This is an implementation checkpoint, not a claim that all twelve
+`enrichment-v1` dimensions are complete. The next denominator expansion is version applicability
+and advisory/reference, followed by PoC/assets/papers/incidents and larger real-CVE strata.

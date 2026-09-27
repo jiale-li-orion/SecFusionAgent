@@ -27,7 +27,15 @@ class VulnerabilityEnrichmentPlanner:
                     query=QuerySpec(filters={"cve_id": cve_id.upper()}),
                 )
             )
-        if not any(predicate.startswith("github_") for predicate in predicates):
+        relation_types = {relation.relation_type for relation in view.relations}
+        needs_github = (
+            not any(predicate.startswith("github_") for predicate in predicates)
+            or "epss_probability" not in predicates
+            or "epss_percentile" not in predicates
+            or "has-weakness" not in relation_types
+            or "fixed-version" not in relation_types
+        )
+        if needs_github:
             jobs.append(
                 EnrichmentJobSpec(
                     source_id="github-global-advisories",

@@ -10,12 +10,13 @@
     "published_at": "2026-09-25T00:30:00Z",
     "updated_at": "2026-09-25T03:30:00Z",
     "withdrawn_at": null,
+    "epss": {"percentage": 0.01152, "percentile": 0.65554},
     "cwes": [{"cwe_id": "CWE-306", "name": "Missing Authentication for Critical Function"}],
     "vulnerabilities": [
       {
         "package": {"ecosystem": "pip", "name": "vllm"},
         "vulnerable_version_range": "< 0.11.1",
-        "first_patched_version": {"identifier": "0.11.1"}
+        "first_patched_version": "0.11.1"
       }
     ],
     "references": ["https://example.test/advisory"]
