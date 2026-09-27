@@ -1,0 +1,1 @@
+"""Product query use cases."""

@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     runtime_policy_path: Path = Path("config/runtime-policy.json")
     collection_run_timeout_seconds: int = 15 * 60
     scheduler_tick_seconds: int = 5
+    api_workbench_enabled: bool = True
 
     s3_endpoint_url: str = "http://localhost:9000"
     s3_access_key: str = "secfusion"
