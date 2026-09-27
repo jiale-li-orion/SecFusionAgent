@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from hashlib import sha256
 from uuid import NAMESPACE_URL, uuid5
 
 
@@ -23,3 +24,11 @@ def stable_object_id(object_type: str, canonical_key: str) -> str:
     if object_type == "Vulnerability" and canonical_key.lower().startswith("cve:"):
         return vulnerability_cve_object_id(canonical_key.split(":", 1)[1])
     return str(uuid5(NAMESPACE_URL, f"secfusion:object:{object_type}:{canonical_key}"))
+
+
+def cpe_product_canonical_key(part: str, vendor: str, product: str) -> str:
+    normalized = tuple(item.strip().lower() for item in (part, vendor, product))
+    if any(item in {"", "*", "-"} for item in normalized):
+        raise ValueError("CPE product identity requires concrete part/vendor/product")
+    digest = sha256("|".join(normalized).encode()).hexdigest()
+    return f"product:cpe23-sha256:{digest}"

@@ -380,10 +380,23 @@ cases and **24 formal facts / 24 TP / 0 FP / 0 FN**, with no missing or extra fa
 intentionally ignores GitHub EPSS so source-specific failures cannot be hidden by a second provider
 carrying a numerically similar score.
 
-The next live structured priority is CVE 5.x / CSAF applicability. The CPE/version-derived asset
-join itself is now implemented and regression-tested against positive, wrong-version, and
-missing-companion cases, but it remains outside the live denominator until an authorized
-service-level asset snapshot can be frozen and independently scored.
+CVE Record Format 5.x applicability now has its own frozen source-specific benchmark. Production
+normalization preserves per-rule scope (`version`, `versionType`, `lessThan`,
+`lessThanOrEqual`, `changes`) and a separate `defaultStatus` fallback instead of flattening a record
+to one affected boolean. The evaluator independently reparses persisted raw CVE Program
+EvidenceArtifact bytes, so mapper code is not reused for gold. On six deliberately mixed records the
+suite contains **38 formal facts / 38 TP / 0 FP / 0 FN**: product/package **7/7** and qualifier-aware
+version applicability **31/31**. The gold revision is
+`cve5-applicability:a04299a83da1cf7ffcfc27f3a70043f3091605b42e7576879fbda9e8534399c9`
+and the exact provider-world coordinate is
+`provider-snapshot:5a1ec3550991c39ad632e138ce973ae0edbee9576498ec68a004c324ef964934`.
+This benchmark also exercises explicit `not_affected` and `unknown` fallback semantics rather than
+counting only positive affected ranges.
+
+The next live structured priority is CSAF/VEX applicability. The CPE/version-derived asset join
+itself is implemented and regression-tested against positive, wrong-version, and missing-companion
+cases, but remains outside the live denominator until an authorized service-level asset snapshot can
+be frozen and independently scored.
 
 Asset exposure also has a separate source-specific positive smoke. `scripts/evaluate_asset_exposure.py`
 constructs gold directly from Shodan InternetDB's explicit host-level `vulns[]` response and scores

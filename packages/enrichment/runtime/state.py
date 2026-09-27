@@ -369,15 +369,33 @@ def _claim_conflicts(claims: list[ClaimModel]) -> list[str]:
     return conflicts
 
 
+def _applicability_scope_key(qualifier: dict[str, object]) -> str:
+    ignored = {
+        "state",
+        "source_id",
+        "source_semantics",
+        "source_status",
+        "status_changes",
+        "default_inferred",
+        "vocabulary_revision",
+        "vocabulary_scope",
+    }
+    scope = {key: value for key, value in qualifier.items() if key not in ignored}
+    return json.dumps(scope, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
 def _relation_conflicts(relations: list[RelationModel]) -> list[str]:
-    applicability: dict[str, dict[str, list[str]]] = {}
+    applicability: dict[tuple[str, str], dict[str, list[str]]] = {}
     for relation in relations:
         if relation.relation_type != "applicability-status":
             continue
         state = relation.qualifier.get("state")
         if not isinstance(state, str) or state == ApplicabilityState.UNKNOWN.value:
             continue
-        applicability.setdefault(relation.target_object_id, {}).setdefault(state, []).append(
+        scope_key = _applicability_scope_key(relation.qualifier)
+        applicability.setdefault((relation.target_object_id, scope_key), {}).setdefault(
+            state, []
+        ).append(
             relation.relation_id
         )
     conflicts: list[str] = []

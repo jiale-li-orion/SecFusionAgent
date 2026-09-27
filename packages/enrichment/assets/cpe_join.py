@@ -20,6 +20,7 @@ from packages.intelligence.knowledge.contracts import (
     ObjectCandidate,
     RelationCandidate,
 )
+from packages.intelligence.knowledge.identity import cpe_product_canonical_key
 from packages.intelligence.knowledge.write import EvidenceBackedKnowledgeWriter
 from packages.intelligence.normalization.canonical import NormalizationResult
 from packages.intelligence.storage.knowledge_models import (
@@ -44,8 +45,7 @@ class ParsedCPE:
 
     @property
     def product_key(self) -> str:
-        digest = sha256(f"{self.part}|{self.vendor}|{self.product}".encode()).hexdigest()
-        return f"product:cpe23-sha256:{digest}"
+        return cpe_product_canonical_key(self.part, self.vendor, self.product)
 
     @property
     def software_version_key(self) -> str | None:

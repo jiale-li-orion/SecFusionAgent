@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from packages.intelligence.ingestion.evidence import ObservationAck
 from packages.intelligence.knowledge.contracts import ObjectCandidate, RelationCandidate
 from packages.intelligence.knowledge.identity import (
+    cpe_product_canonical_key,
     cve_canonical_key,
     stable_object_id,
     vulnerability_cve_object_id,
@@ -532,7 +533,7 @@ def _nvd_cpe_relations(value: object) -> list[RelationCandidate]:
                         relation_type="applicability-status",
                         target=ObjectCandidate(
                             object_type="Product",
-                            canonical_key=_cpe_product_key(part, vendor, product),
+                            canonical_key=cpe_product_canonical_key(part, vendor, product),
                             properties={
                                 "identity_scheme": "cpe23_product",
                                 "cpe_part": part,
@@ -617,11 +618,6 @@ def _split_cpe23(value: str) -> list[str]:
         current.append("\\")
     parts.append("".join(current))
     return parts
-
-
-def _cpe_product_key(part: str, vendor: str, product: str) -> str:
-    digest = sha256(f"{part}|{vendor}|{product}".encode()).hexdigest()
-    return f"product:cpe23-sha256:{digest}"
 
 
 async def _supersede_source_claims(

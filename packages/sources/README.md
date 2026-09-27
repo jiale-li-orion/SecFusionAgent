@@ -68,6 +68,13 @@ A reachable provider is not automatically authoritative. `source_role`, `authori
 
 OSV exact CVE lookup has one additional identity-preserving rule. Some OSV `CVE-*` conversion records contain only GIT ranges and omit package identity, while a strong `GHSA-*` alias for the same vulnerability carries the ecosystem-native package/range record. When a CVE lookup has no package-bearing `affected[]`, `OSVAdapter` follows strong GHSA aliases and returns both envelopes. The conversion and native records remain separate Evidence observations; downstream identity merge is justified by the explicit CVE↔GHSA alias, not by text similarity. This preserves commit-level evidence while recovering package/version applicability without inventing package identity.
 
+CVE Program / cvelistV5 exact records are also retained as raw Evidence before applicability is
+projected. The CVE5 path preserves `affected[]`, per-version status/range rules and `defaultStatus`;
+formal replay can therefore rebuild gold directly from the persisted provider bytes without calling
+the production normalizer. CPE-bearing CVE5 products use the same canonical CPE product identity as
+NVD, while non-CPE package/vendor-product entries use source-scoped stable identities rather than
+guessing an ecosystem.
+
 FIRST EPSS is modeled as its own fixed on-demand source (`first-epss`) rather than as a field owned by GitHub Advisory. The adapter preserves the provider score date as `external_revision` / `updated_at`, and the M3 mapper carries `source_semantics=first_epss` plus `score_date` into canonical EPSS claims. This lets evaluation and replay distinguish daily point-in-time scores instead of treating EPSS as an unversioned mutable scalar. CLI refresh paths synchronize version-controlled source definitions into PostgreSQL before creating AcquisitionRuns, so newly added providers cannot fail the source foreign-key boundary merely because the registry has not been manually seeded yet.
 
 Shodan InternetDB remains a passive, time-bounded asset source. Its `vulns[]` field is treated as an

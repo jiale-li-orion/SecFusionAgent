@@ -48,11 +48,18 @@ Version applicability is represented as a scoped relation rather than a boolean 
 ```text
 Vulnerability --applicability-status--> Product | Package | SoftwareVersion
 qualifier.state = affected | not_affected | fixed | under_investigation | unknown
-qualifier.source_semantics = cve_range | osv_range | nvd_cpe | csaf_vex | vendor_assertion
-qualifier.version_range / platform / configuration / justification = optional
+qualifier.source_semantics = cve5_version_rule | cve5_default_status | osv_range | nvd_cpe | csaf_vex | vendor_assertion
+qualifier.scope / version_range / platform / configuration / justification = optional
 ```
 
 `state` and `source_semantics` are required canonical qualifiers. Query/source miss or an incomparable version remains `unknown`; `not_affected` requires an explicit structured rule/status or VEX-style justification. Conflicting source assertions remain distinct durable assertions even when a current projection chooses one display value.
+
+CVE Record Format 5.x keeps its native rule scopes instead of turning `affected[]` into one global
+status. `versions[]` rules and `defaultStatus` are separate applicability assertions; original CVE
+status text and product context remain in qualifiers, while `unaffected` is normalized to canonical
+`not_affected`. Enrichment state conflict detection groups applicability by target plus normalized
+scope, so `1.0 affected` and `2.0 not_affected` are compatible scoped facts; two incompatible states
+for the same target and same scope remain a conflict.
 
 ## Workload-specific state
 

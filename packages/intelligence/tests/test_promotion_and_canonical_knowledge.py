@@ -8,9 +8,11 @@ from fakeredis.aioredis import FakeRedis
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from packages.enrichment.runtime.state import EnrichmentStateBuilder, EnrichmentStatus
 from packages.intelligence.hot_cache.redis import RedisHotBugCache
 from packages.intelligence.ingestion.evidence import EvidenceIngress
 from packages.intelligence.knowledge.read import get_vulnerability_by_cve
+from packages.intelligence.knowledge.vocabulary import EnrichmentDimension
 from packages.intelligence.normalization.cvelist_v5 import CVEListV5HotBugNormalizer
 from packages.intelligence.normalization.cvelist_v5_durable import CVEListV5CanonicalNormalizer
 from packages.intelligence.normalization.hot_bug import HotBugIngress
@@ -51,7 +53,23 @@ CVELIST_FIXTURE = {
         "cna": {
             "title": "Example inference server issue",
             "descriptions": [{"lang": "en", "value": "Example security issue."}],
-            "affected": [{"vendor": "Example", "product": "Inference Server"}],
+            "affected": [
+                {
+                    "vendor": "Example",
+                    "product": "Inference Server",
+                    "defaultStatus": "unaffected",
+                    "versions": [
+                        {"version": "1.0.0", "status": "affected"},
+                        {
+                            "version": "1.1.0",
+                            "lessThan": "2.0.0",
+                            "versionType": "semver",
+                            "status": "affected",
+                        },
+                        {"version": "2.0.0", "status": "unaffected"},
+                    ],
+                }
+            ],
             "references": [{"url": "https://example.invalid/advisory"}],
         }
     },
@@ -304,6 +322,77 @@ async def test_cvelist_hot_bug_can_promote_into_same_canonical_vulnerability_lay
                 claim for claim in view.claims if claim.predicate == "affected_products"
             )
             assert affected.value == ["Example/Inference Server"]
+            outgoing = [
+                relation
+                for relation in view.relations
+                if relation.evidence and relation.evidence[0].source_id == source.source_id
+            ]
+            affects_product = next(
+                relation for relation in outgoing if relation.relation_type == "affects-product"
+            )
+            assert affects_product.target.object_type == "Product"
+            assert affects_product.target.properties["identity_scheme"] == "cve5_vendor_product"
+            assert affects_product.target.properties["vendor"] == "Example"
+            assert affects_product.target.properties["product"] == "Inference Server"
+            assert affects_product.qualifier["source_semantics"] == "cve5_affected_entry"
+
+            applicability = [
+                relation
+                for relation in outgoing
+                if relation.relation_type == "applicability-status"
+            ]
+            assert len(applicability) == 4
+            exact = next(
+                relation
+                for relation in applicability
+                if relation.qualifier.get("scope") == {
+                    "kind": "version_rule",
+                    "version": "1.0.0",
+                }
+            )
+            assert exact.qualifier["state"] == "affected"
+            assert exact.qualifier["source_status"] == "affected"
+            assert exact.evidence[0].locator["path"] == (
+                "$.containers.cna.affected[0].versions[0]"
+            )
+            ranged = next(
+                relation
+                for relation in applicability
+                if relation.qualifier.get("scope") == {
+                    "kind": "version_rule",
+                    "version": "1.1.0",
+                    "version_type": "semver",
+                    "less_than": "2.0.0",
+                }
+            )
+            assert ranged.qualifier["state"] == "affected"
+            unaffected = next(
+                relation
+                for relation in applicability
+                if relation.qualifier.get("scope") == {
+                    "kind": "version_rule",
+                    "version": "2.0.0",
+                }
+            )
+            assert unaffected.qualifier["state"] == "not_affected"
+            default = next(
+                relation
+                for relation in applicability
+                if relation.qualifier.get("scope") == {"kind": "default"}
+            )
+            assert default.qualifier["state"] == "not_affected"
+            assert default.qualifier["source_status"] == "unaffected"
+
+            enrichment_state = await EnrichmentStateBuilder().build(
+                session,
+                view.object_id,
+                materialize=False,
+            )
+            version_state = enrichment_state.by_dimension()[
+                EnrichmentDimension.VERSION_APPLICABILITY
+            ]
+            assert version_state.status is EnrichmentStatus.RESOLVED
+            assert version_state.conflict_refs == []
             topics = set(await session.scalars(select(OutboxEventModel.topic)))
             assert topics == {"knowledge.changed", "enrichment.requested"}
         await redis_client.aclose()

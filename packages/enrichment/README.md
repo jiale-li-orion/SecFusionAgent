@@ -78,7 +78,7 @@ The registry is broader than the processors already implemented. The current imp
 | Severity | CVSS score/vector/version/severity | NVD deterministic normalization writes all four canonical fields, including `cvss_version` |
 | Weakness | `Vulnerability --has-weakness--> Weakness` | NVD and GitHub Advisory deterministically map CWE identifiers to canonical `Weakness` objects with evidence |
 | Product/package | `affects-product`, `affects-package` | package relations exist; broader product identity mapping continues |
-| Version applicability | scoped `applicability-status` relation | GitHub Advisory ranges use `github_advisory_range`; OSV ecosystem/native records use `osv_range`; NVD CPE configuration trees now write `nvd_cpe` assertions while preserving root/node `AND/OR/negate`, full CPE criteria, inclusive/exclusive bounds, and companion matches. CVE 5.x / CSAF remain backlog |
+| Version applicability | scoped `applicability-status` relation | GitHub Advisory ranges use `github_advisory_range`; OSV ecosystem/native records use `osv_range`; NVD CPE configuration trees write `nvd_cpe` assertions with full boolean/configuration context; CVE Record Format 5.x now writes `cve5_version_rule` plus `cve5_default_status`, preserving exact/range rules, `versionType`, `lessThan/lessThanOrEqual`, original source status, product context, and `changes[]`. CSAF/VEX remains backlog |
 | Fix/remediation | `fixed-version`, `fixed-by` | GitHub Advisory `first_patched_version` and OSV `ECOSYSTEM/SEMVER` fixed events write canonical `SoftwareVersion` + `fixed-version`; OSV GIT fixed hashes remain commit-level evidence for the existing fix-boundary path |
 | Exploit state | `known_exploited`, `has-poc`, exploit maturity | CISA KEV writes `known_exploited`; NVD references explicitly tagged `Exploit` now materialize canonical `ExploitArtifact` + `has-poc` with exact reference evidence. Broader exploit-feed coverage remains future work |
 | Exploit likelihood | EPSS probability/percentile at observed time | GitHub Advisory EPSS snapshots remain evidence-backed; dedicated FIRST EPSS is now an owned on-demand authority source and writes `epss_probability/percentile` with `source_semantics=first_epss` and `score_date`, preserving point-in-time identity |
@@ -92,7 +92,7 @@ Supporting edges such as `release-contains-commit`, `asset-runs-product`, and `a
 The active M3 implementation backlog is therefore:
 
 1. Product/Package/SoftwareVersion alias normalization beyond the current ecosystem+package+version identity;
-2. CVE 5.x / CSAF applicability beyond the current GitHub Advisory, OSV, and NVD CPE assertions;
+2. CSAF/VEX applicability plus broader CVE5 comparator semantics beyond preserved structured rules;
 3. advisory/document association coverage beyond GitHub Advisory;
 4. broader PoC/ExploitArtifact source coverage beyond NVD explicit `Exploit` tags;
 5. broaden the implemented AssetObservation → CPE Product/SoftwareVersion → NVD applicability join to authorized live asset snapshots and additional non-numeric/version-scheme comparators;
@@ -155,6 +155,24 @@ The expanded 12-CVE result is persisted as formal TD3 benchmark evidence under d
 `real-structured:b1d05c8777ccfd4b02ce5f14c91056f4de826fdfa069af9fa4699081a0a48c6c`.
 The corresponding CompetitionReport is `b6f24b2d-2123-45db-99fd-c156a7f6eaaa` and records
 M3 precision/recall as 1.0 while leaving unsupported competition areas explicitly unevaluated.
+
+CVE Record Format 5.x now has a separate source-specific applicability path instead of being
+collapsed into the old `affected_products` display claim. Each `versions[]` rule becomes its own
+qualifier-scoped `applicability-status`; `unaffected` maps to canonical `not_affected`, omitted
+`defaultStatus` becomes an explicit inferred `unknown` fallback, and product identity prefers a
+record-provided CPE before falling back to stable CVE5 package/vendor-product identity. The M3 state
+conflict key was tightened at the same time: different version scopes on one target no longer count
+as a conflict merely because their states differ; only incompatible states within the same scope do.
+
+The first frozen CVE5 stratum deliberately mixes six shapes: exact affected versions
+(`CVE-2024-3094`), a semver `<9.3.3` range (`CVE-2025-47828`), omitted default status,
+multi-product records, explicit `unknown`, and a package-bearing default-affected record with eight
+version rules. Gold is rebuilt independently from persisted raw CVE Program Evidence bytes rather
+than from the production normalizer. The result is **38 formal facts / 38 TP / 0 FP / 0 FN**:
+product/package **7/7** and version applicability **31/31**. Gold revision is
+`cve5-applicability:a04299a83da1cf7ffcfc27f3a70043f3091605b42e7576879fbda9e8534399c9`;
+the frozen provider snapshot is
+`provider-snapshot:5a1ec3550991c39ad632e138ce973ae0edbee9576498ec68a004c324ef964934`.
 
 The structured evaluator now supports frozen provider-world replay. A live run may persist the raw
 NVD/GHSA/OSV/FIRST/KEV-derived snapshot and its `provider-snapshot:<sha256>` coordinate; later code

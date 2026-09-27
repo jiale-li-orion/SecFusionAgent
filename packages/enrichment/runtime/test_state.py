@@ -125,6 +125,51 @@ async def test_source_specific_fact_does_not_resolve_canonical_dimension() -> No
 
 
 @pytest.mark.asyncio
+async def test_disjoint_applicability_scopes_do_not_conflict() -> None:
+    engine, factory = await _database()
+    try:
+        async with factory() as session, session.begin():
+            object_id, revision = await _seed_vulnerability(session)
+            package_id = str(uuid4())
+            session.add(
+                ObjectModel(
+                    object_id=package_id,
+                    object_type="Package",
+                    canonical_key="package:generic:example",
+                    properties={"name": "example"},
+                    created_revision=revision,
+                )
+            )
+            for state_value, version in (("affected", "1.0"), ("unaffected", "2.0")):
+                session.add(
+                    RelationModel(
+                        relation_id=str(uuid4()),
+                        source_object_id=object_id,
+                        relation_type="applicability-status",
+                        target_object_id=package_id,
+                        qualifier=_canonical_qualifier(
+                            source_id="cve-program-cvelist-v5",
+                            state=state_value,
+                            source_semantics="cve5_version_rule",
+                            version_rule={"version": version},
+                        ),
+                        origin="deterministic_derived",
+                        lifecycle="accepted",
+                        processing_run_id=None,
+                        created_revision=revision,
+                    )
+                )
+        async with factory() as session, session.begin():
+            state = await EnrichmentStateBuilder().build(session, object_id, now=NOW)
+        applicability = state.by_dimension()[EnrichmentDimension.VERSION_APPLICABILITY]
+        assert applicability.status is EnrichmentStatus.RESOLVED
+        assert len(applicability.accepted_fact_refs) == 2
+        assert applicability.conflict_refs == []
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_complementary_multi_target_relations_resolve_without_false_conflict() -> None:
     engine, factory = await _database()
     try:
