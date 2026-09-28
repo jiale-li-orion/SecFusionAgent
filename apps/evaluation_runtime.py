@@ -243,6 +243,7 @@ def project_decision_to_qa_prediction(
         citations=citations,
         unknowns=list(decision.unknowns),
         conflicts=list(decision.conflicts),
+        assumptions=list(decision.assumptions),
         completion_status="answered",
         interactive_latency_seconds=interactive_latency_seconds,
         execution_refs=merged_execution_refs,

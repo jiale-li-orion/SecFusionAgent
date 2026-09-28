@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -46,3 +47,33 @@ def test_qa_manifest_case_requires_exactly_one_prediction_source() -> None:
     }
     with pytest.raises(ValidationError, match="exactly one"):
         QABenchmarkManifestCase.model_validate(payload)
+
+
+def test_qa_manifest_accepts_closed_human_adjudication_history() -> None:
+    case = QABenchmarkManifestCase.model_validate(
+        {
+            "case_id": "qa-adjudicated",
+            "prediction": {
+                "case_id": "qa-adjudicated",
+                "conclusion_facts": ["affected:true"],
+                "completion_status": "answered",
+            },
+            "gold": {
+                "case_id": "qa-adjudicated",
+                "required_facts": ["affected:true"],
+                "completion_expectation": "answered",
+            },
+            "adjudications": [
+                {
+                    "adjudication_id": "adj-final",
+                    "item_ref": "qa-adjudicated:fact:affected",
+                    "annotator_ref": "human:reviewer-1",
+                    "annotation": "Confirmed from frozen provider evidence.",
+                    "evidence_refs": ["evidence:provider-1"],
+                    "created_at": datetime(2026, 9, 28, tzinfo=UTC),
+                    "final": True,
+                }
+            ],
+        }
+    )
+    assert case.adjudications[0].final is True

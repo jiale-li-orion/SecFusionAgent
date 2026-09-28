@@ -79,6 +79,7 @@ def _decision() -> DecisionResult:
         ],
         conflicts=["vendor-status-conflict"],
         unknowns=["exploitability:unknown"],
+        assumptions=["deployment-version:1.2.3"],
         citations=[
             DecisionCitation(
                 conclusion_index=0,
@@ -107,6 +108,7 @@ def test_project_decision_to_qa_prediction_uses_m4_support_and_omits_recommendat
     assert prediction.conclusion_facts == ["affected:true"]
     assert prediction.unknowns == ["exploitability:unknown"]
     assert prediction.conflicts == ["vendor-status-conflict"]
+    assert prediction.assumptions == ["deployment-version:1.2.3"]
     assert prediction.citations[0].supports is True
     assert prediction.relation_paths == [
         ["deployment:1", "affected-by", "vulnerability:CVE-2026-0001"]

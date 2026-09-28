@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from pydantic import BaseModel, Field, model_validator
 
 
@@ -18,6 +20,7 @@ class QAGold(BaseModel):
     acceptable_unknowns: list[str] = Field(default_factory=list)
     required_conflicts: list[str] = Field(default_factory=list)
     required_citation_facts: list[str] = Field(default_factory=list)
+    allowed_assumptions: list[str] = Field(default_factory=list)
     completion_expectation: str
 
     @model_validator(mode="after")
@@ -38,6 +41,7 @@ class QAPrediction(BaseModel):
     citations: list[QACitationCheck] = Field(default_factory=list)
     unknowns: list[str] = Field(default_factory=list)
     conflicts: list[str] = Field(default_factory=list)
+    assumptions: list[str] = Field(default_factory=list)
     completion_status: str
     interactive_latency_seconds: float | None = Field(default=None, ge=0)
     execution_refs: list[str] = Field(default_factory=list)
@@ -65,6 +69,7 @@ def score_qa(*, gold: QAGold, prediction: QAPrediction) -> QAScore:
     answer_correct = required <= predicted and not (predicted & forbidden)
     if acceptable:
         answer_correct = answer_correct and bool(predicted & acceptable or required)
+    answer_correct = answer_correct and set(prediction.assumptions) <= set(gold.allowed_assumptions)
 
     supporting_facts = {item.conclusion_fact for item in prediction.citations if item.supports}
     factual_conclusions = predicted - set(prediction.unknowns)
@@ -104,3 +109,54 @@ def score_qa(*, gold: QAGold, prediction: QAPrediction) -> QAScore:
 
 def _ratio(numerator: int, denominator: int) -> float:
     return numerator / denominator if denominator else 1.0
+
+
+class QAAdjudicationRecord(BaseModel):
+    adjudication_id: str
+    item_ref: str
+    annotator_ref: str
+    annotation: str
+    evidence_refs: list[str] = Field(default_factory=list)
+    created_at: datetime
+    supersedes: str | None = None
+    final: bool = False
+
+    @model_validator(mode="after")
+    def validate_record(self) -> QAAdjudicationRecord:
+        if not self.adjudication_id.strip():
+            raise ValueError("QA adjudication_id cannot be empty")
+        if not self.item_ref.strip() or not self.annotator_ref.strip():
+            raise ValueError("QA adjudication item_ref/annotator_ref cannot be empty")
+        if not self.annotation.strip():
+            raise ValueError("QA adjudication annotation cannot be empty")
+        if self.final and not self.evidence_refs:
+            raise ValueError("final QA adjudication requires evidence_refs")
+        if self.supersedes == self.adjudication_id:
+            raise ValueError("QA adjudication cannot supersede itself")
+        return self
+
+
+def validate_qa_adjudication_history(records: list[QAAdjudicationRecord]) -> None:
+    by_id = {record.adjudication_id: record for record in records}
+    if len(by_id) != len(records):
+        raise ValueError("QA adjudication ids must be unique")
+    superseded = {record.supersedes for record in records if record.supersedes is not None}
+    for record in records:
+        if record.supersedes is not None:
+            previous = by_id.get(record.supersedes)
+            if previous is None:
+                raise ValueError("QA adjudication supersedes unknown record")
+            if previous.item_ref != record.item_ref:
+                raise ValueError("QA adjudication cannot supersede a different item")
+            if previous.created_at > record.created_at:
+                raise ValueError("QA adjudication cannot supersede a future record")
+    for item_ref in {record.item_ref for record in records}:
+        terminal = [
+            record
+            for record in records
+            if record.item_ref == item_ref and record.adjudication_id not in superseded
+        ]
+        if len(terminal) != 1:
+            raise ValueError(f"QA adjudication item requires one terminal record: {item_ref}")
+        if not terminal[0].final:
+            raise ValueError(f"QA adjudication terminal record must be final: {item_ref}")

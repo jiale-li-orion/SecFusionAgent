@@ -25,7 +25,13 @@ from packages.evaluation.benchmark import (
     BenchmarkStore,
     BenchmarkSuite,
 )
-from packages.evaluation.qa import QAGold, QAPrediction, score_qa
+from packages.evaluation.qa import (
+    QAAdjudicationRecord,
+    QAGold,
+    QAPrediction,
+    score_qa,
+    validate_qa_adjudication_history,
+)
 from packages.shared.config import get_settings
 from packages.shared.db import create_engine, create_session_factory
 
@@ -42,6 +48,7 @@ class QABenchmarkManifestCase(BaseModel):
     tags: list[str] = Field(default_factory=list)
     latency_class: str = "interactive"
     execution_refs: list[str] = Field(default_factory=list)
+    adjudications: list[QAAdjudicationRecord] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_prediction_source(self) -> QABenchmarkManifestCase:
@@ -55,6 +62,7 @@ class QABenchmarkManifestCase(BaseModel):
                 raise ValueError(
                     "citation_support keys must use '<conclusion_index>:<evidence_ref>'"
                 )
+        validate_qa_adjudication_history(self.adjudications)
         return self
 
 
@@ -101,7 +109,17 @@ async def _run(
     now = datetime.now(UTC)
     manifest_payload = manifest.model_dump(mode="json")
     manifest_digest = _digest(manifest_payload)
-    gold_digest = _digest([item.gold.model_dump(mode="json") for item in manifest.cases])
+    gold_digest = _digest(
+        [
+            {
+                "gold": item.gold.model_dump(mode="json"),
+                "adjudications": [
+                    record.model_dump(mode="json") for record in item.adjudications
+                ],
+            }
+            for item in manifest.cases
+        ]
+    )
 
     try:
         async with factory() as session, session.begin():
