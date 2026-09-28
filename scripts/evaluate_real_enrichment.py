@@ -40,6 +40,15 @@ DEFAULT_CVES = (
     "CVE-2024-13985",
 )
 PROVIDER_SNAPSHOT_SCHEMA = "real-structured-provider-snapshot-v1"
+STRUCTURED_SNAPSHOT_SOURCE_IDS = frozenset(
+    {
+        "nvd-cves-2",
+        "github-global-advisories",
+        "osv-vulnerabilities",
+        "first-epss",
+        "cisa-kev",
+    }
+)
 FORMAL_DIMENSIONS = {
     EnrichmentDimension.SEVERITY,
     EnrichmentDimension.WEAKNESS,
@@ -213,9 +222,34 @@ def _nvd_exploit_urls(cve: dict[str, Any]) -> list[str]:
     return result
 
 
+def _nvd_vendor_advisory_urls(cve: dict[str, Any]) -> list[str]:
+    result: list[str] = []
+    references = cve.get("references")
+    if not isinstance(references, list):
+        return result
+    for item in references:
+        if not isinstance(item, dict):
+            continue
+        url = item.get("url")
+        tags = item.get("tags")
+        if (
+            isinstance(url, str)
+            and isinstance(tags, list)
+            and "Vendor Advisory" in tags
+            and url not in result
+        ):
+            result.append(url)
+    return result
+
+
 def _exploit_artifact_key(url: str) -> str:
     digest = sha256(url.strip().encode()).hexdigest()
     return f"exploit-artifact:url-sha256:{digest}"
+
+
+def _document_url_key(url: str) -> str:
+    digest = sha256(url.strip().encode()).hexdigest()
+    return f"document:url-sha256:{digest}"
 
 
 def _nvd_cpe_applicability(cve: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
@@ -566,6 +600,7 @@ def _gold_from_snapshot(
     diagnostics: dict[str, Any] = {
         "weakness_cwe_gold": 0,
         "nvd_poc_gold": 0,
+        "nvd_vendor_advisory_gold": 0,
         "nvd_cpe_applicability_gold": 0,
         "first_epss_gold": 0,
         "github_first_patched_version_gold": 0,
@@ -583,6 +618,7 @@ def _gold_from_snapshot(
         case_diag: dict[str, Any] = {
             "cwes": _nvd_cwes(cve),
             "nvd_exploit_urls": _nvd_exploit_urls(cve),
+            "nvd_vendor_advisory_urls": _nvd_vendor_advisory_urls(cve),
             "nvd_cpe_applicability": [],
             "first_patched_versions": [],
             "vulnerable_ranges": [],
@@ -617,6 +653,18 @@ def _gold_from_snapshot(
             )
             gold.append(fact)
             support[fact].add("nvd-cves-2")
+
+        for url in case_diag["nvd_vendor_advisory_urls"]:
+            fact = _relation_fact(
+                root_key,
+                "vendor-advisory",
+                _document_url_key(url),
+                "Document",
+                qualifier={"source_semantics": "nvd_vendor_advisory_tag"},
+            )
+            gold.append(fact)
+            support[fact].add("nvd-cves-2")
+            diagnostics["nvd_vendor_advisory_gold"] += 1
 
         first_epss = source_data.get("first_epss")
         if isinstance(first_epss, dict):
@@ -860,8 +908,9 @@ async def _current_predictions(
     session: AsyncSession,
     cves: list[str],
     gold_support: dict[EnrichmentFactKey, set[str]],
-) -> list[EnrichmentPrediction]:
+) -> tuple[list[EnrichmentPrediction], int]:
     predictions: list[EnrichmentPrediction] = []
+    out_of_scope = 0
     for cve_id in cves:
         object_id = await session.scalar(
             select(ExternalIdentifierModel.object_id).where(
@@ -900,15 +949,18 @@ async def _current_predictions(
                 qualifier=qualifier,
                 temporal_scope=temporal_scope,
             )
-            predictions.append(
-                await _prediction_for_target(
-                    session,
-                    fact=fact,
-                    target_kind="claim",
-                    target_id=claim.claim_id,
-                    gold_support=gold_support,
-                )
+            prediction = await _prediction_for_target(
+                session,
+                fact=fact,
+                target_kind="claim",
+                target_id=claim.claim_id,
+                gold_support=gold_support,
+                evaluated_source_ids=STRUCTURED_SNAPSHOT_SOURCE_IDS,
             )
+            if prediction is None:
+                out_of_scope += 1
+            else:
+                predictions.append(prediction)
 
         relations = (
             await session.execute(
@@ -936,16 +988,19 @@ async def _current_predictions(
                 target.object_type,
                 qualifier=qualifier,
             )
-            predictions.append(
-                await _prediction_for_target(
-                    session,
-                    fact=fact,
-                    target_kind="relation",
-                    target_id=relation.relation_id,
-                    gold_support=gold_support,
-                )
+            prediction = await _prediction_for_target(
+                session,
+                fact=fact,
+                target_kind="relation",
+                target_id=relation.relation_id,
+                gold_support=gold_support,
+                evaluated_source_ids=STRUCTURED_SNAPSHOT_SOURCE_IDS,
             )
-    return predictions
+            if prediction is None:
+                out_of_scope += 1
+            else:
+                predictions.append(prediction)
+    return predictions, out_of_scope
 
 
 def _benchmark_claim_qualifier(
@@ -967,6 +1022,10 @@ def _benchmark_relation_qualifier(
     relation_type: str,
     qualifier: dict[str, Any],
 ) -> dict[str, Any]:
+    if relation_type == "vendor-advisory":
+        if qualifier.get("source_semantics") == "nvd_vendor_advisory_tag":
+            return {"source_semantics": "nvd_vendor_advisory_tag"}
+        return {}
     if relation_type != "applicability-status":
         return {}
     allowed = (
@@ -989,7 +1048,8 @@ async def _prediction_for_target(
     target_kind: str,
     target_id: str,
     gold_support: dict[EnrichmentFactKey, set[str]],
-) -> EnrichmentPrediction:
+    evaluated_source_ids: frozenset[str],
+) -> EnrichmentPrediction | None:
     rows = (
         await session.execute(
             select(EvidenceLinkModel.evidence_link_id, ObservationModel.source_id)
@@ -1003,10 +1063,13 @@ async def _prediction_for_target(
             )
         )
     ).all()
-    evidence_refs = tuple(f"evidence:{row.evidence_link_id}" for row in rows)
+    scoped_rows = [row for row in rows if row.source_id in evaluated_source_ids]
+    if not scoped_rows:
+        return None
+    evidence_refs = tuple(f"evidence:{row.evidence_link_id}" for row in scoped_rows)
     expected_sources = gold_support.get(fact)
-    evidence_correct = bool(rows) and (
-        expected_sources is None or any(row.source_id in expected_sources for row in rows)
+    evidence_correct = expected_sources is None or any(
+        row.source_id in expected_sources for row in scoped_rows
     )
     return EnrichmentPrediction(
         fact=fact,
@@ -1078,7 +1141,11 @@ async def _evaluate_snapshot(
     factory = create_session_factory(engine)
     try:
         async with factory() as session:
-            predicted = await _current_predictions(session, cves, support)
+            predicted, out_of_scope_prediction_count = await _current_predictions(
+                session,
+                cves,
+                support,
+            )
     finally:
         await engine.dispose()
 
@@ -1113,6 +1180,7 @@ async def _evaluate_snapshot(
         "cisa_catalog_version": snapshot["cisa_catalog_version"],
         "cases": cves,
         "formal_dimensions": sorted(item.value for item in FORMAL_DIMENSIONS),
+        "evaluated_source_ids": sorted(STRUCTURED_SNAPSHOT_SOURCE_IDS),
         "gold_fact_count": len(gold_set),
         "gold_facts": [
             item.model_dump(mode="json")
@@ -1128,6 +1196,7 @@ async def _evaluate_snapshot(
         ],
         "prediction_count": len(predicted),
         "valid_prediction_count": len(valid_prediction_set),
+        "out_of_scope_prediction_count": out_of_scope_prediction_count,
         "score": score.model_dump(mode="json"),
         "dimension_summary": _dimension_summary(score),
         "case_scores": _case_scores(cves, gold, predicted),

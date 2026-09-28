@@ -279,13 +279,23 @@ an implementation checkpoint, not a claim that all twelve `enrichment-v1` dimens
 
 A second reproducible live stratum is selected independently from the latest 100 GitHub Global
 Advisories (`updated desc`, CVE-bearing, not withdrawn), prioritizing `range+fix`, `range-only`, and
-`CWE+EPSS` cases. On the frozen 2026-09-27 **12-CVE recent structured stratum**, the formal slice has
-now expanded from 150 to **204 gold facts** and produces **204 TP / 0 FP / 0 FN**. Gold-bearing
-dimension counts are: severity 48, weakness 15, product/package 16, version applicability 47,
-fix/remediation 18, exploit likelihood 48, and advisory/reference 12. The increase comes from NVD
-CPE configuration assertions, FIRST point-in-time EPSS, and OSV GHSA-native package/range/fix
-records reached through explicit strong aliases. The discovery manifest is written outside the repo
-for live probing; a competition benchmark must freeze the chosen case list as a suite revision.
+`CWE+EPSS` cases. The durable 2026-09-27 TD3 checkpoint contains **204 gold facts / 204 TP / 0 FP /
+0 FN**. A later live snapshot on the same 12-CVE case list adds six NVD references explicitly tagged
+`Vendor Advisory`, taking the slice to **210 gold facts / 210 TP / 0 FP / 0 FN**; replay against the
+frozen raw provider snapshot reproduces the same score and the same gold revision. Gold-bearing
+dimension counts are now severity 48, weakness 15, product/package 16, version applicability 47,
+fix/remediation 18, exploit likelihood 48, and advisory/reference **18**.
+
+The mixed structured runner evaluates a closed provider world, not every canonical fact currently
+present in the database. Snapshot schema `real-structured-provider-snapshot-v1` owns five source IDs:
+`nvd-cves-2`, `github-global-advisories`, `osv-vulnerabilities`, `first-epss`, and `cisa-kev`.
+Predictions with Evidence only from another provider are retained in Knowledge but counted as
+`out_of_scope_prediction_count`, not FP. This rule was added after CVE5 enrichment correctly wrote
+new product/applicability facts into the same CVEs: without source scoping, 15 of those valid facts
+appeared as false positives and dropped apparent precision to `0.9333`; with the suite's source
+universe enforced, the same frozen 210-fact snapshot scores **210/0/0** while reporting **25**
+out-of-scope current predictions separately. CVE5 remains measured by its own frozen source-specific
+suite until a future snapshot schema explicitly includes CVE Program raw records.
 
 The main evaluator independently follows OSV CVE→GHSA strong aliases when the CVE conversion record
 does not carry package identity. This mirrors the source semantics but does not reuse the production
@@ -293,6 +303,14 @@ OSV mapper. Before that evaluator fix, 24 valid OSV-native Knowledge facts appea
 positives; after adding the missing gold records, the same database state moved from `180 TP / 24 FP
 / 0 FN` to **204 TP / 0 FP / 0 FN**. This is an evaluator correction, not a production precision
 improvement, and is recorded as such so benchmark changes cannot be mistaken for model/system gain.
+
+NVD advisory/reference coverage is also structured rather than URL-heuristic. Production only
+materializes `Vulnerability --vendor-advisory--> Document` when NVD itself tags a reference exactly
+`Vendor Advisory`; the independent gold builder applies the same provider-level criterion without
+reusing the production mapper. Document identity is URL-content-addressed and the relation keeps the
+exact NVD reference locator. On the latest 12-CVE snapshot this contributes six additional formal
+facts, taking `advisory_reference` from 12/12 GitHub `described-by` facts to **18/18** mixed-source
+facts with zero FP/FN.
 
 Because public NVD access is rate-limited, the discovery/evaluation utilities explicitly throttle
 and retry NVD requests when no API key is configured. Provider transport failures are not counted as

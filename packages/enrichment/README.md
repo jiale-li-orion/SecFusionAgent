@@ -82,7 +82,7 @@ The registry is broader than the processors already implemented. The current imp
 | Fix/remediation | `fixed-version`, `fixed-by` | GitHub Advisory `first_patched_version` and OSV `ECOSYSTEM/SEMVER` fixed events write canonical `SoftwareVersion` + `fixed-version`; OSV GIT fixed hashes remain commit-level evidence for the existing fix-boundary path |
 | Exploit state | `known_exploited`, `has-poc`, exploit maturity | CISA KEV writes `known_exploited`; NVD references explicitly tagged `Exploit` now materialize canonical `ExploitArtifact` + `has-poc` with exact reference evidence. Broader exploit-feed coverage remains future work |
 | Exploit likelihood | EPSS probability/percentile at observed time | GitHub Advisory EPSS snapshots remain evidence-backed; dedicated FIRST EPSS is now an owned on-demand authority source and writes `epss_probability/percentile` with `source_semantics=first_epss` and `score_date`, preserving point-in-time identity |
-| Advisory/reference | canonical advisory/document associations | GitHub Advisory now writes canonical `Document` + `described-by`; vendor/advisory breadth remains incomplete |
+| Advisory/reference | canonical advisory/document associations | GitHub Advisory writes canonical `Document` + `described-by`; NVD references explicitly tagged `Vendor Advisory` now write canonical URL-addressed `Document` + `vendor-advisory` with exact reference Evidence. Broader vendor/source coverage remains incomplete |
 | Asset exposure | `InternetAsset --asset-potentially-affected--> Vulnerability` | Shodan InternetDB explicit host-level `vulns[]` assertions materialize canonical evidence-backed edges. Shodan service observations now also support a deterministic `CPE → full NVD configuration → Vulnerability` join with service-level asset identity, numeric version bounds, AND/OR/negate + companion-CPE evaluation, and dual asset/NVD Evidence. The derived path is regression-tested but is not yet counted as a live-provider benchmark because the dev environment has no authorized Shodan/Censys/FOFA/ZoomEye credential |
 | Research/paper | `discusses-vulnerability` | managed research documents now run a deterministic exact-CVE bridge over frozen parsed chunks; semantic extraction remains separate and is not used to create formal gold |
 | Incident context | strong-anchor Incident↔Vulnerability bridge | Incident lifecycle exists; canonical benchmark bridge remains backlog |
@@ -93,7 +93,7 @@ The active M3 implementation backlog is therefore:
 
 1. Product/Package/SoftwareVersion alias normalization beyond the current ecosystem+package+version identity;
 2. CSAF/VEX applicability plus broader CVE5 comparator semantics beyond preserved structured rules;
-3. advisory/document association coverage beyond GitHub Advisory;
+3. advisory/document association coverage beyond GitHub Advisory and NVD explicit `Vendor Advisory` tags;
 4. broader PoC/ExploitArtifact source coverage beyond NVD explicit `Exploit` tags;
 5. broaden the implemented AssetObservation → CPE Product/SoftwareVersion → NVD applicability join to authorized live asset snapshots and additional non-numeric/version-scheme comparators;
 6. broader paper association beyond exact CVE anchors, with adjudicated semantic-relation gold;
@@ -102,13 +102,21 @@ The active M3 implementation backlog is therefore:
 Processor-version refresh is expected to be replay-safe. The canonical writer and NVD durable normalizer reactivate an identical immutable claim/relation when a newer processor run supersedes the previous active source projection and then reproduces the same normalized tuple. This prevents mapper upgrades from accidentally making stable facts disappear.
 
 The deterministic structured path is continuously checked against live provider gold rather than
-fixtures alone. After adding NVD CPE applicability, FIRST point-in-time EPSS, and independent OSV
-strong-alias gold following, the frozen 2026-09-27 recent 12-CVE stratum now exercises **204 formal
-facts** with **204 TP / 0 FP / 0 FN**. Gold-bearing dimension counts are: severity 48, weakness 15,
-product/package 16, qualifier-aware version applicability 47, fix/remediation 18, exploit
-likelihood 48, and advisory/reference 12. This result is scoped to the selected structured stratum;
-new source semantics are added to the formal denominator only after their canonical mapping is
-implemented and evidence-bound.
+fixtures alone. The durable TD3 `m3-real-structured@3` checkpoint remains the frozen 2026-09-27
+**204-fact / 204 TP / 0 FP / 0 FN** run. The latest live snapshot expands the same 12-CVE case list
+to **210 formal facts** by adding six NVD `Vendor Advisory` assertions; frozen replay of that exact
+provider snapshot reproduces **210 TP / 0 FP / 0 FN**. Gold-bearing dimension counts are now:
+severity 48, weakness 15, product/package 16, qualifier-aware version applicability 47,
+fix/remediation 18, exploit likelihood 48, and advisory/reference **18**.
+
+The main structured runner now also closes its **source universe** explicitly. Snapshot schema
+`real-structured-provider-snapshot-v1` evaluates only NVD, GitHub Global Advisories, OSV, FIRST
+EPSS, and CISA KEV. Canonical facts backed only by sources outside that frozen world remain in
+Knowledge but are reported as `out_of_scope_prediction_count` instead of false positives. On the
+210-fact replay, current Knowledge contained 25 such predictions (primarily CVE5 facts already
+covered by their own source-specific suite); none entered TP/FP/FN. This prevents a newly connected
+provider from making an older frozen suite appear less precise merely because that suite did not
+freeze the new provider's world state.
 
 A separate recent CISA KEV stratum exercises positive exploit-state coverage: 6 real KEV CVEs,
 51 formal facts overall, `51 TP / 0 FP / 0 FN`, including `known_exploited` **6/6**. Keeping this
