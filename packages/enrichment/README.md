@@ -82,7 +82,7 @@ The registry is broader than the processors already implemented. The current imp
 | Fix/remediation | `fixed-version`, `fixed-by` | GitHub Advisory `first_patched_version` and OSV `ECOSYSTEM/SEMVER` fixed events write canonical `SoftwareVersion` + `fixed-version`; OSV GIT fixed hashes remain commit-level evidence for the existing fix-boundary path |
 | Exploit state | `known_exploited`, `has-poc`, exploit maturity | CISA KEV writes `known_exploited`; NVD references explicitly tagged `Exploit` now materialize canonical `ExploitArtifact` + `has-poc` with exact reference evidence. Broader exploit-feed coverage remains future work |
 | Exploit likelihood | EPSS probability/percentile at observed time | GitHub Advisory EPSS snapshots remain evidence-backed; dedicated FIRST EPSS is now an owned on-demand authority source and writes `epss_probability/percentile` with `source_semantics=first_epss` and `score_date`, preserving point-in-time identity |
-| Advisory/reference | canonical advisory/document associations | GitHub Advisory writes canonical `Document` + `described-by`; NVD references explicitly tagged `Vendor Advisory` now write canonical URL-addressed `Document` + `vendor-advisory` with exact reference Evidence. Broader vendor/source coverage remains incomplete |
+| Advisory/reference | canonical advisory/document associations | GitHub Advisory writes canonical `Document` + `described-by`; NVD references explicitly tagged `Vendor Advisory` write canonical URL-addressed `Document` + `vendor-advisory`; Red Hat CSAF/VEX now also materializes the frozen VEX document itself as a vendor-native `vendor-advisory`, bound to the exact CVE locator. Broader vendor/source coverage remains incomplete |
 | Asset exposure | `InternetAsset --asset-potentially-affected--> Vulnerability` | Shodan InternetDB explicit host-level `vulns[]` assertions materialize canonical evidence-backed edges. Shodan service observations now also support a deterministic `CPE → full NVD configuration → Vulnerability` join with service-level asset identity, numeric version bounds, AND/OR/negate + companion-CPE evaluation, and dual asset/NVD Evidence. The derived path is regression-tested but is not yet counted as a live-provider benchmark because the dev environment has no authorized Shodan/Censys/FOFA/ZoomEye credential |
 | Research/paper | `discusses-vulnerability` | managed research documents now run a deterministic exact-CVE bridge over frozen parsed chunks; semantic extraction remains separate and is not used to create formal gold |
 | Incident context | strong-anchor Incident↔Vulnerability bridge | Incident lifecycle exists; canonical benchmark bridge remains backlog |
@@ -93,7 +93,7 @@ The active M3 implementation backlog is therefore:
 
 1. Product/Package/SoftwareVersion alias normalization beyond the current ecosystem+package+version identity;
 2. broader CVE5 comparator semantics plus CSAF/VEX vendor breadth and a live `under_investigation` positive stratum;
-3. advisory/document association coverage beyond GitHub Advisory and NVD explicit `Vendor Advisory` tags;
+3. advisory/document association coverage beyond GitHub Advisory, NVD explicit `Vendor Advisory` tags, and Red Hat CSAF/VEX documents;
 4. broader PoC/ExploitArtifact source coverage beyond NVD explicit `Exploit` tags;
 5. broaden the implemented AssetObservation → CPE Product/SoftwareVersion → NVD applicability join to authorized live asset snapshots and additional non-numeric/version-scheme comparators;
 6. broader paper association beyond exact CVE anchors, with adjudicated semantic-relation gold;
@@ -102,11 +102,11 @@ The active M3 implementation backlog is therefore:
 Processor-version refresh is expected to be replay-safe. The canonical writer and NVD durable normalizer reactivate an identical immutable claim/relation when a newer processor run supersedes the previous active source projection and then reproduces the same normalized tuple. This prevents mapper upgrades from accidentally making stable facts disappear.
 
 The deterministic structured path is continuously checked against live provider gold rather than
-fixtures alone. The current durable TD3 checkpoint is `m3-real-structured@4`: the same frozen
+fixtures alone. The current durable TD3 checkpoint is `m3-real-structured@6`: the same frozen
 12-CVE case list now contains **210 formal facts / 210 TP / 0 FP / 0 FN** after adding six NVD
 `Vendor Advisory` assertions and closing the evaluated provider universe. It is bound to deployment
-`deployment:c4559e449952212fe9162f172b1343cc`, run
-`27870e06-a012-486d-96b4-7b8aaac6e048`, and gold revision
+`deployment:ae519f4d4d188800f566e669b6c16a25`, run
+`1f49b686-7c57-4b6d-9f86-4ae82f91cc47`, and gold revision
 `real-structured:7bd4d0be08d71f87e2a9d7c1462b7084f92b327b59a83f37c07734270d3fd944`.
 Gold-bearing dimension counts are now:
 severity 48, weakness 15, product/package 16, qualifier-aware version applicability 47,
@@ -130,29 +130,31 @@ full CSAF product ID, component/platform relationship, PURL/CPE identification h
 justifications. The evaluator independently reparses the persisted raw CSAF EvidenceArtifact and
 filters predictions to Red Hat Evidence only; it does not reuse the production mapper.
 
-The current stronger frozen stratum is revision 2 and deliberately combines three different VEX
+The current advisory-expanded frozen stratum is revision 4 and deliberately combines three different VEX
 shapes: `CVE-2026-67215` contributes **1 `affected` + 7 `not_affected`** assertions with two live
 justification classes (`vulnerable_code_not_present` and `component_not_present`),
 `CVE-2024-3094` contributes **26 `not_affected`** assertions, and `CVE-2025-32463` contributes
-**33 `fixed` + 13 `not_affected`** assertions. The result is **80 formal facts / 80 TP / 0 FP /
-0 FN** in `version_applicability`, with gold revision
-`csaf-vex:d7cf364575106e3ecf77cf2182aceb6d5441d5a870f20419839e6258b5c7aff4` and provider-world
-coordinate `provider-snapshot:208e130f2552b302eab4a983b13fbba6195669bf5e711e80ca572f2824e4a123`.
+**33 `fixed` + 13 `not_affected`** assertions. The same three persisted VEX documents now also
+contribute one formal `vendor-advisory` fact each, so the result is **83 formal facts / 83 TP /
+0 FP / 0 FN**: 80 `version_applicability` plus 3 `advisory_reference`. Gold revision is
+`csaf-vex:b8d7557895ad1676756180d52c605ad97ccb787c3be759ffc0e710033b6dfd5c` and provider-world
+coordinate `provider-snapshot:cba7f1e65b1c5996b0137cfb9ddeb42a72876bff5a3fb38c34d9767bdaaee5bb`.
 `under_investigation` is implemented in the contract and mapper but is still not claimed as live
 positive coverage because this frozen stratum contains no such Red Hat status. The durable TD3
-coordinates are suite `m3-redhat-csaf-vex@2`, run
-`77c02ab2-6575-4944-9117-f1ffb3549430`, deployment
-`deployment:c4559e449952212fe9162f172b1343cc`, and source-specific CompetitionReport
-`f4456742-6fe3-4e47-9b3c-0cbd0021def1` (digest
-`5fffcd17b687ea4dcd5b87954fd24451cfcd1203ac4979260edb33f69dfc6347`). The earlier
-`m3-redhat-csaf-vex@1` / 37-fact suite remains an immutable historical checkpoint.
+coordinates are suite `m3-redhat-csaf-vex@4`, run
+`a373b1ea-f5fe-4f67-b6ff-aca8a321b36e`, deployment
+`deployment:ae519f4d4d188800f566e669b6c16a25`, and source-specific CompetitionReport
+`0154370d-59c7-454d-9396-e6f6830cd8b4` (digest
+`66b70c6138e1197715d0b45d4c90643737d765f6570f5b6764a76650acc3fc80`). Earlier suite revisions
+remain immutable historical checkpoints; revision 2 is the prior 80-fact applicability-only stratum.
 
-The structured@4 and CSAF/VEX@2 runs are aggregated into current CompetitionReport
-`b1871252-c11c-4ac0-9f6c-339d36ec4e9f` (digest
-`fb914ecab918c2bda80b816ba3b817015b6a84c230560739a5d6691df625c7ff`). Across the two explicit
-M3 suites the report contains **290 TP / 0 FP / 0 FN** across 15 case-runs; micro precision and
-recall are both `1.0` and pass the `>=0.95` development targets. The 290 count is a multi-suite
-report aggregate, not one merged 290-fact gold set; the structured and CSAF provider worlds remain
+The structured@6 and CSAF/VEX@4 runs are aggregated into current CompetitionReport
+`ca75f185-32aa-4c65-b79c-85e69f29fceb` (digest
+`656fd526ae4cae34fd2b3e888f45a084da17ad32fda31a5d4f36b61940721e1b`). Across the two explicit
+M3 suites the report contains **293 TP / 0 FP / 0 FN** across 15 case-runs; advisory/reference now
+contributes **21 TP** across the two provider worlds. Micro precision and recall are both `1.0` and
+pass the `>=0.95` development targets. The 293 count is a multi-suite report aggregate, not one
+merged 293-fact gold set; the structured and CSAF provider worlds remain
 separately versioned.
 
 A separate recent CISA KEV stratum exercises positive exploit-state coverage: 6 real KEV CVEs,

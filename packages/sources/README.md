@@ -82,8 +82,10 @@ Data's static CSAF/VEX tree. The adapter addresses a document by CVE year/id, va
 requested CVE is present in `vulnerabilities[]`, and binds `external_revision` / `updated_at` to
 `document.tracking.current_release_date`. Raw CSAF JSON is retained as Evidence before M3 projection.
 The deterministic mapper preserves `product_status` membership, exact CSAF product IDs,
-component/platform relationships, PURL/CPE helpers and VEX flags; source miss remains an empty exact
-query result rather than an inferred applicability state.
+component/platform relationships, PURL/CPE helpers and VEX flags. The adapter's canonical document
+URL is also retained as the stable identity for a vendor-native `Document / vendor-advisory`
+relation when the frozen VEX payload explicitly contains the requested CVE; no domain-name heuristic
+is used. Source miss remains an empty exact query result rather than an inferred applicability state.
 
 Shodan InternetDB remains a passive, time-bounded asset source. Its `vulns[]` field is treated as an
 explicit provider **host-level** vulnerability association, not as proof that any particular port is
