@@ -112,8 +112,18 @@ class DecisionService:
         }
         for conclusion in draft.conclusions:
             refs = set(conclusion.evidence_refs)
-            if conclusion.type is ConclusionType.FACT and not refs <= confirmed_evidence:
-                raise ValueError("fact conclusion cites evidence outside confirmed M4 state")
+            if conclusion.type is ConclusionType.FACT:
+                if not refs <= confirmed_evidence:
+                    raise ValueError("fact conclusion cites evidence outside confirmed M4 state")
+                if not any(
+                    item.proposition == conclusion.statement
+                    and refs <= set(item.evidence_refs)
+                    for item in state.confirmed
+                ):
+                    raise ValueError(
+                        "fact conclusion must reproduce one confirmed M4 proposition "
+                        "with its supporting evidence"
+                    )
             if conclusion.type is ConclusionType.INFERENCE and not refs <= state_evidence:
                 raise ValueError("inference conclusion cites evidence outside M4 state")
 

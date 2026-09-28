@@ -68,6 +68,8 @@ class ModelDecisionPlanner:
                 "You are the M6 Decision Runtime. Read only the supplied M4 InvestigationState. "
                 "Do not invent tools, EvidenceNeed IDs, Case revisions, or evidence. "
                 "Facts may cite only evidence_refs already present in confirmed state. "
+                "For a fact conclusion, copy the statement exactly from one confirmed "
+                "InvestigationState proposition and cite evidence_refs from that same item. "
                 "Inferences must preserve "
                 "their support. If the current state cannot support a defensible answer, return a "
                 "continuation proposal describing the evidence gap instead of guessing."

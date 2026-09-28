@@ -59,7 +59,7 @@ def test_decision_service_binds_fact_to_confirmed_evidence_and_locator() -> None
             case_revision=4,
             conclusions=[
                 DecisionConclusion(
-                    statement="v1.2.3 is the verified fixed release.",
+                    statement="Release v1.2.3 contains the fix.",
                     type=ConclusionType.FACT,
                     evidence_refs=["evidence:primary-release"],
                 )
@@ -103,6 +103,32 @@ def test_decision_service_rejects_fact_from_tentative_evidence() -> None:
                 CitationSource(
                     evidence_ref="evidence:secondary-blog",
                     source_ref="source:blog",
+                )
+            ],
+        )
+
+
+def test_decision_service_rejects_fact_statement_not_confirmed_by_m4() -> None:
+    with pytest.raises(ValueError, match="must reproduce one confirmed M4 proposition"):
+        DecisionService().decide(
+            _state(),
+            DecisionDraft(
+                case_id="case-1",
+                case_revision=4,
+                conclusions=[
+                    DecisionConclusion(
+                        statement="v1.2.3 fixes every affected deployment.",
+                        type=ConclusionType.FACT,
+                        evidence_refs=["evidence:primary-release"],
+                    )
+                ],
+                stop_reason="evidence_sufficient",
+                model_prompt_revision="decision-v1",
+            ),
+            citation_sources=[
+                CitationSource(
+                    evidence_ref="evidence:primary-release",
+                    source_ref="source:vendor-advisory",
                 )
             ],
         )
