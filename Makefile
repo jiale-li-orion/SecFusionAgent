@@ -107,4 +107,8 @@ verify-data-sources: source-inventory-check
 
 .PHONY: evaluation-check
 evaluation-check:
-	uv run pytest -q packages/evaluation packages/runtime/model/tests tests/test_architecture_dependencies.py
+	uv run pytest -q packages/evaluation packages/runtime/model/tests \
+		tests/test_architecture_dependencies.py \
+		tests/test_evaluation_runtime.py \
+		tests/test_qa_benchmark_manifest.py \
+		tests/test_qa_adjudication.py
