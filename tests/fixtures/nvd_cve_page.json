@@ -75,7 +75,8 @@
         "references": [
           {
             "url": "https://example.test/advisories/CVE-2026-42424",
-            "source": "nvd@nist.gov"
+            "source": "nvd@nist.gov",
+            "tags": ["Vendor Advisory"]
           },
           {
             "url": "https://example.test/exploits/CVE-2026-42424-poc",

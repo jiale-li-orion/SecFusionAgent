@@ -369,7 +369,7 @@ class ProjectedVulnerabilityCanonicalNormalizer:
 
 
 class NVDCanonicalNormalizer(ProjectedVulnerabilityCanonicalNormalizer):
-    PROCESSOR_VERSION = "5"
+    PROCESSOR_VERSION = "6"
 
     def __init__(self, *, now: Callable[[], datetime] | None = None) -> None:
         super().__init__(
@@ -471,6 +471,7 @@ def _nvd_relations(
 
     cve = envelope.json_payload.get("cve")
     if isinstance(cve, dict):
+        relations.extend(_nvd_vendor_advisory_relations(cve.get("references")))
         relations.extend(_nvd_cpe_relations(cve.get("configurations")))
     return relations
 
@@ -478,6 +479,51 @@ def _nvd_relations(
 def _exploit_artifact_key(url: str) -> str:
     digest = sha256(url.strip().encode()).hexdigest()
     return f"exploit-artifact:url-sha256:{digest}"
+
+
+def _nvd_vendor_advisory_relations(value: object) -> list[RelationCandidate]:
+    if not isinstance(value, list):
+        return []
+    relations: list[RelationCandidate] = []
+    seen: set[str] = set()
+    for index, item in enumerate(value):
+        if not isinstance(item, dict):
+            continue
+        url = item.get("url")
+        tags = item.get("tags")
+        if (
+            not isinstance(url, str)
+            or not isinstance(tags, list)
+            or "Vendor Advisory" not in tags
+            or url in seen
+        ):
+            continue
+        seen.add(url)
+        relations.append(
+            RelationCandidate(
+                relation_type="vendor-advisory",
+                target=ObjectCandidate(
+                    object_type="Document",
+                    canonical_key=_document_url_key(url),
+                    properties={
+                        "url": url,
+                        "document_kind": "vendor_advisory",
+                        "source_semantics": "nvd_vendor_advisory_tag",
+                    },
+                ),
+                qualifier={"source_semantics": "nvd_vendor_advisory_tag"},
+                locator={
+                    "kind": "jsonpath",
+                    "path": f"$.cve.references[{index}]",
+                },
+            )
+        )
+    return relations
+
+
+def _document_url_key(url: str) -> str:
+    digest = sha256(url.strip().encode()).hexdigest()
+    return f"document:url-sha256:{digest}"
 
 
 def _nvd_cpe_relations(value: object) -> list[RelationCandidate]:

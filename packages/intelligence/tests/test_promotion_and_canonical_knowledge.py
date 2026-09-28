@@ -147,10 +147,10 @@ async def test_hot_bug_promotion_is_durable_traceable_and_idempotent() -> None:
             assert await _count(session, ObservationModel) == 1
             assert await _count(session, EvidenceArtifactModel) == 1
             assert await _count(session, KnowledgeRevisionModel) == 1
-            assert await _count(session, ObjectModel) == 4
+            assert await _count(session, ObjectModel) == 5
             assert await _count(session, ExternalIdentifierModel) == 2
             assert await _count(session, ClaimModel) > 0
-            assert await _count(session, RelationModel) == 3
+            assert await _count(session, RelationModel) == 4
             assert await _count(session, EvidenceLinkModel) == (
                 await _count(session, ClaimModel) + await _count(session, RelationModel)
             )
@@ -188,6 +188,19 @@ async def test_hot_bug_promotion_is_durable_traceable_and_idempotent() -> None:
             )
             assert poc.evidence[0].source_id == source.source_id
             assert poc.evidence[0].locator["path"] == "$.cve.references[1]"
+            vendor_advisory = next(
+                relation
+                for relation in view.relations
+                if relation.relation_type == "vendor-advisory"
+            )
+            assert vendor_advisory.target.object_type == "Document"
+            assert vendor_advisory.target.properties["url"] == (
+                "https://example.test/advisories/CVE-2026-42424"
+            )
+            assert vendor_advisory.qualifier["source_semantics"] == (
+                "nvd_vendor_advisory_tag"
+            )
+            assert vendor_advisory.evidence[0].locator["path"] == "$.cve.references[0]"
             applicability = next(
                 relation
                 for relation in view.relations
@@ -237,7 +250,7 @@ async def test_hot_bug_promotion_is_durable_traceable_and_idempotent() -> None:
             assert await _count(session, KnowledgeRevisionModel) == 1
             assert await _count(session, KnowledgeChangeModel) == 1
             assert await _count(session, ProcessingRunModel) == 1
-            assert await _count(session, RelationModel) == 3
+            assert await _count(session, RelationModel) == 4
         await redis_client.aclose()
     finally:
         await engine.dispose()
