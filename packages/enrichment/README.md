@@ -130,24 +130,30 @@ full CSAF product ID, component/platform relationship, PURL/CPE identification h
 justifications. The evaluator independently reparses the persisted raw CSAF EvidenceArtifact and
 filters predictions to Red Hat Evidence only; it does not reuse the production mapper.
 
-The first real mixed stratum deliberately combines two different VEX shapes: `CVE-2024-3094`
-contributes **26 `not_affected`** Red Hat product assertions, while `CVE-2022-22965` contributes
-**4 `affected` + 7 `fixed`** assertions. The result is **37 formal facts / 37 TP / 0 FP / 0 FN** in
-`version_applicability`, with gold revision
-`csaf-vex:f8274d4cc539b0994d760ca0107359049149cf6c9d02ceaa791763ea3e847572` and provider-world
-coordinate `provider-snapshot:e1961e7233c53a857224d50b5f2a0c1d614b9e12f8d47f0fbd19580bcda78c28`.
-`under_investigation` is implemented in the contract and mapper but is not yet claimed as live
-positive coverage because this first frozen stratum contains no such Red Hat status. The durable
-TD3 coordinates are suite `m3-redhat-csaf-vex@1`, run
-`cf56f944-95f1-4696-a57c-010196c4ee85`, on the same deployment
-`deployment:c4559e449952212fe9162f172b1343cc`.
+The current stronger frozen stratum is revision 2 and deliberately combines three different VEX
+shapes: `CVE-2026-67215` contributes **1 `affected` + 7 `not_affected`** assertions with two live
+justification classes (`vulnerable_code_not_present` and `component_not_present`),
+`CVE-2024-3094` contributes **26 `not_affected`** assertions, and `CVE-2025-32463` contributes
+**33 `fixed` + 13 `not_affected`** assertions. The result is **80 formal facts / 80 TP / 0 FP /
+0 FN** in `version_applicability`, with gold revision
+`csaf-vex:d7cf364575106e3ecf77cf2182aceb6d5441d5a870f20419839e6258b5c7aff4` and provider-world
+coordinate `provider-snapshot:208e130f2552b302eab4a983b13fbba6195669bf5e711e80ca572f2824e4a123`.
+`under_investigation` is implemented in the contract and mapper but is still not claimed as live
+positive coverage because this frozen stratum contains no such Red Hat status. The durable TD3
+coordinates are suite `m3-redhat-csaf-vex@2`, run
+`77c02ab2-6575-4944-9117-f1ffb3549430`, deployment
+`deployment:c4559e449952212fe9162f172b1343cc`, and source-specific CompetitionReport
+`f4456742-6fe3-4e47-9b3c-0cbd0021def1` (digest
+`5fffcd17b687ea4dcd5b87954fd24451cfcd1203ac4979260edb33f69dfc6347`). The earlier
+`m3-redhat-csaf-vex@1` / 37-fact suite remains an immutable historical checkpoint.
 
-The structured@4 and CSAF/VEX@1 runs are also aggregated into CompetitionReport
-`580b1c85-1089-4ee4-acdd-5ed3488c108d` (digest
-`5853082c9a3a72e97cacebec522f5a7d6096241b78d87b3dac1136bf247ca2aa`). Across the two explicit
-M3 suites the report contains **247 TP / 0 FP / 0 FN**; micro precision and recall are both `1.0`
-and pass the `>=0.95` development targets. The 247 count is a multi-suite report aggregate, not one
-merged 247-fact gold set; the structured and CSAF provider worlds remain separately versioned.
+The structured@4 and CSAF/VEX@2 runs are aggregated into current CompetitionReport
+`b1871252-c11c-4ac0-9f6c-339d36ec4e9f` (digest
+`fb914ecab918c2bda80b816ba3b817015b6a84c230560739a5d6691df625c7ff`). Across the two explicit
+M3 suites the report contains **290 TP / 0 FP / 0 FN** across 15 case-runs; micro precision and
+recall are both `1.0` and pass the `>=0.95` development targets. The 290 count is a multi-suite
+report aggregate, not one merged 290-fact gold set; the structured and CSAF provider worlds remain
+separately versioned.
 
 A separate recent CISA KEV stratum exercises positive exploit-state coverage: 6 real KEV CVEs,
 51 formal facts overall, `51 TP / 0 FP / 0 FN`, including `known_exploited` **6/6**. Keeping this

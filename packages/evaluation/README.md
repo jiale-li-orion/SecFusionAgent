@@ -372,7 +372,9 @@ with provider-bound Evidence. It is persisted under deployment
 `deployment:0ecfd8da773ffe47802c5f52e0a42ca0`, suite `m3-asset-exposure@1`, run
 `1cac6fb2-bf62-4c72-9119-d2c2dee9b1af`, and CompetitionReport
 `f9ff8ada-4b11-447a-a8e3-daddae2d384c`. The suite intentionally proves only explicit host-level
-provider assertions; CPE/version-derived asset applicability remains a separate backlog item.
+provider assertions. The harder CPE/version-derived asset path is implemented and regression-tested
+separately, but remains outside the live denominator until an authorized service-level asset
+snapshot can be frozen and independently scored.
 
 Research/paper exact association is evaluated independently from semantic extraction. Production
 reads the frozen arXiv PDF revision through the managed-document parser and exact-CVE bridge; gold is
@@ -424,15 +426,17 @@ then rebuilds gold independently from those EvidenceArtifact bytes and scores on
 to the CSAF publisher namespace + exact product ID, while qualifiers preserve product-status scope,
 component/platform context and VEX justification labels.
 
-The initial two-case stratum intentionally mixes positive and negative VEX semantics:
-`CVE-2024-3094` contributes **26 `not_affected`** facts and `CVE-2022-22965` contributes
-**4 `affected` + 7 `fixed`** facts. Overall result: **37 formal facts / 37 TP / 0 FP / 0 FN** in
-`version_applicability`, with zero missing or extra facts. Gold revision is
-`csaf-vex:f8274d4cc539b0994d760ca0107359049149cf6c9d02ceaa791763ea3e847572`; frozen provider-world
-coordinate is `provider-snapshot:e1961e7233c53a857224d50b5f2a0c1d614b9e12f8d47f0fbd19580bcda78c28`.
-The mapper also supports `under_investigation`, but no live positive for that state is included in
-this first stratum, so coverage is reported as affected=4 / not_affected=26 / fixed=7 /
-under_investigation=0 rather than implying full status-surface coverage.
+The current revision-2 stratum strengthens that coverage with three real VEX shapes:
+`CVE-2026-67215` contributes **1 `affected` + 7 `not_affected`** facts and live justification flags,
+`CVE-2024-3094` contributes **26 `not_affected`** facts, and `CVE-2025-32463` contributes
+**33 `fixed` + 13 `not_affected`** facts. Overall result: **80 formal facts / 80 TP / 0 FP / 0 FN**
+in `version_applicability`, with zero missing or extra facts. Gold revision is
+`csaf-vex:d7cf364575106e3ecf77cf2182aceb6d5441d5a870f20419839e6258b5c7aff4`; frozen provider-world
+coordinate is `provider-snapshot:208e130f2552b302eab4a983b13fbba6195669bf5e711e80ca572f2824e4a123`.
+The observed status distribution is affected=1 / not_affected=46 / fixed=33 /
+under_investigation=0. The mapper supports `under_investigation`, but no live positive for that state
+is included, so the benchmark does not imply full status-surface coverage. The prior two-case
+`m3-redhat-csaf-vex@1` / 37-fact suite remains an immutable historical checkpoint.
 
 The CPE/version-derived asset join itself is implemented and regression-tested against positive,
 wrong-version, and missing-companion cases, but remains outside the live denominator until an
@@ -467,17 +471,18 @@ local probe JSON:
 - Structured suite/run: `m3-real-structured@4` / `27870e06-a012-486d-96b4-7b8aaac6e048`
 - Structured gold: `real-structured:7bd4d0be08d71f87e2a9d7c1462b7084f92b327b59a83f37c07734270d3fd944`
 - Structured frozen provider world: `provider-snapshot:97af8fc348b5bb34382971e045dc57324d381e3897e8ee6e355ff165144c2eb0`
-- Red Hat CSAF/VEX suite/run: `m3-redhat-csaf-vex@1` / `cf56f944-95f1-4696-a57c-010196c4ee85`
-- CSAF/VEX gold: `csaf-vex:f8274d4cc539b0994d760ca0107359049149cf6c9d02ceaa791763ea3e847572`
-- CSAF/VEX provider world: `provider-snapshot:e1961e7233c53a857224d50b5f2a0c1d614b9e12f8d47f0fbd19580bcda78c28`
-- Combined CompetitionReport: `580b1c85-1089-4ee4-acdd-5ed3488c108d`
-- Report digest: `5853082c9a3a72e97cacebec522f5a7d6096241b78d87b3dac1136bf247ca2aa`
+- Red Hat CSAF/VEX suite/run: `m3-redhat-csaf-vex@2` / `77c02ab2-6575-4944-9117-f1ffb3549430`
+- CSAF/VEX gold: `csaf-vex:d7cf364575106e3ecf77cf2182aceb6d5441d5a870f20419839e6258b5c7aff4`
+- CSAF/VEX provider world: `provider-snapshot:208e130f2552b302eab4a983b13fbba6195669bf5e711e80ca572f2824e4a123`
+- CSAF/VEX source-specific CompetitionReport: `f4456742-6fe3-4e47-9b3c-0cbd0021def1`
+- Current combined CompetitionReport: `b1871252-c11c-4ac0-9f6c-339d36ec4e9f`
+- Combined report digest: `fb914ecab918c2bda80b816ba3b817015b6a84c230560739a5d6691df625c7ff`
 
 `m3-real-structured@4` contributes **210 TP / 0 FP / 0 FN** and
-`m3-redhat-csaf-vex@1` contributes **37 TP / 0 FP / 0 FN**. The combined report therefore aggregates
-**247 TP / 0 FP / 0 FN** across 14 case-runs; M3 micro precision and recall are both `1.0` and pass
+`m3-redhat-csaf-vex@2` contributes **80 TP / 0 FP / 0 FN**. The combined report therefore aggregates
+**290 TP / 0 FP / 0 FN** across 15 case-runs; M3 micro precision and recall are both `1.0` and pass
 the `>=0.95` development targets. This is a multi-suite aggregate: the two gold sets and provider
-world snapshots remain distinct rather than being flattened into one artificial 247-fact dataset.
+world snapshots remain distinct rather than being flattened into one artificial 290-fact dataset.
 Source-category coverage is not part of this selected run set and is therefore `not_evaluated` in
 this report; M6 QA, Agent runtime and fault/recovery also remain explicitly unevaluated rather than
 receiving inferred or zero-filled values.
