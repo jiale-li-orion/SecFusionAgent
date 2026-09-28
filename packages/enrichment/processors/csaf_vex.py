@@ -23,7 +23,7 @@ _STATUS_MAP = {
 
 class RedHatCSAFVEXMapper:
     PROCESSOR_NAME = "redhat-csaf-vex-enrichment"
-    PROCESSOR_VERSION = "1"
+    PROCESSOR_VERSION = "2"
 
     def map(self, envelope: IngestEnvelope) -> EnrichmentCandidate:
         payload = envelope.json_payload
@@ -44,12 +44,21 @@ class RedHatCSAFVEXMapper:
         )
         if vulnerability is None:
             raise SourceSchemaChanged("CSAF VEX record has no matching CVE")
+        if vulnerability_index is None:
+            raise SourceSchemaChanged("CSAF VEX matching CVE has no stable index")
         publisher_namespace = _publisher_namespace(payload)
         products = _product_index(payload.get("product_tree"))
         relationships = _relationship_index(payload.get("product_tree"))
         justifications = _flag_index(vulnerability.get("flags"))
         status = vulnerability.get("product_status")
         relations: list[RelationCandidate] = []
+        advisory = _vendor_advisory_relation(
+            envelope,
+            vulnerability_index=vulnerability_index,
+            publisher_namespace=publisher_namespace,
+        )
+        if advisory is not None:
+            relations.append(advisory)
         if isinstance(status, dict):
             for csaf_status, canonical_state in _STATUS_MAP.items():
                 product_ids = status.get(csaf_status)
@@ -97,7 +106,7 @@ class RedHatCSAFVEXMapper:
         return EnrichmentCandidate(
             root_identifiers={"cve": [cve_id]},
             relations=relations,
-            replace_relation_types=["applicability-status"],
+            replace_relation_types=["applicability-status", "vendor-advisory"],
         )
 
 
@@ -221,5 +230,34 @@ def _target_product(
             "publisher_namespace": publisher_namespace,
             "csaf_product_id": product_id,
             "product_context": context,
+        },
+    )
+
+
+def _vendor_advisory_relation(
+    envelope: IngestEnvelope,
+    *,
+    vulnerability_index: int,
+    publisher_namespace: str,
+) -> RelationCandidate | None:
+    url = envelope.canonical_url
+    if not isinstance(url, str) or not url:
+        return None
+    digest = sha256(url.strip().encode()).hexdigest()
+    return RelationCandidate(
+        relation_type="vendor-advisory",
+        target=ObjectCandidate(
+            object_type="Document",
+            canonical_key=f"document:url-sha256:{digest}",
+            properties={
+                "url": url,
+                "document_kind": "csaf_vex",
+                "publisher_namespace": publisher_namespace,
+            },
+        ),
+        qualifier={"source_semantics": "redhat_csaf_vex_document"},
+        locator={
+            "kind": "jsonpath",
+            "path": f"$.vulnerabilities[{vulnerability_index}].cve",
         },
     )

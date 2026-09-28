@@ -26,13 +26,19 @@ def _envelope(name: str, external_id: str) -> IngestEnvelope:
             "api_version": payload["version"],
             "record": payload["data"][0],
         }
+    canonical_url = None
+    if name == "redhat_csaf_vex.json":
+        canonical_url = (
+            "https://security.access.redhat.com/data/csaf/v2/vex/2026/"
+            "cve-2026-42424.json"
+        )
     return IngestEnvelope.for_json_payload(
         acquisition_run_id="run",
         trigger=AcquisitionTrigger.ON_DEMAND,
         source_id="source",
         external_object_id=external_id,
         payload=payload,
-        canonical_url=None,
+        canonical_url=canonical_url,
         published_at=None,
         updated_at=None,
         external_revision="r1",
@@ -72,17 +78,23 @@ def test_redhat_csaf_vex_mapper_preserves_full_product_scope_and_justification()
         "kind": "csaf_product_status",
         "product_id": "red_hat_enterprise_linux_9:example.src",
     }
-    assert affected.qualifier["product_context"]["component"]["purl"] == (
-        "pkg:rpm/redhat/example?arch=src"
-    )
-    assert affected.qualifier["product_context"]["platform"]["cpe"] == (
-        "cpe:/o:redhat:enterprise_linux:9"
-    )
+    product_context = affected.qualifier["product_context"]
+    assert isinstance(product_context, dict)
+    component = product_context["component"]
+    platform = product_context["platform"]
+    assert isinstance(component, dict)
+    assert isinstance(platform, dict)
+    assert component["purl"] == "pkg:rpm/redhat/example?arch=src"
+    assert platform["cpe"] == "cpe:/o:redhat:enterprise_linux:9"
     not_affected = next(
         item for item in applicability if item.qualifier["state"] == "not_affected"
     )
     assert not_affected.qualifier["csaf_status"] == "known_not_affected"
     assert not_affected.qualifier["justification"] == ["vulnerable_code_not_present"]
+    advisory = next(item for item in candidate.relations if item.relation_type == "vendor-advisory")
+    assert advisory.target.object_type == "Document"
+    assert advisory.target.properties["document_kind"] == "csaf_vex"
+    assert advisory.qualifier == {"source_semantics": "redhat_csaf_vex_document"}
 
 
 def test_github_mapper_builds_package_relation() -> None:

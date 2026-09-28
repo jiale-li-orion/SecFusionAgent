@@ -26,7 +26,10 @@ from packages.shared.config import get_settings
 from packages.shared.db import create_engine, create_session_factory
 
 SOURCE_ID = "redhat-csaf-vex"
-FORMAL_DIMENSIONS = {EnrichmentDimension.VERSION_APPLICABILITY}
+FORMAL_DIMENSIONS = {
+    EnrichmentDimension.VERSION_APPLICABILITY,
+    EnrichmentDimension.ADVISORY_REFERENCE,
+}
 STATUS_MAP = {
     "known_affected": "affected",
     "known_not_affected": "not_affected",
@@ -42,6 +45,11 @@ def _normalized(value: Any) -> str:
 def _target_key(publisher_namespace: str, product_id: str) -> str:
     digest = sha256(f"{publisher_namespace}|{product_id}".encode()).hexdigest()
     return f"product:csaf-sha256:{digest}"
+
+
+def _document_key(url: str) -> str:
+    digest = sha256(url.strip().encode()).hexdigest()
+    return f"document:url-sha256:{digest}"
 
 
 def _fact(
@@ -60,6 +68,24 @@ def _fact(
         predicate_or_relation_type="applicability-status",
         normalized_value_or_target_id=target_key,
         target_object_type="Product",
+        qualifier_keys=tuple(sorted(qualifier)),
+        normalized_qualifier=_normalized(qualifier),
+    )
+
+
+def _advisory_fact(cve_id: str, url: str) -> EnrichmentFactKey:
+    term = canonical_term("relation", "vendor-advisory")
+    if term is None:
+        raise RuntimeError("vendor-advisory is not registered")
+    qualifier = {"source_semantics": "redhat_csaf_vex_document"}
+    return EnrichmentFactKey(
+        root_object_key=f"cve:{cve_id}",
+        root_object_type="Vulnerability",
+        kind="relation",
+        dimension=term.dimension,
+        predicate_or_relation_type="vendor-advisory",
+        normalized_value_or_target_id=_document_key(url),
+        target_object_type="Document",
         qualifier_keys=tuple(sorted(qualifier)),
         normalized_qualifier=_normalized(qualifier),
     )
@@ -161,7 +187,10 @@ def _flags(value: Any) -> dict[str, list[str]]:
     return result
 
 
-def _gold_for_case(cve_id: str, payload: dict[str, Any]) -> list[EnrichmentFactKey]:
+def _gold_for_case(cve_id: str, snapshot: dict[str, Any]) -> list[EnrichmentFactKey]:
+    payload = snapshot.get("payload")
+    if not isinstance(payload, dict):
+        return []
     vulnerabilities = payload.get("vulnerabilities")
     if not isinstance(vulnerabilities, list):
         return []
@@ -179,6 +208,9 @@ def _gold_for_case(cve_id: str, payload: dict[str, Any]) -> list[EnrichmentFactK
     if not isinstance(status, dict):
         return []
     result: list[EnrichmentFactKey] = []
+    canonical_url = snapshot.get("canonical_url")
+    if isinstance(canonical_url, str) and canonical_url:
+        result.append(_advisory_fact(cve_id, canonical_url))
     for csaf_status, state in STATUS_MAP.items():
         ids = status.get(csaf_status)
         if not isinstance(ids, list):
@@ -226,7 +258,7 @@ async def _predictions_for_case(session: AsyncSession, cve_id: str) -> list[Enri
             .join(ObjectModel, ObjectModel.object_id == RelationModel.target_object_id)
             .where(
                 RelationModel.source_object_id == object_id,
-                RelationModel.relation_type == "applicability-status",
+                RelationModel.relation_type.in_(("applicability-status", "vendor-advisory")),
                 RelationModel.lifecycle == "accepted",
                 RelationModel.superseded_revision.is_(None),
             )
@@ -252,9 +284,16 @@ async def _predictions_for_case(session: AsyncSession, cve_id: str) -> list[Enri
         ).all()
         if not evidence:
             continue
+        if relation.relation_type == "applicability-status":
+            fact = _fact(cve_id, target.canonical_key, _prediction_qualifier(relation))
+        else:
+            url = target.properties.get("url")
+            if not isinstance(url, str) or not url:
+                continue
+            fact = _advisory_fact(cve_id, url)
         result.append(
             EnrichmentPrediction(
-                fact=_fact(cve_id, target.canonical_key, _prediction_qualifier(relation)),
+                fact=fact,
                 evidence_ref_ids=tuple(f"evidence:{row.evidence_link_id}" for row in evidence),
                 evidence_correct=True,
             )
@@ -288,11 +327,15 @@ async def _evidence_snapshots(cves: list[str]) -> dict[str, dict[str, Any]]:
                 item = row.first()
                 if item is None:
                     raise RuntimeError(f"no persisted Red Hat CSAF VEX Evidence for {cve_id}")
-                _, artifact = item
+                observation, artifact = item
                 payload = json.loads(await store.get(artifact.storage_uri))
                 if not isinstance(payload, dict):
                     raise RuntimeError(f"invalid persisted CSAF VEX Evidence for {cve_id}")
-                result[cve_id] = payload
+                result[cve_id] = {
+                    "canonical_url": observation.canonical_url,
+                    "external_revision": observation.external_revision,
+                    "payload": payload,
+                }
     finally:
         await engine.dispose()
     return result
@@ -323,10 +366,13 @@ async def _run(cves: list[str]) -> dict[str, Any]:
     score = score_enrichment(gold=gold, predicted=predictions)
     valid = {item.fact for item in predictions if item.evidence_valid}
     return {
-        "profile": "redhat-csaf-vex-source-specific-v1",
+        "profile": "redhat-csaf-vex-source-specific-v2",
         "fetched_at": datetime.now(UTC).isoformat(),
         "cases": cves,
-        "formal_dimensions": [EnrichmentDimension.VERSION_APPLICABILITY.value],
+        "formal_dimensions": [
+            EnrichmentDimension.VERSION_APPLICABILITY.value,
+            EnrichmentDimension.ADVISORY_REFERENCE.value,
+        ],
         "gold_revision": _revision(
             "csaf-vex",
             [
