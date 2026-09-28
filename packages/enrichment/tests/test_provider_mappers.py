@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 from packages.enrichment.processors.cisa_kev import CISAKEVMapper
+from packages.enrichment.processors.csaf_vex import RedHatCSAFVEXMapper
 from packages.enrichment.processors.epss import FIRSTEPSSMapper
 from packages.enrichment.processors.github_advisory import GitHubAdvisoryMapper
 from packages.enrichment.processors.osv import OSVMapper
@@ -54,6 +55,34 @@ def test_first_epss_mapper_preserves_point_in_time_semantics() -> None:
         "source_semantics": "first_epss",
         "score_date": "2026-09-27",
     }
+
+
+def test_redhat_csaf_vex_mapper_preserves_full_product_scope_and_justification() -> None:
+    candidate = RedHatCSAFVEXMapper().map(
+        _envelope("redhat_csaf_vex.json", "CVE-2026-42424")
+    )
+    applicability = [
+        item for item in candidate.relations if item.relation_type == "applicability-status"
+    ]
+    assert len(applicability) == 2
+    affected = next(item for item in applicability if item.qualifier["state"] == "affected")
+    assert affected.qualifier["source_semantics"] == "csaf_vex"
+    assert affected.qualifier["csaf_status"] == "known_affected"
+    assert affected.qualifier["scope"] == {
+        "kind": "csaf_product_status",
+        "product_id": "red_hat_enterprise_linux_9:example.src",
+    }
+    assert affected.qualifier["product_context"]["component"]["purl"] == (
+        "pkg:rpm/redhat/example?arch=src"
+    )
+    assert affected.qualifier["product_context"]["platform"]["cpe"] == (
+        "cpe:/o:redhat:enterprise_linux:9"
+    )
+    not_affected = next(
+        item for item in applicability if item.qualifier["state"] == "not_affected"
+    )
+    assert not_affected.qualifier["csaf_status"] == "known_not_affected"
+    assert not_affected.qualifier["justification"] == ["vulnerable_code_not_present"]
 
 
 def test_github_mapper_builds_package_relation() -> None:

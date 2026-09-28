@@ -8,6 +8,7 @@ from packages.sources.adapters.cisa_kev import CISAKEVAdapter
 from packages.sources.adapters.epss import FIRSTEPSSAdapter
 from packages.sources.adapters.github_advisory import GitHubGlobalAdvisoryAdapter
 from packages.sources.adapters.osv import OSVAdapter
+from packages.sources.adapters.redhat_csaf_vex import RedHatCSAFVEXAdapter
 from packages.sources.contracts import AcquisitionTrigger, QuerySpec
 from packages.sources.registry.loader import load_source_definitions
 
@@ -23,6 +24,12 @@ SOURCES = {item.source_id: item for item in load_source_definitions(Path("config
             "osv-vulnerabilities",
             lambda client: OSVAdapter(client),
             "osv_cve.json",
+            "CVE-2026-42424",
+        ),
+        (
+            "redhat-csaf-vex",
+            lambda client: RedHatCSAFVEXAdapter(client),
+            "redhat_csaf_vex.json",
             "CVE-2026-42424",
         ),
         (

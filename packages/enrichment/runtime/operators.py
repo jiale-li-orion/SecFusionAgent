@@ -67,6 +67,12 @@ _OPERATOR_SPECS: tuple[EnrichmentOperatorSpec, ...] = (
         ),
     ),
     EnrichmentOperatorSpec(
+        operator_id="provider.redhat_csaf_vex",
+        kind=EnrichmentOperatorKind.PROVIDER_QUERY,
+        source_id="redhat-csaf-vex",
+        produces=(EnrichmentDimension.VERSION_APPLICABILITY,),
+    ),
+    EnrichmentOperatorSpec(
         operator_id="provider.osv",
         kind=EnrichmentOperatorKind.PROVIDER_QUERY,
         source_id="osv-vulnerabilities",

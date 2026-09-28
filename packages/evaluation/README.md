@@ -417,10 +417,26 @@ The durable TD3 coordinates are deployment `deployment:2a602ddc91ebae16bb8dda499
 precision/recall development targets for this suite; source coverage, QA and Agent metrics remain
 explicitly unevaluated rather than being filled with synthetic zeros.
 
-The next live structured priority is CSAF/VEX applicability. The CPE/version-derived asset join
-itself is implemented and regression-tested against positive, wrong-version, and missing-companion
-cases, but remains outside the live denominator until an authorized service-level asset snapshot can
-be frozen and independently scored.
+Red Hat CSAF/VEX applicability now has a source-specific frozen benchmark rather than remaining a
+design-only target. Production exact-CVE lookup persists the raw CSAF document first; the evaluator
+then rebuilds gold independently from those EvidenceArtifact bytes and scores only canonical
+`applicability-status` relations backed by `redhat-csaf-vex` Evidence. Product identity remains tied
+to the CSAF publisher namespace + exact product ID, while qualifiers preserve product-status scope,
+component/platform context and VEX justification labels.
+
+The initial two-case stratum intentionally mixes positive and negative VEX semantics:
+`CVE-2024-3094` contributes **26 `not_affected`** facts and `CVE-2022-22965` contributes
+**4 `affected` + 7 `fixed`** facts. Overall result: **37 formal facts / 37 TP / 0 FP / 0 FN** in
+`version_applicability`, with zero missing or extra facts. Gold revision is
+`csaf-vex:f8274d4cc539b0994d760ca0107359049149cf6c9d02ceaa791763ea3e847572`; frozen provider-world
+coordinate is `provider-snapshot:e1961e7233c53a857224d50b5f2a0c1d614b9e12f8d47f0fbd19580bcda78c28`.
+The mapper also supports `under_investigation`, but no live positive for that state is included in
+this first stratum, so coverage is reported as affected=4 / not_affected=26 / fixed=7 /
+under_investigation=0 rather than implying full status-surface coverage.
+
+The CPE/version-derived asset join itself is implemented and regression-tested against positive,
+wrong-version, and missing-companion cases, but remains outside the live denominator until an
+authorized service-level asset snapshot can be frozen and independently scored.
 
 Asset exposure also has a separate source-specific positive smoke. `scripts/evaluate_asset_exposure.py`
 constructs gold directly from Shodan InternetDB's explicit host-level `vulns[]` response and scores

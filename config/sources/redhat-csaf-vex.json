@@ -1,0 +1,25 @@
+{
+  "source_id": "redhat-csaf-vex",
+  "adapter_type": "redhat_csaf_vex",
+  "source_class": "canonical_bug_query",
+  "authority_scope": ["csaf_vex", "product_status", "not_affected_justification"],
+  "source_role": "authority",
+  "source_family": "redhat-security-data",
+  "access_mode": "https_static_json",
+  "update_semantics": "mutable_per_cve_vex",
+  "discovery_method": {
+    "base_url": "https://security.access.redhat.com/data/csaf/v2/vex"
+  },
+  "time_semantics": {
+    "updated_at": "document.tracking.current_release_date"
+  },
+  "identity_semantics": {
+    "external_object_id": "vulnerabilities[].cve",
+    "external_revision": "document.tracking.current_release_date"
+  },
+  "rate_limit_policy": {"provider": "redhat-security-data"},
+  "access_rights": {"classification": "public"},
+  "retention_mode": "time_bounded",
+  "schedule_policy": {"enabled": false},
+  "schema_version": "1"
+}

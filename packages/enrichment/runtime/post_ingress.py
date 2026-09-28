@@ -13,6 +13,7 @@ from packages.enrichment.assets.service import map_asset_observation
 from packages.enrichment.processors.cisa_kev import CISAKEVMapper
 from packages.enrichment.processors.cnnvd import CNNVDMapper
 from packages.enrichment.processors.cnvd import CNVDHTMLMapper
+from packages.enrichment.processors.csaf_vex import RedHatCSAFVEXMapper
 from packages.enrichment.processors.epss import FIRSTEPSSMapper
 from packages.enrichment.processors.github_advisory import GitHubAdvisoryMapper
 from packages.enrichment.processors.osv import OSVMapper
@@ -109,6 +110,7 @@ class ObservationProcessingRuntime:
             "first_epss": FIRSTEPSSMapper(),
             "cnvd": CNVDHTMLMapper(),
             "cnnvd": CNNVDMapper(),
+            "redhat_csaf_vex": RedHatCSAFVEXMapper(),
         }
         self._asset_mappers: dict[str, EnrichmentMapper] = {
             "shodan_internetdb": ShodanInternetDBAssetMapper(),

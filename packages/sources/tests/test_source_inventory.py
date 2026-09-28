@@ -11,7 +11,7 @@ from packages.sources.resolver_registry import create_dynamic_source_resolvers
 
 def test_source_inventory_has_explicit_owner_for_every_concrete_commitment() -> None:
     inventory = load_source_inventory()
-    assert len(inventory.entries) == 100
+    assert len(inventory.entries) == 101
     keys = [(item.category, item.name) for item in inventory.entries]
     assert len(keys) == len(set(keys))
     assert {item.category for item in inventory.entries} == {

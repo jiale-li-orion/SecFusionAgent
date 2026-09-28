@@ -78,7 +78,7 @@ The registry is broader than the processors already implemented. The current imp
 | Severity | CVSS score/vector/version/severity | NVD deterministic normalization writes all four canonical fields, including `cvss_version` |
 | Weakness | `Vulnerability --has-weakness--> Weakness` | NVD and GitHub Advisory deterministically map CWE identifiers to canonical `Weakness` objects with evidence |
 | Product/package | `affects-product`, `affects-package` | package relations exist; broader product identity mapping continues |
-| Version applicability | scoped `applicability-status` relation | GitHub Advisory ranges use `github_advisory_range`; OSV ecosystem/native records use `osv_range`; NVD CPE configuration trees write `nvd_cpe` assertions with full boolean/configuration context; CVE Record Format 5.x now writes `cve5_version_rule` plus `cve5_default_status`, preserving exact/range rules, `versionType`, `lessThan/lessThanOrEqual`, original source status, product context, and `changes[]`. CSAF/VEX remains backlog |
+| Version applicability | scoped `applicability-status` relation | GitHub Advisory ranges use `github_advisory_range`; OSV ecosystem/native records use `osv_range`; NVD CPE configuration trees write `nvd_cpe` assertions with full boolean/configuration context; CVE Record Format 5.x writes `cve5_version_rule` plus `cve5_default_status`; Red Hat CSAF/VEX now maps `known_affected / known_not_affected / fixed / under_investigation` into scoped canonical states while preserving exact CSAF product IDs, component/platform context, PURL/CPE helpers, and VEX justification flags |
 | Fix/remediation | `fixed-version`, `fixed-by` | GitHub Advisory `first_patched_version` and OSV `ECOSYSTEM/SEMVER` fixed events write canonical `SoftwareVersion` + `fixed-version`; OSV GIT fixed hashes remain commit-level evidence for the existing fix-boundary path |
 | Exploit state | `known_exploited`, `has-poc`, exploit maturity | CISA KEV writes `known_exploited`; NVD references explicitly tagged `Exploit` now materialize canonical `ExploitArtifact` + `has-poc` with exact reference evidence. Broader exploit-feed coverage remains future work |
 | Exploit likelihood | EPSS probability/percentile at observed time | GitHub Advisory EPSS snapshots remain evidence-backed; dedicated FIRST EPSS is now an owned on-demand authority source and writes `epss_probability/percentile` with `source_semantics=first_epss` and `score_date`, preserving point-in-time identity |
@@ -92,7 +92,7 @@ Supporting edges such as `release-contains-commit`, `asset-runs-product`, and `a
 The active M3 implementation backlog is therefore:
 
 1. Product/Package/SoftwareVersion alias normalization beyond the current ecosystem+package+version identity;
-2. CSAF/VEX applicability plus broader CVE5 comparator semantics beyond preserved structured rules;
+2. broader CVE5 comparator semantics plus CSAF/VEX vendor breadth and a live `under_investigation` positive stratum;
 3. advisory/document association coverage beyond GitHub Advisory and NVD explicit `Vendor Advisory` tags;
 4. broader PoC/ExploitArtifact source coverage beyond NVD explicit `Exploit` tags;
 5. broaden the implemented AssetObservation → CPE Product/SoftwareVersion → NVD applicability join to authorized live asset snapshots and additional non-numeric/version-scheme comparators;
@@ -117,6 +117,24 @@ Knowledge but are reported as `out_of_scope_prediction_count` instead of false p
 covered by their own source-specific suite); none entered TP/FP/FN. This prevents a newly connected
 provider from making an older frozen suite appear less precise merely because that suite did not
 freeze the new provider's world state.
+
+Red Hat CSAF/VEX now has a separate source-specific applicability path and benchmark rather than
+being flattened into generic vendor assertions. `redhat-csaf-vex` performs exact-CVE lookup against
+the public Red Hat CSAF/VEX tree, persists the raw document as Evidence, and maps each
+`product_status` member into a qualifier-scoped `applicability-status`. Production preserves the
+full CSAF product ID, component/platform relationship, PURL/CPE identification helpers,
+`known_affected / known_not_affected / fixed / under_investigation`, and `flags[].label` VEX
+justifications. The evaluator independently reparses the persisted raw CSAF EvidenceArtifact and
+filters predictions to Red Hat Evidence only; it does not reuse the production mapper.
+
+The first real mixed stratum deliberately combines two different VEX shapes: `CVE-2024-3094`
+contributes **26 `not_affected`** Red Hat product assertions, while `CVE-2022-22965` contributes
+**4 `affected` + 7 `fixed`** assertions. The result is **37 formal facts / 37 TP / 0 FP / 0 FN** in
+`version_applicability`, with gold revision
+`csaf-vex:f8274d4cc539b0994d760ca0107359049149cf6c9d02ceaa791763ea3e847572` and provider-world
+coordinate `provider-snapshot:e1961e7233c53a857224d50b5f2a0c1d614b9e12f8d47f0fbd19580bcda78c28`.
+`under_investigation` is implemented in the contract and mapper but is not yet claimed as live
+positive coverage because this first frozen stratum contains no such Red Hat status.
 
 A separate recent CISA KEV stratum exercises positive exploit-state coverage: 6 real KEV CVEs,
 51 formal facts overall, `51 TP / 0 FP / 0 FN`, including `known_exploited` **6/6**. Keeping this

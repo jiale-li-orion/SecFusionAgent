@@ -1,0 +1,98 @@
+{
+  "document": {
+    "category": "csaf_vex",
+    "csaf_version": "2.0",
+    "publisher": {
+      "category": "vendor",
+      "name": "Red Hat Product Security",
+      "namespace": "https://www.redhat.com"
+    },
+    "title": "Example VEX",
+    "tracking": {
+      "current_release_date": "2026-09-27T12:00:00Z",
+      "id": "CVE-2026-42424",
+      "initial_release_date": "2026-09-20T12:00:00Z",
+      "revision_history": [],
+      "status": "final",
+      "version": "1"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "category": "vendor",
+        "name": "Red Hat",
+        "branches": [
+          {
+            "category": "product_name",
+            "name": "Red Hat Enterprise Linux 9",
+            "product": {
+              "name": "Red Hat Enterprise Linux 9",
+              "product_id": "red_hat_enterprise_linux_9",
+              "product_identification_helper": {
+                "cpe": "cpe:/o:redhat:enterprise_linux:9"
+              }
+            }
+          },
+          {
+            "category": "product_version",
+            "name": "example.src",
+            "product": {
+              "name": "example.src",
+              "product_id": "example.src",
+              "product_identification_helper": {
+                "purl": "pkg:rpm/redhat/example?arch=src"
+              }
+            }
+          },
+          {
+            "category": "product_version",
+            "name": "safe.src",
+            "product": {
+              "name": "safe.src",
+              "product_id": "safe.src",
+              "product_identification_helper": {
+                "purl": "pkg:rpm/redhat/safe?arch=src"
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "example.src as a component of Red Hat Enterprise Linux 9",
+          "product_id": "red_hat_enterprise_linux_9:example.src"
+        },
+        "product_reference": "example.src",
+        "relates_to_product_reference": "red_hat_enterprise_linux_9"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "safe.src as a component of Red Hat Enterprise Linux 9",
+          "product_id": "red_hat_enterprise_linux_9:safe.src"
+        },
+        "product_reference": "safe.src",
+        "relates_to_product_reference": "red_hat_enterprise_linux_9"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2026-42424",
+      "flags": [
+        {
+          "label": "vulnerable_code_not_present",
+          "product_ids": ["red_hat_enterprise_linux_9:safe.src"]
+        }
+      ],
+      "product_status": {
+        "known_affected": ["red_hat_enterprise_linux_9:example.src"],
+        "known_not_affected": ["red_hat_enterprise_linux_9:safe.src"]
+      }
+    }
+  ]
+}

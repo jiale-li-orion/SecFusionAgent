@@ -22,6 +22,7 @@ from packages.sources.adapters.nvd import NVDAdapter
 from packages.sources.adapters.oscs import OSCSAdapter
 from packages.sources.adapters.oss_security import OssSecurityAdapter
 from packages.sources.adapters.osv import OSVAdapter
+from packages.sources.adapters.redhat_csaf_vex import RedHatCSAFVEXAdapter
 from packages.sources.adapters.rss_incident import RSSIncidentAdapter
 from packages.sources.adapters.scholarly_search import ScholarlySearchAdapter
 from packages.sources.adapters.shodan import ShodanAdapter
@@ -50,6 +51,8 @@ def create_source_adapter(
         return NVDAdapter(client, api_key=settings.nvd_api_key)
     if source.adapter_type == "osv":
         return OSVAdapter(client)
+    if source.adapter_type == "redhat_csaf_vex":
+        return RedHatCSAFVEXAdapter(client)
     if source.adapter_type == "oscs":
         return OSCSAdapter(client)
     if source.adapter_type == "oss_security":

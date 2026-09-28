@@ -54,6 +54,15 @@
     },
     {
       "category": "vulnerability",
+      "name": "Red Hat CSAF/VEX",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "redhat-csaf-vex"
+      ]
+    },
+    {
+      "category": "vulnerability",
       "name": "CNNVD",
       "mode": "fixed_provider",
       "coverage": "owned",

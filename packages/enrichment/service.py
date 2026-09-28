@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from packages.enrichment.planner import EnrichmentJobSpec, VulnerabilityEnrichmentPlanner
 from packages.enrichment.processors.cisa_kev import CISAKEVMapper
+from packages.enrichment.processors.csaf_vex import RedHatCSAFVEXMapper
 from packages.enrichment.processors.epss import FIRSTEPSSMapper
 from packages.enrichment.processors.github_advisory import GitHubAdvisoryMapper
 from packages.enrichment.processors.osv import OSVMapper
@@ -67,6 +68,7 @@ class VulnerabilityEnrichmentService:
             "first_epss": FIRSTEPSSMapper(),
             "github_global_advisory": GitHubAdvisoryMapper(),
             "osv": OSVMapper(),
+            "redhat_csaf_vex": RedHatCSAFVEXMapper(),
         }
 
     async def enrich_cve(

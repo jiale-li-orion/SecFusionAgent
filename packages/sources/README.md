@@ -77,6 +77,14 @@ guessing an ecosystem.
 
 FIRST EPSS is modeled as its own fixed on-demand source (`first-epss`) rather than as a field owned by GitHub Advisory. The adapter preserves the provider score date as `external_revision` / `updated_at`, and the M3 mapper carries `source_semantics=first_epss` plus `score_date` into canonical EPSS claims. This lets evaluation and replay distinguish daily point-in-time scores instead of treating EPSS as an unversioned mutable scalar. CLI refresh paths synchronize version-controlled source definitions into PostgreSQL before creating AcquisitionRuns, so newly added providers cannot fail the source foreign-key boundary merely because the registry has not been manually seeded yet.
 
+Red Hat CSAF/VEX is an owned public exact-CVE source (`redhat-csaf-vex`) backed by Red Hat Security
+Data's static CSAF/VEX tree. The adapter addresses a document by CVE year/id, validates that the
+requested CVE is present in `vulnerabilities[]`, and binds `external_revision` / `updated_at` to
+`document.tracking.current_release_date`. Raw CSAF JSON is retained as Evidence before M3 projection.
+The deterministic mapper preserves `product_status` membership, exact CSAF product IDs,
+component/platform relationships, PURL/CPE helpers and VEX flags; source miss remains an empty exact
+query result rather than an inferred applicability state.
+
 Shodan InternetDB remains a passive, time-bounded asset source. Its `vulns[]` field is treated as an
 explicit provider **host-level** vulnerability association, not as proof that any particular port is
 vulnerable. M3 may therefore materialize a canonical host-level `InternetAsset` relation when

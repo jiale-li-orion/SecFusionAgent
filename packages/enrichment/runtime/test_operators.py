@@ -62,8 +62,14 @@ def test_provider_plan_does_not_claim_enabled_dimension_is_resolved() -> None:
     assert {item.operator_id for item in plans} == {
         "provider.github_advisory",
         "provider.osv",
+        "provider.redhat_csaf_vex",
     }
-    assert all(item.directly_produces == [] for item in plans)
+    direct = {item.operator_id: item.directly_produces for item in plans}
+    assert direct["provider.github_advisory"] == []
+    assert direct["provider.osv"] == []
+    assert direct["provider.redhat_csaf_vex"] == [
+        EnrichmentDimension.VERSION_APPLICABILITY
+    ]
     assert all(item.query is not None for item in plans)
 
 

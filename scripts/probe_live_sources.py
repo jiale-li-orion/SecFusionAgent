@@ -28,6 +28,7 @@ from packages.sources.adapters.nvd import NVDAdapter
 from packages.sources.adapters.oscs import OSCSAdapter
 from packages.sources.adapters.oss_security import OssSecurityAdapter
 from packages.sources.adapters.osv import OSVAdapter
+from packages.sources.adapters.redhat_csaf_vex import RedHatCSAFVEXAdapter
 from packages.sources.adapters.rss_incident import RSSIncidentAdapter
 from packages.sources.adapters.scholarly_search import ScholarlySearchAdapter
 from packages.sources.adapters.shodan import ShodanAdapter
@@ -62,6 +63,7 @@ async def _main(*, strict: bool, json_output: bool) -> int:
         oscs = OSCSAdapter(client)
         oss_security = OssSecurityAdapter(client)
         osv = OSVAdapter(client)
+        redhat_csaf = RedHatCSAFVEXAdapter(client)
         github_advisory = GitHubGlobalAdvisoryAdapter(client, token=settings.github_token)
         github_repo = GitHubRepoAdapter(client, token=settings.github_token)
         cisa = CISAKEVAdapter(client)
@@ -195,6 +197,16 @@ async def _main(*, strict: bool, json_output: bool) -> int:
                 lambda: cvelist.query(
                     sources["cve-program-cvelist-v5"],
                     QuerySpec(filters={"cve_id": "CVE-2024-3094"}),
+                    acquisition_run_id=run_id,
+                    trigger=trigger,
+                ),
+            ),
+            (
+                "redhat-csaf-vex",
+                "query:CVE-2026-67215",
+                lambda: redhat_csaf.query(
+                    sources["redhat-csaf-vex"],
+                    QuerySpec(filters={"cve_id": "CVE-2026-67215"}),
                     acquisition_run_id=run_id,
                     trigger=trigger,
                 ),

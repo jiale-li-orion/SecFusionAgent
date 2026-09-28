@@ -72,4 +72,17 @@ class VulnerabilityEnrichmentPlanner:
                     query=QuerySpec(filters={"cve_id": cve_id.upper()}),
                 )
             )
+        has_csaf_vex = any(
+            relation.relation_type == "applicability-status"
+            and relation.qualifier.get("source_id") == "redhat-csaf-vex"
+            and relation.qualifier.get("source_semantics") == "csaf_vex"
+            for relation in view.relations
+        )
+        if not has_csaf_vex:
+            jobs.append(
+                EnrichmentJobSpec(
+                    source_id="redhat-csaf-vex",
+                    query=QuerySpec(filters={"cve_id": cve_id.upper()}),
+                )
+            )
         return jobs

@@ -375,8 +375,10 @@ def _applicability_scope_key(qualifier: dict[str, object]) -> str:
         "source_id",
         "source_semantics",
         "source_status",
+        "csaf_status",
         "status_changes",
         "default_inferred",
+        "justification",
         "vocabulary_revision",
         "vocabulary_scope",
     }
