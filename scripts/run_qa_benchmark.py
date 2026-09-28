@@ -8,11 +8,12 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, Field, JsonValue
+from pydantic import BaseModel, Field, JsonValue, model_validator
 
 from apps.evaluation_runtime import (
     QABenchmarkRecorder,
     ensure_benchmark_deployment_revision,
+    load_product_qa_prediction,
 )
 from apps.runtime_models import register_runtime_models
 from packages.evaluation.benchmark import (
@@ -33,10 +34,28 @@ class QABenchmarkManifestCase(BaseModel):
     case_id: str
     input: dict[str, JsonValue] = Field(default_factory=dict)
     gold: QAGold
-    prediction: QAPrediction
+    prediction: QAPrediction | None = None
+    product_case_id: str | None = None
+    citation_support: dict[str, bool] = Field(default_factory=dict)
+    relation_paths: list[list[str]] = Field(default_factory=list)
+    interactive_latency_seconds: float | None = Field(default=None, ge=0)
     tags: list[str] = Field(default_factory=list)
     latency_class: str = "interactive"
     execution_refs: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_prediction_source(self) -> QABenchmarkManifestCase:
+        if (self.prediction is None) == (self.product_case_id is None):
+            raise ValueError("QA case requires exactly one of prediction or product_case_id")
+        if self.prediction is not None and self.prediction.case_id != self.case_id:
+            raise ValueError("QA inline prediction case_id does not match manifest case")
+        for key in self.citation_support:
+            index, separator, evidence_ref = key.partition(":")
+            if not separator or not index.isdigit() or not evidence_ref:
+                raise ValueError(
+                    "citation_support keys must use '<conclusion_index>:<evidence_ref>'"
+                )
+        return self
 
 
 class QABenchmarkManifest(BaseModel):
@@ -70,7 +89,7 @@ async def _run(
     if len(set(case_ids)) != len(case_ids):
         raise ValueError("QA benchmark case ids must be unique")
     for item in manifest.cases:
-        if item.gold.case_id != item.case_id or item.prediction.case_id != item.case_id:
+        if item.gold.case_id != item.case_id:
             raise ValueError(f"QA case identity mismatch: {item.case_id}")
 
     register_runtime_models()
@@ -91,8 +110,24 @@ async def _run(
                 settings,
                 deployment_revision_id=deployment_revision_id,
             )
+            predictions: dict[str, QAPrediction] = {}
+            for item in manifest.cases:
+                if item.prediction is not None:
+                    predictions[item.case_id] = item.prediction
+                    continue
+                assert item.product_case_id is not None
+                predictions[item.case_id] = await load_product_qa_prediction(
+                    session,
+                    benchmark_case_id=item.case_id,
+                    product_case_id=item.product_case_id,
+                    relation_paths=item.relation_paths,
+                    citation_support=_citation_support(item.citation_support),
+                    interactive_latency_seconds=item.interactive_latency_seconds,
+                    execution_refs=item.execution_refs,
+                )
             case_refs: list[str] = []
             for item in manifest.cases:
+                prediction = predictions[item.case_id]
                 case_ref = f"{item.case_id}@{suite_revision}"
                 case_refs.append(case_ref)
                 await store.register_case(
@@ -101,8 +136,12 @@ async def _run(
                         case_id=item.case_id,
                         case_revision=suite_revision,
                         input=item.input,
-                        execution_profile="offline_scorer",
-                        target_refs=list(item.prediction.execution_refs or item.execution_refs),
+                        execution_profile=(
+                            "product_decision_projection"
+                            if item.product_case_id is not None
+                            else "offline_scorer"
+                        ),
+                        target_refs=list(prediction.execution_refs or item.execution_refs),
                         expected_behavior=item.gold.model_dump(mode="json"),
                         gold_ref=f"qa-gold:{gold_digest}#{item.case_id}",
                         tags=["m6", "qa", *item.tags],
@@ -151,13 +190,14 @@ async def _run(
             )
             per_case: dict[str, object] = {}
             for item in manifest.cases:
+                prediction = predictions[item.case_id]
                 case_run = await store.start_case_run(
                     session,
                     benchmark_run_id=run.benchmark_run_id,
                     case_ref=f"{item.case_id}@{suite_revision}",
                     now=now,
                 )
-                score = score_qa(gold=item.gold, prediction=item.prediction)
+                score = score_qa(gold=item.gold, prediction=prediction)
                 await recorder.record_case_score(
                     session,
                     case_run_id=case_run.case_run_id,
@@ -168,7 +208,7 @@ async def _run(
                     session,
                     case_run.case_run_id,
                     status=BenchmarkCaseRunStatus.PASSED,
-                    artifact_refs=list(item.prediction.execution_refs or item.execution_refs),
+                    artifact_refs=list(prediction.execution_refs or item.execution_refs),
                     now=now,
                 )
                 per_case[item.case_id] = score.model_dump(mode="json")
@@ -189,6 +229,14 @@ async def _run(
         }
     finally:
         await engine.dispose()
+
+
+def _citation_support(values: dict[str, bool]) -> dict[tuple[int, str], bool]:
+    result: dict[tuple[int, str], bool] = {}
+    for key, supports in values.items():
+        index, _, evidence_ref = key.partition(":")
+        result[(int(index), evidence_ref)] = supports
+    return result
 
 
 def main() -> None:

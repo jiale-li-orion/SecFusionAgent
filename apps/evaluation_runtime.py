@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from collections.abc import Iterable, Mapping
 from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
@@ -18,9 +19,12 @@ from packages.evaluation.benchmark import (
 from packages.evaluation.benchmark.metrics import metric_definition
 from packages.evaluation.benchmark.storage import DeploymentRevisionModel
 from packages.evaluation.m1_m3 import EnrichmentScore
-from packages.evaluation.qa import QAScore
+from packages.evaluation.qa import QACitationCheck, QAPrediction, QAScore
 from packages.intelligence.knowledge.vocabulary import VOCABULARY_REVISION
 from packages.investigation.skills.seeds import seeded_skills
+from packages.investigation.state.contracts import EvidenceNeedStatus, InvestigationState
+from packages.investigation.state.service import InvestigationStateService
+from packages.reasoning.decision import ConclusionType, DecisionResult
 from packages.runtime.policy.loader import load_runtime_policy
 from packages.shared.config import Settings
 
@@ -152,6 +156,198 @@ class QABenchmarkRecorder:
                 measurement_source=MeasurementSource.SCORER,
                 subject_ref=subject_ref,
             )
+
+
+def project_decision_to_qa_prediction(
+    *,
+    benchmark_case_id: str,
+    decision: DecisionResult,
+    state: InvestigationState,
+    relation_paths: Iterable[Iterable[str]] = (),
+    citation_support: Mapping[tuple[int, str], bool] | None = None,
+    interactive_latency_seconds: float | None = None,
+    execution_refs: Iterable[str] = (),
+) -> QAPrediction:
+    """Project a persisted M6 decision into the evaluation-neutral QA contract."""
+
+    if not benchmark_case_id.strip():
+        raise ValueError("benchmark_case_id cannot be empty")
+    if decision.case_id != state.case_id:
+        raise ValueError("decision case_id does not match M4 state")
+    current = state.current_decision
+    if current is not None and current.get("decision_id") != decision.decision_id:
+        raise ValueError("M4 current_decision does not match projected decision")
+
+    support_verdicts = dict(citation_support or {})
+    eligible_indexes = {
+        index
+        for index, conclusion in enumerate(decision.conclusions)
+        if conclusion.type is not ConclusionType.RECOMMENDATION
+    }
+    citations: list[QACitationCheck] = []
+    consumed_verdicts: set[tuple[int, str]] = set()
+    for citation in decision.citations:
+        if citation.conclusion_index not in eligible_indexes:
+            continue
+        if citation.conclusion_index >= len(decision.conclusions):
+            raise ValueError("decision citation conclusion_index is out of range")
+        conclusion = decision.conclusions[citation.conclusion_index]
+        verdict_key = (citation.conclusion_index, citation.evidence_ref)
+        explicit = support_verdicts.get(verdict_key)
+        if explicit is None:
+            supports = _confirmed_state_supports(
+                state,
+                statement=conclusion.statement,
+                evidence_ref=citation.evidence_ref,
+            )
+        else:
+            supports = explicit
+            consumed_verdicts.add(verdict_key)
+        citations.append(
+            QACitationCheck(
+                conclusion_fact=conclusion.statement,
+                evidence_ref=citation.evidence_ref,
+                supports=supports,
+            )
+        )
+    stale_verdicts = set(support_verdicts) - consumed_verdicts
+    if stale_verdicts:
+        rendered = ", ".join(
+            f"{index}:{evidence_ref}" for index, evidence_ref in sorted(stale_verdicts)
+        )
+        raise ValueError(f"citation support verdict does not match decision citation: {rendered}")
+
+    reasoning_refs = [
+        ref
+        for index, conclusion in enumerate(decision.conclusions)
+        if index in eligible_indexes
+        for ref in conclusion.reasoning_relation_refs
+    ]
+    merged_execution_refs = _stable_unique(
+        [
+            f"case:{decision.case_id}",
+            decision.decision_id,
+            f"case-revision:{decision.case_id}@{decision.case_revision}",
+            *reasoning_refs,
+            *execution_refs,
+        ]
+    )
+    return QAPrediction(
+        case_id=benchmark_case_id,
+        conclusion_facts=[
+            conclusion.statement
+            for conclusion in decision.conclusions
+            if conclusion.type is not ConclusionType.RECOMMENDATION
+        ],
+        relation_paths=[list(path) for path in relation_paths],
+        citations=citations,
+        unknowns=list(decision.unknowns),
+        conflicts=list(decision.conflicts),
+        completion_status="answered",
+        interactive_latency_seconds=interactive_latency_seconds,
+        execution_refs=merged_execution_refs,
+    )
+
+
+def project_continuation_state_to_qa_prediction(
+    *,
+    benchmark_case_id: str,
+    state: InvestigationState,
+    evidence_need_refs: Iterable[str],
+    interactive_latency_seconds: float | None = None,
+    execution_refs: Iterable[str] = (),
+) -> QAPrediction:
+    """Project a product state that intentionally requested more evidence."""
+
+    needs = list(evidence_need_refs)
+    if not needs:
+        raise ValueError("continuation projection requires at least one EvidenceNeed ref")
+    return QAPrediction(
+        case_id=benchmark_case_id,
+        conclusion_facts=[],
+        citations=[],
+        unknowns=[item.proposition for item in state.unknowns],
+        conflicts=[item.proposition for item in state.conflicts],
+        completion_status="continuation_requested",
+        interactive_latency_seconds=interactive_latency_seconds,
+        execution_refs=_stable_unique(
+            [
+                f"case:{state.case_id}",
+                f"case-revision:{state.case_id}@{state.case_revision}",
+                *needs,
+                *execution_refs,
+            ]
+        ),
+    )
+
+
+async def load_product_qa_prediction(
+    session: AsyncSession,
+    *,
+    benchmark_case_id: str,
+    product_case_id: str,
+    relation_paths: Iterable[Iterable[str]] = (),
+    citation_support: Mapping[tuple[int, str], bool] | None = None,
+    interactive_latency_seconds: float | None = None,
+    execution_refs: Iterable[str] = (),
+    state_service: InvestigationStateService | None = None,
+) -> QAPrediction:
+    """Project either a final Decision or a durable M6 continuation outcome."""
+
+    service = state_service or InvestigationStateService()
+    state = await service.get_state(session, product_case_id)
+    if state.current_decision is not None:
+        try:
+            decision = DecisionResult.model_validate(state.current_decision)
+        except ValueError as exc:
+            raise ValueError(f"persisted decision is invalid for case: {product_case_id}") from exc
+        return project_decision_to_qa_prediction(
+            benchmark_case_id=benchmark_case_id,
+            decision=decision,
+            state=state,
+            relation_paths=relation_paths,
+            citation_support=citation_support,
+            interactive_latency_seconds=interactive_latency_seconds,
+            execution_refs=execution_refs,
+        )
+
+    needs = await service.list_evidence_needs(
+        session,
+        product_case_id,
+        statuses={EvidenceNeedStatus.OPEN, EvidenceNeedStatus.BLOCKED},
+    )
+    if not needs:
+        raise LookupError(f"case has no persisted decision or continuation: {product_case_id}")
+    return project_continuation_state_to_qa_prediction(
+        benchmark_case_id=benchmark_case_id,
+        state=state,
+        evidence_need_refs=[f"evidence-need:{item.need_id}" for item in needs],
+        interactive_latency_seconds=interactive_latency_seconds,
+        execution_refs=execution_refs,
+    )
+
+
+def _confirmed_state_supports(
+    state: InvestigationState,
+    *,
+    statement: str,
+    evidence_ref: str,
+) -> bool:
+    return any(
+        item.proposition == statement and evidence_ref in item.evidence_refs
+        for item in state.confirmed
+    )
+
+
+def _stable_unique(values: Iterable[str]) -> list[str]:
+    result: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        if not value or value in seen:
+            continue
+        seen.add(value)
+        result.append(value)
+    return result
 
 
 async def capture_current_deployment_revision(
