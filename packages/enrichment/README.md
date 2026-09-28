@@ -102,10 +102,13 @@ The active M3 implementation backlog is therefore:
 Processor-version refresh is expected to be replay-safe. The canonical writer and NVD durable normalizer reactivate an identical immutable claim/relation when a newer processor run supersedes the previous active source projection and then reproduces the same normalized tuple. This prevents mapper upgrades from accidentally making stable facts disappear.
 
 The deterministic structured path is continuously checked against live provider gold rather than
-fixtures alone. The durable TD3 `m3-real-structured@3` checkpoint remains the frozen 2026-09-27
-**204-fact / 204 TP / 0 FP / 0 FN** run. The latest live snapshot expands the same 12-CVE case list
-to **210 formal facts** by adding six NVD `Vendor Advisory` assertions; frozen replay of that exact
-provider snapshot reproduces **210 TP / 0 FP / 0 FN**. Gold-bearing dimension counts are now:
+fixtures alone. The current durable TD3 checkpoint is `m3-real-structured@4`: the same frozen
+12-CVE case list now contains **210 formal facts / 210 TP / 0 FP / 0 FN** after adding six NVD
+`Vendor Advisory` assertions and closing the evaluated provider universe. It is bound to deployment
+`deployment:c4559e449952212fe9162f172b1343cc`, run
+`27870e06-a012-486d-96b4-7b8aaac6e048`, and gold revision
+`real-structured:7bd4d0be08d71f87e2a9d7c1462b7084f92b327b59a83f37c07734270d3fd944`.
+Gold-bearing dimension counts are now:
 severity 48, weakness 15, product/package 16, qualifier-aware version applicability 47,
 fix/remediation 18, exploit likelihood 48, and advisory/reference **18**.
 
@@ -134,7 +137,17 @@ contributes **26 `not_affected`** Red Hat product assertions, while `CVE-2022-22
 `csaf-vex:f8274d4cc539b0994d760ca0107359049149cf6c9d02ceaa791763ea3e847572` and provider-world
 coordinate `provider-snapshot:e1961e7233c53a857224d50b5f2a0c1d614b9e12f8d47f0fbd19580bcda78c28`.
 `under_investigation` is implemented in the contract and mapper but is not yet claimed as live
-positive coverage because this first frozen stratum contains no such Red Hat status.
+positive coverage because this first frozen stratum contains no such Red Hat status. The durable
+TD3 coordinates are suite `m3-redhat-csaf-vex@1`, run
+`cf56f944-95f1-4696-a57c-010196c4ee85`, on the same deployment
+`deployment:c4559e449952212fe9162f172b1343cc`.
+
+The structured@4 and CSAF/VEX@1 runs are also aggregated into CompetitionReport
+`580b1c85-1089-4ee4-acdd-5ed3488c108d` (digest
+`5853082c9a3a72e97cacebec522f5a7d6096241b78d87b3dac1136bf247ca2aa`). Across the two explicit
+M3 suites the report contains **247 TP / 0 FP / 0 FN**; micro precision and recall are both `1.0`
+and pass the `>=0.95` development targets. The 247 count is a multi-suite report aggregate, not one
+merged 247-fact gold set; the structured and CSAF provider worlds remain separately versioned.
 
 A separate recent CISA KEV stratum exercises positive exploit-state coverage: 6 real KEV CVEs,
 51 formal facts overall, `51 TP / 0 FP / 0 FN`, including `known_exploited` **6/6**. Keeping this

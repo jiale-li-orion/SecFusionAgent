@@ -457,23 +457,30 @@ service-level asset feed, those regression cases are **not** promoted into the l
 denominator. The InternetDB 1/1 suite therefore remains the only formal live asset checkpoint and
 must not be described as general asset affectedness accuracy.
 
-### Formal TD3 checkpoint — 2026-09-27
+### Latest formal M3 checkpoint — 2026-09-28
 
-The 204-fact structured result is also persisted in the TD3 Benchmark Runtime rather than existing
-only as a local JSON probe:
+The latest M3 evidence is persisted under one clean DeploymentRevision rather than existing only as
+local probe JSON:
 
-- Deployment: `deployment:2e302ddbca7b1b3ef6bdc39fdc733f65`
-- Git coordinate: `a9241081cb05b1ec8c6eefbf55380885e42f7656`
-- M3 suite: `m3-real-structured@3`
-- M3 run: `ffd7a7e3-8b14-4958-8304-fb5bc160fa51`
-- Gold revision: `real-structured:b1d05c8777ccfd4b02ce5f14c91056f4de826fdfa069af9fa4699081a0a48c6c`
-- M1 suite/run on the same deployment: `m1-monitoring-window@4` / `410ed858-b0a2-4442-8689-136957ef129c`
-- CompetitionReport: `b6f24b2d-2123-45db-99fd-c156a7f6eaaa`
-- Report digest: `59bd696f64c26a5e338cf95a25a61bcd08c82d0e80b498bb1b4ce0edd2160aa7`
-- Frozen M3 JSON digest: `sha256:7bd3fda088be6e659f47f7d5502944421ec073fe2b0c570b95a39ad3bef7ad56`
+- Deployment: `deployment:c4559e449952212fe9162f172b1343cc`
+- Git coordinate: `94db62593d22efe3f89dee947b73465d401a4327`
+- Structured suite/run: `m3-real-structured@4` / `27870e06-a012-486d-96b4-7b8aaac6e048`
+- Structured gold: `real-structured:7bd4d0be08d71f87e2a9d7c1462b7084f92b327b59a83f37c07734270d3fd944`
+- Structured frozen provider world: `provider-snapshot:97af8fc348b5bb34382971e045dc57324d381e3897e8ee6e355ff165144c2eb0`
+- Red Hat CSAF/VEX suite/run: `m3-redhat-csaf-vex@1` / `cf56f944-95f1-4696-a57c-010196c4ee85`
+- CSAF/VEX gold: `csaf-vex:f8274d4cc539b0994d760ca0107359049149cf6c9d02ceaa791763ea3e847572`
+- CSAF/VEX provider world: `provider-snapshot:e1961e7233c53a857224d50b5f2a0c1d614b9e12f8d47f0fbd19580bcda78c28`
+- Combined CompetitionReport: `580b1c85-1089-4ee4-acdd-5ed3488c108d`
+- Report digest: `5853082c9a3a72e97cacebec522f5a7d6096241b78d87b3dac1136bf247ca2aa`
 
-The report passes the current source-category target (8 observed, threshold 7) and the M3
-precision/recall development targets (both 1.0, threshold 0.95). M1 monitoring latency remains
-`not_evaluated` because the selected fixed window contains no eligible `scheduled` samples; M6 QA,
-Agent runtime, and fault/recovery remain explicitly unevaluated rather than receiving inferred or
-zero-filled scores.
+`m3-real-structured@4` contributes **210 TP / 0 FP / 0 FN** and
+`m3-redhat-csaf-vex@1` contributes **37 TP / 0 FP / 0 FN**. The combined report therefore aggregates
+**247 TP / 0 FP / 0 FN** across 14 case-runs; M3 micro precision and recall are both `1.0` and pass
+the `>=0.95` development targets. This is a multi-suite aggregate: the two gold sets and provider
+world snapshots remain distinct rather than being flattened into one artificial 247-fact dataset.
+Source-category coverage is not part of this selected run set and is therefore `not_evaluated` in
+this report; M6 QA, Agent runtime and fault/recovery also remain explicitly unevaluated rather than
+receiving inferred or zero-filled values.
+
+The previous `m3-real-structured@3` / 204-fact checkpoint remains a historical baseline for the
+pre-Vendor-Advisory evaluator surface; it is not the current formal M3 structured revision.
