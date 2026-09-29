@@ -17,6 +17,7 @@ from packages.intelligence.storage.knowledge_models import (
     ExternalIdentifierModel,
     KnowledgeRevisionModel,
     ObjectModel,
+    RelationModel,
 )
 from packages.investigation.cases.service import CaseService
 from packages.investigation.state.contracts import InvestigationState, InvestigationStateItem
@@ -505,6 +506,81 @@ def test_validated_product_decision_inference_support_requires_adjudication() ->
         citation_support={(0, "evidence:nvd-1"): True},
     )
     assert adjudicated.citations[0].supports is True
+
+
+@pytest.mark.asyncio
+async def test_runtime_relation_refs_derive_actual_two_hop_path() -> None:
+    engine, factory = await _database()
+    try:
+        async with factory() as session, session.begin():
+            revision = KnowledgeRevisionModel(committed_at=datetime.now(UTC))
+            session.add(revision)
+            await session.flush()
+            objects = [
+                ObjectModel(
+                    object_id="path-vuln",
+                    object_type="Vulnerability",
+                    canonical_key="cve:CVE-2026-48746",
+                    properties={},
+                    created_revision=revision.revision,
+                ),
+                ObjectModel(
+                    object_id="path-pr",
+                    object_type="PullRequest",
+                    canonical_key="github:vllm-project/vllm:pull:43426",
+                    properties={},
+                    created_revision=revision.revision,
+                ),
+                ObjectModel(
+                    object_id="path-commit",
+                    object_type="Commit",
+                    canonical_key="git:commit:2b94d1c0caf69d4108d720986f4e792960b02cf7",
+                    properties={},
+                    created_revision=revision.revision,
+                ),
+            ]
+            session.add_all(objects)
+            session.add_all(
+                [
+                    RelationModel(
+                        relation_id="path-reference",
+                        source_object_id="path-vuln",
+                        relation_type="references-development-object",
+                        target_object_id="path-pr",
+                        qualifier={},
+                        origin="deterministic_derived",
+                        lifecycle="accepted",
+                        created_revision=revision.revision,
+                    ),
+                    RelationModel(
+                        relation_id="path-merged",
+                        source_object_id="path-pr",
+                        relation_type="merged-as",
+                        target_object_id="path-commit",
+                        qualifier={},
+                        origin="source_asserted",
+                        lifecycle="accepted",
+                        created_revision=revision.revision,
+                    ),
+                ]
+            )
+
+        async with factory() as session:
+            paths = await evaluation_runtime._relation_paths_for_refs(
+                session,
+                ["relation:path-reference", "relation:path-merged"],
+            )
+        assert paths == [
+            [
+                "cve:CVE-2026-48746",
+                "references-development-object",
+                "github:vllm-project/vllm:pull:43426",
+                "merged-as",
+                "git:commit:2b94d1c0caf69d4108d720986f4e792960b02cf7",
+            ]
+        ]
+    finally:
+        await engine.dispose()
 
 
 @pytest.mark.asyncio

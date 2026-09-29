@@ -129,7 +129,7 @@ class EnrichmentRoleRuntime:
         for round_index in range(1, self._max_rounds + 1):
             frame = await self._plan_frame(run_id)
             completion = self._completion_status(frame)
-            if completion is not None:
+            if completion is not None and not frame.plans:
                 return await self._finish(
                     run_id,
                     frame,

@@ -51,6 +51,18 @@ from packages.task_runtime.contracts.models import (
 from packages.task_runtime.contracts.roles import canonical_roles
 from packages.task_runtime.storage.service import create_task_run, transition_task_run
 
+_QUESTION_SECOND_HOP_RELATION_TYPES = frozenset(
+    {
+        "belongs-to-repo",
+        "merged-as",
+        "head-commit",
+        "has-parent-commit",
+        "release-contains-commit",
+    }
+)
+_QUESTION_MAX_DEVELOPMENT_TARGETS = 4
+_QUESTION_MAX_SECOND_HOP_RELATIONS = 16
+
 
 class AskQuestionCommand(BaseModel):
     principal: str
@@ -397,6 +409,7 @@ class AskQuestionUseCase:
         if view is not None:
             targets.append(view.object_id)
             object_refs.append(f"object:{view.object_id}")
+            development_target_ids: list[str] = []
             for claim in view.claims:
                 refs = _evidence_refs(claim.evidence, citations)
                 if not refs:
@@ -417,6 +430,69 @@ class AskQuestionUseCase:
                     )
                 )
                 evidence_refs.extend(refs)
+            for relation in view.relations:
+                refs = _evidence_refs(relation.evidence, citations)
+                if not refs:
+                    continue
+                relation_ref = f"relation:{relation.relation_id}"
+                relation_refs.append(relation_ref)
+                confirmed.append(
+                    InvestigationStateItem(
+                        proposition=render_relation_fact(
+                            view.canonical_key,
+                            relation.relation_type,
+                            relation.target.canonical_key,
+                            qualifier=relation.qualifier,
+                            target_properties=relation.target.properties,
+                        ),
+                        target_ref=relation_ref,
+                        evidence_refs=refs,
+                        writer="M3Knowledge",
+                        reason_code="product_question_context",
+                        updated_revision=max(1, relation.created_revision),
+                    )
+                )
+                evidence_refs.extend(refs)
+                if relation.relation_type == "references-development-object":
+                    development_target_ids.append(relation.target.object_id)
+
+            for target_id in _stable_unique(development_target_ids)[
+                :_QUESTION_MAX_DEVELOPMENT_TARGETS
+            ]:
+                target_view = await get_object_by_id(session, target_id)
+                if target_view is None:
+                    continue
+                object_refs.append(f"object:{target_view.object_id}")
+                added = 0
+                for relation in target_view.relations:
+                    if relation.relation_type not in _QUESTION_SECOND_HOP_RELATION_TYPES:
+                        continue
+                    refs = _evidence_refs(relation.evidence, citations)
+                    if not refs:
+                        continue
+                    relation_ref = f"relation:{relation.relation_id}"
+                    relation_refs.append(relation_ref)
+                    object_refs.append(f"object:{relation.target.object_id}")
+                    confirmed.append(
+                        InvestigationStateItem(
+                            proposition=render_relation_fact(
+                                target_view.canonical_key,
+                                relation.relation_type,
+                                relation.target.canonical_key,
+                                qualifier=relation.qualifier,
+                                target_properties=relation.target.properties,
+                            ),
+                            target_ref=relation_ref,
+                            evidence_refs=refs,
+                            writer="M3Knowledge",
+                            reason_code="product_question_depth2_context",
+                            updated_revision=max(1, relation.created_revision),
+                        )
+                    )
+                    evidence_refs.extend(refs)
+                    added += 1
+                    if added >= _QUESTION_MAX_SECOND_HOP_RELATIONS:
+                        break
             for relation in view.relations:
                 refs = _evidence_refs(relation.evidence, citations)
                 if not refs:

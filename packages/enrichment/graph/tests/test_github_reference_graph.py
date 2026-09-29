@@ -118,9 +118,12 @@ async def test_reference_graph_reenters_github_and_keeps_original_evidence() -> 
             nvd_observation_id = observation.observation_id
 
         pr_payload = PR_PAYLOAD
+        github_calls = 0
 
         def handler(request: httpx.Request) -> httpx.Response:
+            nonlocal github_calls
             if request.url.path == "/repos/vllm-project/vllm/pulls/9123":
+                github_calls += 1
                 return httpx.Response(200, json=pr_payload, request=request)
             return httpx.Response(404, request=request)
 
@@ -135,8 +138,10 @@ async def test_reference_graph_reenters_github_and_keeps_original_evidence() -> 
             )
             results = await graph.enrich_cve("CVE-2026-42424")
             assert len(results) == 1
+            assert github_calls == 1
             replay = await graph.enrich_cve("CVE-2026-42424")
             assert len(replay) == 1
+            assert github_calls == 1
 
         async with factory() as session:
             view = await get_vulnerability_by_cve(session, "CVE-2026-42424")

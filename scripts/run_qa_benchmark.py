@@ -128,6 +128,10 @@ class QABenchmarkManifestCase(BaseModel):
             raise ValueError(
                 "live Product QA measures latency; it cannot accept a supplied latency"
             )
+        if self.live_product_question is not None and self.relation_paths:
+            raise ValueError(
+                "live Product Question relation_paths are derived from runtime ContextManifest"
+            )
         for key in self.citation_support:
             index, separator, evidence_ref = key.partition(":")
             if not separator or not index.isdigit() or not evidence_ref:
@@ -409,7 +413,6 @@ async def _run(
                         interactive_timeout_seconds=question.interactive_timeout_seconds,
                         retrieval_limit=question.retrieval_limit,
                         principal=question.principal,
-                        relation_paths=item.relation_paths,
                         citation_support=_citation_support(item.citation_support),
                         execution_refs=item.execution_refs,
                         expected_knowledge_revision=manifest.knowledge_revision,

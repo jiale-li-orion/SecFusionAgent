@@ -33,7 +33,7 @@ from packages.shared.db import Base
 from packages.shared.model_provider import StructuredModelRequest
 from packages.sources.storage.models import SourceModel
 from packages.task_runtime.contracts.models import TaskKind
-from packages.task_runtime.storage.models import TaskRunModel
+from packages.task_runtime.storage.models import ContextManifestVersionModel, TaskRunModel
 
 NOW = datetime(2026, 9, 29, 8, 0, tzinfo=UTC)
 CVE = "CVE-2026-51515"
@@ -314,6 +314,152 @@ async def test_lookup_question_runs_read_only_decision_without_durable_case() ->
         assert metadata["execution_id"]
         assert metadata["case_id"] is None
         assert metadata["product_request_id"] == "question-direct-1"
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_lookup_expands_bounded_development_graph_to_second_hop() -> None:
+    engine, factory = await _factory()
+    first_relation_id = "question-dev-reference-relation"
+    first_evidence_id = "question-dev-reference-evidence"
+    second_relation_id = "question-merged-as-relation"
+    second_evidence_id = "question-merged-as-evidence"
+    pr_id = "question-pr-object"
+    commit_id = "question-commit-object"
+    pr_key = "github:vllm-project/vllm:pull:43426"
+    commit_key = "git:commit:2b94d1c0caf69d4108d720986f4e792960b02cf7"
+    first_fact = render_relation_fact(
+        f"cve:{CVE}",
+        "references-development-object",
+        pr_key,
+        qualifier={
+            "reference_url": "https://github.com/vllm-project/vllm/pull/43426",
+            "reference_kind": "pull_request",
+        },
+        target_properties={"number": 43426},
+    )
+    second_fact = render_relation_fact(
+        pr_key,
+        "merged-as",
+        commit_key,
+        qualifier={},
+        target_properties={"sha": "2b94d1c0caf69d4108d720986f4e792960b02cf7"},
+    )
+    provider = _Provider(
+        DecisionPlannerResponse(
+            action=FinalDecisionProposal(
+                conclusions=[
+                    DecisionConclusion(
+                        statement=second_fact,
+                        type=ConclusionType.FACT,
+                        evidence_refs=[f"evidence:{second_evidence_id}"],
+                    )
+                ],
+                answer_payload={"merge_commit": commit_key},
+                stop_reason="evidence_sufficient",
+            )
+        )
+    )
+    try:
+        async with factory() as session, session.begin():
+            revision = int(
+                await session.scalar(select(func.max(KnowledgeRevisionModel.revision))) or 1
+            )
+            session.add_all(
+                [
+                    ObjectModel(
+                        object_id=pr_id,
+                        object_type="PullRequest",
+                        canonical_key=pr_key,
+                        properties={"number": 43426},
+                        created_revision=revision,
+                    ),
+                    ObjectModel(
+                        object_id=commit_id,
+                        object_type="Commit",
+                        canonical_key=commit_key,
+                        properties={"sha": commit_key.removeprefix("git:commit:")},
+                        created_revision=revision,
+                    ),
+                    RelationModel(
+                        relation_id=first_relation_id,
+                        source_object_id=OBJECT_ID,
+                        relation_type="references-development-object",
+                        target_object_id=pr_id,
+                        qualifier={
+                            "reference_url": (
+                                "https://github.com/vllm-project/vllm/pull/43426"
+                            ),
+                            "reference_kind": "pull_request",
+                        },
+                        origin="deterministic_derived",
+                        lifecycle="accepted",
+                        created_revision=revision,
+                    ),
+                    RelationModel(
+                        relation_id=second_relation_id,
+                        source_object_id=pr_id,
+                        relation_type="merged-as",
+                        target_object_id=commit_id,
+                        qualifier={},
+                        origin="source_asserted",
+                        lifecycle="accepted",
+                        created_revision=revision,
+                    ),
+                    EvidenceLinkModel(
+                        evidence_link_id=first_evidence_id,
+                        target_kind="relation",
+                        target_id=first_relation_id,
+                        observation_id="question-observation",
+                        artifact_id=None,
+                        locator={"field": "references"},
+                        locator_hash="dev-reference-locator",
+                    ),
+                    EvidenceLinkModel(
+                        evidence_link_id=second_evidence_id,
+                        target_kind="relation",
+                        target_id=second_relation_id,
+                        observation_id="question-observation",
+                        artifact_id=None,
+                        locator={"field": "merge_commit_sha"},
+                        locator_hash="merged-as-locator",
+                    ),
+                ]
+            )
+
+        async with factory() as session:
+            result = await _use_case(provider).execute(
+                session,
+                AskQuestionCommand(
+                    principal="user:test",
+                    request_id="question-depth2-1",
+                    question=f"Which commit was the referenced fix PR for {CVE} merged as?",
+                    cve_id=CVE,
+                    task_kind=TaskKind.LOOKUP,
+                ),
+            )
+        assert result.mode == "completed"
+        assert result.decision is not None
+        assert result.decision.answer == {"merge_commit": commit_key}
+        state_payload = provider.requests[0].data["investigation_state"]
+        assert first_fact in str(state_payload)
+        assert second_fact in str(state_payload)
+
+        async with factory() as session:
+            run = await session.scalar(
+                select(TaskRunModel).where(
+                    TaskRunModel.run_id == provider.requests[0].metadata["task_run_id"]
+                )
+            )
+            assert run is not None
+            context = await session.get(
+                ContextManifestVersionModel,
+                run.context_manifest_version_id,
+            )
+            assert context is not None
+            assert f"relation:{first_relation_id}" in context.manifest_json["relation_refs"]
+            assert f"relation:{second_relation_id}" in context.manifest_json["relation_refs"]
     finally:
         await engine.dispose()
 

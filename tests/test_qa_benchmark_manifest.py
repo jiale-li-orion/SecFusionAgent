@@ -29,8 +29,8 @@ def test_real_product_candidate_is_pinned_live_product_content() -> None:
         Path("benchmarks/qa/real-product-v1.candidate.json").read_text(encoding="utf-8")
     )
     assert manifest.suite_id == "m6-real-product-qa"
-    assert manifest.knowledge_revision == 596
-    assert len(manifest.cases) == 13
+    assert manifest.knowledge_revision == 606
+    assert len(manifest.cases) == 14
     assert all(item.live_product_question is not None for item in manifest.cases)
     assert all("real" in item.tags and "candidate" in item.tags for item in manifest.cases)
     continuation = next(
@@ -39,6 +39,20 @@ def test_real_product_candidate_is_pinned_live_product_content() -> None:
     assert continuation.gold.completion_expectation == "continuation_requested"
     assert continuation.gold_provenance is not None
     assert continuation.gold_provenance.absence_checks[0].predicate == "cvss_score"
+    multihop = next(
+        item
+        for item in manifest.cases
+        if item.case_id == "qa-real-48746-pr-merge-commit-multihop"
+    )
+    assert multihop.gold.required_relation_paths == [
+        [
+            "cve:CVE-2026-48746",
+            "references-development-object",
+            "github:vllm-project/vllm:pull:43426",
+            "merged-as",
+            "git:commit:2b94d1c0caf69d4108d720986f4e792960b02cf7",
+        ]
+    ]
 
 
 def test_product_case_uses_persisted_case_as_prediction_source() -> None:
@@ -78,6 +92,33 @@ def test_live_product_question_manifest_requires_pinned_knowledge_revision() -> 
                         },
                     }
                 ]
+            }
+        )
+
+
+def test_live_product_question_rejects_supplied_relation_paths() -> None:
+    with pytest.raises(ValidationError, match="derived from runtime ContextManifest"):
+        QABenchmarkManifestCase.model_validate(
+            {
+                "case_id": "qa-question-live-path",
+                "live_product_question": {
+                    "question": "Which commit was the referenced PR merged as?",
+                    "cve_id": "CVE-2026-48746",
+                    "task_kind": "lookup",
+                },
+                "relation_paths": [
+                    [
+                        "cve:CVE-2026-48746",
+                        "references-development-object",
+                        "github:vllm-project/vllm:pull:43426",
+                        "merged-as",
+                        "git:commit:2b94d1c0",
+                    ]
+                ],
+                "gold": {
+                    "case_id": "qa-question-live-path",
+                    "completion_expectation": "answered",
+                },
             }
         )
 

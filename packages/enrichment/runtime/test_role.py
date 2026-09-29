@@ -23,6 +23,7 @@ from packages.intelligence.storage.knowledge_models import (
     ExternalIdentifierModel,
     KnowledgeRevisionModel,
     ObjectModel,
+    RelationModel,
 )
 from packages.shared.db import Base
 from packages.task_runtime.contracts.models import (
@@ -91,6 +92,7 @@ async def _create_enrichment_run(
     cve_id: str = "CVE-2026-42424",
     parent_run_id: str | None = None,
     run_id: str | None = None,
+    required_dimensions: list[EnrichmentDimension] | None = None,
 ) -> str:
     resolved_run_id = run_id or str(uuid4())
     contract = build_vulnerability_enrichment_contract(
@@ -98,7 +100,7 @@ async def _create_enrichment_run(
         principal="user:alice",
         target_object_id=object_id,
         cve_id=cve_id,
-        required_dimensions=[EnrichmentDimension.EXPLOIT_STATE],
+        required_dimensions=required_dimensions or [EnrichmentDimension.EXPLOIT_STATE],
         policy_revision="policy-v1",
     )
     manifest = ContextManifest(
@@ -201,6 +203,57 @@ class _BlockedExecutor:
         )
 
 
+class _SupplementalReferenceExecutor:
+    def __init__(self, factory: async_sessionmaker[AsyncSession], object_id: str) -> None:
+        self._factory = factory
+        self._object_id = object_id
+        self.calls: list[str] = []
+
+    async def execute(self, plan, *, cve_id: str, parent_run_id: str):
+        del cve_id, parent_run_id
+        self.calls.append(plan.operator_id)
+        async with self._factory() as session, session.begin():
+            revision = KnowledgeRevisionModel(committed_at=NOW + timedelta(seconds=1))
+            session.add(revision)
+            await session.flush()
+            pr_id = str(uuid4())
+            session.add(
+                ObjectModel(
+                    object_id=pr_id,
+                    object_type="PullRequest",
+                    canonical_key="github:vllm-project/vllm:pull:43426",
+                    properties={"number": 43426},
+                    created_revision=revision.revision,
+                )
+            )
+            session.add(
+                RelationModel(
+                    relation_id=str(uuid4()),
+                    source_object_id=self._object_id,
+                    relation_type="references-development-object",
+                    target_object_id=pr_id,
+                    qualifier={
+                        "reference_url": "https://github.com/vllm-project/vllm/pull/43426",
+                        "reference_kind": "pull_request",
+                        "vocabulary_revision": VOCABULARY_REVISION,
+                        "vocabulary_scope": "canonical",
+                    },
+                    origin="deterministic_derived",
+                    lifecycle="accepted",
+                    processing_run_id=None,
+                    created_revision=revision.revision,
+                )
+            )
+        return EnrichmentOperatorExecution(
+            operator_id=plan.operator_id,
+            status=EnrichmentAttemptStatus.SUCCEEDED,
+            semantic_outcomes={
+                EnrichmentDimension.FIX_REMEDIATION: EnrichmentSemanticOutcome.RESOLVED
+            },
+            output_refs=["relation:references-development-object"],
+        )
+
+
 @pytest.mark.asyncio
 async def test_background_enrichment_task_reaches_fixed_point_through_canonical_world() -> None:
     engine, factory = await _database()
@@ -241,6 +294,84 @@ async def test_background_enrichment_task_reaches_fixed_point_through_canonical_
             TaskEventType.ENRICHMENT_STATE_CHANGED,
             TaskEventType.TASK_COMPLETED,
         ]
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_resolved_dimension_still_executes_pending_supplemental_graph_plan() -> None:
+    engine, factory = await _database()
+    try:
+        async with factory() as session, session.begin():
+            object_id, revision = await _seed_vulnerability(
+                session,
+                cve_id="CVE-2026-48746",
+            )
+            session.add(
+                ClaimModel(
+                    claim_id=str(uuid4()),
+                    subject_id=object_id,
+                    predicate="github_references",
+                    value=["https://github.com/vllm-project/vllm/pull/43426"],
+                    qualifier={
+                        "source_id": "github-global-advisories",
+                        "vocabulary_revision": VOCABULARY_REVISION,
+                        "vocabulary_scope": "source_specific",
+                    },
+                    origin="source_asserted",
+                    lifecycle="accepted",
+                    processing_run_id=None,
+                    created_revision=revision,
+                )
+            )
+            version_id = str(uuid4())
+            session.add(
+                ObjectModel(
+                    object_id=version_id,
+                    object_type="SoftwareVersion",
+                    canonical_key="software-version:pip:vllm:0.22.0",
+                    properties={"version": "0.22.0"},
+                    created_revision=revision,
+                )
+            )
+            session.add(
+                RelationModel(
+                    relation_id=str(uuid4()),
+                    source_object_id=object_id,
+                    relation_type="fixed-version",
+                    target_object_id=version_id,
+                    qualifier={
+                        "source_id": "github-global-advisories",
+                        "vocabulary_revision": VOCABULARY_REVISION,
+                        "vocabulary_scope": "canonical",
+                    },
+                    origin="source_asserted",
+                    lifecycle="accepted",
+                    processing_run_id=None,
+                    created_revision=revision,
+                )
+            )
+            run_id = await _create_enrichment_run(
+                session,
+                object_id=object_id,
+                cve_id="CVE-2026-48746",
+                required_dimensions=[EnrichmentDimension.FIX_REMEDIATION],
+            )
+
+        executor = _SupplementalReferenceExecutor(factory, object_id)
+        outcome = await EnrichmentRoleRuntime(
+            factory,
+            executor,
+            stream_name=STREAM,
+            now=lambda: NOW,
+        ).run(run_id)
+
+        assert outcome.run_status is TaskRunStatus.COMPLETED
+        assert outcome.result.dimension_status[EnrichmentDimension.FIX_REMEDIATION] is (
+            EnrichmentStatus.RESOLVED
+        )
+        assert executor.calls == ["graph.github_references"]
+        assert outcome.result.attempted_operators == ["graph.github_references"]
     finally:
         await engine.dispose()
 

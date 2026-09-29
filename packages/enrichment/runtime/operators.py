@@ -4,6 +4,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from packages.enrichment.graph.github_references import parse_github_development_reference
 from packages.enrichment.runtime.state import EnrichmentStateSnapshot, EnrichmentStatus
 from packages.intelligence.knowledge.read import KnowledgeObjectView
 from packages.intelligence.knowledge.vocabulary import EnrichmentDimension
@@ -24,6 +25,7 @@ class EnrichmentOperatorSpec(BaseModel):
     enables: tuple[EnrichmentDimension, ...] = ()
     source_id: str | None = None
     prerequisite_terms: tuple[str, ...] = ()
+    supplemental_when_resolved: bool = False
     cost_class: str = "low"
 
     @property
@@ -87,12 +89,14 @@ _OPERATOR_SPECS: tuple[EnrichmentOperatorSpec, ...] = (
         kind=EnrichmentOperatorKind.DETERMINISTIC_SERVICE,
         produces=(EnrichmentDimension.FIX_REMEDIATION,),
         prerequisite_terms=("references", "github_references"),
+        supplemental_when_resolved=True,
     ),
     EnrichmentOperatorSpec(
         operator_id="graph.osv_fix_boundary",
         kind=EnrichmentOperatorKind.DETERMINISTIC_SERVICE,
         produces=(EnrichmentDimension.FIX_REMEDIATION,),
         prerequisite_terms=("affects-package",),
+        supplemental_when_resolved=True,
     ),
 )
 
@@ -118,14 +122,23 @@ class EnrichmentStatePlanner:
             for state in snapshot.dimensions
             if state.dimension in target and state.status is EnrichmentStatus.MISSING
         }
-        if not missing:
-            return []
 
         plans: list[EnrichmentOperatorPlan] = []
         for spec in _OPERATOR_SPECS:
             if spec.operator_id in attempted:
                 continue
-            relevant = sorted(missing & set(spec.relevant_dimensions), key=lambda item: item.value)
+            normal_relevant = missing & set(spec.relevant_dimensions)
+            supplemental_relevant: set[EnrichmentDimension] = set()
+            if (
+                spec.supplemental_when_resolved
+                and set(spec.relevant_dimensions) & target
+                and _supplemental_needed(spec, view)
+            ):
+                supplemental_relevant = set(spec.relevant_dimensions) & target
+            relevant = sorted(
+                normal_relevant | supplemental_relevant,
+                key=lambda item: item.value,
+            )
             if not relevant:
                 continue
             if not _prerequisites_met(spec, view):
@@ -141,9 +154,15 @@ class EnrichmentStatePlanner:
                     query=query,
                     relevant_dimensions=relevant,
                     directly_produces=[
-                        dimension for dimension in relevant if dimension in spec.produces
+                        dimension
+                        for dimension in relevant
+                        if dimension in spec.produces and dimension in normal_relevant
                     ],
-                    reason=_plan_reason(spec, relevant),
+                    reason=_plan_reason(
+                        spec,
+                        relevant,
+                        supplemental=bool(supplemental_relevant - normal_relevant),
+                    ),
                 )
             )
         return plans
@@ -158,16 +177,68 @@ def _prerequisites_met(spec: EnrichmentOperatorSpec, view: KnowledgeObjectView) 
     if spec.operator_id == "graph.osv_fix_boundary":
         return any(
             relation.relation_type == "affects-package"
-            and isinstance(relation.qualifier.get("ranges"), list)
+            and _has_git_range(relation.qualifier.get("ranges"))
             for relation in view.relations
         )
     return bool(set(spec.prerequisite_terms) & available)
 
 
+def _supplemental_needed(
+    spec: EnrichmentOperatorSpec,
+    view: KnowledgeObjectView,
+) -> bool:
+    relation_types = {relation.relation_type for relation in view.relations}
+    if spec.operator_id == "graph.github_references":
+        referenced_urls = {
+            reference.url
+            for claim in view.claims
+            if claim.predicate in {"references", "github_references"}
+            for url in _claim_urls(claim.value)
+            if (reference := parse_github_development_reference(url)) is not None
+        }
+        if not referenced_urls:
+            return False
+        materialized_urls = {
+            reference_url
+            for relation in view.relations
+            if relation.relation_type == "references-development-object"
+            and isinstance(
+                reference_url := relation.qualifier.get("reference_url"),
+                str,
+            )
+        }
+        return not referenced_urls <= materialized_urls
+    if spec.operator_id == "graph.osv_fix_boundary":
+        return "fixed-by" not in relation_types
+    return False
+
+
+def _claim_urls(value: object) -> list[str]:
+    if isinstance(value, str):
+        return [value]
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, str)]
+
+
+def _has_git_range(value: object) -> bool:
+    if not isinstance(value, list):
+        return False
+    return any(
+        isinstance(item, dict) and str(item.get("type", "")).upper() == "GIT"
+        for item in value
+    )
+
+
 def _plan_reason(
     spec: EnrichmentOperatorSpec,
     relevant: list[EnrichmentDimension],
+    *,
+    supplemental: bool = False,
 ) -> str:
-    mode = "produce_or_enable" if spec.enables else "produce"
+    if supplemental:
+        mode = "supplement"
+    else:
+        mode = "produce_or_enable" if spec.enables else "produce"
     dimensions = ",".join(item.value for item in relevant)
     return f"{mode}:{dimensions}"

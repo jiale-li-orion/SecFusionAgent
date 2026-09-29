@@ -95,6 +95,42 @@ def test_fixed_point_does_not_repeat_operator_within_same_run() -> None:
     assert plans == []
 
 
+def test_github_reference_graph_supplements_when_new_reference_is_not_bridged() -> None:
+    claim = ClaimView(
+        claim_id="claim-ref",
+        predicate="references",
+        value=[
+            "https://github.com/vllm-project/vllm/pull/43426",
+            "https://github.com/vllm-project/vllm/commit/abcdef1234567",
+        ],
+        origin="source_asserted",
+        created_revision=1,
+    )
+    target = RelationTargetView(
+        object_id="pr-43426",
+        object_type="PullRequest",
+        canonical_key="github:vllm-project/vllm:pull:43426",
+    )
+    existing = RelationView(
+        relation_id="reference-rel",
+        relation_type="references-development-object",
+        origin="deterministic_derived",
+        qualifier={
+            "reference_kind": "pull_request",
+            "reference_url": "https://github.com/vllm-project/vllm/pull/43426",
+        },
+        created_revision=2,
+        target=target,
+    )
+    plans = EnrichmentStatePlanner().plan(
+        _snapshot(fix_remediation=EnrichmentStatus.RESOLVED),
+        _view(claims=[claim], relations=[existing]),
+        cve_id="CVE-2026-48746",
+        target_dimensions={EnrichmentDimension.FIX_REMEDIATION},
+    )
+    assert [item.operator_id for item in plans] == ["graph.github_references"]
+
+
 def test_github_reference_graph_requires_reference_claim() -> None:
     missing_fix = _snapshot(fix_remediation=EnrichmentStatus.MISSING)
     without = EnrichmentStatePlanner().plan(
@@ -123,6 +159,82 @@ def test_github_reference_graph_requires_reference_claim() -> None:
     assert [item.operator_id for item in with_reference] == ["graph.github_references"]
 
 
+def test_github_reference_graph_supplements_resolved_fix_dimension() -> None:
+    claim = ClaimView(
+        claim_id="claim-ref",
+        predicate="github_references",
+        value=["https://github.com/vllm-project/vllm/pull/43426"],
+        origin="source_asserted",
+        created_revision=1,
+    )
+    plans = EnrichmentStatePlanner().plan(
+        _snapshot(fix_remediation=EnrichmentStatus.RESOLVED),
+        _view(claims=[claim]),
+        cve_id="CVE-2026-48746",
+        target_dimensions={EnrichmentDimension.FIX_REMEDIATION},
+    )
+    assert [item.operator_id for item in plans] == ["graph.github_references"]
+    assert plans[0].relevant_dimensions == [EnrichmentDimension.FIX_REMEDIATION]
+    assert plans[0].directly_produces == []
+    assert plans[0].reason == "supplement:fix_remediation"
+
+
+def test_osv_fix_boundary_does_not_plan_for_non_git_ranges() -> None:
+    target = RelationTargetView(
+        object_id="pkg-1",
+        object_type="Package",
+        canonical_key="package:pypi:vllm",
+    )
+    relation = RelationView(
+        relation_id="rel-1",
+        relation_type="affects-package",
+        origin="source_asserted",
+        qualifier={"ranges": [{"type": "SEMVER", "events": [{"fixed": "0.22.0"}]}]},
+        created_revision=1,
+        target=target,
+    )
+    plans = EnrichmentStatePlanner().plan(
+        _snapshot(fix_remediation=EnrichmentStatus.RESOLVED),
+        _view(relations=[relation]),
+        cve_id="CVE-2026-48746",
+        target_dimensions={EnrichmentDimension.FIX_REMEDIATION},
+    )
+    assert plans == []
+
+
+def test_github_reference_graph_does_not_repeat_when_bridge_exists() -> None:
+    claim = ClaimView(
+        claim_id="claim-ref",
+        predicate="references",
+        value=["https://github.com/vllm-project/vllm/pull/43426"],
+        origin="source_asserted",
+        created_revision=1,
+    )
+    target = RelationTargetView(
+        object_id="pr-43426",
+        object_type="PullRequest",
+        canonical_key="github:vllm-project/vllm:pull:43426",
+    )
+    existing = RelationView(
+        relation_id="reference-rel",
+        relation_type="references-development-object",
+        origin="deterministic_derived",
+        qualifier={
+            "reference_kind": "pull_request",
+            "reference_url": "https://github.com/vllm-project/vllm/pull/43426",
+        },
+        created_revision=2,
+        target=target,
+    )
+    plans = EnrichmentStatePlanner().plan(
+        _snapshot(fix_remediation=EnrichmentStatus.RESOLVED),
+        _view(claims=[claim], relations=[existing]),
+        cve_id="CVE-2026-48746",
+        target_dimensions={EnrichmentDimension.FIX_REMEDIATION},
+    )
+    assert plans == []
+
+
 def test_osv_fix_boundary_requires_range_metadata() -> None:
     target = RelationTargetView(
         object_id="pkg-1",
@@ -145,3 +257,36 @@ def test_osv_fix_boundary_requires_range_metadata() -> None:
         attempted_operator_ids={"provider.github_advisory", "provider.osv"},
     )
     assert [item.operator_id for item in plans] == ["graph.osv_fix_boundary"]
+
+
+def test_osv_fix_boundary_supplements_resolved_fix_dimension() -> None:
+    target = RelationTargetView(
+        object_id="pkg-1",
+        object_type="Package",
+        canonical_key="package:pypi:vllm",
+    )
+    relation = RelationView(
+        relation_id="rel-1",
+        relation_type="affects-package",
+        origin="source_asserted",
+        qualifier={
+            "ranges": [
+                {
+                    "type": "GIT",
+                    "repo": "https://github.com/vllm-project/vllm",
+                    "events": [{"fixed": "2b94d1c0"}],
+                }
+            ]
+        },
+        created_revision=1,
+        target=target,
+    )
+    plans = EnrichmentStatePlanner().plan(
+        _snapshot(fix_remediation=EnrichmentStatus.RESOLVED),
+        _view(relations=[relation]),
+        cve_id="CVE-2026-42424",
+        target_dimensions={EnrichmentDimension.FIX_REMEDIATION},
+    )
+    assert [item.operator_id for item in plans] == ["graph.osv_fix_boundary"]
+    assert plans[0].directly_produces == []
+    assert plans[0].reason == "supplement:fix_remediation"

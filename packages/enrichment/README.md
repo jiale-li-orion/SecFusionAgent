@@ -6,7 +6,7 @@
 
 `runtime/` implements the M3 `EnrichmentRole` adapter on the shared Task Runtime. `EnrichmentStateBuilder` materializes the twelve `enrichment-v1` dimensions as `resolved / conflict / unknown / missing`; `EnrichmentDimensionSpec` is an internal vocabulary-derived state specification, not a second M4 requirement protocol. Execution block/failure stays in `EnrichmentAttempt` rather than adding a fifth domain state.
 
-`EnrichmentStatePlanner` selects from the closed operator registry according to missing dimensions and prior attempts. An operator declares dimensions it directly produces separately from dimensions it only enables, preventing a provider range/reference from being misreported as a resolved canonical fact. Background `enrichment.requested` work and delegated child EnrichmentTask use the same `EnrichmentRole`, state builder, operator path, EvidenceIngress and Knowledge Writer.
+`EnrichmentStatePlanner` selects from the closed operator registry according to missing dimensions and prior attempts. An operator declares dimensions it directly produces separately from dimensions it only enables, preventing a provider range/reference from being misreported as a resolved canonical fact. Deterministic graph-completion operators may additionally be marked supplemental: `graph.github_references` and `graph.osv_fix_boundary` can still run after `FIX_REMEDIATION` is already resolved when an exact graph prerequisite is present but the corresponding development/fix edge is missing. Supplemental execution never reclassifies the dimension as missing and does not enter the formal M3 denominator. Background `enrichment.requested` work and delegated child EnrichmentTask use the same `EnrichmentRole`, state builder, operator path, EvidenceIngress and Knowledge Writer.
 
 `VulnerabilityEnrichmentService` remains the provider-query primitive used by the Role and by deterministic tests. It uses `monitoring.AcquisitionService` for fresh reads. Each returned envelope is accepted through `EvidenceIngress` before a processor creates `EnrichmentCandidate` output. Processors do not turn raw HTTP results directly into Knowledge.
 
@@ -49,7 +49,7 @@ CVSS, KEV, public PoC, EPSS, and exploit maturity remain separate facts. CVSS Ba
 
 `processors/` contains deterministic provider mappers. Their output must preserve provider-native semantics when no canonical mapping exists. Adding a new field to a mapper does not automatically add it to formal enrichment P/R.
 
-`graph/` owns deterministic repository association and fix-boundary logic. A development reference can be canonical repository graph state while remaining `benchmarked=False`; stronger relations such as `fixed-by` require the graph/evidence conditions implemented by the fix service.
+`graph/` owns deterministic repository association and fix-boundary logic. `GitHubReferenceGraphService` is local-first: an exact GitHub reference first resolves existing canonical Issue/PR/Commit/Release identity and only falls back to provider acquisition on a miss, so previously indexed development objects are not refetched merely to add a vulnerability bridge. A development reference can be canonical repository graph state while remaining `benchmarked=False`; stronger relations such as `fixed-by` require the graph/evidence conditions implemented by the fix service.
 
 `external_query/` is the generic query-time enrichment path for sources whose result is not part of periodic collection. `assets/` specializes this for provider-neutral `AssetObservation` normalization and explicit promotion.
 

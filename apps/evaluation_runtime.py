@@ -159,6 +159,7 @@ async def validate_structured_qa_gold_provenance(
 
     supported_facts: set[str] = set()
     observed_sources: set[str] = set()
+    relation_refs: list[str] = []
     for ref in refs:
         if not ref.startswith("evidence:"):
             raise ValueError(f"structured QA gold has invalid EvidenceRef: {ref}")
@@ -196,6 +197,7 @@ async def validate_structured_qa_gold_provenance(
                 )
             )
         elif link.target_kind == "relation":
+            relation_refs.append(f"relation:{link.target_id}")
             relation = await session.get(RelationModel, link.target_id)
             if relation is None:
                 raise ValueError(
@@ -240,6 +242,21 @@ async def validate_structured_qa_gold_provenance(
             "structured QA gold facts are not supported by declared EvidenceRefs: "
             + ", ".join(sorted(missing))
         )
+
+    if gold.required_relation_paths:
+        observed_paths = {
+            tuple(path)
+            for path in await _relation_paths_for_refs(session, relation_refs)
+        }
+        missing_paths = {
+            tuple(path) for path in gold.required_relation_paths
+        } - observed_paths
+        if missing_paths:
+            rendered = "; ".join(" -> ".join(path) for path in sorted(missing_paths))
+            raise ValueError(
+                "structured QA gold relation paths are not supported by declared EvidenceRefs: "
+                + rendered
+            )
 
     for subject_key, predicate in absence_checks:
         subject = await session.scalar(
@@ -570,7 +587,6 @@ async def execute_product_question_qa_prediction(
     interactive_timeout_seconds: int = 5,
     retrieval_limit: int = 8,
     principal: str = "system:benchmark-m6",
-    relation_paths: Iterable[Iterable[str]] = (),
     citation_support: Mapping[tuple[int, str], bool] | None = None,
     execution_refs: Iterable[str] = (),
     expected_knowledge_revision: int | None = None,
@@ -613,9 +629,11 @@ async def execute_product_question_qa_prediction(
     latency = monotonic() - started
 
     async with session_factory() as session:
-        runtime_refs, context_revisions = await _product_question_execution_refs(
+        runtime_refs, context_revisions, runtime_relation_paths = (
+            await _product_question_execution_refs(
             session,
             request_id,
+            )
         )
         if expected_knowledge_revision is not None:
             if context_revisions != {expected_knowledge_revision}:
@@ -641,7 +659,7 @@ async def execute_product_question_qa_prediction(
             return project_validated_decision_to_qa_prediction(
                 benchmark_case_id=benchmark_case_id,
                 decision=decision,
-                relation_paths=relation_paths,
+                relation_paths=runtime_relation_paths,
                 citation_support=citation_support,
                 interactive_latency_seconds=latency,
                 execution_refs=merged_execution_refs,
@@ -735,7 +753,7 @@ def project_validated_decision_to_qa_prediction(
 async def _product_question_execution_refs(
     session: AsyncSession,
     request_id: str,
-) -> tuple[list[str], set[int]]:
+) -> tuple[list[str], set[int], list[list[str]]]:
     requests = list(
         await session.scalars(
             select(ModelRequestModel)
@@ -751,6 +769,7 @@ async def _product_question_execution_refs(
     ]
     refs: list[str] = []
     context_revisions: set[int] = set()
+    relation_refs: list[str] = []
     for item in matching:
         refs.append(f"model-request:{item.model_request_id}")
         if item.task_run_id:
@@ -763,11 +782,69 @@ async def _product_question_execution_refs(
                 )
                 if context is not None and context.knowledge_revision is not None:
                     context_revisions.add(context.knowledge_revision)
+                if context is not None:
+                    raw_relation_refs = context.manifest_json.get("relation_refs")
+                    if isinstance(raw_relation_refs, list):
+                        relation_refs.extend(
+                            item for item in raw_relation_refs if isinstance(item, str)
+                        )
         if item.execution_id:
             refs.append(item.execution_id)
         if item.budget_ref:
             refs.append(item.budget_ref)
-    return _stable_unique(refs), context_revisions
+    relation_paths = await _relation_paths_for_refs(session, _stable_unique(relation_refs))
+    return _stable_unique(refs), context_revisions, relation_paths
+
+
+async def _relation_paths_for_refs(
+    session: AsyncSession,
+    relation_refs: Iterable[str],
+) -> list[list[str]]:
+    relation_ids = [
+        ref.removeprefix("relation:")
+        for ref in relation_refs
+        if ref.startswith("relation:")
+    ]
+    if not relation_ids:
+        return []
+    relations = list(
+        await session.scalars(
+            select(RelationModel).where(RelationModel.relation_id.in_(relation_ids))
+        )
+    )
+    object_ids = {
+        object_id
+        for relation in relations
+        for object_id in (relation.source_object_id, relation.target_object_id)
+    }
+    objects = {
+        item.object_id: item
+        for item in await session.scalars(
+            select(ObjectModel).where(ObjectModel.object_id.in_(object_ids))
+        )
+    }
+    paths: list[list[str]] = []
+    for first in relations:
+        source = objects.get(first.source_object_id)
+        middle = objects.get(first.target_object_id)
+        if source is None or middle is None:
+            continue
+        for second in relations:
+            if second.source_object_id != first.target_object_id:
+                continue
+            target = objects.get(second.target_object_id)
+            if target is None:
+                continue
+            paths.append(
+                [
+                    source.canonical_key,
+                    first.relation_type,
+                    middle.canonical_key,
+                    second.relation_type,
+                    target.canonical_key,
+                ]
+            )
+    return [list(path) for path in dict.fromkeys(tuple(path) for path in paths)]
 
 
 def _decision_reasoning_refs(

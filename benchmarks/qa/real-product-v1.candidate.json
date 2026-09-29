@@ -1,6 +1,6 @@
 {
   "suite_id": "m6-real-product-qa",
-  "knowledge_revision": 596,
+  "knowledge_revision": 606,
   "evaluator_revision": "qa-v1",
   "purpose": "Real structured-authority Product QA candidate pinned to canonical Knowledge revision 596; requires a configured live model and must not be reported as competition evidence before a successful live run.",
   "cases": [
@@ -339,6 +339,42 @@
       "gold": {
         "case_id": "qa-real-3094-missing-cvss-continuation",
         "completion_expectation": "continuation_requested"
+      }
+    },
+    {
+      "case_id": "qa-real-48746-pr-merge-commit-multihop",
+      "gold_provenance": {
+        "mode": "structured_authority",
+        "source_ids": ["nvd-cves-2", "github-target-repos"],
+        "evidence_refs": [
+          "evidence:27f317c1-cc38-59ab-8d9b-a4545126d8c2",
+          "evidence:a2f5b260-3770-5716-8dac-8252c9451872"
+        ]
+      },
+      "tags": ["real", "candidate", "multi-hop", "github", "fix-graph"],
+      "live_product_question": {
+        "question": "Which merge commit is reached through the development object explicitly referenced by CVE-2026-48746? Use the canonical evidence graph and return the supported merged-as fact.",
+        "cve_id": "CVE-2026-48746",
+        "task_kind": "lookup"
+      },
+      "gold": {
+        "case_id": "qa-real-48746-pr-merge-commit-multihop",
+        "required_facts": [
+          "github:vllm-project/vllm:pull:43426 merged-as git:commit:2b94d1c0caf69d4108d720986f4e792960b02cf7"
+        ],
+        "required_relation_paths": [
+          [
+            "cve:CVE-2026-48746",
+            "references-development-object",
+            "github:vllm-project/vllm:pull:43426",
+            "merged-as",
+            "git:commit:2b94d1c0caf69d4108d720986f4e792960b02cf7"
+          ]
+        ],
+        "required_citation_facts": [
+          "github:vllm-project/vllm:pull:43426 merged-as git:commit:2b94d1c0caf69d4108d720986f4e792960b02cf7"
+        ],
+        "completion_expectation": "answered"
       }
     }
   ]
