@@ -24,6 +24,17 @@ def test_existing_smoke_manifest_remains_valid() -> None:
     assert all(item.prediction is not None for item in manifest.cases)
 
 
+def test_real_product_candidate_is_pinned_live_product_content() -> None:
+    manifest = QABenchmarkManifest.model_validate_json(
+        Path("benchmarks/qa/real-product-v1.candidate.json").read_text(encoding="utf-8")
+    )
+    assert manifest.suite_id == "m6-real-product-qa"
+    assert manifest.knowledge_revision == 596
+    assert len(manifest.cases) == 8
+    assert all(item.live_product_question is not None for item in manifest.cases)
+    assert all("real" in item.tags and "candidate" in item.tags for item in manifest.cases)
+
+
 def test_product_case_uses_persisted_case_as_prediction_source() -> None:
     case = QABenchmarkManifestCase.model_validate(
         {
@@ -43,6 +54,57 @@ def test_product_case_uses_persisted_case_as_prediction_source() -> None:
     assert case.citation_support == {"0:evidence:nvd-1": True}
 
 
+def test_live_product_question_manifest_requires_pinned_knowledge_revision() -> None:
+    with pytest.raises(ValidationError, match="pinned knowledge_revision"):
+        QABenchmarkManifest.model_validate(
+            {
+                "cases": [
+                    {
+                        "case_id": "qa-question-live-unpinned",
+                        "live_product_question": {
+                            "question": "What does current evidence establish?",
+                            "cve_id": "CVE-2026-7273",
+                            "task_kind": "lookup",
+                        },
+                        "gold": {
+                            "case_id": "qa-question-live-unpinned",
+                            "completion_expectation": "answered",
+                        },
+                    }
+                ]
+            }
+        )
+
+
+def test_manifest_rejects_mixing_two_live_product_denominators() -> None:
+    with pytest.raises(ValidationError, match="cannot mix durable-Case live QA"):
+        QABenchmarkManifest.model_validate(
+            {
+                "knowledge_revision": 596,
+                "cases": [
+                    {
+                        "case_id": "qa-live-case",
+                        "live_product_case_id": "investigation-live",
+                        "gold": {
+                            "case_id": "qa-live-case",
+                            "completion_expectation": "answered",
+                        },
+                    },
+                    {
+                        "case_id": "qa-live-question",
+                        "live_product_question": {
+                            "question": "What is the CVSS score?",
+                            "cve_id": "CVE-2026-7273",
+                            "task_kind": "lookup",
+                        },
+                        "gold": {
+                            "case_id": "qa-live-question",
+                            "completion_expectation": "answered",
+                        },
+                    },
+                ],
+            }
+        )
 def test_live_product_case_is_an_explicit_prediction_source() -> None:
     case = QABenchmarkManifestCase.model_validate(
         {

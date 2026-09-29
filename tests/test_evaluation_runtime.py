@@ -297,6 +297,7 @@ async def test_execute_product_question_qa_prediction_preserves_runtime_provenan
             question="What can the current evidence establish?",
             cve_id="CVE-2026-71717",
             task_kind=TaskKind.LOOKUP,
+            expected_knowledge_revision=1,
         )
 
         assert prediction.case_id == "qa-product-question-live-1"
@@ -315,6 +316,35 @@ async def test_execute_product_question_qa_prediction_preserves_runtime_provenan
         metadata = raw_provider.requests[0].metadata
         assert metadata["product_request_id"] == "benchmark:run-1:qa-product-question-live-1"
         assert metadata["case_id"] is None
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_execute_product_question_qa_prediction_rejects_world_drift() -> None:
+    engine, factory = await _database()
+    raw_provider = _DecisionProvider(
+        DecisionPlannerResponse(
+            action=FinalDecisionProposal(
+                answer_payload={"status": "partial"},
+                stop_reason="insufficient_evidence",
+            )
+        )
+    )
+    provider = RecordedModelProvider(factory, raw_provider)
+    try:
+        with pytest.raises(ValueError, match="drifted before execution"):
+            await evaluation_runtime.execute_product_question_qa_prediction(
+                factory,
+                settings=Settings(environment="test"),
+                benchmark_case_id="qa-world-drift",
+                request_id="benchmark:run-1:qa-world-drift",
+                provider=provider,
+                question="What is known?",
+                task_kind=TaskKind.RETRIEVE,
+                expected_knowledge_revision=99,
+            )
+        assert raw_provider.requests == []
     finally:
         await engine.dispose()
 

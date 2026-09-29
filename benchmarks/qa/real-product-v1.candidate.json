@@ -1,0 +1,225 @@
+{
+  "suite_id": "m6-real-product-qa",
+  "knowledge_revision": 596,
+  "evaluator_revision": "qa-v1",
+  "purpose": "Real structured-authority Product QA candidate pinned to canonical Knowledge revision 596; requires a configured live model and must not be reported as competition evidence before a successful live run.",
+  "cases": [
+    {
+      "case_id": "qa-real-7273-cvss-score",
+      "gold_provenance": {
+        "mode": "structured_authority",
+        "source_ids": ["nvd-cves-2"],
+        "evidence_refs": ["evidence:fe4aeec1-a8e5-568e-87db-73052c970b94"]
+      },
+      "tags": ["real", "candidate", "direct", "nvd", "cvss"],
+      "live_product_question": {
+        "question": "What is the CVSS score for CVE-2026-7273? Answer only the requested fact from the available evidence.",
+        "cve_id": "CVE-2026-7273",
+        "task_kind": "lookup"
+      },
+      "gold": {
+        "case_id": "qa-real-7273-cvss-score",
+        "required_facts": ["cve:CVE-2026-7273 cvss_score = 8.8"],
+        "forbidden_facts": [
+          "cve:CVE-2026-7273 cvss_severity = \"HIGH\"",
+          "cve:CVE-2026-7273 cvss_version = \"3.1\"",
+          "cve:CVE-2026-7273 known_exploited = true",
+          "cve:CVE-2026-7273 epss_probability = 0.02501"
+        ],
+        "required_citation_facts": ["cve:CVE-2026-7273 cvss_score = 8.8"],
+        "completion_expectation": "answered"
+      }
+    },
+    {
+      "case_id": "qa-real-7273-known-exploited",
+      "gold_provenance": {
+        "mode": "structured_authority",
+        "source_ids": ["cisa-kev"],
+        "evidence_refs": ["evidence:92fa6f01-432b-53d2-a93c-71dbee18bd05"]
+      },
+      "tags": ["real", "candidate", "direct", "cisa-kev", "exploit-state"],
+      "live_product_question": {
+        "question": "Does CISA KEV mark CVE-2026-7273 as known exploited? Answer only the requested fact from the available evidence.",
+        "cve_id": "CVE-2026-7273",
+        "task_kind": "lookup"
+      },
+      "gold": {
+        "case_id": "qa-real-7273-known-exploited",
+        "required_facts": ["cve:CVE-2026-7273 known_exploited = true"],
+        "forbidden_facts": [
+          "cve:CVE-2026-7273 cvss_score = 8.8",
+          "cve:CVE-2026-7273 cvss_severity = \"HIGH\"",
+          "cve:CVE-2026-7273 cvss_version = \"3.1\"",
+          "cve:CVE-2026-7273 epss_probability = 0.02501"
+        ],
+        "required_citation_facts": ["cve:CVE-2026-7273 known_exploited = true"],
+        "completion_expectation": "answered"
+      }
+    },
+    {
+      "case_id": "qa-real-7273-cross-source-risk",
+      "gold_provenance": {
+        "mode": "structured_authority",
+        "source_ids": ["nvd-cves-2", "cisa-kev"],
+        "evidence_refs": [
+          "evidence:fe4aeec1-a8e5-568e-87db-73052c970b94",
+          "evidence:92fa6f01-432b-53d2-a93c-71dbee18bd05"
+        ]
+      },
+      "tags": ["real", "candidate", "cross-source", "nvd", "cisa-kev"],
+      "live_product_question": {
+        "question": "For CVE-2026-7273, report the NVD CVSS score and whether CISA KEV marks it as known exploited. Do not add unrelated facts.",
+        "cve_id": "CVE-2026-7273",
+        "task_kind": "lookup"
+      },
+      "gold": {
+        "case_id": "qa-real-7273-cross-source-risk",
+        "required_facts": [
+          "cve:CVE-2026-7273 cvss_score = 8.8",
+          "cve:CVE-2026-7273 known_exploited = true"
+        ],
+        "forbidden_facts": [
+          "cve:CVE-2026-7273 cvss_severity = \"HIGH\"",
+          "cve:CVE-2026-7273 cvss_version = \"3.1\"",
+          "cve:CVE-2026-7273 epss_probability = 0.02501"
+        ],
+        "required_citation_facts": [
+          "cve:CVE-2026-7273 cvss_score = 8.8",
+          "cve:CVE-2026-7273 known_exploited = true"
+        ],
+        "completion_expectation": "answered"
+      }
+    },
+    {
+      "case_id": "qa-real-67279-cvss-score",
+      "gold_provenance": {
+        "mode": "structured_authority",
+        "source_ids": ["nvd-cves-2"],
+        "evidence_refs": ["evidence:0ec682e2-e0fe-58ce-b2ab-61ba126a34ba"]
+      },
+      "tags": ["real", "candidate", "direct", "nvd", "cvss4"],
+      "live_product_question": {
+        "question": "What is the CVSS score for CVE-2026-67279? Answer only the requested fact.",
+        "cve_id": "CVE-2026-67279",
+        "task_kind": "lookup"
+      },
+      "gold": {
+        "case_id": "qa-real-67279-cvss-score",
+        "required_facts": ["cve:CVE-2026-67279 cvss_score = 6.9"],
+        "forbidden_facts": [
+          "cve:CVE-2026-67279 cvss_severity = \"MEDIUM\"",
+          "cve:CVE-2026-67279 cvss_version = \"4.0\"",
+          "cve:CVE-2026-67279 known_exploited = true"
+        ],
+        "required_citation_facts": ["cve:CVE-2026-67279 cvss_score = 6.9"],
+        "completion_expectation": "answered"
+      }
+    },
+    {
+      "case_id": "qa-real-67279-cross-source-risk",
+      "gold_provenance": {
+        "mode": "structured_authority",
+        "source_ids": ["nvd-cves-2", "cisa-kev"],
+        "evidence_refs": [
+          "evidence:0ec682e2-e0fe-58ce-b2ab-61ba126a34ba",
+          "evidence:e1333d3e-4317-5bd3-9bed-58df41d6cf25"
+        ]
+      },
+      "tags": ["real", "candidate", "cross-source", "nvd", "cisa-kev", "cvss4"],
+      "live_product_question": {
+        "question": "For CVE-2026-67279, report the CVSS score and whether it is in CISA KEV. Do not add unrelated facts.",
+        "cve_id": "CVE-2026-67279",
+        "task_kind": "lookup"
+      },
+      "gold": {
+        "case_id": "qa-real-67279-cross-source-risk",
+        "required_facts": [
+          "cve:CVE-2026-67279 cvss_score = 6.9",
+          "cve:CVE-2026-67279 known_exploited = true"
+        ],
+        "forbidden_facts": [
+          "cve:CVE-2026-67279 cvss_severity = \"MEDIUM\"",
+          "cve:CVE-2026-67279 cvss_version = \"4.0\""
+        ],
+        "required_citation_facts": [
+          "cve:CVE-2026-67279 cvss_score = 6.9",
+          "cve:CVE-2026-67279 known_exploited = true"
+        ],
+        "completion_expectation": "answered"
+      }
+    },
+    {
+      "case_id": "qa-real-67279-cvss-version",
+      "gold_provenance": {
+        "mode": "structured_authority",
+        "source_ids": ["nvd-cves-2"],
+        "evidence_refs": ["evidence:8734f9f5-e402-5706-97c1-f73f41f38377"]
+      },
+      "tags": ["real", "candidate", "direct", "nvd", "cvss4"],
+      "live_product_question": {
+        "question": "Which CVSS version is used for CVE-2026-67279? Answer only the requested fact.",
+        "cve_id": "CVE-2026-67279",
+        "task_kind": "lookup"
+      },
+      "gold": {
+        "case_id": "qa-real-67279-cvss-version",
+        "required_facts": ["cve:CVE-2026-67279 cvss_version = \"4.0\""],
+        "forbidden_facts": [
+          "cve:CVE-2026-67279 cvss_score = 6.9",
+          "cve:CVE-2026-67279 cvss_severity = \"MEDIUM\"",
+          "cve:CVE-2026-67279 known_exploited = true"
+        ],
+        "required_citation_facts": ["cve:CVE-2026-67279 cvss_version = \"4.0\""],
+        "completion_expectation": "answered"
+      }
+    },
+    {
+      "case_id": "qa-real-48746-cvss-severity",
+      "gold_provenance": {
+        "mode": "structured_authority",
+        "source_ids": ["nvd-cves-2"],
+        "evidence_refs": ["evidence:946ec166-e3f5-5fd6-9845-82879db12d15"]
+      },
+      "tags": ["real", "candidate", "direct", "nvd", "severity"],
+      "live_product_question": {
+        "question": "What CVSS severity does NVD report for CVE-2026-48746? Answer only the requested fact.",
+        "cve_id": "CVE-2026-48746",
+        "task_kind": "lookup"
+      },
+      "gold": {
+        "case_id": "qa-real-48746-cvss-severity",
+        "required_facts": ["cve:CVE-2026-48746 cvss_severity = \"CRITICAL\""],
+        "forbidden_facts": [
+          "cve:CVE-2026-48746 cvss_score = 9.1",
+          "cve:CVE-2026-48746 cvss_version = \"3.1\""
+        ],
+        "required_citation_facts": ["cve:CVE-2026-48746 cvss_severity = \"CRITICAL\""],
+        "completion_expectation": "answered"
+      }
+    },
+    {
+      "case_id": "qa-real-47828-cvss-score",
+      "gold_provenance": {
+        "mode": "structured_authority",
+        "source_ids": ["nvd-cves-2"],
+        "evidence_refs": ["evidence:e67e6c8c-950b-563a-a065-5abfdfd27a1c"]
+      },
+      "tags": ["real", "candidate", "direct", "nvd", "cvss"],
+      "live_product_question": {
+        "question": "What is the CVSS score for CVE-2025-47828? Answer only the requested fact.",
+        "cve_id": "CVE-2025-47828",
+        "task_kind": "lookup"
+      },
+      "gold": {
+        "case_id": "qa-real-47828-cvss-score",
+        "required_facts": ["cve:CVE-2025-47828 cvss_score = 6.4"],
+        "forbidden_facts": [
+          "cve:CVE-2025-47828 cvss_severity = \"MEDIUM\"",
+          "cve:CVE-2025-47828 cvss_version = \"3.1\""
+        ],
+        "required_citation_facts": ["cve:CVE-2025-47828 cvss_score = 6.4"],
+        "completion_expectation": "answered"
+      }
+    }
+  ]
+}

@@ -6,7 +6,7 @@ import json
 from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 from pydantic import BaseModel, Field, JsonValue, model_validator
@@ -17,6 +17,7 @@ from apps.evaluation_runtime import (
     execute_product_case_qa_prediction,
     execute_product_question_qa_prediction,
     load_product_qa_prediction,
+    validate_structured_qa_gold_provenance,
 )
 from apps.model_runtime import create_recorded_model_provider
 from apps.runtime_models import register_runtime_models
@@ -67,6 +68,21 @@ class LiveProductQuestion(BaseModel):
         return self
 
 
+class QAGoldProvenance(BaseModel):
+    mode: Literal["synthetic", "structured_authority", "human_adjudicated"]
+    evidence_refs: list[str] = Field(default_factory=list)
+    source_ids: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_provenance(self) -> QAGoldProvenance:
+        if self.mode == "structured_authority":
+            if not self.evidence_refs:
+                raise ValueError("structured-authority QA gold requires evidence_refs")
+            if not self.source_ids:
+                raise ValueError("structured-authority QA gold requires source_ids")
+        return self
+
+
 class QABenchmarkManifestCase(BaseModel):
     case_id: str
     input: dict[str, JsonValue] = Field(default_factory=dict)
@@ -82,6 +98,7 @@ class QABenchmarkManifestCase(BaseModel):
     latency_class: str = "interactive"
     execution_refs: list[str] = Field(default_factory=list)
     adjudications: list[QAAdjudicationRecord] = Field(default_factory=list)
+    gold_provenance: QAGoldProvenance | None = None
 
     @model_validator(mode="after")
     def validate_prediction_source(self) -> QABenchmarkManifestCase:
@@ -112,6 +129,12 @@ class QABenchmarkManifestCase(BaseModel):
                     "citation_support keys must use '<conclusion_index>:<evidence_ref>'"
                 )
         validate_qa_adjudication_history(self.adjudications)
+        if (
+            self.gold_provenance is not None
+            and self.gold_provenance.mode == "human_adjudicated"
+            and not self.adjudications
+        ):
+            raise ValueError("human-adjudicated QA gold requires adjudication history")
         return self
 
 
@@ -119,6 +142,7 @@ class QABenchmarkManifest(BaseModel):
     suite_id: str = "m6-qa"
     purpose: str = "Frozen QA accuracy, grounding, citation and multi-hop benchmark"
     evaluator_revision: str = "qa-v1"
+    knowledge_revision: int | None = Field(default=None, ge=0)
     cases: list[QABenchmarkManifestCase]
 
     @model_validator(mode="after")
@@ -126,6 +150,24 @@ class QABenchmarkManifest(BaseModel):
         live_count = sum(_is_live_case(item) for item in self.cases)
         if live_count not in {0, len(self.cases)}:
             raise ValueError("one BenchmarkRun cannot mix live Product QA with offline QA cases")
+        live_profiles = {
+            _execution_profile(item)
+            for item in self.cases
+            if _is_live_case(item)
+        }
+        if len(live_profiles) > 1:
+            raise ValueError(
+                "one BenchmarkRun cannot mix durable-Case live QA with Product Question live QA"
+            )
+        if any(item.live_product_question is not None for item in self.cases):
+            if self.knowledge_revision is None:
+                raise ValueError("live Product Question QA requires a pinned knowledge_revision")
+        if any(
+            item.gold_provenance is not None
+            and item.gold_provenance.mode == "structured_authority"
+            for item in self.cases
+        ) and self.knowledge_revision is None:
+            raise ValueError("structured-authority QA gold requires a pinned knowledge_revision")
         return self
 
 
@@ -172,12 +214,22 @@ async def _run(
         not settings.model_base_url or not settings.model_name
     ):
         raise RuntimeError("live Product QA requires a configured model provider")
+    world_snapshot_ref = (
+        f"knowledge-revision:{manifest.knowledge_revision}"
+        if manifest.knowledge_revision is not None
+        else None
+    )
     manifest_payload = manifest.model_dump(mode="json")
     manifest_digest = _digest(manifest_payload)
     gold_digest = _digest(
         [
             {
                 "gold": item.gold.model_dump(mode="json"),
+                "gold_provenance": (
+                    item.gold_provenance.model_dump(mode="json")
+                    if item.gold_provenance is not None
+                    else None
+                ),
                 "adjudications": [
                     record.model_dump(mode="json") for record in item.adjudications
                 ],
@@ -194,6 +246,19 @@ async def _run(
                 settings,
                 deployment_revision_id=deployment_revision_id,
             )
+            for item in manifest.cases:
+                if (
+                    item.gold_provenance is not None
+                    and item.gold_provenance.mode == "structured_authority"
+                ):
+                    assert manifest.knowledge_revision is not None
+                    await validate_structured_qa_gold_provenance(
+                        session,
+                        gold=item.gold,
+                        evidence_refs=item.gold_provenance.evidence_refs,
+                        source_ids=item.gold_provenance.source_ids,
+                        knowledge_revision=manifest.knowledge_revision,
+                    )
             case_refs: list[str] = []
             for item in manifest.cases:
                 case_ref = f"{item.case_id}@{suite_revision}"
@@ -218,6 +283,7 @@ async def _run(
                         input=item.input,
                         execution_profile=_execution_profile(item),
                         target_refs=list(dict.fromkeys(target_refs)),
+                        world_snapshot_ref=world_snapshot_ref,
                         expected_behavior=item.gold.model_dump(mode="json"),
                         gold_ref=f"qa-gold:{gold_digest}#{item.case_id}",
                         tags=["m6", "qa", *item.tags],
@@ -236,8 +302,10 @@ async def _run(
                     case_refs=case_refs,
                     gold_revision=f"qa-gold:{gold_digest}",
                     evaluator_revision=manifest.evaluator_revision,
+                    default_world_snapshot_ref=world_snapshot_ref,
                     scoring_profile={
                         "manifest_digest": manifest_digest,
+                        "knowledge_revision": manifest.knowledge_revision,
                         "metrics": [
                             "answer_accuracy",
                             "groundedness",
@@ -262,6 +330,7 @@ async def _run(
                 model_config_ref=(
                     f"model:{settings.model_name}" if settings.model_name else "model:unconfigured"
                 ),
+                world_snapshot_ref=world_snapshot_ref,
                 now=now,
             )
         provider = None
@@ -333,6 +402,7 @@ async def _run(
                         relation_paths=item.relation_paths,
                         citation_support=_citation_support(item.citation_support),
                         execution_refs=item.execution_refs,
+                        expected_knowledge_revision=manifest.knowledge_revision,
                     )
                 score = score_qa(gold=item.gold, prediction=prediction)
                 async with factory() as session, session.begin():
@@ -378,6 +448,7 @@ async def _run(
             "gold_revision": f"qa-gold:{gold_digest}",
             "case_count": len(manifest.cases),
             "execution_mode": execution_mode.value,
+            "world_snapshot_ref": world_snapshot_ref,
             "case_scores": per_case,
         }
     finally:

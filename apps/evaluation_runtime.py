@@ -24,10 +24,15 @@ from packages.evaluation.benchmark import (
 from packages.evaluation.benchmark.metrics import metric_definition
 from packages.evaluation.benchmark.storage import DeploymentRevisionModel
 from packages.evaluation.m1_m3 import EnrichmentScore
-from packages.evaluation.qa import QACitationCheck, QAPrediction, QAScore
+from packages.evaluation.qa import QACitationCheck, QAGold, QAPrediction, QAScore
 from packages.intelligence.knowledge.vocabulary import VOCABULARY_REVISION
+from packages.intelligence.retrieval.validation import current_knowledge_revision
 from packages.intelligence.storage.evidence_models import ObservationModel
-from packages.intelligence.storage.knowledge_models import EvidenceLinkModel
+from packages.intelligence.storage.knowledge_models import (
+    ClaimModel,
+    EvidenceLinkModel,
+    ObjectModel,
+)
 from packages.investigation.skills.seeds import seeded_skills
 from packages.investigation.state.contracts import EvidenceNeedStatus, InvestigationState
 from packages.investigation.state.service import InvestigationStateService
@@ -40,6 +45,7 @@ from packages.runtime.policy.loader import load_runtime_policy
 from packages.shared.config import Settings
 from packages.shared.model_provider import ModelProvider
 from packages.task_runtime.contracts.models import TaskKind
+from packages.task_runtime.storage.models import ContextManifestVersionModel, TaskRunModel
 
 
 class M3BenchmarkRecorder:
@@ -133,6 +139,75 @@ class M3BenchmarkRecorder:
                 )
 
 
+async def validate_structured_qa_gold_provenance(
+    session: AsyncSession,
+    *,
+    gold: QAGold,
+    evidence_refs: Iterable[str],
+    source_ids: Iterable[str],
+    knowledge_revision: int,
+) -> None:
+    """Fail closed unless structured-authority evidence supports the frozen QA gold facts."""
+
+    refs = _stable_unique(evidence_refs)
+    declared_sources = set(source_ids)
+    if not refs or not declared_sources:
+        raise ValueError("structured QA gold provenance requires evidence refs and source ids")
+
+    supported_facts: set[str] = set()
+    observed_sources: set[str] = set()
+    for ref in refs:
+        if not ref.startswith("evidence:"):
+            raise ValueError(f"structured QA gold has invalid EvidenceRef: {ref}")
+        link = await session.get(EvidenceLinkModel, ref.removeprefix("evidence:"))
+        if link is None:
+            raise ValueError(f"structured QA gold EvidenceRef does not resolve: {ref}")
+        observation = await session.get(ObservationModel, link.observation_id)
+        if observation is None:
+            raise ValueError(f"structured QA gold EvidenceRef has no Observation: {ref}")
+        observed_sources.add(observation.source_id)
+        if observation.source_id not in declared_sources:
+            raise ValueError(
+                "structured QA gold EvidenceRef source is outside declared authorities: "
+                f"{observation.source_id}"
+            )
+        if link.target_kind != "claim":
+            raise ValueError(
+                "structured QA gold preflight currently accepts claim Evidence only; "
+                f"got {link.target_kind}:{link.target_id}"
+            )
+        claim = await session.get(ClaimModel, link.target_id)
+        if claim is None:
+            raise ValueError(f"structured QA gold claim does not resolve: {link.target_id}")
+        if claim.created_revision > knowledge_revision or (
+            claim.superseded_revision is not None
+            and claim.superseded_revision <= knowledge_revision
+        ):
+            raise ValueError(
+                "structured QA gold claim is not visible at pinned Knowledge revision: "
+                f"{link.target_id}@{knowledge_revision}"
+            )
+        subject = await session.get(ObjectModel, claim.subject_id)
+        if subject is None:
+            raise ValueError(f"structured QA gold claim subject is missing: {claim.subject_id}")
+        supported_facts.add(
+            f"{subject.canonical_key} {claim.predicate} = {_render_knowledge_value(claim.value)}"
+        )
+
+    if observed_sources != declared_sources:
+        raise ValueError(
+            "structured QA gold declared source set does not match evidence: "
+            f"declared={sorted(declared_sources)}, observed={sorted(observed_sources)}"
+        )
+    expected_facts = set(gold.required_facts) | set(gold.acceptable_answer_facts)
+    missing = expected_facts - supported_facts
+    if missing:
+        raise ValueError(
+            "structured QA gold facts are not supported by declared EvidenceRefs: "
+            + ", ".join(sorted(missing))
+        )
+
+
 class QABenchmarkRecorder:
     def __init__(self, store: BenchmarkStore | None = None) -> None:
         self._store = store or BenchmarkStore()
@@ -180,6 +255,7 @@ def project_decision_to_qa_prediction(
     citation_support: Mapping[tuple[int, str], bool] | None = None,
     interactive_latency_seconds: float | None = None,
     execution_refs: Iterable[str] = (),
+    expected_knowledge_revision: int | None = None,
 ) -> QAPrediction:
     """Project a persisted M6 decision into the evaluation-neutral QA contract."""
 
@@ -437,6 +513,7 @@ async def execute_product_question_qa_prediction(
     relation_paths: Iterable[Iterable[str]] = (),
     citation_support: Mapping[tuple[int, str], bool] | None = None,
     execution_refs: Iterable[str] = (),
+    expected_knowledge_revision: int | None = None,
 ) -> QAPrediction:
     """Run the real Product AskQuestion path and project its durable outcome into QA metrics.
 
@@ -447,6 +524,13 @@ async def execute_product_question_qa_prediction(
 
     started = monotonic()
     async with session_factory() as session:
+        if expected_knowledge_revision is not None:
+            current_revision = await current_knowledge_revision(session)
+            if current_revision != expected_knowledge_revision:
+                raise ValueError(
+                    "live Product QA knowledge revision drifted before execution: "
+                    f"expected={expected_knowledge_revision}, current={current_revision}"
+                )
         result = await AskQuestionUseCase(
             policy_path=settings.runtime_policy_path,
             task_event_stream_name=settings.task_event_stream_name,
@@ -469,7 +553,22 @@ async def execute_product_question_qa_prediction(
     latency = monotonic() - started
 
     async with session_factory() as session:
-        runtime_refs = await _product_question_execution_refs(session, request_id)
+        runtime_refs, context_revisions = await _product_question_execution_refs(
+            session,
+            request_id,
+        )
+        if expected_knowledge_revision is not None:
+            if context_revisions != {expected_knowledge_revision}:
+                raise ValueError(
+                    "live Product QA ContextManifest knowledge revision does not match pin: "
+                    f"expected={expected_knowledge_revision}, observed={sorted(context_revisions)}"
+                )
+            current_revision = await current_knowledge_revision(session)
+            if current_revision != expected_knowledge_revision:
+                raise ValueError(
+                    "live Product QA knowledge revision drifted during execution: "
+                    f"expected={expected_knowledge_revision}, current={current_revision}"
+                )
         merged_execution_refs = _stable_unique(
             [f"product-request:{request_id}", *runtime_refs, *execution_refs]
         )
@@ -576,7 +675,7 @@ def project_validated_decision_to_qa_prediction(
 async def _product_question_execution_refs(
     session: AsyncSession,
     request_id: str,
-) -> list[str]:
+) -> tuple[list[str], set[int]]:
     requests = list(
         await session.scalars(
             select(ModelRequestModel)
@@ -591,15 +690,24 @@ async def _product_question_execution_refs(
         if item.metadata_json.get("product_request_id") == request_id
     ]
     refs: list[str] = []
+    context_revisions: set[int] = set()
     for item in matching:
         refs.append(f"model-request:{item.model_request_id}")
         if item.task_run_id:
             refs.append(f"task-run:{item.task_run_id}")
+            run = await session.get(TaskRunModel, item.task_run_id)
+            if run is not None:
+                context = await session.get(
+                    ContextManifestVersionModel,
+                    run.context_manifest_version_id,
+                )
+                if context is not None and context.knowledge_revision is not None:
+                    context_revisions.add(context.knowledge_revision)
         if item.execution_id:
             refs.append(item.execution_id)
         if item.budget_ref:
             refs.append(item.budget_ref)
-    return _stable_unique(refs)
+    return _stable_unique(refs), context_revisions
 
 
 def _decision_reasoning_refs(
@@ -662,6 +770,15 @@ async def _load_citation_sources(
             )
         )
     return result
+
+
+def _render_knowledge_value(value: object) -> str:
+    return json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    )
 
 
 def _confirmed_state_supports(
