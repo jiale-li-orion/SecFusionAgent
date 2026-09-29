@@ -9,6 +9,8 @@ from apps.application.views.investigations import DecisionView, InvestigationVie
 
 class QuestionResultView(BaseModel):
     request_id: str
+    session_id: str
+    turn_index: int
     mode: Literal["completed", "accepted"]
     execution_profile: str
     decision: DecisionView | None = None

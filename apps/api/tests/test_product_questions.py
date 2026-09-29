@@ -77,6 +77,8 @@ async def test_product_question_complex_route_returns_accepted_investigation() -
         assert response.status_code == 202, response.text
         payload = response.json()
         assert payload["mode"] == "accepted"
+        assert payload["session_id"]
+        assert payload["turn_index"] == 1
         assert payload["execution_profile"] == "VERIFY"
         assert payload["decision"] is None
         assert payload["investigation"]["open_evidence_needs"][0]["required_source_roles"] == [

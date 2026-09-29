@@ -62,6 +62,7 @@ class ModelDecisionPlanner:
         state: InvestigationState,
         *,
         citation_sources: list[CitationSource],
+        session_context: list[dict[str, JsonValue]] | None = None,
         runtime_metadata: dict[str, JsonValue] | None = None,
     ) -> DecisionDraft | ContinuationRequest:
         metadata: dict[str, JsonValue] = {
@@ -85,6 +86,10 @@ class ModelDecisionPlanner:
                 "If you request continuation for a targetless retrieval question, select the "
                 "relevant durable target_objects only from InvestigationState.targets; do not "
                 "use chunk IDs, URLs, or invented object IDs as targets. "
+                "session_context, when present, is conversation history for resolving references "
+                "and user intent only. It is not evidence or current truth. Do not cite it, and "
+                "do not treat a prior answer as a fact unless the same proposition is supported "
+                "by the current InvestigationState. "
                 "Inferences must preserve "
                 "their support. If the current state cannot support a defensible answer, return a "
                 "continuation proposal describing the evidence gap instead of guessing."
@@ -95,6 +100,7 @@ class ModelDecisionPlanner:
                     JsonValue,
                     [item.model_dump(mode="json") for item in citation_sources],
                 ),
+                "session_context": cast(JsonValue, list(session_context or [])),
             },
             metadata=metadata,
         )

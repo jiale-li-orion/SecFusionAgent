@@ -17,6 +17,7 @@ router = APIRouter(prefix="/api/v1/questions", tags=["questions"])
 
 class AskQuestionRequest(BaseModel):
     question: str = Field(min_length=1)
+    session_id: str | None = None
     cve_id: str | None = None
     object_id: str | None = None
     task_kind: TaskKind = TaskKind.LOOKUP
@@ -72,6 +73,7 @@ async def ask_question(
                         principal=context.principal,
                         request_id=context.request_id,
                         trace_id=context.trace_id,
+                        session_id=payload.session_id,
                         question=payload.question,
                         cve_id=payload.cve_id,
                         object_id=payload.object_id,
@@ -93,6 +95,7 @@ async def ask_question(
                     principal=context.principal,
                     request_id=context.request_id,
                     trace_id=context.trace_id,
+                    session_id=payload.session_id,
                     question=payload.question,
                     cve_id=payload.cve_id,
                     object_id=payload.object_id,
@@ -114,6 +117,7 @@ async def ask_question(
                 principal=context.principal,
                 request_id=context.request_id,
                 trace_id=context.trace_id,
+                session_id=payload.session_id,
                 question=payload.question,
                 cve_id=payload.cve_id,
                 object_id=payload.object_id,

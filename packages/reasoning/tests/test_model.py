@@ -116,6 +116,39 @@ async def test_model_decision_planner_accepts_runtime_provenance_coordinates() -
     assert metadata["case_id"] is None
 
 
+@pytest.mark.asyncio
+async def test_model_decision_planner_keeps_session_history_outside_evidence_state() -> None:
+    provider = _Provider(
+        DecisionPlannerResponse(
+            action=FinalDecisionProposal(
+                answer_payload={"status": "ok"},
+                stop_reason="complete",
+            )
+        )
+    )
+    await ModelDecisionPlanner(provider).plan(
+        _state(),
+        citation_sources=[],
+        session_context=[
+            {
+                "turn_index": 1,
+                "user_input": "What was the score?",
+                "outcome": {"kind": "decision", "answer": {"score": 9.8}},
+            }
+        ],
+    )
+    request = provider.requests[0]
+    assert request.data["session_context"] == [
+        {
+            "turn_index": 1,
+            "user_input": "What was the score?",
+            "outcome": {"kind": "decision", "answer": {"score": 9.8}},
+        }
+    ]
+    assert "session_context" in request.system_instruction
+    assert "It is not evidence or current truth" in request.system_instruction
+
+
 def test_final_proposal_fact_schema_requires_evidence() -> None:
     with pytest.raises(ValueError, match="fact conclusion requires evidence_refs"):
         FinalDecisionProposal(

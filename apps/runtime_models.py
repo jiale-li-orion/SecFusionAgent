@@ -20,6 +20,7 @@ _MODEL_MODULES = (
     "packages.runtime.storage.models",
     "packages.runtime.model.storage",
     "packages.reasoning.storage",
+    "apps.application.question_sessions",
     "packages.evaluation.benchmark.storage",
     "packages.enrichment.runtime.state_models",
     "packages.shared.storage.models",

@@ -21,6 +21,7 @@ from apps.application.errors import (
 )
 from apps.application.queries.investigations import decision_view
 from apps.application.question_facts import render_claim_fact, render_relation_fact
+from apps.application.question_sessions import QuestionSessionContext, QuestionSessionStore
 from apps.application.views.questions import QuestionResultView
 from apps.task_admission import create_task_contract_service
 from packages.intelligence.knowledge.read import (
@@ -68,6 +69,7 @@ class AskQuestionCommand(BaseModel):
     principal: str
     request_id: str
     trace_id: str | None = None
+    session_id: str | None = None
     question: str = Field(min_length=1)
     cve_id: str | None = None
     object_id: str | None = None
@@ -81,12 +83,14 @@ class AskQuestionCommand(BaseModel):
     def validate_target(self) -> AskQuestionCommand:
         if self.cve_id and self.object_id:
             raise ValueError("cve_id and object_id are mutually exclusive")
-        if self.task_kind is TaskKind.LOOKUP and not (self.cve_id or self.object_id):
-            raise ValueError("lookup question requires cve_id or object_id")
-        if self.task_kind not in {TaskKind.LOOKUP, TaskKind.RETRIEVE} and not (
-            self.cve_id or self.object_id
+        if self.task_kind is TaskKind.LOOKUP and not (
+            self.cve_id or self.object_id or self.session_id
         ):
-            raise ValueError("investigation question requires cve_id or object_id")
+            raise ValueError("lookup question requires cve_id, object_id, or session_id")
+        if self.task_kind not in {TaskKind.LOOKUP, TaskKind.RETRIEVE} and not (
+            self.cve_id or self.object_id or self.session_id
+        ):
+            raise ValueError("investigation question requires cve_id, object_id, or session_id")
         if self.task_kind is TaskKind.ENRICHMENT:
             raise ValueError("enrichment is not a Product QA route")
         return self
@@ -111,6 +115,7 @@ class AskQuestionUseCase:
         budget_governor: BudgetGovernor | None = None,
         execution_service: ExecutionRunService | None = None,
         decision_store: DecisionResultStore | None = None,
+        session_store: QuestionSessionStore | None = None,
     ) -> None:
         self._policy_path = policy_path
         self._stream_name = task_event_stream_name
@@ -119,16 +124,42 @@ class AskQuestionUseCase:
         self._budget = budget_governor or BudgetGovernor()
         self._execution = execution_service or ExecutionRunService()
         self._decisions = decision_store or DecisionResultStore()
+        self._sessions = session_store or QuestionSessionStore()
 
     async def execute(
         self,
         session: AsyncSession,
         command: AskQuestionCommand,
     ) -> QuestionResultView:
+        session_context = await self._sessions.resolve(
+            session,
+            session_id=command.session_id,
+            principal=command.principal,
+        )
+        command = _bind_session_target(command, session_context)
+        next_turn_index = (
+            session_context.latest_turn.turn_index + 1 if session_context.latest_turn else 1
+        )
         if command.task_kind not in {TaskKind.LOOKUP, TaskKind.RETRIEVE}:
             investigation = await self._start_investigation(session, command, command.question)
+            turn = await self._sessions.append_turn(
+                session,
+                session_id=session_context.session_id,
+                principal=command.principal,
+                request_id=command.request_id,
+                question=command.question,
+                task_kind=command.task_kind.value,
+                target_object_ids=investigation.target_object_ids,
+                knowledge_revision=await _current_knowledge_revision(session),
+                context_id=None,
+                decision_ref=None,
+                investigation_ref=f"case:{investigation.case_id}",
+            )
+            await session.commit()
             return QuestionResultView(
                 request_id=command.request_id,
+                session_id=session_context.session_id,
+                turn_index=turn.turn_index,
                 mode="accepted",
                 execution_profile=investigation.execution_profile or "INVESTIGATE",
                 investigation=investigation,
@@ -137,10 +168,12 @@ class AskQuestionUseCase:
             raise DependencyUnavailableError("model provider is not configured")
 
         context = await self._load_context(session, command)
+        history_payload = await self._session_history_payload(session, session_context)
         run_id, execution_id, profile = await self._open_sync_runtime(
             session,
             command=command,
             context=context,
+            session_context=session_context,
         )
         await session.commit()
 
@@ -148,6 +181,7 @@ class AskQuestionUseCase:
             proposal = await ModelDecisionPlanner(self._provider).plan(
                 context.state,
                 citation_sources=context.citation_sources,
+                session_context=history_payload,
                 runtime_metadata={
                     "request_owner_ref": f"task-run:{run_id}",
                     "task_run_id": run_id,
@@ -157,6 +191,8 @@ class AskQuestionUseCase:
                     # Avoid writing a synthetic case id into ModelRequest.case_id FK.
                     "case_id": None,
                     "product_request_id": command.request_id,
+                    "product_session_id": session_context.session_id,
+                    "product_turn_index": next_turn_index,
                 },
             )
             if isinstance(proposal, DecisionDraft):
@@ -207,8 +243,23 @@ class AskQuestionUseCase:
                     result_ref=decision.decision_id,
                     stop_reason=decision.stop_reason,
                 )
+                turn = await self._sessions.append_turn(
+                    session,
+                    session_id=session_context.session_id,
+                    principal=command.principal,
+                    request_id=command.request_id,
+                    question=command.question,
+                    task_kind=command.task_kind.value,
+                    target_object_ids=list(context.state.targets),
+                    knowledge_revision=context.state.last_world_revision,
+                    context_id=f"context:{run_id}",
+                    decision_ref=decision.decision_id,
+                    investigation_ref=None,
+                )
             return QuestionResultView(
                 request_id=command.request_id,
+                session_id=session_context.session_id,
+                turn_index=turn.turn_index,
                 mode="completed",
                 execution_profile=profile.value,
                 decision=decision_view(decision.model_dump(mode="json"), stored.created_at),
@@ -265,9 +316,24 @@ class AskQuestionUseCase:
             result_ref=f"case:{investigation.case_id}",
             stop_reason="escalated_to_investigation",
         )
+        turn = await self._sessions.append_turn(
+            session,
+            session_id=session_context.session_id,
+            principal=command.principal,
+            request_id=command.request_id,
+            question=command.question,
+            task_kind=command.task_kind.value,
+            target_object_ids=investigation.target_object_ids,
+            knowledge_revision=context.state.last_world_revision,
+            context_id=f"context:{run_id}",
+            decision_ref=None,
+            investigation_ref=f"case:{investigation.case_id}",
+        )
         await session.commit()
         return QuestionResultView(
             request_id=command.request_id,
+            session_id=session_context.session_id,
+            turn_index=turn.turn_index,
             mode="accepted",
             execution_profile=investigation.execution_profile or "INVESTIGATE",
             investigation=investigation,
@@ -279,6 +345,7 @@ class AskQuestionUseCase:
         *,
         command: AskQuestionCommand,
         context: _QuestionContext,
+        session_context: QuestionSessionContext,
     ) -> tuple[str, str, ExecutionProfile]:
         policy = load_runtime_policy(self._policy_path)
         intent = TaskIntentParser().parse(
@@ -297,6 +364,7 @@ class AskQuestionUseCase:
                 binding_context={
                     "question": command.question,
                     "target_object_ids": cast(JsonValue, list(context.state.targets)),
+                    "product_session_id": session_context.session_id,
                 },
             )
         )
@@ -311,6 +379,9 @@ class AskQuestionUseCase:
         manifest = ContextManifest(
             context_id=f"context:{run_id}",
             context_revision=1,
+            parent_context_id=(
+                session_context.latest_turn.context_id if session_context.latest_turn else None
+            ),
             task_contract_ref=(
                 f"{admission.contract.task_contract_id}@{admission.contract.contract_revision}"
             ),
@@ -366,6 +437,7 @@ class AskQuestionUseCase:
                 trace_context={
                     "request_id": command.request_id,
                     "trace_id": command.trace_id,
+                    "product_session_id": session_context.session_id,
                     "surface": "product-api",
                 },
             ),
@@ -390,6 +462,45 @@ class AskQuestionUseCase:
         )
         await self._execution.start(session, execution_id)
         return run_id, execution_id, profile
+
+    async def _session_history_payload(
+        self,
+        session: AsyncSession,
+        context: QuestionSessionContext,
+    ) -> list[dict[str, JsonValue]]:
+        payload: list[dict[str, JsonValue]] = []
+        for turn in context.turns:
+            item: dict[str, JsonValue] = {
+                "turn_index": turn.turn_index,
+                "user_input": turn.question,
+                "target_object_ids": cast(JsonValue, list(turn.target_object_ids)),
+                "knowledge_revision": turn.knowledge_revision,
+            }
+            if turn.decision_ref is not None:
+                decision = await self._decisions.get_optional(session, turn.decision_ref)
+                item["outcome"] = cast(
+                    JsonValue,
+                    {
+                        "kind": "decision",
+                        "decision_ref": turn.decision_ref,
+                        "answer": decision.answer_payload if decision is not None else {},
+                        "conclusions": (
+                            [conclusion.statement for conclusion in decision.conclusions]
+                            if decision is not None
+                            else []
+                        ),
+                    },
+                )
+            elif turn.investigation_ref is not None:
+                item["outcome"] = cast(
+                    JsonValue,
+                    {
+                        "kind": "investigation",
+                        "investigation_ref": turn.investigation_ref,
+                    },
+                )
+            payload.append(item)
+        return payload
 
     async def _load_context(
         self,
@@ -619,6 +730,10 @@ async def _resolve_optional_target(
     return None
 
 
+async def _current_knowledge_revision(session: AsyncSession) -> int:
+    return int(await session.scalar(select(func.max(KnowledgeRevisionModel.revision))) or 0)
+
+
 def _evidence_refs(
     evidence: list[EvidenceRef],
     citations: dict[str, CitationSource],
@@ -649,3 +764,23 @@ def _continuation_investigation_target(
         return None
     unique = _stable_unique(target_objects)
     return unique[0] if len(unique) == 1 else None
+
+
+def _bind_session_target(
+    command: AskQuestionCommand,
+    context: QuestionSessionContext,
+) -> AskQuestionCommand:
+    if command.cve_id is not None or command.object_id is not None:
+        return command
+    latest = context.latest_turn
+    if latest is None:
+        return command
+    targets = _stable_unique(latest.target_object_ids)
+    if len(targets) == 1:
+        return command.model_copy(update={"object_id": targets[0]})
+    if command.task_kind is not TaskKind.RETRIEVE:
+        raise LifecycleConflictError(
+            "question follow-up requires exactly one carried target",
+            context={"session_id": context.session_id, "target_count": len(targets)},
+        )
+    return command

@@ -8,9 +8,10 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from apps.application.commands.ask_question import AskQuestionCommand, AskQuestionUseCase
-from apps.application.errors import LifecycleConflictError
+from apps.application.errors import LifecycleConflictError, PermissionDeniedError
 from apps.application.queries.decisions import DecisionQueries
 from apps.application.question_facts import render_relation_fact
+from apps.application.question_sessions import QuestionSessionModel, QuestionSessionTurnModel
 from apps.runtime_models import register_runtime_models
 from packages.intelligence.retrieval.contracts import CandidateKind, RetrievedCandidate
 from packages.intelligence.retrieval.operators import LexicalRetrievalOperator
@@ -361,6 +362,166 @@ async def test_lookup_question_runs_read_only_decision_without_durable_case() ->
         assert metadata["execution_id"]
         assert metadata["case_id"] is None
         assert metadata["product_request_id"] == "question-direct-1"
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_followup_question_carries_target_and_non_evidence_session_history() -> None:
+    engine, factory = await _factory()
+    first_provider = _Provider(
+        DecisionPlannerResponse(
+            action=FinalDecisionProposal(
+                conclusions=[
+                    DecisionConclusion(
+                        statement=PROPOSITION,
+                        type=ConclusionType.FACT,
+                        evidence_refs=[f"evidence:{EVIDENCE_ID}"],
+                    )
+                ],
+                answer_payload={"score": 9.8},
+                stop_reason="evidence_sufficient",
+            )
+        )
+    )
+    second_provider = _Provider(
+        DecisionPlannerResponse(
+            action=FinalDecisionProposal(
+                conclusions=[
+                    DecisionConclusion(
+                        statement=PROPOSITION,
+                        type=ConclusionType.FACT,
+                        evidence_refs=[f"evidence:{EVIDENCE_ID}"],
+                    )
+                ],
+                answer_payload={"score": 9.8, "followup": True},
+                stop_reason="evidence_sufficient",
+            )
+        )
+    )
+    try:
+        async with factory() as session:
+            first = await _use_case(first_provider).execute(
+                session,
+                AskQuestionCommand(
+                    principal="user:test",
+                    request_id="question-session-1",
+                    question=f"What is the CVSS score for {CVE}?",
+                    cve_id=CVE,
+                    task_kind=TaskKind.LOOKUP,
+                ),
+            )
+        assert first.mode == "completed"
+        assert first.turn_index == 1
+
+        async with factory() as session:
+            second = await _use_case(second_provider).execute(
+                session,
+                AskQuestionCommand(
+                    principal="user:test",
+                    request_id="question-session-2",
+                    session_id=first.session_id,
+                    question="What about that same vulnerability?",
+                    task_kind=TaskKind.LOOKUP,
+                ),
+            )
+        assert second.mode == "completed"
+        assert second.session_id == first.session_id
+        assert second.turn_index == 2
+
+        request = second_provider.requests[0]
+        state_payload = request.data["investigation_state"]
+        history_payload = request.data["session_context"]
+        assert isinstance(state_payload, dict)
+        assert isinstance(history_payload, list)
+        assert state_payload["targets"] == [OBJECT_ID]
+        assert len(history_payload) == 1
+        first_turn = history_payload[0]
+        assert isinstance(first_turn, dict)
+        assert first_turn["user_input"] == f"What is the CVSS score for {CVE}?"
+        outcome = first_turn["outcome"]
+        assert isinstance(outcome, dict)
+        assert outcome["answer"] == {"score": 9.8}
+        assert request.metadata["product_session_id"] == first.session_id
+        assert request.metadata["product_turn_index"] == 2
+
+        async with factory() as session:
+            stored_session = await session.get(QuestionSessionModel, first.session_id)
+            turns = list(
+                await session.scalars(
+                    select(QuestionSessionTurnModel)
+                    .where(QuestionSessionTurnModel.session_id == first.session_id)
+                    .order_by(QuestionSessionTurnModel.turn_index)
+                )
+            )
+            runs = list(
+                await session.scalars(
+                    select(TaskRunModel)
+                    .where(TaskRunModel.role_id == "DecisionRole")
+                    .order_by(TaskRunModel.created_at)
+                )
+            )
+            assert stored_session is not None
+            assert stored_session.principal == "user:test"
+            assert [turn.turn_index for turn in turns] == [1, 2]
+            assert [turn.target_object_ids for turn in turns] == [[OBJECT_ID], [OBJECT_ID]]
+            assert all(turn.decision_ref is not None for turn in turns)
+            assert len(runs) == 2
+            first_context = await session.get(
+                ContextManifestVersionModel,
+                runs[0].context_manifest_version_id,
+            )
+            second_context = await session.get(
+                ContextManifestVersionModel,
+                runs[1].context_manifest_version_id,
+            )
+            assert first_context is not None and second_context is not None
+            assert second_context.parent_context_id == first_context.context_id
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_question_session_rejects_cross_principal_followup() -> None:
+    engine, factory = await _factory()
+    provider = _Provider(
+        DecisionPlannerResponse(
+            action=FinalDecisionProposal(
+                conclusions=[
+                    DecisionConclusion(
+                        statement=PROPOSITION,
+                        type=ConclusionType.FACT,
+                        evidence_refs=[f"evidence:{EVIDENCE_ID}"],
+                    )
+                ],
+                answer_payload={"score": 9.8},
+                stop_reason="evidence_sufficient",
+            )
+        )
+    )
+    try:
+        async with factory() as session:
+            first = await _use_case(provider).execute(
+                session,
+                AskQuestionCommand(
+                    principal="user:owner",
+                    request_id="question-session-owner",
+                    question=f"What is the CVSS score for {CVE}?",
+                    cve_id=CVE,
+                ),
+            )
+        async with factory() as session:
+            with pytest.raises(PermissionDeniedError, match="belongs to another principal"):
+                await _use_case(provider).execute(
+                    session,
+                    AskQuestionCommand(
+                        principal="user:other",
+                        request_id="question-session-other",
+                        session_id=first.session_id,
+                        question="Follow up on that result",
+                        task_kind=TaskKind.LOOKUP,
+                    ),
+                )
     finally:
         await engine.dispose()
 

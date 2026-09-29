@@ -10,6 +10,8 @@
 
 Validated decisions are additionally written to immutable `DecisionResultStore`. This does not replace M4 `current_decision`: M4 still decides which result is current for a durable Case. The M6 store gives every validated result a stable `decision_id` read identity, including synchronous Product decisions that intentionally have no durable Case.
 
+Product multi-turn history is not M6 factual state. `ModelDecisionPlanner.session_context` may carry prior user input and immutable Decision refs/payloads for conversational co-reference, but the system instruction marks that history as non-evidence. FACT conclusions still have to exactly reproduce a proposition in the current confirmed InvestigationState and cite its current EvidenceRef; an old session answer cannot satisfy that invariant by itself.
+
 When evidence is insufficient, M6 emits `ContinuationRequest`. The request contract is owned by the M4 receiving boundary under `packages.investigation.state.continuation`; M6 can validate and return it but cannot create `EvidenceNeed` itself. App composition first wraps the request as a `TaskIntent`, then `ContinuationGate` performs target/revision validation, deterministic semantic dedupe, and the actual EvidenceNeed write. This preserves the TD2 `ContinuationRequest → TaskIntent → M4` authority path without giving M6 storage authority.
 
 ## Design → implementation map
