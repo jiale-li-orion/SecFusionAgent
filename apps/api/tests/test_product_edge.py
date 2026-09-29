@@ -51,8 +51,11 @@ def test_product_openapi_exposes_stable_investigation_contract() -> None:
     schema = create_app().openapi()
     assert "/api/v1/investigations" in schema["paths"]
     assert "/api/v1/investigations/{case_id}" in schema["paths"]
+    assert "/api/v1/questions" in schema["paths"]
+    assert "/api/v1/decisions/{decision_id}" in schema["paths"]
     post = schema["paths"]["/api/v1/investigations"]["post"]
     assert post["responses"]["202"]["content"]["application/json"]["schema"]
     assert post["responses"]["422"]["content"]["application/json"]["schema"]
     assert "ProblemDetail" in schema["components"]["schemas"]
     assert "InvestigationView" in schema["components"]["schemas"]
+    assert "QuestionResultView" in schema["components"]["schemas"]

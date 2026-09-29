@@ -62,7 +62,19 @@ class ModelDecisionPlanner:
         state: InvestigationState,
         *,
         citation_sources: list[CitationSource],
+        runtime_metadata: dict[str, JsonValue] | None = None,
     ) -> DecisionDraft | ContinuationRequest:
+        metadata: dict[str, JsonValue] = {
+            "model_purpose": "m6.decision",
+            "prompt_revision": self.PROMPT_REVISION,
+            "request_owner_ref": f"case:{state.case_id}",
+            "planner": self.PROMPT_REVISION,
+            "model_provider": f"{self._provider.name}@{self._provider.version}",
+            "case_id": state.case_id,
+            "case_revision": state.case_revision,
+        }
+        if runtime_metadata:
+            metadata.update(runtime_metadata)
         request = StructuredModelRequest(
             system_instruction=(
                 "You are the M6 Decision Runtime. Read only the supplied M4 InvestigationState. "
@@ -81,15 +93,7 @@ class ModelDecisionPlanner:
                     [item.model_dump(mode="json") for item in citation_sources],
                 ),
             },
-            metadata={
-                "model_purpose": "m6.decision",
-                "prompt_revision": self.PROMPT_REVISION,
-                "request_owner_ref": f"case:{state.case_id}",
-                "planner": self.PROMPT_REVISION,
-                "model_provider": f"{self._provider.name}@{self._provider.version}",
-                "case_id": state.case_id,
-                "case_revision": state.case_revision,
-            },
+            metadata=metadata,
         )
         response = await self._provider.generate_structured(request, DecisionPlannerResponse)
         action = response.action

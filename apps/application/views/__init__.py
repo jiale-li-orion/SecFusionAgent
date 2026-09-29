@@ -8,6 +8,7 @@ from apps.application.views.investigations import (
     InvestigationPage,
     InvestigationView,
 )
+from apps.application.views.questions import QuestionResultView
 
 __all__ = [
     "DecisionCitationView",
@@ -18,4 +19,5 @@ __all__ = [
     "InvestigationFindingView",
     "InvestigationPage",
     "InvestigationView",
+    "QuestionResultView",
 ]

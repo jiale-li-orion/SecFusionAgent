@@ -13,6 +13,7 @@ from packages.task_runtime.admission import (
     TaskAdmissionAuthorization,
     TaskContractService,
 )
+from packages.task_runtime.admission.question import QuestionTaskContractCompiler
 from packages.task_runtime.contracts.models import TaskContract, TaskIntent, TaskKind
 
 
@@ -93,6 +94,8 @@ def create_task_contract_service(policy: StaticPolicyEngine) -> TaskContractServ
     return TaskContractService(
         [
             EnrichmentTaskContractCompiler(),
+            QuestionTaskContractCompiler(TaskKind.LOOKUP),
+            QuestionTaskContractCompiler(TaskKind.RETRIEVE),
             *(InvestigationTaskContractCompiler(kind) for kind in investigation_kinds),
         ],
         authorizer=RuntimeTaskAdmissionAuthorizer(policy),

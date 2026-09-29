@@ -1,4 +1,4 @@
-.PHONY: sync lint format typecheck test check site-check site-status dev-up dev-down migrate sync-sources sync-skills worker worker-collection scheduler task-event-dispatcher task-event-scheduler probe-nvd promote-hot
+.PHONY: sync lint format typecheck test check site-check site-status dev-up dev-down migrate sync-sources sync-skills worker worker-collection scheduler task-event-dispatcher task-event-scheduler probe-nvd promote-hot product-check
 
 WIKI_PATH ?= ../SecFusionAgent.wiki
 SITE_STATUS_OUTPUT ?= $(WIKI_PATH)/site/project-status.json
@@ -19,6 +19,15 @@ test:
 	uv run pytest
 
 check: lint typecheck test
+
+product-check:
+	uv run pytest -q \
+		apps/application/tests \
+		apps/api/tests/test_product_investigations.py \
+		apps/api/tests/test_product_questions.py \
+		apps/api/tests/test_product_edge.py \
+		packages/reasoning/tests \
+		tests/test_decision_runtime.py
 
 site-check:
 	python3 scripts/validate_site.py --site $(WIKI_PATH)/site

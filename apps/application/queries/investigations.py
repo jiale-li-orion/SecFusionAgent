@@ -123,7 +123,7 @@ class InvestigationQueries:
             terminal_reason = run.stop_reason
             effective_status = _effective_status(case.status, run.status)
 
-        decision = _decision_view(state.current_decision, state.updated_at)
+        decision = decision_view(state.current_decision, state.updated_at)
         return InvestigationView(
             case_id=case.case_id,
             revision=state.case_revision,
@@ -164,7 +164,7 @@ def _finding_view(item: InvestigationStateItem) -> InvestigationFindingView:
     )
 
 
-def _decision_view(
+def decision_view(
     payload: dict[str, JsonValue] | None,
     created_at: datetime,
 ) -> DecisionView | None:

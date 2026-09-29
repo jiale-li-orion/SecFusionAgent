@@ -16,6 +16,7 @@ from packages.investigation.state.service import (
 from packages.reasoning.citation import CitationSource
 from packages.reasoning.decision import DecisionDraft, DecisionResult, DecisionService
 from packages.reasoning.model import ModelDecisionPlanner
+from packages.reasoning.storage import DecisionResultStore
 from packages.task_runtime.contracts.models import TaskIntent
 
 
@@ -52,9 +53,11 @@ class DecisionRuntime:
         *,
         decision_service: DecisionService | None = None,
         state_service: InvestigationStateService | None = None,
+        result_store: DecisionResultStore | None = None,
     ) -> None:
         self._decision = decision_service or DecisionService()
         self._state = state_service or InvestigationStateService()
+        self._results = result_store or DecisionResultStore()
         self._continuation = ContinuationGate(self._state)
 
     async def finalize(
@@ -79,6 +82,7 @@ class DecisionRuntime:
                 decision=result.model_dump(mode="json"),
             ),
         )
+        await self._results.persist(session, result)
         return result, committed
 
     async def continue_investigation(

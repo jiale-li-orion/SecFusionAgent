@@ -17,6 +17,7 @@ from packages.intelligence.storage.knowledge_models import (
 
 
 class EvidenceRef(BaseModel):
+    evidence_ref: str
     source_id: str
     observation_id: str
     artifact_id: str | None = None
@@ -204,6 +205,7 @@ async def _evidence_for_target(
             continue
         evidence.append(
             EvidenceRef(
+                evidence_ref=f"evidence:{link.evidence_link_id}",
                 source_id=observation.source_id,
                 observation_id=observation.observation_id,
                 artifact_id=link.artifact_id,

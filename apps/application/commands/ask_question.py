@@ -1,0 +1,578 @@
+from __future__ import annotations
+
+import json
+from datetime import UTC, datetime, timedelta
+from decimal import Decimal
+from pathlib import Path
+from typing import cast
+from uuid import uuid4
+
+from pydantic import BaseModel, Field, JsonValue, model_validator
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from apps.application.commands.start_investigation import (
+    StartInvestigationCommand,
+    StartInvestigationUseCase,
+)
+from apps.application.errors import (
+    DependencyUnavailableError,
+    LifecycleConflictError,
+    ResourceNotFoundError,
+)
+from apps.application.queries.investigations import decision_view
+from apps.application.views.questions import QuestionResultView
+from apps.task_admission import create_task_contract_service
+from packages.intelligence.knowledge.read import (
+    EvidenceRef,
+    KnowledgeObjectView,
+    get_object_by_id,
+    get_vulnerability_by_cve,
+)
+from packages.intelligence.retrieval.operators import LexicalRetrievalOperator
+from packages.intelligence.storage.knowledge_models import KnowledgeRevisionModel
+from packages.investigation.state.contracts import InvestigationState, InvestigationStateItem
+from packages.reasoning.citation import CitationSource
+from packages.reasoning.decision import DecisionDraft, DecisionService
+from packages.reasoning.model import ModelDecisionPlanner
+from packages.reasoning.storage import DecisionResultStore
+from packages.runtime.budget import BudgetGovernor, BudgetLimits
+from packages.runtime.execution.service import ExecutionRunService
+from packages.runtime.policy.loader import load_runtime_policy
+from packages.shared.model_provider import ModelProvider
+from packages.task_runtime.admission import TaskAdmissionRequest, TaskIntentParser
+from packages.task_runtime.contracts.execution import ExecutionEnvelope
+from packages.task_runtime.contracts.models import (
+    ContextManifest,
+    ExecutionProfile,
+    TaskKind,
+    TaskRunStatus,
+)
+from packages.task_runtime.contracts.roles import canonical_roles
+from packages.task_runtime.storage.service import create_task_run, transition_task_run
+
+
+class AskQuestionCommand(BaseModel):
+    principal: str
+    request_id: str
+    trace_id: str | None = None
+    question: str = Field(min_length=1)
+    cve_id: str | None = None
+    object_id: str | None = None
+    task_kind: TaskKind = TaskKind.LOOKUP
+    required_source_roles: list[str] = Field(default_factory=list)
+    priority: int = Field(default=50, ge=0, le=100)
+    interactive_timeout_seconds: int = Field(default=5, ge=1, le=30)
+    retrieval_limit: int = Field(default=8, ge=1, le=20)
+
+    @model_validator(mode="after")
+    def validate_target(self) -> AskQuestionCommand:
+        if self.cve_id and self.object_id:
+            raise ValueError("cve_id and object_id are mutually exclusive")
+        if self.task_kind is TaskKind.LOOKUP and not (self.cve_id or self.object_id):
+            raise ValueError("lookup question requires cve_id or object_id")
+        if self.task_kind not in {TaskKind.LOOKUP, TaskKind.RETRIEVE} and not (
+            self.cve_id or self.object_id
+        ):
+            raise ValueError("investigation question requires cve_id or object_id")
+        if self.task_kind is TaskKind.ENRICHMENT:
+            raise ValueError("enrichment is not a Product QA route")
+        return self
+
+
+class _QuestionContext(BaseModel):
+    state: InvestigationState
+    citation_sources: list[CitationSource] = Field(default_factory=list)
+    object_refs: list[str] = Field(default_factory=list)
+    relation_refs: list[str] = Field(default_factory=list)
+    evidence_refs: list[str] = Field(default_factory=list)
+
+
+class AskQuestionUseCase:
+    def __init__(
+        self,
+        *,
+        policy_path: Path,
+        task_event_stream_name: str,
+        model_provider: ModelProvider | None,
+        retrieval: LexicalRetrievalOperator | None = None,
+        budget_governor: BudgetGovernor | None = None,
+        execution_service: ExecutionRunService | None = None,
+        decision_store: DecisionResultStore | None = None,
+    ) -> None:
+        self._policy_path = policy_path
+        self._stream_name = task_event_stream_name
+        self._provider = model_provider
+        self._retrieval = retrieval or LexicalRetrievalOperator()
+        self._budget = budget_governor or BudgetGovernor()
+        self._execution = execution_service or ExecutionRunService()
+        self._decisions = decision_store or DecisionResultStore()
+
+    async def execute(
+        self,
+        session: AsyncSession,
+        command: AskQuestionCommand,
+    ) -> QuestionResultView:
+        if command.task_kind not in {TaskKind.LOOKUP, TaskKind.RETRIEVE}:
+            investigation = await self._start_investigation(session, command, command.question)
+            return QuestionResultView(
+                request_id=command.request_id,
+                mode="accepted",
+                execution_profile=investigation.execution_profile or "INVESTIGATE",
+                investigation=investigation,
+            )
+        if self._provider is None:
+            raise DependencyUnavailableError("model provider is not configured")
+
+        context = await self._load_context(session, command)
+        run_id, execution_id, profile = await self._open_sync_runtime(
+            session,
+            command=command,
+            context=context,
+        )
+        await session.commit()
+
+        try:
+            proposal = await ModelDecisionPlanner(self._provider).plan(
+                context.state,
+                citation_sources=context.citation_sources,
+                runtime_metadata={
+                    "request_owner_ref": f"task-run:{run_id}",
+                    "task_run_id": run_id,
+                    "execution_id": execution_id,
+                    "budget_ref": f"budget:{run_id}",
+                    # Lightweight DIRECT/RETRIEVE context is not a durable M4 Case.
+                    # Avoid writing a synthetic case id into ModelRequest.case_id FK.
+                    "case_id": None,
+                    "product_request_id": command.request_id,
+                },
+            )
+            if isinstance(proposal, DecisionDraft):
+                decision = DecisionService().decide(
+                    context.state,
+                    proposal,
+                    citation_sources=context.citation_sources,
+                )
+            else:
+                proposal = DecisionService().request_continuation(context.state, proposal)
+        except Exception:
+            async with session.begin():
+                await self._execution.finish(
+                    session,
+                    execution_id,
+                    status="failed",
+                    stop_reason="question_reasoning_failed",
+                )
+                await transition_task_run(
+                    session,
+                    run_id=run_id,
+                    target=TaskRunStatus.FAILED,
+                    payload_ref=f"task-run:{run_id}",
+                    idempotency_key=f"question-failed:{run_id}",
+                    stream_name=self._stream_name,
+                    producer="product-question",
+                    stop_reason="question_reasoning_failed",
+                )
+            raise
+
+        if isinstance(proposal, DecisionDraft):
+            async with session.begin():
+                stored = await self._decisions.persist(session, decision)
+                await self._execution.finish(
+                    session,
+                    execution_id,
+                    status="completed",
+                    stop_reason=decision.stop_reason,
+                )
+                await transition_task_run(
+                    session,
+                    run_id=run_id,
+                    target=TaskRunStatus.COMPLETED,
+                    payload_ref=decision.decision_id,
+                    idempotency_key=f"question-completed:{run_id}",
+                    stream_name=self._stream_name,
+                    producer="product-question",
+                    result_ref=decision.decision_id,
+                    stop_reason=decision.stop_reason,
+                )
+            return QuestionResultView(
+                request_id=command.request_id,
+                mode="completed",
+                execution_profile=profile.value,
+                decision=decision_view(decision.model_dump(mode="json"), stored.created_at),
+            )
+
+        if command.cve_id is None and command.object_id is None:
+            async with session.begin():
+                await self._execution.finish(
+                    session,
+                    execution_id,
+                    status="blocked",
+                    stop_reason="continuation_requires_bound_target",
+                )
+                await transition_task_run(
+                    session,
+                    run_id=run_id,
+                    target=TaskRunStatus.BLOCKED,
+                    payload_ref=f"task-run:{run_id}",
+                    idempotency_key=f"question-blocked:{run_id}",
+                    stream_name=self._stream_name,
+                    producer="product-question",
+                    stop_reason="continuation_requires_bound_target",
+                )
+            raise LifecycleConflictError(
+                "question continuation requires a bound target before investigation escalation"
+            )
+        investigation = await self._start_investigation(
+            session,
+            command,
+            proposal.proposition_or_question,
+            purpose=proposal.purpose,
+            required_source_roles=proposal.evidence_contract.required_source_roles,
+            priority=proposal.priority,
+        )
+        # StartInvestigationUseCase commits its durable launch, then the returned
+        # Product projection opens a read transaction. Reuse that transaction for
+        # the parent sync-task terminal record instead of beginning a second one.
+        await self._execution.finish(
+            session,
+            execution_id,
+            status="completed",
+            stop_reason="escalated_to_investigation",
+        )
+        await transition_task_run(
+            session,
+            run_id=run_id,
+            target=TaskRunStatus.COMPLETED,
+            payload_ref=f"case:{investigation.case_id}",
+            idempotency_key=f"question-escalated:{run_id}",
+            stream_name=self._stream_name,
+            producer="product-question",
+            result_ref=f"case:{investigation.case_id}",
+            stop_reason="escalated_to_investigation",
+        )
+        await session.commit()
+        return QuestionResultView(
+            request_id=command.request_id,
+            mode="accepted",
+            execution_profile=investigation.execution_profile or "INVESTIGATE",
+            investigation=investigation,
+        )
+
+    async def _open_sync_runtime(
+        self,
+        session: AsyncSession,
+        *,
+        command: AskQuestionCommand,
+        context: _QuestionContext,
+    ) -> tuple[str, str, ExecutionProfile]:
+        policy = load_runtime_policy(self._policy_path)
+        intent = TaskIntentParser().parse(
+            raw_request=command.question,
+            trigger_ref=f"product-request:{command.request_id}",
+            candidate_task_kind=command.task_kind,
+            candidate_targets=list(context.state.targets),
+            requested_output={"result_type": "DecisionResult"},
+            requested_actions=["answer_question"],
+        )
+        admission = await create_task_contract_service(policy).admit(
+            TaskAdmissionRequest(
+                intent=intent,
+                principal=command.principal,
+                policy_revision=policy.policy_revision,
+                binding_context={
+                    "question": command.question,
+                    "target_object_ids": cast(JsonValue, list(context.state.targets)),
+                },
+            )
+        )
+        profile = (
+            ExecutionProfile.DIRECT
+            if command.task_kind is TaskKind.LOOKUP
+            else ExecutionProfile.RETRIEVE
+        )
+        run_id = str(uuid4())
+        execution_id = f"execution:{run_id}"
+        budget_ref = f"budget:{run_id}"
+        manifest = ContextManifest(
+            context_id=f"context:{run_id}",
+            context_revision=1,
+            task_contract_ref=(
+                f"{admission.contract.task_contract_id}@{admission.contract.contract_revision}"
+            ),
+            role_ref="DecisionRole@1",
+            knowledge_revision=context.state.last_world_revision,
+            object_refs=list(context.object_refs),
+            relation_refs=list(context.relation_refs),
+            evidence_refs=list(context.evidence_refs),
+            policy_context_ref=f"policy-context:{policy.policy_revision}",
+            capability_envelope_ref="capability:question:local-read-v1",
+            budget_ref=budget_ref,
+        )
+        await create_task_run(
+            session,
+            contract=admission.contract,
+            manifest=manifest,
+            role=canonical_roles()["DecisionRole"],
+            execution_envelope_ref=execution_id,
+            stream_name=self._stream_name,
+            run_id=run_id,
+            producer="product-question",
+        )
+        await self._budget.create_account(
+            session,
+            account_id=budget_ref,
+            task_run_id=run_id,
+            limits=BudgetLimits(
+                quantities={
+                    "wall_seconds": Decimal(command.interactive_timeout_seconds),
+                    "agent_turns": Decimal(1),
+                    "tool_calls": Decimal(0),
+                }
+            ),
+        )
+        await self._execution.create(
+            session,
+            ExecutionEnvelope(
+                execution_id=execution_id,
+                task_contract_id=admission.contract.task_contract_id,
+                task_run_id=run_id,
+                role_revision="DecisionRole@1",
+                context_manifest_revision=1,
+                execution_profile=profile,
+                capability_scope=[],
+                deadline_at=datetime.now(UTC)
+                + timedelta(seconds=command.interactive_timeout_seconds),
+                budget_ref=budget_ref,
+                policy_revision=policy.policy_revision,
+                identity_scope=["public"],
+                network_policy="local-only",
+                side_effect_policy="read-only",
+                sandbox_profile_revision="none@1",
+                trace_context={
+                    "request_id": command.request_id,
+                    "trace_id": command.trace_id,
+                    "surface": "product-api",
+                },
+            ),
+        )
+        await transition_task_run(
+            session,
+            run_id=run_id,
+            target=TaskRunStatus.QUEUED,
+            payload_ref="queue:product-question",
+            idempotency_key=f"question-queued:{run_id}",
+            stream_name=self._stream_name,
+            producer="product-question",
+        )
+        await transition_task_run(
+            session,
+            run_id=run_id,
+            target=TaskRunStatus.RUNNING,
+            payload_ref="role:DecisionRole@1",
+            idempotency_key=f"question-running:{run_id}",
+            stream_name=self._stream_name,
+            producer="product-question",
+        )
+        await self._execution.start(session, execution_id)
+        return run_id, execution_id, profile
+
+    async def _load_context(
+        self,
+        session: AsyncSession,
+        command: AskQuestionCommand,
+    ) -> _QuestionContext:
+        view = await _resolve_optional_target(session, command)
+        revision = int(
+            await session.scalar(select(func.max(KnowledgeRevisionModel.revision))) or 0
+        )
+        confirmed: list[InvestigationStateItem] = []
+        tentative: list[InvestigationStateItem] = []
+        citations: dict[str, CitationSource] = {}
+        object_refs: list[str] = []
+        relation_refs: list[str] = []
+        evidence_refs: list[str] = []
+        targets: list[str] = []
+
+        if view is not None:
+            targets.append(view.object_id)
+            object_refs.append(f"object:{view.object_id}")
+            for claim in view.claims:
+                refs = _evidence_refs(claim.evidence, citations)
+                if not refs:
+                    continue
+                confirmed.append(
+                    InvestigationStateItem(
+                        proposition=(
+                            f"{view.canonical_key} {claim.predicate} = "
+                            f"{_render_value(claim.value)}"
+                        ),
+                        target_ref=f"object:{view.object_id}",
+                        evidence_refs=refs,
+                        writer="M3Knowledge",
+                        reason_code="product_question_context",
+                        updated_revision=max(1, claim.created_revision),
+                    )
+                )
+                evidence_refs.extend(refs)
+            for relation in view.relations:
+                refs = _evidence_refs(relation.evidence, citations)
+                if not refs:
+                    continue
+                relation_ref = f"relation:{relation.relation_id}"
+                relation_refs.append(relation_ref)
+                confirmed.append(
+                    InvestigationStateItem(
+                        proposition=(
+                            f"{view.canonical_key} {relation.relation_type} "
+                            f"{relation.target.canonical_key}"
+                        ),
+                        target_ref=relation_ref,
+                        evidence_refs=refs,
+                        writer="M3Knowledge",
+                        reason_code="product_question_context",
+                        updated_revision=max(1, relation.created_revision),
+                    )
+                )
+                evidence_refs.extend(refs)
+
+        if command.task_kind is TaskKind.RETRIEVE:
+            candidates = await self._retrieval.search(
+                session,
+                query=command.question,
+                limit=command.retrieval_limit,
+            )
+            for candidate in candidates:
+                chunk_id = candidate.document_chunk_id
+                text = candidate.payload.get("text")
+                if not chunk_id or not isinstance(text, str) or not text.strip():
+                    continue
+                ref = f"document-chunk:{chunk_id}@{candidate.revision or 'current'}"
+                source_ref = None
+                canonical_url = candidate.payload.get("canonical_url")
+                if isinstance(canonical_url, str) and canonical_url:
+                    source_ref = canonical_url
+                elif candidate.source_id:
+                    source_ref = f"source:{candidate.source_id}"
+                citations[ref] = CitationSource(
+                    evidence_ref=ref,
+                    source_ref=source_ref,
+                    locator=cast(dict[str, JsonValue], dict(candidate.locator)),
+                )
+                tentative.append(
+                    InvestigationStateItem(
+                        proposition=f"retrieved passage: {text[:2000]}",
+                        target_ref=f"chunk:{chunk_id}",
+                        evidence_refs=[ref],
+                        writer="M4Perception",
+                        reason_code="bounded_product_retrieval",
+                        updated_revision=max(1, revision),
+                    )
+                )
+                evidence_refs.append(ref)
+
+        now = datetime.now(UTC)
+        state = InvestigationState(
+            case_id=f"question:{command.request_id}",
+            case_revision=0,
+            goal=command.question,
+            targets=targets,
+            confirmed=confirmed,
+            tentative=tentative,
+            last_world_revision=revision,
+            updated_at=now,
+        )
+        return _QuestionContext(
+            state=state,
+            citation_sources=list(citations.values()),
+            object_refs=_stable_unique(object_refs),
+            relation_refs=_stable_unique(relation_refs),
+            evidence_refs=_stable_unique(evidence_refs),
+        )
+
+    async def _start_investigation(
+        self,
+        session: AsyncSession,
+        command: AskQuestionCommand,
+        evidence_question: str,
+        *,
+        purpose: str = "answer_question",
+        required_source_roles: list[str] | None = None,
+        priority: int | None = None,
+    ):
+        kind = command.task_kind
+        if kind in {TaskKind.LOOKUP, TaskKind.RETRIEVE}:
+            kind = TaskKind.INVESTIGATE_RELATION
+        result = await StartInvestigationUseCase(
+            policy_path=self._policy_path,
+            task_event_stream_name=self._stream_name,
+        ).execute(
+            session,
+            StartInvestigationCommand(
+                principal=command.principal,
+                request_id=command.request_id,
+                trace_id=command.trace_id,
+                cve_id=command.cve_id,
+                object_id=command.object_id,
+                goal=command.question,
+                evidence_question=evidence_question,
+                purpose=purpose,
+                task_kind=kind,
+                required_source_roles=(
+                    list(required_source_roles)
+                    if required_source_roles is not None
+                    else command.required_source_roles
+                ),
+                priority=priority if priority is not None else command.priority,
+            ),
+        )
+        return result.investigation
+
+
+async def _resolve_optional_target(
+    session: AsyncSession,
+    command: AskQuestionCommand,
+) -> KnowledgeObjectView | None:
+    if command.cve_id is not None:
+        view = await get_vulnerability_by_cve(session, command.cve_id)
+        if view is None:
+            raise ResourceNotFoundError(
+                "vulnerability not found",
+                context={"cve_id": command.cve_id.upper()},
+            )
+        return view
+    if command.object_id is not None:
+        view = await get_object_by_id(session, command.object_id)
+        if view is None:
+            raise ResourceNotFoundError(
+                "intelligence object not found",
+                context={"object_id": command.object_id},
+            )
+        return view
+    return None
+
+
+def _evidence_refs(
+    evidence: list[EvidenceRef],
+    citations: dict[str, CitationSource],
+) -> list[str]:
+    refs: list[str] = []
+    for item in evidence:
+        refs.append(item.evidence_ref)
+        source_ref = f"source:{item.source_id}:{item.external_object_id}"
+        if item.external_revision:
+            source_ref += f"@{item.external_revision}"
+        citations[item.evidence_ref] = CitationSource(
+            evidence_ref=item.evidence_ref,
+            source_ref=source_ref,
+            locator=cast(dict[str, JsonValue], dict(item.locator)),
+        )
+    return _stable_unique(refs)
+
+
+def _render_value(value: object) -> str:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+def _stable_unique(values: list[str]) -> list[str]:
+    return list(dict.fromkeys(item for item in values if item))

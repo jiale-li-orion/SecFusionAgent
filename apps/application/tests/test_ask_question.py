@@ -1,0 +1,307 @@
+from __future__ import annotations
+
+from datetime import UTC, datetime
+
+import pytest
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+from apps.application.commands.ask_question import AskQuestionCommand, AskQuestionUseCase
+from apps.application.queries.decisions import DecisionQueries
+from apps.runtime_models import register_runtime_models
+from packages.intelligence.storage.evidence_models import ObservationModel
+from packages.intelligence.storage.knowledge_models import (
+    ClaimModel,
+    EvidenceLinkModel,
+    ExternalIdentifierModel,
+    KnowledgeRevisionModel,
+    ObjectModel,
+)
+from packages.investigation.state.contracts import EvidenceNeedContract
+from packages.investigation.storage.models import InvestigationCaseModel
+from packages.reasoning.decision import ConclusionType, DecisionConclusion
+from packages.reasoning.model import (
+    ContinuationProposal,
+    DecisionPlannerResponse,
+    FinalDecisionProposal,
+)
+from packages.runtime.storage.models import ExecutionRunModel
+from packages.shared.config import get_settings
+from packages.shared.db import Base
+from packages.shared.model_provider import StructuredModelRequest
+from packages.sources.storage.models import SourceModel
+from packages.task_runtime.contracts.models import TaskKind
+from packages.task_runtime.storage.models import TaskRunModel
+
+NOW = datetime(2026, 9, 29, 8, 0, tzinfo=UTC)
+CVE = "CVE-2026-51515"
+OBJECT_ID = "question-vuln-object"
+CLAIM_ID = "question-cvss-claim"
+EVIDENCE_ID = "question-cvss-evidence"
+PROPOSITION = f"cve:{CVE} cvss_score = 9.8"
+
+
+class _Provider:
+    name = "fixture-question"
+    version = "v1"
+
+    def __init__(self, response: DecisionPlannerResponse) -> None:
+        self.response = response
+        self.requests: list[StructuredModelRequest] = []
+
+    async def generate_structured(self, request, response_model):
+        assert response_model is DecisionPlannerResponse
+        self.requests.append(request)
+        return self.response
+
+
+class _FailingProvider:
+    name = "fixture-question-failing"
+    version = "v1"
+
+    async def generate_structured(self, request, response_model):
+        raise RuntimeError("provider failed")
+
+
+async def _factory():
+    register_runtime_models()
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with factory() as session, session.begin():
+        session.add(
+            SourceModel(
+                source_id="vendor-test",
+                adapter_type="fixture",
+                source_class="vendor",
+                authority_scope=["vulnerability"],
+                source_role="primary",
+                source_family="vendor-test",
+                access_mode="fixture",
+                update_semantics="immutable",
+                discovery_method={},
+                time_semantics={},
+                identity_semantics={},
+                rate_limit_policy={},
+                access_rights={},
+                retention_mode="durable",
+                schedule_policy={},
+                schema_version="1",
+                definition_hash="source-hash",
+                updated_at=NOW,
+            )
+        )
+        observation = ObservationModel(
+            observation_id="question-observation",
+            source_id="vendor-test",
+            acquisition_run_id=None,
+            acquisition_trigger="replay",
+            external_object_id=CVE,
+            external_revision="vendor-r1",
+            canonical_url="https://vendor.example/advisory",
+            published_at=NOW,
+            updated_at=NOW,
+            observed_at=NOW,
+            content_hash="observation-hash",
+            request_metadata={},
+            request_metadata_captured=False,
+            idempotency_key="question-observation-key",
+            created_at=NOW,
+        )
+        session.add(observation)
+        revision = KnowledgeRevisionModel(
+            cause_observation_id=observation.observation_id,
+            committed_at=NOW,
+        )
+        session.add(revision)
+        await session.flush()
+        session.add(
+            ObjectModel(
+                object_id=OBJECT_ID,
+                object_type="Vulnerability",
+                canonical_key=f"cve:{CVE}",
+                properties={"display_name": CVE},
+                created_revision=revision.revision,
+            )
+        )
+        session.add(
+            ExternalIdentifierModel(
+                external_identifier_id="question-cve-id",
+                namespace="cve",
+                value=CVE,
+                object_id=OBJECT_ID,
+            )
+        )
+        session.add(
+            ClaimModel(
+                claim_id=CLAIM_ID,
+                subject_id=OBJECT_ID,
+                predicate="cvss_score",
+                value=9.8,
+                qualifier={},
+                origin="source_asserted",
+                lifecycle="accepted",
+                created_revision=revision.revision,
+            )
+        )
+        session.add(
+            EvidenceLinkModel(
+                evidence_link_id=EVIDENCE_ID,
+                target_kind="claim",
+                target_id=CLAIM_ID,
+                observation_id=observation.observation_id,
+                artifact_id=None,
+                locator={"field": "cvss_score"},
+                locator_hash="locator-hash",
+            )
+        )
+    return engine, factory
+
+
+def _use_case(provider) -> AskQuestionUseCase:
+    settings = get_settings()
+    return AskQuestionUseCase(
+        policy_path=settings.runtime_policy_path,
+        task_event_stream_name=settings.task_event_stream_name,
+        model_provider=provider,
+    )
+
+
+@pytest.mark.asyncio
+async def test_lookup_question_runs_read_only_decision_without_durable_case() -> None:
+    engine, factory = await _factory()
+    provider = _Provider(
+        DecisionPlannerResponse(
+            action=FinalDecisionProposal(
+                conclusions=[
+                    DecisionConclusion(
+                        statement=PROPOSITION,
+                        type=ConclusionType.FACT,
+                        evidence_refs=[f"evidence:{EVIDENCE_ID}"],
+                    )
+                ],
+                answer_payload={"cvss_score": 9.8},
+                stop_reason="evidence_sufficient",
+            )
+        )
+    )
+    try:
+        async with factory() as session:
+            result = await _use_case(provider).execute(
+                session,
+                AskQuestionCommand(
+                    principal="user:test",
+                    request_id="question-direct-1",
+                    question=f"What is the CVSS score for {CVE}?",
+                    cve_id=CVE,
+                    task_kind=TaskKind.LOOKUP,
+                ),
+            )
+            assert result.mode == "completed"
+            assert result.execution_profile == "DIRECT"
+            assert result.decision is not None
+            assert result.decision.answer == {"cvss_score": 9.8}
+            assert result.decision.citations[0].evidence_ref == f"evidence:{EVIDENCE_ID}"
+            assert result.decision.citations[0].locator == {"field": "cvss_score"}
+            reread = await DecisionQueries().get(session, result.decision.decision_id)
+            assert reread.decision_id == result.decision.decision_id
+            assert reread.answer == {"cvss_score": 9.8}
+
+        async with factory() as session:
+            assert int(
+                await session.scalar(select(func.count()).select_from(InvestigationCaseModel)) or 0
+            ) == 0
+            run = await session.scalar(select(TaskRunModel))
+            assert run is not None
+            assert run.role_id == "DecisionRole"
+            assert run.status == "completed"
+            execution = await session.scalar(select(ExecutionRunModel))
+            assert execution is not None and execution.status == "completed"
+        state_payload = provider.requests[0].data["investigation_state"]
+        assert PROPOSITION in str(state_payload)
+        metadata = provider.requests[0].metadata
+        owner_ref = metadata["request_owner_ref"]
+        assert isinstance(owner_ref, str)
+        assert owner_ref.startswith("task-run:")
+        assert metadata["task_run_id"]
+        assert metadata["execution_id"]
+        assert metadata["case_id"] is None
+        assert metadata["product_request_id"] == "question-direct-1"
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_lookup_continuation_escalates_to_durable_investigation() -> None:
+    engine, factory = await _factory()
+    provider = _Provider(
+        DecisionPlannerResponse(
+            action=ContinuationProposal(
+                proposition_or_question="Which primary advisory confirms the fixed release?",
+                purpose="verify_fix_release",
+                target_objects=[OBJECT_ID],
+                preferred_source_roles=["primary"],
+                evidence_contract=EvidenceNeedContract(required_source_roles=["primary"]),
+                priority=80,
+                reason="current evidence does not establish a fixed release",
+            )
+        )
+    )
+    try:
+        async with factory() as session:
+            result = await _use_case(provider).execute(
+                session,
+                AskQuestionCommand(
+                    principal="user:test",
+                    request_id="question-escalate-1",
+                    question=f"Which version fixes {CVE}?",
+                    cve_id=CVE,
+                    task_kind=TaskKind.LOOKUP,
+                ),
+            )
+            assert result.mode == "accepted"
+            assert result.execution_profile == "INVESTIGATE"
+            assert result.investigation is not None
+            assert result.investigation.status == "active"
+            assert result.investigation.open_evidence_needs[0].purpose == "verify_fix_release"
+            assert result.investigation.open_evidence_needs[0].priority == 80
+            assert result.investigation.open_evidence_needs[0].required_source_roles == ["primary"]
+
+        async with factory() as session:
+            runs = list(
+                await session.scalars(select(TaskRunModel).order_by(TaskRunModel.created_at))
+            )
+            assert len(runs) == 2
+            assert runs[0].role_id == "DecisionRole"
+            assert runs[0].status == "completed"
+            assert runs[0].stop_reason == "escalated_to_investigation"
+            assert runs[1].role_id == "InvestigationRole"
+            assert runs[1].status == "queued"
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_question_runtime_terminates_failed_model_attempt() -> None:
+    engine, factory = await _factory()
+    try:
+        async with factory() as session:
+            with pytest.raises(RuntimeError, match="provider failed"):
+                await _use_case(_FailingProvider()).execute(
+                    session,
+                    AskQuestionCommand(
+                        principal="user:test",
+                        request_id="question-failure-1",
+                        question=f"What is the CVSS score for {CVE}?",
+                        cve_id=CVE,
+                    ),
+                )
+        async with factory() as session:
+            run = await session.scalar(select(TaskRunModel))
+            execution = await session.scalar(select(ExecutionRunModel))
+            assert run is not None and run.status == "failed"
+            assert run.stop_reason == "question_reasoning_failed"
+            assert execution is not None and execution.status == "failed"
+    finally:
+        await engine.dispose()

@@ -87,6 +87,35 @@ async def test_model_decision_planner_emits_typed_continuation_without_need_id()
     assert not hasattr(result, "need_id")
 
 
+@pytest.mark.asyncio
+async def test_model_decision_planner_accepts_runtime_provenance_coordinates() -> None:
+    provider = _Provider(
+        DecisionPlannerResponse(
+            action=FinalDecisionProposal(
+                answer_payload={"status": "ok"},
+                stop_reason="complete",
+            )
+        )
+    )
+    await ModelDecisionPlanner(provider).plan(
+        _state(),
+        citation_sources=[],
+        runtime_metadata={
+            "request_owner_ref": "task-run:run-1",
+            "task_run_id": "run-1",
+            "execution_id": "execution:run-1",
+            "budget_ref": "budget:run-1",
+            "case_id": None,
+        },
+    )
+    metadata = provider.requests[0].metadata
+    assert metadata["request_owner_ref"] == "task-run:run-1"
+    assert metadata["task_run_id"] == "run-1"
+    assert metadata["execution_id"] == "execution:run-1"
+    assert metadata["budget_ref"] == "budget:run-1"
+    assert metadata["case_id"] is None
+
+
 def test_final_proposal_fact_schema_requires_evidence() -> None:
     with pytest.raises(ValueError, match="fact conclusion requires evidence_refs"):
         FinalDecisionProposal(

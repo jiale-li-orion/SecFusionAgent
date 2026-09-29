@@ -4,6 +4,16 @@ from packages.task_runtime.contracts.models import ExecutionProfile, RoleProfile
 
 
 def canonical_roles() -> dict[str, RoleProfile]:
+    decision = RoleProfile(
+        role_id="DecisionRole",
+        version="1",
+        accepts_task_kinds=[TaskKind.LOOKUP, TaskKind.RETRIEVE],
+        state_model="M4.LightweightContext",
+        planner_profile="decision-v1",
+        skill_scope=["reasoning"],
+        default_execution_profile=ExecutionProfile.DIRECT,
+        delegation_rules=[],
+    )
     enrichment = RoleProfile(
         role_id="EnrichmentRole",
         version="1",
@@ -33,4 +43,4 @@ def canonical_roles() -> dict[str, RoleProfile]:
         default_execution_profile=ExecutionProfile.INVESTIGATE,
         delegation_rules=[{"allow_enrichment": True, "allow_child_execution": True}],
     )
-    return {role.role_id: role for role in (enrichment, investigation)}
+    return {role.role_id: role for role in (decision, enrichment, investigation)}
