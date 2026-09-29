@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from apps.application.commands.ask_question import AskQuestionCommand, AskQuestionUseCase
 from apps.application.queries.decisions import DecisionQueries
+from apps.application.question_facts import render_relation_fact
 from apps.runtime_models import register_runtime_models
 from packages.intelligence.storage.evidence_models import ObservationModel
 from packages.intelligence.storage.knowledge_models import (
@@ -16,6 +17,7 @@ from packages.intelligence.storage.knowledge_models import (
     ExternalIdentifierModel,
     KnowledgeRevisionModel,
     ObjectModel,
+    RelationModel,
 )
 from packages.investigation.state.contracts import EvidenceNeedContract
 from packages.investigation.storage.models import InvestigationCaseModel
@@ -38,7 +40,34 @@ CVE = "CVE-2026-51515"
 OBJECT_ID = "question-vuln-object"
 CLAIM_ID = "question-cvss-claim"
 EVIDENCE_ID = "question-cvss-evidence"
+RELATION_ID = "question-applicability-relation"
+RELATION_EVIDENCE_ID = "question-applicability-evidence"
+PRODUCT_ID = "question-product-object"
 PROPOSITION = f"cve:{CVE} cvss_score = 9.8"
+RELATION_PROPOSITION = render_relation_fact(
+    f"cve:{CVE}",
+    "applicability-status",
+    "product:fixture:test-product",
+    qualifier={
+        "state": "fixed",
+        "source_semantics": "csaf_vex",
+        "csaf_status": "fixed",
+        "scope": {"kind": "csaf_product_status", "product_id": "test-product:1.2.3"},
+        "product_context": {
+            "full_product_id": "test-product:1.2.3",
+            "full_product_name": "test-product 1.2.3 as a component of Test Platform",
+            "component": {
+                "product_id": "test-product:1.2.3",
+                "name": "test-product 1.2.3",
+            },
+            "platform": {"product_id": "test-platform", "name": "Test Platform"},
+        },
+    },
+    target_properties={
+        "identity_scheme": "csaf_product_id",
+        "csaf_product_id": "test-product:1.2.3",
+    },
+)
 
 
 class _Provider:
@@ -156,6 +185,63 @@ async def _factory():
                 locator_hash="locator-hash",
             )
         )
+        session.add(
+            ObjectModel(
+                object_id=PRODUCT_ID,
+                object_type="Product",
+                canonical_key="product:fixture:test-product",
+                properties={
+                    "identity_scheme": "csaf_product_id",
+                    "csaf_product_id": "test-product:1.2.3",
+                },
+                created_revision=revision.revision,
+            )
+        )
+        session.add(
+            RelationModel(
+                relation_id=RELATION_ID,
+                source_object_id=OBJECT_ID,
+                relation_type="applicability-status",
+                target_object_id=PRODUCT_ID,
+                qualifier={
+                    "state": "fixed",
+                    "source_semantics": "csaf_vex",
+                    "csaf_status": "fixed",
+                    "scope": {
+                        "kind": "csaf_product_status",
+                        "product_id": "test-product:1.2.3",
+                    },
+                    "product_context": {
+                        "full_product_id": "test-product:1.2.3",
+                        "full_product_name": (
+                            "test-product 1.2.3 as a component of Test Platform"
+                        ),
+                        "component": {
+                            "product_id": "test-product:1.2.3",
+                            "name": "test-product 1.2.3",
+                        },
+                        "platform": {
+                            "product_id": "test-platform",
+                            "name": "Test Platform",
+                        },
+                    },
+                },
+                origin="source_asserted",
+                lifecycle="accepted",
+                created_revision=revision.revision,
+            )
+        )
+        session.add(
+            EvidenceLinkModel(
+                evidence_link_id=RELATION_EVIDENCE_ID,
+                target_kind="relation",
+                target_id=RELATION_ID,
+                observation_id=observation.observation_id,
+                artifact_id=None,
+                locator={"field": "product_status.fixed[0]"},
+                locator_hash="relation-locator-hash",
+            )
+        )
     return engine, factory
 
 
@@ -228,6 +314,49 @@ async def test_lookup_question_runs_read_only_decision_without_durable_case() ->
         assert metadata["execution_id"]
         assert metadata["case_id"] is None
         assert metadata["product_request_id"] == "question-direct-1"
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_lookup_relation_context_preserves_compact_applicability_semantics() -> None:
+    engine, factory = await _factory()
+    provider = _Provider(
+        DecisionPlannerResponse(
+            action=FinalDecisionProposal(
+                conclusions=[
+                    DecisionConclusion(
+                        statement=RELATION_PROPOSITION,
+                        type=ConclusionType.FACT,
+                        evidence_refs=[f"evidence:{RELATION_EVIDENCE_ID}"],
+                    )
+                ],
+                answer_payload={"status": "fixed", "product": "test-product:1.2.3"},
+                stop_reason="evidence_sufficient",
+            )
+        )
+    )
+    try:
+        async with factory() as session:
+            result = await _use_case(provider).execute(
+                session,
+                AskQuestionCommand(
+                    principal="user:test",
+                    request_id="question-relation-1",
+                    question=f"What is the applicability status for {CVE}?",
+                    cve_id=CVE,
+                    task_kind=TaskKind.LOOKUP,
+                ),
+            )
+        assert result.mode == "completed"
+        assert result.decision is not None
+        assert result.decision.citations[0].evidence_ref == (
+            f"evidence:{RELATION_EVIDENCE_ID}"
+        )
+        state_payload = provider.requests[0].data["investigation_state"]
+        assert RELATION_PROPOSITION in str(state_payload)
+        assert "fixed" in RELATION_PROPOSITION
+        assert "test-product 1.2.3" in RELATION_PROPOSITION
     finally:
         await engine.dispose()
 

@@ -14,6 +14,7 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from apps.application.commands.ask_question import AskQuestionCommand, AskQuestionUseCase
+from apps.application.question_facts import render_claim_fact, render_relation_fact
 from apps.decision_runtime import DecisionRuntime
 from packages.evaluation.benchmark import (
     BenchmarkStore,
@@ -32,6 +33,7 @@ from packages.intelligence.storage.knowledge_models import (
     ClaimModel,
     EvidenceLinkModel,
     ObjectModel,
+    RelationModel,
 )
 from packages.investigation.skills.seeds import seeded_skills
 from packages.investigation.state.contracts import EvidenceNeedStatus, InvestigationState
@@ -171,28 +173,54 @@ async def validate_structured_qa_gold_provenance(
                 "structured QA gold EvidenceRef source is outside declared authorities: "
                 f"{observation.source_id}"
             )
-        if link.target_kind != "claim":
+        if link.target_kind == "claim":
+            claim = await session.get(ClaimModel, link.target_id)
+            if claim is None:
+                raise ValueError(f"structured QA gold claim does not resolve: {link.target_id}")
+            _require_visible_revision(
+                created_revision=claim.created_revision,
+                superseded_revision=claim.superseded_revision,
+                knowledge_revision=knowledge_revision,
+                target_ref=f"claim:{link.target_id}",
+            )
+            subject = await session.get(ObjectModel, claim.subject_id)
+            if subject is None:
+                raise ValueError(f"structured QA gold claim subject is missing: {claim.subject_id}")
+            supported_facts.add(
+                render_claim_fact(subject.canonical_key, claim.predicate, claim.value)
+            )
+        elif link.target_kind == "relation":
+            relation = await session.get(RelationModel, link.target_id)
+            if relation is None:
+                raise ValueError(
+                    f"structured QA gold relation does not resolve: {link.target_id}"
+                )
+            _require_visible_revision(
+                created_revision=relation.created_revision,
+                superseded_revision=relation.superseded_revision,
+                knowledge_revision=knowledge_revision,
+                target_ref=f"relation:{link.target_id}",
+            )
+            source = await session.get(ObjectModel, relation.source_object_id)
+            target = await session.get(ObjectModel, relation.target_object_id)
+            if source is None or target is None:
+                raise ValueError(
+                    f"structured QA gold relation endpoint is missing: {link.target_id}"
+                )
+            supported_facts.add(
+                render_relation_fact(
+                    source.canonical_key,
+                    relation.relation_type,
+                    target.canonical_key,
+                    qualifier=relation.qualifier,
+                    target_properties=target.properties,
+                )
+            )
+        else:
             raise ValueError(
-                "structured QA gold preflight currently accepts claim Evidence only; "
+                "structured QA gold preflight accepts claim/relation Evidence only; "
                 f"got {link.target_kind}:{link.target_id}"
             )
-        claim = await session.get(ClaimModel, link.target_id)
-        if claim is None:
-            raise ValueError(f"structured QA gold claim does not resolve: {link.target_id}")
-        if claim.created_revision > knowledge_revision or (
-            claim.superseded_revision is not None
-            and claim.superseded_revision <= knowledge_revision
-        ):
-            raise ValueError(
-                "structured QA gold claim is not visible at pinned Knowledge revision: "
-                f"{link.target_id}@{knowledge_revision}"
-            )
-        subject = await session.get(ObjectModel, claim.subject_id)
-        if subject is None:
-            raise ValueError(f"structured QA gold claim subject is missing: {claim.subject_id}")
-        supported_facts.add(
-            f"{subject.canonical_key} {claim.predicate} = {_render_knowledge_value(claim.value)}"
-        )
 
     if observed_sources != declared_sources:
         raise ValueError(
@@ -255,7 +283,6 @@ def project_decision_to_qa_prediction(
     citation_support: Mapping[tuple[int, str], bool] | None = None,
     interactive_latency_seconds: float | None = None,
     execution_refs: Iterable[str] = (),
-    expected_knowledge_revision: int | None = None,
 ) -> QAPrediction:
     """Project a persisted M6 decision into the evaluation-neutral QA contract."""
 
@@ -772,13 +799,20 @@ async def _load_citation_sources(
     return result
 
 
-def _render_knowledge_value(value: object) -> str:
-    return json.dumps(
-        value,
-        sort_keys=True,
-        separators=(",", ":"),
-        ensure_ascii=False,
-    )
+def _require_visible_revision(
+    *,
+    created_revision: int,
+    superseded_revision: int | None,
+    knowledge_revision: int,
+    target_ref: str,
+) -> None:
+    if created_revision > knowledge_revision or (
+        superseded_revision is not None and superseded_revision <= knowledge_revision
+    ):
+        raise ValueError(
+            "structured QA gold target is not visible at pinned Knowledge revision: "
+            f"{target_ref}@{knowledge_revision}"
+        )
 
 
 def _confirmed_state_supports(

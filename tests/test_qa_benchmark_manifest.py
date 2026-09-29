@@ -30,7 +30,7 @@ def test_real_product_candidate_is_pinned_live_product_content() -> None:
     )
     assert manifest.suite_id == "m6-real-product-qa"
     assert manifest.knowledge_revision == 596
-    assert len(manifest.cases) == 8
+    assert len(manifest.cases) == 11
     assert all(item.live_product_question is not None for item in manifest.cases)
     assert all("real" in item.tags and "candidate" in item.tags for item in manifest.cases)
 

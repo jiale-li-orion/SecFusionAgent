@@ -220,6 +220,78 @@
         "required_citation_facts": ["cve:CVE-2025-47828 cvss_score = 6.4"],
         "completion_expectation": "answered"
       }
+    },
+    {
+      "case_id": "qa-real-67215-cve5-version-affected",
+      "gold_provenance": {
+        "mode": "structured_authority",
+        "source_ids": ["cve-program-cvelist-v5"],
+        "evidence_refs": ["evidence:d6d5e3ae-70a5-57a8-b287-5e7dfe5aaa18"]
+      },
+      "tags": ["real", "candidate", "relation", "applicability", "cve5"],
+      "live_product_question": {
+        "question": "According to the CVE Program record for CVE-2026-67215, what is the applicability status of cJSON versions from 0 through 1.7.19? Return the exact supported applicability fact only.",
+        "cve_id": "CVE-2026-67215",
+        "task_kind": "lookup"
+      },
+      "gold": {
+        "case_id": "qa-real-67215-cve5-version-affected",
+        "required_facts": [
+          "cve:CVE-2026-67215 applicability-status product:cve5-sha256:2f3b80aec62ce923e4db7a810747f1c2cbf708d8593688687ffb6727738e053a semantics={\"scope\":{\"kind\":\"version_rule\",\"less_than_or_equal\":\"1.7.19\",\"version\":\"0\",\"version_type\":\"semver\"},\"source_semantics\":\"cve5_version_rule\",\"source_status\":\"affected\",\"state\":\"affected\",\"target_context\":{\"identity_scheme\":\"cve5_vendor_product\",\"product\":\"cJSON\",\"vendor\":\"DaveGamble\"}}"
+        ],
+        "required_citation_facts": [
+          "cve:CVE-2026-67215 applicability-status product:cve5-sha256:2f3b80aec62ce923e4db7a810747f1c2cbf708d8593688687ffb6727738e053a semantics={\"scope\":{\"kind\":\"version_rule\",\"less_than_or_equal\":\"1.7.19\",\"version\":\"0\",\"version_type\":\"semver\"},\"source_semantics\":\"cve5_version_rule\",\"source_status\":\"affected\",\"state\":\"affected\",\"target_context\":{\"identity_scheme\":\"cve5_vendor_product\",\"product\":\"cJSON\",\"vendor\":\"DaveGamble\"}}"
+        ],
+        "completion_expectation": "answered"
+      }
+    },
+    {
+      "case_id": "qa-real-67215-redhat-not-affected",
+      "gold_provenance": {
+        "mode": "structured_authority",
+        "source_ids": ["redhat-csaf-vex"],
+        "evidence_refs": ["evidence:8695dc2d-36da-5deb-ae39-b18aa9e7c109"]
+      },
+      "tags": ["real", "candidate", "relation", "applicability", "csaf-vex", "not-affected"],
+      "live_product_question": {
+        "question": "For CVE-2026-67215, what does the Red Hat CSAF/VEX record say about chunkah.src in Red Hat Hardened Images, including the justification? Return the exact supported applicability fact only.",
+        "cve_id": "CVE-2026-67215",
+        "task_kind": "lookup"
+      },
+      "gold": {
+        "case_id": "qa-real-67215-redhat-not-affected",
+        "required_facts": [
+          "cve:CVE-2026-67215 applicability-status product:csaf-sha256:f5c482aaf36c70a52ae119e919e0f6538740400326a4226f1d96d05a3308e3ab semantics={\"csaf_status\":\"known_not_affected\",\"justification\":[\"component_not_present\"],\"product_context\":{\"component\":{\"name\":\"chunkah.src\",\"product_id\":\"chunkah.src\",\"purl\":\"pkg:rpm/redhat/chunkah@0.6.0-3.hum1?arch=src\"},\"platform\":{\"cpe\":\"cpe:/a:redhat:hummingbird:1\",\"name\":\"Red Hat Hardened Images\",\"product_id\":\"red_hat_hardened_images\"},\"relationship_category\":\"default_component_of\"},\"scope\":{\"kind\":\"csaf_product_status\",\"product_id\":\"red_hat_hardened_images:chunkah.src\"},\"source_semantics\":\"csaf_vex\",\"state\":\"not_affected\"}"
+        ],
+        "required_citation_facts": [
+          "cve:CVE-2026-67215 applicability-status product:csaf-sha256:f5c482aaf36c70a52ae119e919e0f6538740400326a4226f1d96d05a3308e3ab semantics={\"csaf_status\":\"known_not_affected\",\"justification\":[\"component_not_present\"],\"product_context\":{\"component\":{\"name\":\"chunkah.src\",\"product_id\":\"chunkah.src\",\"purl\":\"pkg:rpm/redhat/chunkah@0.6.0-3.hum1?arch=src\"},\"platform\":{\"cpe\":\"cpe:/a:redhat:hummingbird:1\",\"name\":\"Red Hat Hardened Images\",\"product_id\":\"red_hat_hardened_images\"},\"relationship_category\":\"default_component_of\"},\"scope\":{\"kind\":\"csaf_product_status\",\"product_id\":\"red_hat_hardened_images:chunkah.src\"},\"source_semantics\":\"csaf_vex\",\"state\":\"not_affected\"}"
+        ],
+        "completion_expectation": "answered"
+      }
+    },
+    {
+      "case_id": "qa-real-32463-redhat-fixed",
+      "gold_provenance": {
+        "mode": "structured_authority",
+        "source_ids": ["redhat-csaf-vex"],
+        "evidence_refs": ["evidence:f86251b4-937c-578f-b5f3-90b6689aafb1"]
+      },
+      "tags": ["real", "candidate", "relation", "applicability", "csaf-vex", "fixed"],
+      "live_product_question": {
+        "question": "For CVE-2025-32463, what status does the Red Hat CSAF/VEX record assign to sudo-0:1.9.15-8.p5.el10_0.2.src in Red Hat Enterprise Linux BaseOS v10? Return the exact supported applicability fact only.",
+        "cve_id": "CVE-2025-32463",
+        "task_kind": "lookup"
+      },
+      "gold": {
+        "case_id": "qa-real-32463-redhat-fixed",
+        "required_facts": [
+          "cve:CVE-2025-32463 applicability-status product:csaf-sha256:4e083bd34daf09fe05dc0b88d7f0a2bc0529b5740c6229fdd038fe05ffa221af semantics={\"csaf_status\":\"fixed\",\"product_context\":{\"component\":{\"name\":\"sudo-0:1.9.15-8.p5.el10_0.2.src\",\"product_id\":\"sudo-0:1.9.15-8.p5.el10_0.2.src\",\"purl\":\"pkg:rpm/redhat/sudo@1.9.15-8.p5.el10_0.2?arch=src\"},\"platform\":{\"cpe\":\"cpe:/o:redhat:enterprise_linux:10.0\",\"name\":\"Red Hat Enterprise Linux BaseOS (v. 10)\",\"product_id\":\"BaseOS-10.0.Z\"},\"relationship_category\":\"default_component_of\"},\"scope\":{\"kind\":\"csaf_product_status\",\"product_id\":\"BaseOS-10.0.Z:sudo-0:1.9.15-8.p5.el10_0.2.src\"},\"source_semantics\":\"csaf_vex\",\"state\":\"fixed\"}"
+        ],
+        "required_citation_facts": [
+          "cve:CVE-2025-32463 applicability-status product:csaf-sha256:4e083bd34daf09fe05dc0b88d7f0a2bc0529b5740c6229fdd038fe05ffa221af semantics={\"csaf_status\":\"fixed\",\"product_context\":{\"component\":{\"name\":\"sudo-0:1.9.15-8.p5.el10_0.2.src\",\"product_id\":\"sudo-0:1.9.15-8.p5.el10_0.2.src\",\"purl\":\"pkg:rpm/redhat/sudo@1.9.15-8.p5.el10_0.2?arch=src\"},\"platform\":{\"cpe\":\"cpe:/o:redhat:enterprise_linux:10.0\",\"name\":\"Red Hat Enterprise Linux BaseOS (v. 10)\",\"product_id\":\"BaseOS-10.0.Z\"},\"relationship_category\":\"default_component_of\"},\"scope\":{\"kind\":\"csaf_product_status\",\"product_id\":\"BaseOS-10.0.Z:sudo-0:1.9.15-8.p5.el10_0.2.src\"},\"source_semantics\":\"csaf_vex\",\"state\":\"fixed\"}"
+        ],
+        "completion_expectation": "answered"
+      }
     }
   ]
 }

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -21,6 +20,7 @@ from apps.application.errors import (
     ResourceNotFoundError,
 )
 from apps.application.queries.investigations import decision_view
+from apps.application.question_facts import render_claim_fact, render_relation_fact
 from apps.application.views.questions import QuestionResultView
 from apps.task_admission import create_task_contract_service
 from packages.intelligence.knowledge.read import (
@@ -403,9 +403,10 @@ class AskQuestionUseCase:
                     continue
                 confirmed.append(
                     InvestigationStateItem(
-                        proposition=(
-                            f"{view.canonical_key} {claim.predicate} = "
-                            f"{_render_value(claim.value)}"
+                        proposition=render_claim_fact(
+                            view.canonical_key,
+                            claim.predicate,
+                            claim.value,
                         ),
                         target_ref=f"object:{view.object_id}",
                         evidence_refs=refs,
@@ -423,9 +424,12 @@ class AskQuestionUseCase:
                 relation_refs.append(relation_ref)
                 confirmed.append(
                     InvestigationStateItem(
-                        proposition=(
-                            f"{view.canonical_key} {relation.relation_type} "
-                            f"{relation.target.canonical_key}"
+                        proposition=render_relation_fact(
+                            view.canonical_key,
+                            relation.relation_type,
+                            relation.target.canonical_key,
+                            qualifier=relation.qualifier,
+                            target_properties=relation.target.properties,
                         ),
                         target_ref=relation_ref,
                         evidence_refs=refs,
@@ -568,10 +572,6 @@ def _evidence_refs(
             locator=cast(dict[str, JsonValue], dict(item.locator)),
         )
     return _stable_unique(refs)
-
-
-def _render_value(value: object) -> str:
-    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
 def _stable_unique(values: list[str]) -> list[str]:
