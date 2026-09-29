@@ -30,9 +30,15 @@ def test_real_product_candidate_is_pinned_live_product_content() -> None:
     )
     assert manifest.suite_id == "m6-real-product-qa"
     assert manifest.knowledge_revision == 596
-    assert len(manifest.cases) == 12
+    assert len(manifest.cases) == 13
     assert all(item.live_product_question is not None for item in manifest.cases)
     assert all("real" in item.tags and "candidate" in item.tags for item in manifest.cases)
+    continuation = next(
+        item for item in manifest.cases if item.case_id == "qa-real-3094-missing-cvss-continuation"
+    )
+    assert continuation.gold.completion_expectation == "continuation_requested"
+    assert continuation.gold_provenance is not None
+    assert continuation.gold_provenance.absence_checks[0].predicate == "cvss_score"
 
 
 def test_product_case_uses_persisted_case_as_prediction_source() -> None:

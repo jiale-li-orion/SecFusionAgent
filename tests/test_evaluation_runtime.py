@@ -9,7 +9,11 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from apps import evaluation_runtime
 from apps.runtime_models import register_runtime_models
 from packages.evaluation.benchmark import BenchmarkStore, DeploymentRevision
+from packages.evaluation.qa import QAGold
+from packages.intelligence.storage.evidence_models import ObservationModel
 from packages.intelligence.storage.knowledge_models import (
+    ClaimModel,
+    EvidenceLinkModel,
     ExternalIdentifierModel,
     KnowledgeRevisionModel,
     ObjectModel,
@@ -24,6 +28,7 @@ from packages.runtime.model.service import RecordedModelProvider
 from packages.shared.config import Settings
 from packages.shared.db import Base
 from packages.shared.model_provider import StructuredModelRequest
+from packages.sources.storage.models import SourceModel
 from packages.task_runtime.contracts.models import TaskKind
 
 
@@ -205,6 +210,134 @@ def test_project_continuation_state_to_qa_prediction_preserves_gap_state() -> No
     assert prediction.unknowns == ["exploitability:unknown"]
     assert prediction.conflicts == ["vendor-status-conflict"]
     assert "evidence-need:need-1" in prediction.execution_refs
+
+
+@pytest.mark.asyncio
+async def test_structured_qa_gold_absence_check_fails_when_gap_is_filled() -> None:
+    engine, factory = await _database()
+    now = datetime(2026, 9, 29, tzinfo=UTC)
+    try:
+        async with factory() as session, session.begin():
+            session.add(
+                SourceModel(
+                    source_id="cve-program-test",
+                    adapter_type="fixture",
+                    source_class="vulnerability_database",
+                    authority_scope=["vulnerability"],
+                    source_role="primary",
+                    source_family="cve-program",
+                    access_mode="fixture",
+                    update_semantics="mutable",
+                    discovery_method={},
+                    time_semantics={},
+                    identity_semantics={},
+                    rate_limit_policy={},
+                    access_rights={},
+                    retention_mode="durable",
+                    schedule_policy={},
+                    schema_version="1",
+                    definition_hash="fixture-source",
+                    updated_at=now,
+                )
+            )
+            observation = ObservationModel(
+                observation_id="qa-absence-observation",
+                source_id="cve-program-test",
+                acquisition_run_id=None,
+                acquisition_trigger="replay",
+                external_object_id="CVE-2026-90909",
+                external_revision="r1",
+                canonical_url=None,
+                published_at=now,
+                updated_at=now,
+                observed_at=now,
+                content_hash="qa-absence-observation-hash",
+                request_metadata={},
+                request_metadata_captured=False,
+                idempotency_key="qa-absence-observation-key",
+                created_at=now,
+            )
+            session.add(observation)
+            revision = KnowledgeRevisionModel(
+                cause_observation_id=observation.observation_id,
+                committed_at=now,
+            )
+            session.add(revision)
+            await session.flush()
+            subject = ObjectModel(
+                object_id="qa-absence-object",
+                object_type="Vulnerability",
+                canonical_key="cve:CVE-2026-90909",
+                properties={},
+                created_revision=revision.revision,
+            )
+            session.add(subject)
+            status = ClaimModel(
+                claim_id="qa-absence-status",
+                subject_id=subject.object_id,
+                predicate="status",
+                value="PUBLISHED",
+                qualifier={
+                    "source_id": "cve-program-test",
+                    "vocabulary_scope": "source_specific",
+                },
+                origin="source_asserted",
+                lifecycle="accepted",
+                created_revision=revision.revision,
+            )
+            session.add(status)
+            session.add(
+                EvidenceLinkModel(
+                    evidence_link_id="qa-absence-evidence",
+                    target_kind="claim",
+                    target_id=status.claim_id,
+                    observation_id=observation.observation_id,
+                    artifact_id=None,
+                    locator={"path": "$.state"},
+                    locator_hash="qa-absence-locator",
+                )
+            )
+
+        gold = QAGold(
+            case_id="qa-absence",
+            completion_expectation="continuation_requested",
+        )
+        async with factory() as session:
+            await evaluation_runtime.validate_structured_qa_gold_provenance(
+                session,
+                gold=gold,
+                evidence_refs=["evidence:qa-absence-evidence"],
+                source_ids=["cve-program-test"],
+                knowledge_revision=1,
+                absence_checks=[("cve:CVE-2026-90909", "cvss_score")],
+            )
+
+        async with factory() as session, session.begin():
+            session.add(
+                ClaimModel(
+                    claim_id="qa-absence-cvss",
+                    subject_id="qa-absence-object",
+                    predicate="cvss_score",
+                    value=9.0,
+                    qualifier={},
+                    origin="source_asserted",
+                    lifecycle="accepted",
+                    created_revision=1,
+                )
+            )
+
+        async with factory() as session:
+            with pytest.raises(ValueError, match="absence check is false"):
+                await evaluation_runtime.validate_structured_qa_gold_provenance(
+                    session,
+                    gold=gold,
+                    evidence_refs=["evidence:qa-absence-evidence"],
+                    source_ids=["cve-program-test"],
+                    knowledge_revision=1,
+                    absence_checks=[("cve:CVE-2026-90909", "cvss_score")],
+                )
+    finally:
+        await engine.dispose()
 
 
 @pytest.mark.asyncio

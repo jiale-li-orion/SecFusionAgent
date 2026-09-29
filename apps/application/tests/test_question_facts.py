@@ -38,6 +38,14 @@ def test_claim_fact_only_preserves_semantic_ep_ss_qualifiers() -> None:
         "epss_percentile",
         {"source_id": "github-global-advisories"},
     ) == {"source_id": "github-global-advisories"}
+    assert compact_claim_semantics(
+        "status",
+        {
+            "source_id": "nvd-cves-2",
+            "vocabulary_scope": "source_specific",
+            "vocabulary_revision": "enrichment-v1",
+        },
+    ) == {"source_id": "nvd-cves-2"}
 
 
 def test_nvd_applicability_fact_keeps_version_semantics_without_root_snapshot() -> None:

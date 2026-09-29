@@ -42,6 +42,10 @@ async def _validate(manifest: QABenchmarkManifest) -> dict[str, Any]:
                     evidence_refs=provenance.evidence_refs,
                     source_ids=provenance.source_ids,
                     knowledge_revision=manifest.knowledge_revision,
+                    absence_checks=[
+                        (check.subject_key, check.predicate)
+                        for check in provenance.absence_checks
+                    ],
                 )
                 structured_cases += 1
 

@@ -68,10 +68,16 @@ class LiveProductQuestion(BaseModel):
         return self
 
 
+class QAGoldAbsenceCheck(BaseModel):
+    subject_key: str = Field(min_length=1)
+    predicate: str = Field(min_length=1)
+
+
 class QAGoldProvenance(BaseModel):
     mode: Literal["synthetic", "structured_authority", "human_adjudicated"]
     evidence_refs: list[str] = Field(default_factory=list)
     source_ids: list[str] = Field(default_factory=list)
+    absence_checks: list[QAGoldAbsenceCheck] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_provenance(self) -> QAGoldProvenance:
@@ -258,6 +264,10 @@ async def _run(
                         evidence_refs=item.gold_provenance.evidence_refs,
                         source_ids=item.gold_provenance.source_ids,
                         knowledge_revision=manifest.knowledge_revision,
+                        absence_checks=[
+                            (check.subject_key, check.predicate)
+                            for check in item.gold_provenance.absence_checks
+                        ],
                     )
             case_refs: list[str] = []
             for item in manifest.cases:

@@ -148,6 +148,7 @@ async def validate_structured_qa_gold_provenance(
     evidence_refs: Iterable[str],
     source_ids: Iterable[str],
     knowledge_revision: int,
+    absence_checks: Iterable[tuple[str, str]] = (),
 ) -> None:
     """Fail closed unless structured-authority evidence supports the frozen QA gold facts."""
 
@@ -239,6 +240,33 @@ async def validate_structured_qa_gold_provenance(
             "structured QA gold facts are not supported by declared EvidenceRefs: "
             + ", ".join(sorted(missing))
         )
+
+    for subject_key, predicate in absence_checks:
+        subject = await session.scalar(
+            select(ObjectModel).where(ObjectModel.canonical_key == subject_key)
+        )
+        if subject is None or subject.created_revision > knowledge_revision:
+            raise ValueError(
+                "structured QA gold absence subject is not visible at pinned Knowledge revision: "
+                f"{subject_key}@{knowledge_revision}"
+            )
+        present = await session.scalar(
+            select(ClaimModel.claim_id).where(
+                ClaimModel.subject_id == subject.object_id,
+                ClaimModel.predicate == predicate,
+                ClaimModel.lifecycle == "accepted",
+                ClaimModel.created_revision <= knowledge_revision,
+                (
+                    ClaimModel.superseded_revision.is_(None)
+                    | (ClaimModel.superseded_revision > knowledge_revision)
+                ),
+            )
+        )
+        if present is not None:
+            raise ValueError(
+                "structured QA gold absence check is false at pinned Knowledge revision: "
+                f"{subject_key} {predicate}@{knowledge_revision}"
+            )
 
 
 class QABenchmarkRecorder:

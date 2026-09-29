@@ -24,13 +24,17 @@ def compact_claim_semantics(
 ) -> dict[str, object]:
     """Preserve qualifier fields only when they are part of the claim's semantic identity."""
 
-    if predicate not in {"epss_probability", "epss_percentile"}:
-        return {}
     result: dict[str, object] = {}
+    if qualifier.get("vocabulary_scope") == "source_specific":
+        source_id = qualifier.get("source_id")
+        if source_id not in (None, ""):
+            result["source_id"] = source_id
+    if predicate not in {"epss_probability", "epss_percentile"}:
+        return result
     source_semantics = qualifier.get("source_semantics")
     if source_semantics not in (None, ""):
         result["source_semantics"] = source_semantics
-    else:
+    elif "source_id" not in result:
         source_id = qualifier.get("source_id")
         if source_id not in (None, ""):
             result["source_id"] = source_id

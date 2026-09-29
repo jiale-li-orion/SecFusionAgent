@@ -316,6 +316,30 @@
         ],
         "completion_expectation": "answered"
       }
+    },
+    {
+      "case_id": "qa-real-3094-missing-cvss-continuation",
+      "gold_provenance": {
+        "mode": "structured_authority",
+        "source_ids": ["cve-program-cvelist-v5"],
+        "evidence_refs": ["evidence:431c7b0c-fb5f-5298-8fe2-f61ffc0e4013"],
+        "absence_checks": [
+          {
+            "subject_key": "cve:CVE-2024-3094",
+            "predicate": "cvss_score"
+          }
+        ]
+      },
+      "tags": ["real", "candidate", "unknown", "continuation", "absence-checked"],
+      "live_product_question": {
+        "question": "What CVSS score is recorded in the current evidence for CVE-2024-3094? If the current evidence does not establish a CVSS score, request additional evidence rather than guessing.",
+        "cve_id": "CVE-2024-3094",
+        "task_kind": "lookup"
+      },
+      "gold": {
+        "case_id": "qa-real-3094-missing-cvss-continuation",
+        "completion_expectation": "continuation_requested"
+      }
     }
   ]
 }
