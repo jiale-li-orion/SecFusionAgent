@@ -5,7 +5,13 @@ from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
+from sqlalchemy.ext.asyncio import create_async_engine
 
+from apps.runtime_models import register_runtime_models
+from packages.evaluation.benchmark import BenchmarkStore, DeploymentRevision
+from packages.shared.config import Settings
+from packages.shared.db import Base
+from scripts import run_qa_benchmark as qa_runner
 from scripts.run_qa_benchmark import QABenchmarkManifest, QABenchmarkManifestCase
 
 
@@ -35,6 +41,187 @@ def test_product_case_uses_persisted_case_as_prediction_source() -> None:
     assert case.prediction is None
     assert case.product_case_id == "investigation-1"
     assert case.citation_support == {"0:evidence:nvd-1": True}
+
+
+def test_live_product_case_is_an_explicit_prediction_source() -> None:
+    case = QABenchmarkManifestCase.model_validate(
+        {
+            "case_id": "qa-live-1",
+            "live_product_case_id": "investigation-live-1",
+            "gold": {
+                "case_id": "qa-live-1",
+                "acceptable_unknowns": ["No evidence-backed conclusion is available."],
+                "completion_expectation": "answered",
+            },
+        }
+    )
+    assert case.live_product_case_id == "investigation-live-1"
+    assert case.product_case_id is None
+    assert case.prediction is None
+
+
+def test_live_product_case_rejects_supplied_latency() -> None:
+    with pytest.raises(ValidationError, match="measures latency"):
+        QABenchmarkManifestCase.model_validate(
+            {
+                "case_id": "qa-live-latency",
+                "live_product_case_id": "investigation-live-1",
+                "interactive_latency_seconds": 0.1,
+                "gold": {
+                    "case_id": "qa-live-latency",
+                    "completion_expectation": "answered",
+                },
+            }
+        )
+
+
+def test_live_product_lookup_requires_bound_target_at_manifest_load() -> None:
+    with pytest.raises(ValidationError, match="LOOKUP requires"):
+        QABenchmarkManifestCase.model_validate(
+            {
+                "case_id": "qa-question-invalid-lookup",
+                "live_product_question": {
+                    "question": "What is known?",
+                    "task_kind": "lookup",
+                },
+                "gold": {
+                    "case_id": "qa-question-invalid-lookup",
+                    "completion_expectation": "answered",
+                },
+            }
+        )
+
+
+def test_live_product_question_is_an_explicit_prediction_source() -> None:
+    case = QABenchmarkManifestCase.model_validate(
+        {
+            "case_id": "qa-question-live-1",
+            "live_product_question": {
+                "question": "What does the current evidence establish?",
+                "task_kind": "retrieve",
+            },
+            "gold": {
+                "case_id": "qa-question-live-1",
+                "acceptable_unknowns": ["No evidence-backed conclusion is available."],
+                "completion_expectation": "answered",
+            },
+        }
+    )
+    assert case.live_product_question is not None
+    assert case.live_product_question.task_kind.value == "retrieve"
+    assert case.live_product_case_id is None
+    assert case.product_case_id is None
+    assert case.prediction is None
+
+
+def test_live_product_question_rejects_supplied_latency() -> None:
+    with pytest.raises(ValidationError, match="measures latency"):
+        QABenchmarkManifestCase.model_validate(
+            {
+                "case_id": "qa-question-live-latency",
+                "live_product_question": {
+                    "question": "What is known?",
+                    "task_kind": "retrieve",
+                },
+                "interactive_latency_seconds": 0.1,
+                "gold": {
+                    "case_id": "qa-question-live-latency",
+                    "completion_expectation": "answered",
+                },
+            }
+        )
+
+
+@pytest.mark.asyncio
+async def test_offline_runner_persists_staged_benchmark_run(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    register_runtime_models()
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    settings = Settings(database_url="sqlite+aiosqlite:///:memory:", environment="test")
+
+    async def fake_ensure_deployment(session, settings, **kwargs):
+        del settings, kwargs
+        deployment = DeploymentRevision(
+            deployment_revision_id="deployment:qa-runner-test",
+            git_commit="test",
+            schema_revision="test",
+            source_inventory_hash="a" * 64,
+            vocabulary_revision="enrichment-v1",
+            policy_revision="policy-test",
+            capability_registry_revision="unbound",
+            skill_registry_revision="seed-skills:test",
+            model_provider_revision="unconfigured",
+            configuration_digest="b" * 64,
+            created_at=datetime(2026, 9, 29, tzinfo=UTC),
+        )
+        await BenchmarkStore().register_deployment(session, deployment)
+        return deployment.deployment_revision_id
+
+    monkeypatch.setattr(qa_runner, "get_settings", lambda: settings)
+    monkeypatch.setattr(qa_runner, "create_engine", lambda database_url: engine)
+    monkeypatch.setattr(qa_runner, "ensure_benchmark_deployment_revision", fake_ensure_deployment)
+
+    manifest = QABenchmarkManifest.model_validate(
+        {
+            "suite_id": "m6-qa-runner-test",
+            "cases": [
+                {
+                    "case_id": "qa-inline-1",
+                    "prediction": {
+                        "case_id": "qa-inline-1",
+                        "unknowns": ["exploitability:unknown"],
+                        "completion_status": "answered",
+                        "interactive_latency_seconds": 0.1,
+                    },
+                    "gold": {
+                        "case_id": "qa-inline-1",
+                        "acceptable_unknowns": ["exploitability:unknown"],
+                        "completion_expectation": "answered",
+                    },
+                }
+            ],
+        }
+    )
+    result = await qa_runner._run(
+        manifest,
+        suite_revision=1,
+        deployment_revision_id=None,
+    )
+    assert result["execution_mode"] == "offline_scorer"
+    assert result["case_count"] == 1
+    assert result["case_scores"]["qa-inline-1"]["completion_correctness"] == 1.0
+
+
+def test_manifest_rejects_mixed_live_and_offline_execution_modes() -> None:
+    with pytest.raises(ValidationError, match="cannot mix live Product QA"):
+        QABenchmarkManifest.model_validate(
+            {
+                "cases": [
+                    {
+                        "case_id": "qa-live",
+                        "live_product_case_id": "investigation-live",
+                        "gold": {
+                            "case_id": "qa-live",
+                            "completion_expectation": "answered",
+                        },
+                    },
+                    {
+                        "case_id": "qa-offline",
+                        "prediction": {
+                            "case_id": "qa-offline",
+                            "completion_status": "answered",
+                        },
+                        "gold": {
+                            "case_id": "qa-offline",
+                            "completion_expectation": "answered",
+                        },
+                    },
+                ]
+            }
+        )
 
 
 def test_qa_manifest_case_requires_exactly_one_prediction_source() -> None:

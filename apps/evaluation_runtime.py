@@ -6,10 +6,15 @@ from collections.abc import Iterable, Mapping
 from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
+from time import monotonic
+from typing import cast
 
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import JsonValue
+from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from apps.application.commands.ask_question import AskQuestionCommand, AskQuestionUseCase
+from apps.decision_runtime import DecisionRuntime
 from packages.evaluation.benchmark import (
     BenchmarkStore,
     DeploymentRevision,
@@ -21,12 +26,20 @@ from packages.evaluation.benchmark.storage import DeploymentRevisionModel
 from packages.evaluation.m1_m3 import EnrichmentScore
 from packages.evaluation.qa import QACitationCheck, QAPrediction, QAScore
 from packages.intelligence.knowledge.vocabulary import VOCABULARY_REVISION
+from packages.intelligence.storage.evidence_models import ObservationModel
+from packages.intelligence.storage.knowledge_models import EvidenceLinkModel
 from packages.investigation.skills.seeds import seeded_skills
 from packages.investigation.state.contracts import EvidenceNeedStatus, InvestigationState
 from packages.investigation.state.service import InvestigationStateService
-from packages.reasoning.decision import ConclusionType, DecisionResult
+from packages.reasoning.citation import CitationSource
+from packages.reasoning.decision import ConclusionType, DecisionConclusion, DecisionResult
+from packages.reasoning.model import ModelDecisionPlanner
+from packages.reasoning.storage import DecisionResultStore
+from packages.runtime.model.storage import ModelRequestModel
 from packages.runtime.policy.loader import load_runtime_policy
 from packages.shared.config import Settings
+from packages.shared.model_provider import ModelProvider
+from packages.task_runtime.contracts.models import TaskKind
 
 
 class M3BenchmarkRecorder:
@@ -326,6 +339,329 @@ async def load_product_qa_prediction(
         interactive_latency_seconds=interactive_latency_seconds,
         execution_refs=execution_refs,
     )
+
+
+async def execute_product_case_qa_prediction(
+    session_factory: async_sessionmaker[AsyncSession],
+    *,
+    benchmark_case_id: str,
+    product_case_id: str,
+    provider: ModelProvider,
+    relation_paths: Iterable[Iterable[str]] = (),
+    citation_support: Mapping[tuple[int, str], bool] | None = None,
+    execution_refs: Iterable[str] = (),
+    state_service: InvestigationStateService | None = None,
+) -> QAPrediction:
+    """Execute live M6 reasoning over a durable Product Case without mutating that Case.
+
+    The source M4 state is read in a short transaction, the remote model call happens with no
+    database transaction held open, and the normal DecisionRuntime/M4 write gate is exercised in
+    a disposable transaction that is rolled back after the evaluation-neutral prediction is
+    materialized. Model execution recording remains durable when ``provider`` is a
+    RecordedModelProvider because that recorder owns its own short transactions.
+    """
+
+    service = state_service or InvestigationStateService()
+    async with session_factory() as session:
+        state = await service.get_state(session, product_case_id)
+        citation_sources = await _load_citation_sources(session, state)
+        await session.rollback()
+
+    if state.current_decision is not None:
+        raise ValueError(
+            "live Product QA source case must not already contain a current decision"
+        )
+
+    started = monotonic()
+    proposal = await ModelDecisionPlanner(provider).plan(
+        state,
+        citation_sources=citation_sources,
+    )
+
+    async with session_factory() as session:
+        transaction = await session.begin()
+        try:
+            outcome = await DecisionRuntime(state_service=service).commit_proposal(
+                session,
+                state=state,
+                proposal=proposal,
+                citation_sources=citation_sources,
+            )
+            projected_state = await service.get_state(session, product_case_id)
+            latency = monotonic() - started
+            merged_execution_refs = _stable_unique(
+                [f"case:{product_case_id}", *execution_refs]
+            )
+            if outcome.decision is not None:
+                prediction = project_decision_to_qa_prediction(
+                    benchmark_case_id=benchmark_case_id,
+                    decision=outcome.decision,
+                    state=projected_state,
+                    relation_paths=relation_paths,
+                    citation_support=citation_support,
+                    interactive_latency_seconds=latency,
+                    execution_refs=merged_execution_refs,
+                )
+            else:
+                assert outcome.continuation is not None
+                prediction = project_continuation_state_to_qa_prediction(
+                    benchmark_case_id=benchmark_case_id,
+                    state=projected_state,
+                    evidence_need_refs=[
+                        f"evidence-need:{outcome.continuation.need.need_id}"
+                    ],
+                    interactive_latency_seconds=latency,
+                    execution_refs=merged_execution_refs,
+                )
+        finally:
+            await transaction.rollback()
+    return prediction
+
+
+async def execute_product_question_qa_prediction(
+    session_factory: async_sessionmaker[AsyncSession],
+    *,
+    settings: Settings,
+    benchmark_case_id: str,
+    request_id: str,
+    provider: ModelProvider,
+    question: str,
+    cve_id: str | None = None,
+    object_id: str | None = None,
+    task_kind: TaskKind = TaskKind.LOOKUP,
+    required_source_roles: Iterable[str] = (),
+    priority: int = 50,
+    interactive_timeout_seconds: int = 5,
+    retrieval_limit: int = 8,
+    principal: str = "system:benchmark-m6",
+    relation_paths: Iterable[Iterable[str]] = (),
+    citation_support: Mapping[tuple[int, str], bool] | None = None,
+    execution_refs: Iterable[str] = (),
+) -> QAPrediction:
+    """Run the real Product AskQuestion path and project its durable outcome into QA metrics.
+
+    Unlike the durable-Case evaluator above, this function intentionally keeps Product runtime
+    records: TaskRun, ExecutionRun, ModelRequest/Attempt and validated DecisionResult are the
+    benchmark evidence for interactive latency and execution provenance.
+    """
+
+    started = monotonic()
+    async with session_factory() as session:
+        result = await AskQuestionUseCase(
+            policy_path=settings.runtime_policy_path,
+            task_event_stream_name=settings.task_event_stream_name,
+            model_provider=provider,
+        ).execute(
+            session,
+            AskQuestionCommand(
+                principal=principal,
+                request_id=request_id,
+                question=question,
+                cve_id=cve_id,
+                object_id=object_id,
+                task_kind=task_kind,
+                required_source_roles=list(required_source_roles),
+                priority=priority,
+                interactive_timeout_seconds=interactive_timeout_seconds,
+                retrieval_limit=retrieval_limit,
+            ),
+        )
+    latency = monotonic() - started
+
+    async with session_factory() as session:
+        runtime_refs = await _product_question_execution_refs(session, request_id)
+        merged_execution_refs = _stable_unique(
+            [f"product-request:{request_id}", *runtime_refs, *execution_refs]
+        )
+        if result.mode == "completed":
+            assert result.decision is not None
+            stored = await DecisionResultStore().get(session, result.decision.decision_id)
+            decision = DecisionResult.model_validate(
+                stored.model_dump(mode="json", exclude={"created_at"})
+            )
+            return project_validated_decision_to_qa_prediction(
+                benchmark_case_id=benchmark_case_id,
+                decision=decision,
+                relation_paths=relation_paths,
+                citation_support=citation_support,
+                interactive_latency_seconds=latency,
+                execution_refs=merged_execution_refs,
+            )
+
+        assert result.investigation is not None
+        investigation = result.investigation
+        state = await InvestigationStateService().get_state(session, investigation.case_id)
+        need_refs = [
+            f"evidence-need:{item.need_id}" for item in investigation.open_evidence_needs
+        ]
+        if not need_refs:
+            raise ValueError("accepted Product question has no durable EvidenceNeed")
+        return project_continuation_state_to_qa_prediction(
+            benchmark_case_id=benchmark_case_id,
+            state=state,
+            evidence_need_refs=need_refs,
+            interactive_latency_seconds=latency,
+            execution_refs=merged_execution_refs,
+        )
+
+
+def project_validated_decision_to_qa_prediction(
+    *,
+    benchmark_case_id: str,
+    decision: DecisionResult,
+    relation_paths: Iterable[Iterable[str]] = (),
+    citation_support: Mapping[tuple[int, str], bool] | None = None,
+    interactive_latency_seconds: float | None = None,
+    execution_refs: Iterable[str] = (),
+) -> QAPrediction:
+    """Project an already M6-validated DecisionResult when its ephemeral state is unavailable.
+
+    A FACT citation defaults to supported because DecisionService accepts a fact only when the
+    exact proposition and cited EvidenceRef coexist in confirmed state. INFERENCE support is not
+    implied by that invariant and therefore requires an explicit adjudication verdict.
+    """
+
+    if not benchmark_case_id.strip():
+        raise ValueError("benchmark_case_id cannot be empty")
+    support_verdicts = dict(citation_support or {})
+    eligible_indexes = {
+        index
+        for index, conclusion in enumerate(decision.conclusions)
+        if conclusion.type is not ConclusionType.RECOMMENDATION
+    }
+    citations: list[QACitationCheck] = []
+    consumed_verdicts: set[tuple[int, str]] = set()
+    for citation in decision.citations:
+        if citation.conclusion_index not in eligible_indexes:
+            continue
+        if citation.conclusion_index >= len(decision.conclusions):
+            raise ValueError("decision citation conclusion_index is out of range")
+        conclusion = decision.conclusions[citation.conclusion_index]
+        verdict_key = (citation.conclusion_index, citation.evidence_ref)
+        explicit = support_verdicts.get(verdict_key)
+        if explicit is not None:
+            supports = explicit
+            consumed_verdicts.add(verdict_key)
+        else:
+            supports = conclusion.type is ConclusionType.FACT
+        citations.append(
+            QACitationCheck(
+                conclusion_fact=conclusion.statement,
+                evidence_ref=citation.evidence_ref,
+                supports=supports,
+            )
+        )
+    _reject_stale_citation_verdicts(support_verdicts, consumed_verdicts)
+    reasoning_refs = _decision_reasoning_refs(decision.conclusions, eligible_indexes)
+    return QAPrediction(
+        case_id=benchmark_case_id,
+        conclusion_facts=[
+            conclusion.statement
+            for conclusion in decision.conclusions
+            if conclusion.type is not ConclusionType.RECOMMENDATION
+        ],
+        relation_paths=[list(path) for path in relation_paths],
+        citations=citations,
+        unknowns=list(decision.unknowns),
+        conflicts=list(decision.conflicts),
+        assumptions=list(decision.assumptions),
+        completion_status="answered",
+        interactive_latency_seconds=interactive_latency_seconds,
+        execution_refs=_stable_unique(
+            [decision.decision_id, *reasoning_refs, *execution_refs]
+        ),
+    )
+
+
+async def _product_question_execution_refs(
+    session: AsyncSession,
+    request_id: str,
+) -> list[str]:
+    requests = list(
+        await session.scalars(
+            select(ModelRequestModel)
+            .where(ModelRequestModel.purpose == "m6.decision")
+            .order_by(ModelRequestModel.created_at.desc())
+            .limit(100)
+        )
+    )
+    matching = [
+        item
+        for item in requests
+        if item.metadata_json.get("product_request_id") == request_id
+    ]
+    refs: list[str] = []
+    for item in matching:
+        refs.append(f"model-request:{item.model_request_id}")
+        if item.task_run_id:
+            refs.append(f"task-run:{item.task_run_id}")
+        if item.execution_id:
+            refs.append(item.execution_id)
+        if item.budget_ref:
+            refs.append(item.budget_ref)
+    return _stable_unique(refs)
+
+
+def _decision_reasoning_refs(
+    conclusions: Iterable[DecisionConclusion],
+    eligible_indexes: set[int],
+) -> list[str]:
+    return [
+        ref
+        for index, conclusion in enumerate(conclusions)
+        if index in eligible_indexes
+        for ref in conclusion.reasoning_relation_refs
+    ]
+
+
+def _reject_stale_citation_verdicts(
+    support_verdicts: Mapping[tuple[int, str], bool],
+    consumed_verdicts: set[tuple[int, str]],
+) -> None:
+    stale_verdicts = set(support_verdicts) - consumed_verdicts
+    if stale_verdicts:
+        rendered = ", ".join(
+            f"{index}:{evidence_ref}" for index, evidence_ref in sorted(stale_verdicts)
+        )
+        raise ValueError(f"citation support verdict does not match decision citation: {rendered}")
+
+
+async def _load_citation_sources(
+    session: AsyncSession,
+    state: InvestigationState,
+) -> list[CitationSource]:
+    refs = {
+        ref
+        for group in (
+            state.confirmed,
+            state.tentative,
+            state.conflicts,
+            state.unknowns,
+            state.hypotheses,
+        )
+        for item in group
+        for ref in item.evidence_refs
+        if ref.startswith("evidence:")
+    }
+    result: list[CitationSource] = []
+    for ref in sorted(refs):
+        link = await session.get(EvidenceLinkModel, ref.removeprefix("evidence:"))
+        if link is None:
+            continue
+        observation = await session.get(ObservationModel, link.observation_id)
+        if observation is None:
+            continue
+        source_ref = f"source:{observation.source_id}:{observation.external_object_id}"
+        if observation.external_revision:
+            source_ref += f"@{observation.external_revision}"
+        result.append(
+            CitationSource(
+                evidence_ref=ref,
+                source_ref=source_ref,
+                locator=cast(dict[str, JsonValue], dict(link.locator)),
+            )
+        )
+    return result
 
 
 def _confirmed_state_supports(

@@ -8,13 +8,17 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
+import httpx
 from pydantic import BaseModel, Field, JsonValue, model_validator
 
 from apps.evaluation_runtime import (
     QABenchmarkRecorder,
     ensure_benchmark_deployment_revision,
+    execute_product_case_qa_prediction,
+    execute_product_question_qa_prediction,
     load_product_qa_prediction,
 )
+from apps.model_runtime import create_recorded_model_provider
 from apps.runtime_models import register_runtime_models
 from packages.evaluation.benchmark import (
     BenchmarkCase,
@@ -34,6 +38,33 @@ from packages.evaluation.qa import (
 )
 from packages.shared.config import get_settings
 from packages.shared.db import create_engine, create_session_factory
+from packages.task_runtime.contracts.models import TaskKind
+
+
+class LiveProductQuestion(BaseModel):
+    question: str = Field(min_length=1)
+    principal: str = "system:benchmark-m6"
+    cve_id: str | None = None
+    object_id: str | None = None
+    task_kind: TaskKind = TaskKind.LOOKUP
+    required_source_roles: list[str] = Field(default_factory=list)
+    priority: int = Field(default=50, ge=0, le=100)
+    interactive_timeout_seconds: int = Field(default=5, ge=1, le=30)
+    retrieval_limit: int = Field(default=8, ge=1, le=20)
+
+    @model_validator(mode="after")
+    def validate_product_question(self) -> LiveProductQuestion:
+        if self.cve_id and self.object_id:
+            raise ValueError("live Product question cve_id and object_id are mutually exclusive")
+        if self.task_kind is TaskKind.LOOKUP and not (self.cve_id or self.object_id):
+            raise ValueError("live Product LOOKUP requires cve_id or object_id")
+        if self.task_kind not in {TaskKind.LOOKUP, TaskKind.RETRIEVE} and not (
+            self.cve_id or self.object_id
+        ):
+            raise ValueError("live Product investigation question requires a bound target")
+        if self.task_kind is TaskKind.ENRICHMENT:
+            raise ValueError("enrichment is not a Product QA route")
+        return self
 
 
 class QABenchmarkManifestCase(BaseModel):
@@ -42,6 +73,8 @@ class QABenchmarkManifestCase(BaseModel):
     gold: QAGold
     prediction: QAPrediction | None = None
     product_case_id: str | None = None
+    live_product_case_id: str | None = None
+    live_product_question: LiveProductQuestion | None = None
     citation_support: dict[str, bool] = Field(default_factory=dict)
     relation_paths: list[list[str]] = Field(default_factory=list)
     interactive_latency_seconds: float | None = Field(default=None, ge=0)
@@ -52,10 +85,26 @@ class QABenchmarkManifestCase(BaseModel):
 
     @model_validator(mode="after")
     def validate_prediction_source(self) -> QABenchmarkManifestCase:
-        if (self.prediction is None) == (self.product_case_id is None):
-            raise ValueError("QA case requires exactly one of prediction or product_case_id")
+        source_count = sum(
+            source is not None
+            for source in (
+                self.prediction,
+                self.product_case_id,
+                self.live_product_case_id,
+                self.live_product_question,
+            )
+        )
+        if source_count != 1:
+            raise ValueError(
+                "QA case requires exactly one of prediction, product_case_id, "
+                "live_product_case_id, or live_product_question"
+            )
         if self.prediction is not None and self.prediction.case_id != self.case_id:
             raise ValueError("QA inline prediction case_id does not match manifest case")
+        if _is_live_case(self) and self.interactive_latency_seconds is not None:
+            raise ValueError(
+                "live Product QA measures latency; it cannot accept a supplied latency"
+            )
         for key in self.citation_support:
             index, separator, evidence_ref = key.partition(":")
             if not separator or not index.isdigit() or not evidence_ref:
@@ -71,6 +120,13 @@ class QABenchmarkManifest(BaseModel):
     purpose: str = "Frozen QA accuracy, grounding, citation and multi-hop benchmark"
     evaluator_revision: str = "qa-v1"
     cases: list[QABenchmarkManifestCase]
+
+    @model_validator(mode="after")
+    def validate_execution_mode(self) -> QABenchmarkManifest:
+        live_count = sum(_is_live_case(item) for item in self.cases)
+        if live_count not in {0, len(self.cases)}:
+            raise ValueError("one BenchmarkRun cannot mix live Product QA with offline QA cases")
+        return self
 
 
 def _digest(value: object) -> str:
@@ -107,6 +163,15 @@ async def _run(
     store = BenchmarkStore()
     recorder = QABenchmarkRecorder(store)
     now = datetime.now(UTC)
+    execution_mode = (
+        BenchmarkExecutionMode.LIVE_EXTERNAL
+        if any(_is_live_case(item) for item in manifest.cases)
+        else BenchmarkExecutionMode.OFFLINE_SCORER
+    )
+    if execution_mode is BenchmarkExecutionMode.LIVE_EXTERNAL and (
+        not settings.model_base_url or not settings.model_name
+    ):
+        raise RuntimeError("live Product QA requires a configured model provider")
     manifest_payload = manifest.model_dump(mode="json")
     manifest_digest = _digest(manifest_payload)
     gold_digest = _digest(
@@ -121,6 +186,7 @@ async def _run(
         ]
     )
 
+    client: httpx.AsyncClient | None = None
     try:
         async with factory() as session, session.begin():
             resolved_deployment_id = await ensure_benchmark_deployment_revision(
@@ -128,38 +194,30 @@ async def _run(
                 settings,
                 deployment_revision_id=deployment_revision_id,
             )
-            predictions: dict[str, QAPrediction] = {}
-            for item in manifest.cases:
-                if item.prediction is not None:
-                    predictions[item.case_id] = item.prediction
-                    continue
-                assert item.product_case_id is not None
-                predictions[item.case_id] = await load_product_qa_prediction(
-                    session,
-                    benchmark_case_id=item.case_id,
-                    product_case_id=item.product_case_id,
-                    relation_paths=item.relation_paths,
-                    citation_support=_citation_support(item.citation_support),
-                    interactive_latency_seconds=item.interactive_latency_seconds,
-                    execution_refs=item.execution_refs,
-                )
             case_refs: list[str] = []
             for item in manifest.cases:
-                prediction = predictions[item.case_id]
                 case_ref = f"{item.case_id}@{suite_revision}"
                 case_refs.append(case_ref)
+                target_refs = list(item.execution_refs)
+                if item.prediction is not None:
+                    target_refs = list(item.prediction.execution_refs or item.execution_refs)
+                elif item.product_case_id is not None:
+                    target_refs = [f"case:{item.product_case_id}", *target_refs]
+                elif item.live_product_case_id is not None:
+                    target_refs = [f"case:{item.live_product_case_id}", *target_refs]
+                elif item.live_product_question is not None:
+                    target_refs = [
+                        *_live_question_target_refs(item.live_product_question),
+                        *target_refs,
+                    ]
                 await store.register_case(
                     session,
                     BenchmarkCase(
                         case_id=item.case_id,
                         case_revision=suite_revision,
                         input=item.input,
-                        execution_profile=(
-                            "product_decision_projection"
-                            if item.product_case_id is not None
-                            else "offline_scorer"
-                        ),
-                        target_refs=list(prediction.execution_refs or item.execution_refs),
+                        execution_profile=_execution_profile(item),
+                        target_refs=list(dict.fromkeys(target_refs)),
                         expected_behavior=item.gold.model_dump(mode="json"),
                         gold_ref=f"qa-gold:{gold_digest}#{item.case_id}",
                         tags=["m6", "qa", *item.tags],
@@ -199,42 +257,118 @@ async def _run(
                 session,
                 suite_ref=f"{manifest.suite_id}@{suite_revision}",
                 deployment_revision_id=resolved_deployment_id,
-                execution_mode=BenchmarkExecutionMode.OFFLINE_SCORER,
+                execution_mode=execution_mode,
                 environment=settings.environment,
                 model_config_ref=(
                     f"model:{settings.model_name}" if settings.model_name else "model:unconfigured"
                 ),
                 now=now,
             )
-            per_case: dict[str, object] = {}
-            for item in manifest.cases:
-                prediction = predictions[item.case_id]
+        provider = None
+        if execution_mode is BenchmarkExecutionMode.LIVE_EXTERNAL:
+            client = httpx.AsyncClient(timeout=settings.model_timeout_seconds)
+            provider = create_recorded_model_provider(settings, factory, client)
+            if provider is None:
+                async with factory() as session, session.begin():
+                    await store.finish_run(
+                        session,
+                        run.benchmark_run_id,
+                        status=BenchmarkRunStatus.FAILED,
+                    )
+                raise RuntimeError("live Product QA model provider is unavailable")
+
+        per_case: dict[str, object] = {}
+        for item in manifest.cases:
+            async with factory() as session, session.begin():
                 case_run = await store.start_case_run(
                     session,
                     benchmark_run_id=run.benchmark_run_id,
                     case_ref=f"{item.case_id}@{suite_revision}",
-                    now=now,
                 )
+            try:
+                if item.prediction is not None:
+                    prediction = item.prediction
+                elif item.product_case_id is not None:
+                    async with factory() as session:
+                        prediction = await load_product_qa_prediction(
+                            session,
+                            benchmark_case_id=item.case_id,
+                            product_case_id=item.product_case_id,
+                            relation_paths=item.relation_paths,
+                            citation_support=_citation_support(item.citation_support),
+                            interactive_latency_seconds=item.interactive_latency_seconds,
+                            execution_refs=item.execution_refs,
+                        )
+                        await session.rollback()
+                elif item.live_product_case_id is not None:
+                    assert provider is not None
+                    prediction = await execute_product_case_qa_prediction(
+                        factory,
+                        benchmark_case_id=item.case_id,
+                        product_case_id=item.live_product_case_id,
+                        provider=provider,
+                        relation_paths=item.relation_paths,
+                        citation_support=_citation_support(item.citation_support),
+                        execution_refs=item.execution_refs,
+                    )
+                else:
+                    assert item.live_product_question is not None
+                    assert provider is not None
+                    question = item.live_product_question
+                    prediction = await execute_product_question_qa_prediction(
+                        factory,
+                        settings=settings,
+                        benchmark_case_id=item.case_id,
+                        request_id=f"benchmark:{run.benchmark_run_id}:{item.case_id}",
+                        provider=provider,
+                        question=question.question,
+                        cve_id=question.cve_id,
+                        object_id=question.object_id,
+                        task_kind=question.task_kind,
+                        required_source_roles=question.required_source_roles,
+                        priority=question.priority,
+                        interactive_timeout_seconds=question.interactive_timeout_seconds,
+                        retrieval_limit=question.retrieval_limit,
+                        principal=question.principal,
+                        relation_paths=item.relation_paths,
+                        citation_support=_citation_support(item.citation_support),
+                        execution_refs=item.execution_refs,
+                    )
                 score = score_qa(gold=item.gold, prediction=prediction)
-                await recorder.record_case_score(
-                    session,
-                    case_run_id=case_run.case_run_id,
-                    score=score,
-                    subject_ref=f"qa-case:{item.case_id}",
-                )
-                await store.finish_case_run(
-                    session,
-                    case_run.case_run_id,
-                    status=BenchmarkCaseRunStatus.PASSED,
-                    artifact_refs=list(prediction.execution_refs or item.execution_refs),
-                    now=now,
-                )
+                async with factory() as session, session.begin():
+                    await recorder.record_case_score(
+                        session,
+                        case_run_id=case_run.case_run_id,
+                        score=score,
+                        subject_ref=f"qa-case:{item.case_id}",
+                    )
+                    await store.finish_case_run(
+                        session,
+                        case_run.case_run_id,
+                        status=BenchmarkCaseRunStatus.PASSED,
+                        artifact_refs=list(prediction.execution_refs or item.execution_refs),
+                    )
                 per_case[item.case_id] = score.model_dump(mode="json")
+            except Exception as exc:
+                async with factory() as session, session.begin():
+                    await store.finish_case_run(
+                        session,
+                        case_run.case_run_id,
+                        status=BenchmarkCaseRunStatus.FAILED,
+                        failure_class=type(exc).__name__,
+                    )
+                    await store.finish_run(
+                        session,
+                        run.benchmark_run_id,
+                        status=BenchmarkRunStatus.FAILED,
+                    )
+                raise
+
+        async with factory() as session, session.begin():
             await store.finish_run(
                 session,
                 run.benchmark_run_id,
                 status=BenchmarkRunStatus.COMPLETED,
-                now=now,
             )
         return {
             "benchmark_run_id": run.benchmark_run_id,
@@ -243,9 +377,12 @@ async def _run(
             "manifest_digest": manifest_digest,
             "gold_revision": f"qa-gold:{gold_digest}",
             "case_count": len(manifest.cases),
+            "execution_mode": execution_mode.value,
             "case_scores": per_case,
         }
     finally:
+        if client is not None:
+            await client.aclose()
         await engine.dispose()
 
 
@@ -255,6 +392,29 @@ def _citation_support(values: dict[str, bool]) -> dict[tuple[int, str], bool]:
         index, _, evidence_ref = key.partition(":")
         result[(int(index), evidence_ref)] = supports
     return result
+
+
+def _execution_profile(item: QABenchmarkManifestCase) -> str:
+    if item.live_product_question is not None:
+        return "product_question_live"
+    if item.live_product_case_id is not None:
+        return "product_case_decision_live"
+    if item.product_case_id is not None:
+        return "product_decision_projection"
+    return "offline_scorer"
+
+
+def _is_live_case(item: QABenchmarkManifestCase) -> bool:
+    return item.live_product_case_id is not None or item.live_product_question is not None
+
+
+def _live_question_target_refs(question: LiveProductQuestion) -> list[str]:
+    refs: list[str] = []
+    if question.object_id:
+        refs.append(f"object:{question.object_id}")
+    if question.cve_id:
+        refs.append(f"cve:{question.cve_id.upper()}")
+    return refs
 
 
 def main() -> None:
