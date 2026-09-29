@@ -4,8 +4,40 @@ import json
 from typing import Any
 
 
-def render_claim_fact(subject_key: str, predicate: str, value: object) -> str:
-    return f"{subject_key} {predicate} = {_render(value)}"
+def render_claim_fact(
+    subject_key: str,
+    predicate: str,
+    value: object,
+    *,
+    qualifier: dict[str, object] | None = None,
+) -> str:
+    base = f"{subject_key} {predicate} = {_render(value)}"
+    semantics = compact_claim_semantics(predicate, qualifier or {})
+    if not semantics:
+        return base
+    return f"{base} semantics={_render(semantics)}"
+
+
+def compact_claim_semantics(
+    predicate: str,
+    qualifier: dict[str, object],
+) -> dict[str, object]:
+    """Preserve qualifier fields only when they are part of the claim's semantic identity."""
+
+    if predicate not in {"epss_probability", "epss_percentile"}:
+        return {}
+    result: dict[str, object] = {}
+    source_semantics = qualifier.get("source_semantics")
+    if source_semantics not in (None, ""):
+        result["source_semantics"] = source_semantics
+    else:
+        source_id = qualifier.get("source_id")
+        if source_id not in (None, ""):
+            result["source_id"] = source_id
+    score_date = qualifier.get("score_date")
+    if score_date not in (None, ""):
+        result["score_date"] = score_date
+    return result
 
 
 def render_relation_fact(

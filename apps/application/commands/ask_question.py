@@ -407,6 +407,7 @@ class AskQuestionUseCase:
                             view.canonical_key,
                             claim.predicate,
                             claim.value,
+                            qualifier=claim.qualifier,
                         ),
                         target_ref=f"object:{view.object_id}",
                         evidence_refs=refs,

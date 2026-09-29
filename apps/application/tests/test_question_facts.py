@@ -2,7 +2,42 @@ from __future__ import annotations
 
 import json
 
-from apps.application.question_facts import compact_relation_semantics, render_relation_fact
+from apps.application.question_facts import (
+    compact_claim_semantics,
+    compact_relation_semantics,
+    render_claim_fact,
+    render_relation_fact,
+)
+
+
+def test_claim_fact_only_preserves_semantic_ep_ss_qualifiers() -> None:
+    ordinary = render_claim_fact(
+        "cve:CVE-2026-7273",
+        "cvss_score",
+        8.8,
+        qualifier={"source_id": "nvd-cves-2", "vocabulary_revision": "enrichment-v1"},
+    )
+    assert ordinary == "cve:CVE-2026-7273 cvss_score = 8.8"
+
+    first = render_claim_fact(
+        "cve:CVE-2026-7273",
+        "epss_probability",
+        0.02501,
+        qualifier={
+            "source_id": "first-epss",
+            "source_semantics": "first_epss",
+            "score_date": "2026-09-27",
+            "vocabulary_revision": "enrichment-v1",
+        },
+    )
+    assert first == (
+        'cve:CVE-2026-7273 epss_probability = 0.02501 '
+        'semantics={"score_date":"2026-09-27","source_semantics":"first_epss"}'
+    )
+    assert compact_claim_semantics(
+        "epss_percentile",
+        {"source_id": "github-global-advisories"},
+    ) == {"source_id": "github-global-advisories"}
 
 
 def test_nvd_applicability_fact_keeps_version_semantics_without_root_snapshot() -> None:

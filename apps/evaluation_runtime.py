@@ -187,7 +187,12 @@ async def validate_structured_qa_gold_provenance(
             if subject is None:
                 raise ValueError(f"structured QA gold claim subject is missing: {claim.subject_id}")
             supported_facts.add(
-                render_claim_fact(subject.canonical_key, claim.predicate, claim.value)
+                render_claim_fact(
+                    subject.canonical_key,
+                    claim.predicate,
+                    claim.value,
+                    qualifier=claim.qualifier,
+                )
             )
         elif link.target_kind == "relation":
             relation = await session.get(RelationModel, link.target_id)

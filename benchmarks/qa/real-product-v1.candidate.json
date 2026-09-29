@@ -292,6 +292,30 @@
         ],
         "completion_expectation": "answered"
       }
+    },
+    {
+      "case_id": "qa-real-7273-first-epss-probability",
+      "gold_provenance": {
+        "mode": "structured_authority",
+        "source_ids": ["first-epss"],
+        "evidence_refs": ["evidence:b68fd1d7-fa42-5e86-9b8f-42b829fad03e"]
+      },
+      "tags": ["real", "candidate", "direct", "epss", "temporal"],
+      "live_product_question": {
+        "question": "According to FIRST EPSS for score date 2026-09-27, what exploit probability is recorded for CVE-2026-7273? Return only that dated EPSS fact.",
+        "cve_id": "CVE-2026-7273",
+        "task_kind": "lookup"
+      },
+      "gold": {
+        "case_id": "qa-real-7273-first-epss-probability",
+        "required_facts": [
+          "cve:CVE-2026-7273 epss_probability = 0.02501 semantics={\"score_date\":\"2026-09-27\",\"source_semantics\":\"first_epss\"}"
+        ],
+        "required_citation_facts": [
+          "cve:CVE-2026-7273 epss_probability = 0.02501 semantics={\"score_date\":\"2026-09-27\",\"source_semantics\":\"first_epss\"}"
+        ],
+        "completion_expectation": "answered"
+      }
     }
   ]
 }
