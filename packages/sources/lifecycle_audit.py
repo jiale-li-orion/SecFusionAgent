@@ -11,7 +11,13 @@ INCIDENT_SIGNAL_ADAPTERS = frozenset(
 )
 
 VULNERABILITY_ENRICHMENT_SOURCES = frozenset(
-    {"cisa-kev", "first-epss", "github-global-advisories", "osv-vulnerabilities"}
+    {
+        "cisa-kev",
+        "first-epss",
+        "github-global-advisories",
+        "osv-vulnerabilities",
+        "redhat-csaf-vex",
+    }
 )
 VULNERABILITY_REFERENCE_SOURCES = frozenset({"cnnvd-vulnerabilities", "cnvd-vulnerabilities"})
 GENERIC_EXTERNAL_QUERY_SOURCES = frozenset(
@@ -34,6 +40,7 @@ TIME_BOUNDED_ADAPTERS = frozenset(
         "github_global_advisory",
         "oscs",
         "osv",
+        "redhat_csaf_vex",
         "shodan",
         "shodan_internetdb",
         "censys_asset",
