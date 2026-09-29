@@ -214,7 +214,8 @@ class AskQuestionUseCase:
                 decision=decision_view(decision.model_dump(mode="json"), stored.created_at),
             )
 
-        if command.cve_id is None and command.object_id is None:
+        continuation_target = _continuation_investigation_target(command, proposal.target_objects)
+        if command.cve_id is None and command.object_id is None and continuation_target is None:
             async with session.begin():
                 await self._execution.finish(
                     session,
@@ -242,6 +243,7 @@ class AskQuestionUseCase:
             purpose=proposal.purpose,
             required_source_roles=proposal.evidence_contract.required_source_roles,
             priority=proposal.priority,
+            target_object_id=continuation_target,
         )
         # StartInvestigationUseCase commits its durable launch, then the returned
         # Product projection opens a read transaction. Reuse that transaction for
@@ -493,30 +495,6 @@ class AskQuestionUseCase:
                     added += 1
                     if added >= _QUESTION_MAX_SECOND_HOP_RELATIONS:
                         break
-            for relation in view.relations:
-                refs = _evidence_refs(relation.evidence, citations)
-                if not refs:
-                    continue
-                relation_ref = f"relation:{relation.relation_id}"
-                relation_refs.append(relation_ref)
-                confirmed.append(
-                    InvestigationStateItem(
-                        proposition=render_relation_fact(
-                            view.canonical_key,
-                            relation.relation_type,
-                            relation.target.canonical_key,
-                            qualifier=relation.qualifier,
-                            target_properties=relation.target.properties,
-                        ),
-                        target_ref=relation_ref,
-                        evidence_refs=refs,
-                        writer="M3Knowledge",
-                        reason_code="product_question_context",
-                        updated_revision=max(1, relation.created_revision),
-                    )
-                )
-                evidence_refs.extend(refs)
-
         if command.task_kind is TaskKind.RETRIEVE:
             candidates = await self._retrieval.search(
                 session,
@@ -528,6 +506,13 @@ class AskQuestionUseCase:
                 text = candidate.payload.get("text")
                 if not chunk_id or not isinstance(text, str) or not text.strip():
                     continue
+                if (
+                    command.cve_id is None
+                    and command.object_id is None
+                    and candidate.object_id is not None
+                ):
+                    targets.append(candidate.object_id)
+                    object_refs.append(f"object:{candidate.object_id}")
                 ref = f"document-chunk:{chunk_id}@{candidate.revision or 'current'}"
                 source_ref = None
                 canonical_url = candidate.payload.get("canonical_url")
@@ -557,7 +542,7 @@ class AskQuestionUseCase:
             case_id=f"question:{command.request_id}",
             case_revision=0,
             goal=command.question,
-            targets=targets,
+            targets=_stable_unique(targets),
             confirmed=confirmed,
             tentative=tentative,
             last_world_revision=revision,
@@ -580,6 +565,7 @@ class AskQuestionUseCase:
         purpose: str = "answer_question",
         required_source_roles: list[str] | None = None,
         priority: int | None = None,
+        target_object_id: str | None = None,
     ):
         kind = command.task_kind
         if kind in {TaskKind.LOOKUP, TaskKind.RETRIEVE}:
@@ -593,8 +579,8 @@ class AskQuestionUseCase:
                 principal=command.principal,
                 request_id=command.request_id,
                 trace_id=command.trace_id,
-                cve_id=command.cve_id,
-                object_id=command.object_id,
+                cve_id=(None if target_object_id is not None else command.cve_id),
+                object_id=target_object_id or command.object_id,
                 goal=command.question,
                 evidence_question=evidence_question,
                 purpose=purpose,
@@ -653,3 +639,13 @@ def _evidence_refs(
 
 def _stable_unique(values: list[str]) -> list[str]:
     return list(dict.fromkeys(item for item in values if item))
+
+
+def _continuation_investigation_target(
+    command: AskQuestionCommand,
+    target_objects: list[str],
+) -> str | None:
+    if command.cve_id is not None or command.object_id is not None:
+        return None
+    unique = _stable_unique(target_objects)
+    return unique[0] if len(unique) == 1 else None

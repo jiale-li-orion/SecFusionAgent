@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import UTC, datetime
 
 import pytest
@@ -7,9 +8,12 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from apps.application.commands.ask_question import AskQuestionCommand, AskQuestionUseCase
+from apps.application.errors import LifecycleConflictError
 from apps.application.queries.decisions import DecisionQueries
 from apps.application.question_facts import render_relation_fact
 from apps.runtime_models import register_runtime_models
+from packages.intelligence.retrieval.contracts import CandidateKind, RetrievedCandidate
+from packages.intelligence.retrieval.operators import LexicalRetrievalOperator
 from packages.intelligence.storage.evidence_models import ObservationModel
 from packages.intelligence.storage.knowledge_models import (
     ClaimModel,
@@ -20,7 +24,7 @@ from packages.intelligence.storage.knowledge_models import (
     RelationModel,
 )
 from packages.investigation.state.contracts import EvidenceNeedContract
-from packages.investigation.storage.models import InvestigationCaseModel
+from packages.investigation.storage.models import EvidenceNeedModel, InvestigationCaseModel
 from packages.reasoning.decision import ConclusionType, DecisionConclusion
 from packages.reasoning.model import (
     ContinuationProposal,
@@ -43,6 +47,7 @@ EVIDENCE_ID = "question-cvss-evidence"
 RELATION_ID = "question-applicability-relation"
 RELATION_EVIDENCE_ID = "question-applicability-evidence"
 PRODUCT_ID = "question-product-object"
+DOCUMENT_ID = "question-document-object"
 PROPOSITION = f"cve:{CVE} cvss_score = 9.8"
 RELATION_PROPOSITION = render_relation_fact(
     f"cve:{CVE}",
@@ -90,6 +95,34 @@ class _FailingProvider:
 
     async def generate_structured(self, request, response_model):
         raise RuntimeError("provider failed")
+
+
+class _FixtureRetrieval(LexicalRetrievalOperator):
+    async def search(
+        self,
+        session,
+        *,
+        query: str,
+        limit: int = 20,
+        source_ids: Sequence[str] | None = None,
+    ) -> list[RetrievedCandidate]:
+        del session, query, limit, source_ids
+        return [
+            RetrievedCandidate(
+                candidate_id="chunk:question-doc-chunk",
+                candidate_kind=CandidateKind.DOCUMENT_CHUNK,
+                object_id=DOCUMENT_ID,
+                document_chunk_id="question-doc-chunk",
+                source_id="vendor-test",
+                revision="document-r1",
+                locator={"section": "fix"},
+                payload={
+                    "canonical_url": "https://vendor.example/research-note",
+                    "title": "Research note",
+                    "text": "The current note does not establish the requested relation.",
+                },
+            )
+        ]
 
 
 async def _factory():
@@ -145,6 +178,15 @@ async def _factory():
         )
         session.add(revision)
         await session.flush()
+        session.add(
+            ObjectModel(
+                object_id=DOCUMENT_ID,
+                object_type="Document",
+                canonical_key="document:fixture:research-note",
+                properties={"title": "Research note"},
+                created_revision=revision.revision,
+            )
+        )
         session.add(
             ObjectModel(
                 object_id=OBJECT_ID,
@@ -245,12 +287,17 @@ async def _factory():
     return engine, factory
 
 
-def _use_case(provider) -> AskQuestionUseCase:
+def _use_case(
+    provider,
+    *,
+    retrieval: LexicalRetrievalOperator | None = None,
+) -> AskQuestionUseCase:
     settings = get_settings()
     return AskQuestionUseCase(
         policy_path=settings.runtime_policy_path,
         task_event_stream_name=settings.task_event_stream_name,
         model_provider=provider,
+        retrieval=retrieval,
     )
 
 
@@ -314,6 +361,138 @@ async def test_lookup_question_runs_read_only_decision_without_durable_case() ->
         assert metadata["execution_id"]
         assert metadata["case_id"] is None
         assert metadata["product_request_id"] == "question-direct-1"
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_targetless_retrieve_continuation_binds_retrieved_document_target() -> None:
+    engine, factory = await _factory()
+    provider = _Provider(
+        DecisionPlannerResponse(
+            action=ContinuationProposal(
+                proposition_or_question="Which primary source can verify the missing relation?",
+                purpose="verify_retrieved_document",
+                target_objects=[DOCUMENT_ID],
+                preferred_source_roles=["primary"],
+                evidence_contract=EvidenceNeedContract(required_source_roles=["primary"]),
+                priority=70,
+                reason="retrieved passage is insufficient for a confirmed answer",
+            )
+        )
+    )
+    try:
+        async with factory() as session:
+            result = await _use_case(
+                provider,
+                retrieval=_FixtureRetrieval(),
+            ).execute(
+                session,
+                AskQuestionCommand(
+                    principal="user:test",
+                    request_id="question-retrieve-escalate-1",
+                    question="What does the research note establish about the fix?",
+                    task_kind=TaskKind.RETRIEVE,
+                ),
+            )
+        assert result.mode == "accepted"
+        assert result.execution_profile == "INVESTIGATE"
+        assert result.investigation is not None
+        assert result.investigation.target_object_ids == [DOCUMENT_ID]
+
+        state_payload = provider.requests[0].data["investigation_state"]
+        assert isinstance(state_payload, dict)
+        assert state_payload["targets"] == [DOCUMENT_ID]
+        async with factory() as session:
+            need = await session.get(
+                EvidenceNeedModel,
+                result.investigation.open_evidence_needs[0].need_id,
+            )
+            assert need is not None
+            assert need.target_objects == [DOCUMENT_ID]
+            runs = list(
+                await session.scalars(select(TaskRunModel).order_by(TaskRunModel.created_at))
+            )
+            assert len(runs) == 2
+            assert runs[0].role_id == "DecisionRole"
+            assert runs[0].status == "completed"
+            assert runs[1].role_id == "InvestigationRole"
+            assert runs[1].status == "queued"
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_targetless_retrieve_continuation_rejects_target_escape() -> None:
+    engine, factory = await _factory()
+    provider = _Provider(
+        DecisionPlannerResponse(
+            action=ContinuationProposal(
+                proposition_or_question="Fetch another object",
+                purpose="escape_attempt",
+                target_objects=[OBJECT_ID],
+                reason="try a target outside bounded retrieval results",
+            )
+        )
+    )
+    try:
+        async with factory() as session:
+            with pytest.raises(ValueError, match="target_objects escape M4 state"):
+                await _use_case(provider, retrieval=_FixtureRetrieval()).execute(
+                    session,
+                    AskQuestionCommand(
+                        principal="user:test",
+                        request_id="question-retrieve-escape-1",
+                        question="Find evidence about the research note",
+                        task_kind=TaskKind.RETRIEVE,
+                    ),
+                )
+        async with factory() as session:
+            assert int(
+                await session.scalar(select(func.count()).select_from(InvestigationCaseModel)) or 0
+            ) == 0
+            run = await session.scalar(select(TaskRunModel))
+            assert run is not None
+            assert run.status == "failed"
+            assert run.stop_reason == "question_reasoning_failed"
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_targetless_retrieve_continuation_without_selected_target_blocks() -> None:
+    engine, factory = await _factory()
+    provider = _Provider(
+        DecisionPlannerResponse(
+            action=ContinuationProposal(
+                proposition_or_question="Need more evidence",
+                purpose="missing_target_selection",
+                target_objects=[],
+                reason="no durable target was selected",
+            )
+        )
+    )
+    try:
+        async with factory() as session:
+            with pytest.raises(LifecycleConflictError, match="requires a bound target"):
+                await _use_case(provider, retrieval=_FixtureRetrieval()).execute(
+                    session,
+                    AskQuestionCommand(
+                        principal="user:test",
+                        request_id="question-retrieve-blocked-1",
+                        question="Find more evidence about the research note",
+                        task_kind=TaskKind.RETRIEVE,
+                    ),
+                )
+        async with factory() as session:
+            assert int(
+                await session.scalar(select(func.count()).select_from(InvestigationCaseModel)) or 0
+            ) == 0
+            run = await session.scalar(select(TaskRunModel))
+            execution = await session.scalar(select(ExecutionRunModel))
+            assert run is not None and run.status == "blocked"
+            assert run.stop_reason == "continuation_requires_bound_target"
+            assert execution is not None and execution.status == "blocked"
     finally:
         await engine.dispose()
 
