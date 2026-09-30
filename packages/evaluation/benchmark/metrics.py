@@ -73,6 +73,15 @@ CORE_METRICS: dict[str, MetricDefinition] = {
             unit="ratio",
         ),
         MetricDefinition(
+            name="m6.session_retrieval_overlap_rate",
+            revision="1",
+            denominator="follow-up RETRIEVE turns with non-empty document-chunk refs",
+            aggregation=MetricAggregation.MEAN,
+            missing_value_policy=MissingValuePolicy.NOT_EVALUATED,
+            direction=MetricDirection.INFORMATIONAL,
+            unit="ratio",
+        ),
+        MetricDefinition(
             name="m6.citation_completeness",
             revision="1",
             denominator="factual conclusions requiring citation coverage",

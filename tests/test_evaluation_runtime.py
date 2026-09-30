@@ -231,11 +231,13 @@ async def test_qa_recorder_owns_session_trace_metrics() -> None:
         case_run_id="case-run:session",
         context_chain_correctness=1.0,
         target_carry_correctness=1.0,
+        retrieval_overlap_rate=0.5,
         subject_ref="qa-session:test",
     )
     assert store.metric_names == [
         "m6.session_context_chain_correctness",
         "m6.session_target_carry_correctness",
+        "m6.session_retrieval_overlap_rate",
     ]
 
 

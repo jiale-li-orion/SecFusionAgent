@@ -728,6 +728,7 @@ async def _run_sessions(
                             "m6.interactive_latency_seconds",
                             "m6.session_context_chain_correctness",
                             "m6.session_target_carry_correctness",
+                            "m6.session_retrieval_overlap_rate",
                         ],
                     },
                     created_at=now,
@@ -869,12 +870,17 @@ async def _execute_session_cases(
                 trace.turns,
                 session_case.turns,
             )
+            retrieval_overlap_rate = _session_retrieval_overlap_rate(
+                trace.turns,
+                session_case.turns,
+            )
             async with factory() as session, session.begin():
                 await recorder.record_session_trace_score(
                     session,
                     case_run_id=case_run.case_run_id,
                     context_chain_correctness=context_chain_correctness,
                     target_carry_correctness=target_carry_correctness,
+                    retrieval_overlap_rate=retrieval_overlap_rate,
                     subject_ref=f"qa-session:{session_case.case_id}",
                 )
                 await store.finish_case_run(
@@ -892,6 +898,7 @@ async def _execute_session_cases(
                 "turn_scores": turn_scores,
                 "context_chain_correctness": context_chain_correctness,
                 "target_carry_correctness": target_carry_correctness,
+                "retrieval_overlap_rate": retrieval_overlap_rate,
             }
         except Exception as exc:
             async with factory() as session, session.begin():
@@ -934,6 +941,29 @@ def _session_target_carry_correctness(
         if index > 1
     ]
     return sum(checks) / len(checks) if checks else 1.0
+
+
+def _session_retrieval_overlap_rate(
+    observed_turns: list[Any],
+    expected_turns: list[QASessionManifestTurn],
+) -> float | None:
+    prior_refs: set[str] = set()
+    overlaps: list[float] = []
+    for index, (observed, expected) in enumerate(
+        zip(observed_turns, expected_turns, strict=True),
+        start=1,
+    ):
+        current_refs = set(observed.retrieval_refs)
+        if (
+            index > 1
+            and expected.question.task_kind is TaskKind.RETRIEVE
+            and current_refs
+        ):
+            overlaps.append(len(current_refs & prior_refs) / len(current_refs))
+        prior_refs.update(current_refs)
+    if not overlaps:
+        return None
+    return sum(overlaps) / len(overlaps)
 
 
 def _citation_support(values: dict[str, bool]) -> dict[tuple[int, str], bool]:

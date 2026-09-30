@@ -9,7 +9,7 @@ from pathlib import Path
 from time import monotonic
 from typing import cast
 
-from pydantic import BaseModel, JsonValue
+from pydantic import BaseModel, Field, JsonValue
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -120,6 +120,7 @@ class ProductQuestionSessionTurnTrace(BaseModel):
     turn_index: int
     request_id: str
     target_keys: list[str]
+    retrieval_refs: list[str] = Field(default_factory=list)
     knowledge_revision: int | None = None
     context_id: str | None = None
     parent_context_id: str | None = None
@@ -321,12 +322,16 @@ class QABenchmarkRecorder:
         case_run_id: str,
         context_chain_correctness: float,
         target_carry_correctness: float,
+        retrieval_overlap_rate: float | None = None,
         subject_ref: str,
     ) -> None:
-        for metric_name, value in (
+        values: list[tuple[str, float]] = [
             ("m6.session_context_chain_correctness", context_chain_correctness),
             ("m6.session_target_carry_correctness", target_carry_correctness),
-        ):
+        ]
+        if retrieval_overlap_rate is not None:
+            values.append(("m6.session_retrieval_overlap_rate", retrieval_overlap_rate))
+        for metric_name, value in values:
             definition = metric_definition(metric_name)
             await self._store.observe_metric(
                 session,
@@ -894,6 +899,7 @@ async def load_product_question_session_trace(
     trace_turns: list[ProductQuestionSessionTurnTrace] = []
     for turn in turns:
         parent_context_id: str | None = None
+        retrieval_refs: list[str] = []
         if turn.context_id is not None:
             context = await session.scalar(
                 select(ContextManifestVersionModel)
@@ -907,6 +913,13 @@ async def load_product_question_session_trace(
                     f"{turn.context_id}"
                 )
             parent_context_id = context.parent_context_id
+            raw_evidence_refs = context.manifest_json.get("evidence_refs")
+            if isinstance(raw_evidence_refs, list):
+                retrieval_refs = [
+                    ref
+                    for ref in raw_evidence_refs
+                    if isinstance(ref, str) and ref.startswith("document-chunk:")
+                ]
         target_keys: list[str] = []
         for object_id in turn.target_object_ids:
             canonical_key = objects.get(object_id)
@@ -921,6 +934,7 @@ async def load_product_question_session_trace(
                 turn_index=turn.turn_index,
                 request_id=turn.request_id,
                 target_keys=_stable_unique(target_keys),
+                retrieval_refs=_stable_unique(retrieval_refs),
                 knowledge_revision=turn.knowledge_revision,
                 context_id=turn.context_id,
                 parent_context_id=parent_context_id,

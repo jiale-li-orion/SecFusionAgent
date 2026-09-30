@@ -17,6 +17,7 @@ from packages.evaluation.benchmark import BenchmarkStore, DeploymentRevision
 from packages.evaluation.qa import QAPrediction
 from packages.shared.config import Settings
 from packages.shared.db import Base
+from packages.task_runtime.contracts.models import TaskKind
 from scripts import run_qa_benchmark as qa_runner
 from scripts.run_qa_benchmark import QABenchmarkManifest, QABenchmarkManifestCase
 
@@ -150,6 +151,33 @@ def test_session_trace_metrics_use_durable_context_chain_and_target_keys() -> No
     )
     broken = [turns[0], turns[1].model_copy(update={"parent_context_id": "context:other"})]
     assert qa_runner._session_context_chain_correctness(broken) == 0.0
+    assert qa_runner._session_retrieval_overlap_rate(turns, manifest.sessions[0].turns) is None
+
+    retrieval_turns = [
+        turns[0].model_copy(
+            update={"retrieval_refs": ["document-chunk:a@1", "document-chunk:b@1"]}
+        ),
+        turns[1].model_copy(
+            update={"retrieval_refs": ["document-chunk:b@1", "document-chunk:c@1"]}
+        ),
+    ]
+    expected_turns = [
+        manifest.sessions[0].turns[0].model_copy(
+            update={
+                "question": manifest.sessions[0].turns[0].question.model_copy(
+                    update={"task_kind": TaskKind.RETRIEVE}
+                )
+            }
+        ),
+        manifest.sessions[0].turns[1].model_copy(
+            update={
+                "question": manifest.sessions[0].turns[1].question.model_copy(
+                    update={"task_kind": TaskKind.RETRIEVE}
+                )
+            }
+        ),
+    ]
+    assert qa_runner._session_retrieval_overlap_rate(retrieval_turns, expected_turns) == 0.5
 
 
 def test_product_case_uses_persisted_case_as_prediction_source() -> None:

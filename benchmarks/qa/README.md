@@ -44,4 +44,4 @@ uv run python scripts/run_qa_benchmark.py \
   --output /tmp/m6-real-session-v1.json
 ```
 
-This first session denominator measures turn correctness, durable context chaining and canonical target carry. Cross-turn retrieval-result reuse / duplicate-retrieval avoidance is intentionally not claimed yet and requires a separate metric with an explicit denominator.
+This first session denominator measures turn correctness, durable context chaining and canonical target carry. For follow-up `RETRIEVE` turns, the evaluator also derives informational `m6.session_retrieval_overlap_rate` from `document-chunk:*` refs persisted in each turn's ContextManifest: it reports the fraction of the current turn's retrieved chunks that were already exposed by prior turns. This is a factual overlap baseline only. It does not claim a retrieval backend cache hit or prove that an external/vector search invocation was avoided; that requires invocation/cache provenance that the current Product retrieval seam does not yet persist.
