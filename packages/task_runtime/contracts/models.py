@@ -244,6 +244,7 @@ class ContextManifest(BaseModel):
     evidence_refs: list[str] = Field(default_factory=list)
     object_refs: list[str] = Field(default_factory=list)
     relation_refs: list[str] = Field(default_factory=list)
+    retrieval_invocation_refs: list[str] = Field(default_factory=list)
     trajectory_checkpoint_ref: str | None = None
     skill_selection_refs: list[str] = Field(default_factory=list)
     experience_pattern_refs: list[str] = Field(default_factory=list)

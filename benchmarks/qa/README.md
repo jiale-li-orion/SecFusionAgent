@@ -25,9 +25,9 @@ uv run python scripts/run_qa_benchmark.py \
   --output /tmp/m6-real-product-v1.json
 ```
 
-`real-session-v1.candidate.json` is the first real `QASessionCase` candidate. It contains one two-turn Product session pinned to Knowledge revision `606`: turn 1 asks for the NVD CVSS score of `CVE-2026-7273`; turn 2 omits `cve_id/object_id` and asks for the dated FIRST EPSS probability, so correctness requires the Product session to carry the same canonical vulnerability target. Each turn has independent structured-authority gold and EvidenceRefs. Session evaluation reuses the normal per-turn QA scorer, then derives `m6.session_context_chain_correctness` from durable `ContextManifest.parent_context_id` links and `m6.session_target_carry_correctness` from durable session turn target keys.
+`real-session-v1.candidate.json` is the first real `QASessionCase` candidate. It contains two two-turn Product sessions pinned to Knowledge revision `606`. The first asks for NVD CVSS and then a dated FIRST EPSS fact with no repeated target, exercising canonical target carry. The second sends the exact same `RETRIEVE` question twice: turn 1 binds `CVE-2026-7273`, turn 2 omits `cve_id/object_id`, so a live run exercises the exact-request `executed → reused` path while preserving the same factual NVD gold. All four turns have independent structured-authority gold and EvidenceRefs. Session evaluation reuses the normal per-turn QA scorer, then derives context-chain, target-carry and retrieval diagnostics from durable Product/runtime provenance.
 
-Validate the two-turn gold without a model call:
+Validate all four structured-authority turns without a model call:
 
 ```bash
 uv run python -m scripts.validate_qa_manifest \
@@ -44,4 +44,4 @@ uv run python scripts/run_qa_benchmark.py \
   --output /tmp/m6-real-session-v1.json
 ```
 
-This first session denominator measures turn correctness, durable context chaining and canonical target carry. For follow-up `RETRIEVE` turns, the evaluator also derives informational `m6.session_retrieval_overlap_rate` from `document-chunk:*` refs persisted in each turn's ContextManifest: it reports the fraction of the current turn's retrieved chunks that were already exposed by prior turns. This is a factual overlap baseline only. It does not claim a retrieval backend cache hit or prove that an external/vector search invocation was avoided; that requires invocation/cache provenance that the current Product retrieval seam does not yet persist.
+This first session denominator measures turn correctness, durable context chaining and canonical target carry. Follow-up `RETRIEVE` turns now expose three separate retrieval diagnostics. `m6.session_retrieval_overlap_rate` reports how many current `document-chunk:*` refs were already exposed by prior turns. `m6.session_retrieval_invocation_coverage` checks whether the expected retrieval turn has exactly one durable `RetrievalInvocation`. `m6.session_retrieval_reuse_rate` reads that invocation's `executed/reused` disposition, so exact Product-level reuse is measured from operational provenance instead of inferred from chunk overlap. The current reuse policy is intentionally strict: only the same Product session + exact request digest + same Knowledge revision/operator/limit/source scope may reuse prior ordered chunk refs; any stale/missing chunk ref falls back to a fresh lexical search.

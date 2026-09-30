@@ -30,6 +30,7 @@ from packages.intelligence.knowledge.read import (
     get_object_by_id,
     get_vulnerability_by_cve,
 )
+from packages.intelligence.retrieval.contracts import RetrievedCandidate
 from packages.intelligence.retrieval.operators import LexicalRetrievalOperator
 from packages.intelligence.storage.knowledge_models import KnowledgeRevisionModel
 from packages.investigation.state.contracts import InvestigationState, InvestigationStateItem
@@ -40,6 +41,11 @@ from packages.reasoning.storage import DecisionResultStore
 from packages.runtime.budget import BudgetGovernor, BudgetLimits
 from packages.runtime.execution.service import ExecutionRunService
 from packages.runtime.policy.loader import load_runtime_policy
+from packages.runtime.retrieval import (
+    RetrievalDisposition,
+    RetrievalInvocationService,
+    RetrievalRequestCoordinate,
+)
 from packages.shared.model_provider import ModelProvider
 from packages.task_runtime.admission import TaskAdmissionRequest, TaskIntentParser
 from packages.task_runtime.contracts.execution import ExecutionEnvelope
@@ -102,6 +108,7 @@ class _QuestionContext(BaseModel):
     object_refs: list[str] = Field(default_factory=list)
     relation_refs: list[str] = Field(default_factory=list)
     evidence_refs: list[str] = Field(default_factory=list)
+    retrieval_invocation_refs: list[str] = Field(default_factory=list)
 
 
 class AskQuestionUseCase:
@@ -116,6 +123,7 @@ class AskQuestionUseCase:
         execution_service: ExecutionRunService | None = None,
         decision_store: DecisionResultStore | None = None,
         session_store: QuestionSessionStore | None = None,
+        retrieval_invocations: RetrievalInvocationService | None = None,
     ) -> None:
         self._policy_path = policy_path
         self._stream_name = task_event_stream_name
@@ -125,6 +133,7 @@ class AskQuestionUseCase:
         self._execution = execution_service or ExecutionRunService()
         self._decisions = decision_store or DecisionResultStore()
         self._sessions = session_store or QuestionSessionStore()
+        self._retrieval_invocations = retrieval_invocations or RetrievalInvocationService()
 
     async def execute(
         self,
@@ -167,7 +176,12 @@ class AskQuestionUseCase:
         if self._provider is None:
             raise DependencyUnavailableError("model provider is not configured")
 
-        context = await self._load_context(session, command)
+        context = await self._load_context(
+            session,
+            command,
+            session_context=session_context,
+            turn_index=next_turn_index,
+        )
         history_payload = await self._session_history_payload(session, session_context)
         run_id, execution_id, profile = await self._open_sync_runtime(
             session,
@@ -390,6 +404,7 @@ class AskQuestionUseCase:
             object_refs=list(context.object_refs),
             relation_refs=list(context.relation_refs),
             evidence_refs=list(context.evidence_refs),
+            retrieval_invocation_refs=list(context.retrieval_invocation_refs),
             policy_context_ref=f"policy-context:{policy.policy_revision}",
             capability_envelope_ref="capability:question:local-read-v1",
             budget_ref=budget_ref,
@@ -506,6 +521,9 @@ class AskQuestionUseCase:
         self,
         session: AsyncSession,
         command: AskQuestionCommand,
+        *,
+        session_context: QuestionSessionContext,
+        turn_index: int,
     ) -> _QuestionContext:
         view = await _resolve_optional_target(session, command)
         revision = int(
@@ -517,6 +535,7 @@ class AskQuestionUseCase:
         object_refs: list[str] = []
         relation_refs: list[str] = []
         evidence_refs: list[str] = []
+        retrieval_invocation_refs: list[str] = []
         targets: list[str] = []
 
         if view is not None:
@@ -607,11 +626,49 @@ class AskQuestionUseCase:
                     if added >= _QUESTION_MAX_SECOND_HOP_RELATIONS:
                         break
         if command.task_kind is TaskKind.RETRIEVE:
-            candidates = await self._retrieval.search(
-                session,
+            request = RetrievalRequestCoordinate.lexical(
                 query=command.question,
+                knowledge_revision=revision,
                 limit=command.retrieval_limit,
             )
+            started_at = datetime.now(UTC)
+            reusable = await self._retrieval_invocations.find_reusable(
+                session,
+                product_session_id=session_context.session_id,
+                before_turn_index=turn_index,
+                request=request,
+            )
+            candidates = None
+            disposition = RetrievalDisposition.EXECUTED
+            reuse_of_invocation_id: str | None = None
+            if reusable is not None:
+                replayed = await self._retrieval.by_chunk_refs(
+                    session,
+                    refs=reusable.result_refs,
+                )
+                if len(replayed) == len(reusable.result_refs):
+                    candidates = replayed
+                    disposition = RetrievalDisposition.REUSED
+                    reuse_of_invocation_id = reusable.invocation_id
+            if candidates is None:
+                candidates = await self._retrieval.search(
+                    session,
+                    query=command.question,
+                    limit=command.retrieval_limit,
+                )
+            result_refs = [_document_chunk_ref(candidate) for candidate in candidates]
+            invocation = await self._retrieval_invocations.record(
+                session,
+                request_owner_ref=f"product-request:{command.request_id}",
+                product_session_id=session_context.session_id,
+                product_turn_index=turn_index,
+                request=request,
+                result_refs=result_refs,
+                disposition=disposition,
+                reuse_of_invocation_id=reuse_of_invocation_id,
+                started_at=started_at,
+            )
+            retrieval_invocation_refs.append(invocation.ref)
             for candidate in candidates:
                 chunk_id = candidate.document_chunk_id
                 text = candidate.payload.get("text")
@@ -624,7 +681,7 @@ class AskQuestionUseCase:
                 ):
                     targets.append(candidate.object_id)
                     object_refs.append(f"object:{candidate.object_id}")
-                ref = f"document-chunk:{chunk_id}@{candidate.revision or 'current'}"
+                ref = _document_chunk_ref(candidate)
                 source_ref = None
                 canonical_url = candidate.payload.get("canonical_url")
                 if isinstance(canonical_url, str) and canonical_url:
@@ -665,6 +722,7 @@ class AskQuestionUseCase:
             object_refs=_stable_unique(object_refs),
             relation_refs=_stable_unique(relation_refs),
             evidence_refs=_stable_unique(evidence_refs),
+            retrieval_invocation_refs=_stable_unique(retrieval_invocation_refs),
         )
 
     async def _start_investigation(
@@ -750,6 +808,13 @@ def _evidence_refs(
             locator=cast(dict[str, JsonValue], dict(item.locator)),
         )
     return _stable_unique(refs)
+
+
+def _document_chunk_ref(candidate: RetrievedCandidate) -> str:
+    chunk_id = candidate.document_chunk_id
+    if not chunk_id:
+        raise ValueError("retrieval candidate is missing document_chunk_id")
+    return f"document-chunk:{chunk_id}@{candidate.revision or 'current'}"
 
 
 def _stable_unique(values: list[str]) -> list[str]:

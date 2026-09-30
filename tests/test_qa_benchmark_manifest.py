@@ -62,21 +62,38 @@ def test_real_product_candidate_is_pinned_live_product_content() -> None:
     ]
 
 
-def test_real_session_candidate_is_pinned_two_turn_product_content() -> None:
+def test_real_session_candidate_covers_followup_and_exact_retrieval_reuse() -> None:
     manifest = QABenchmarkManifest.model_validate_json(
         Path("benchmarks/qa/real-session-v1.candidate.json").read_text(encoding="utf-8")
     )
     assert manifest.suite_id == "m6-real-product-qa-session"
     assert manifest.knowledge_revision == 606
     assert manifest.cases == []
-    assert len(manifest.sessions) == 1
-    session_case = manifest.sessions[0]
-    assert session_case.state_carry_policy == "targets_and_outcomes_v1"
-    assert [turn.turn_id for turn in session_case.turns] == ["cvss", "epss-followup"]
-    assert session_case.turns[0].question.cve_id == "CVE-2026-7273"
-    assert session_case.turns[1].question.cve_id is None
-    assert session_case.turns[1].question.object_id is None
-    assert session_case.turns[1].expected_target_keys == ["cve:CVE-2026-7273"]
+    assert len(manifest.sessions) == 2
+    followup = next(
+        item for item in manifest.sessions if item.case_id == "qa-session-real-7273-followup"
+    )
+    assert followup.state_carry_policy == "targets_and_outcomes_v1"
+    assert [turn.turn_id for turn in followup.turns] == ["cvss", "epss-followup"]
+    assert followup.turns[0].question.cve_id == "CVE-2026-7273"
+    assert followup.turns[1].question.cve_id is None
+    assert followup.turns[1].question.object_id is None
+    assert followup.turns[1].expected_target_keys == ["cve:CVE-2026-7273"]
+
+    retrieval = next(
+        item
+        for item in manifest.sessions
+        if item.case_id == "qa-session-real-7273-retrieve-reuse"
+    )
+    assert [turn.question.task_kind for turn in retrieval.turns] == [
+        TaskKind.RETRIEVE,
+        TaskKind.RETRIEVE,
+    ]
+    assert retrieval.turns[0].question.question == retrieval.turns[1].question.question
+    assert retrieval.turns[0].question.cve_id == "CVE-2026-7273"
+    assert retrieval.turns[1].question.cve_id is None
+    assert retrieval.turns[1].question.object_id is None
+    assert retrieval.turns[1].expected_target_keys == ["cve:CVE-2026-7273"]
 
 
 def test_session_case_rejects_followup_that_rebinds_target() -> None:
@@ -155,10 +172,18 @@ def test_session_trace_metrics_use_durable_context_chain_and_target_keys() -> No
 
     retrieval_turns = [
         turns[0].model_copy(
-            update={"retrieval_refs": ["document-chunk:a@1", "document-chunk:b@1"]}
+            update={
+                "retrieval_refs": ["document-chunk:a@1", "document-chunk:b@1"],
+                "retrieval_invocation_refs": ["retrieval-invocation:first"],
+                "retrieval_dispositions": ["executed"],
+            }
         ),
         turns[1].model_copy(
-            update={"retrieval_refs": ["document-chunk:b@1", "document-chunk:c@1"]}
+            update={
+                "retrieval_refs": ["document-chunk:b@1", "document-chunk:c@1"],
+                "retrieval_invocation_refs": ["retrieval-invocation:second"],
+                "retrieval_dispositions": ["reused"],
+            }
         ),
     ]
     expected_turns = [
@@ -178,6 +203,20 @@ def test_session_trace_metrics_use_durable_context_chain_and_target_keys() -> No
         ),
     ]
     assert qa_runner._session_retrieval_overlap_rate(retrieval_turns, expected_turns) == 0.5
+    assert qa_runner._session_retrieval_invocation_metrics(
+        retrieval_turns,
+        expected_turns,
+    ) == (1.0, 1.0)
+    missing_invocation = [
+        retrieval_turns[0],
+        retrieval_turns[1].model_copy(
+            update={"retrieval_invocation_refs": [], "retrieval_dispositions": []}
+        ),
+    ]
+    assert qa_runner._session_retrieval_invocation_metrics(
+        missing_invocation,
+        expected_turns,
+    ) == (0.0, None)
 
 
 def test_product_case_uses_persisted_case_as_prediction_source() -> None:

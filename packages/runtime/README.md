@@ -14,6 +14,8 @@
 
 `artifacts/` owns execution-produced runtime blobs and metadata. Runtime artifacts remain distinct from Evidence: a tool/sandbox output can be replayable and inspectable without acquiring factual authority. Promotion into Evidence is an explicit higher-level operation.
 
+`retrieval/` owns durable retrieval-operation provenance used by Product sessions and TD3 measurement. It records the exact request digest/world/operator coordinate, ordered chunk refs, and whether a turn executed retrieval or reused a prior result set. It does not implement ranking: physical lexical/dense reads remain under `packages.intelligence.retrieval`. Exact Product reuse is permitted only when the request digest and Knowledge revision match; stale/missing chunk refs force a fresh search.
+
 ## Policy
 
 `policy/` defines typed PolicyRequest/PolicyDecision and obligation handling. Authorization is separate from obligations. The v1 combining baseline is implicit deny with explicit deny precedence; indeterminate evaluation remains a fail-closed signal rather than silently becoming permit.
@@ -36,7 +38,7 @@ Capability/Policy/Budget/Execution/Sandbox control-plane contracts and durable a
 
 ## Design → implementation map
 
-TD2 的 capability stack 已有具体实现：`CapabilityRegistry.visible_capabilities/schema_view/resolve_binding` 负责 discovery/binding；`CapabilityBroker.invoke` 做 invocation-time validation、Policy、Budget 与 executor 调用；`BudgetGovernor` 持有 durable reserve/commit/release；`ExecutionRunService` 持有 ExecutionEnvelope lifecycle；`SandboxBroker` 持有 sandbox create/exec/export/destroy 语义。Identity/network/audit 当前作为 ExecutionEnvelope、Policy、Sandbox 和 owner-local audit state 存在，没有为了目录图额外造空 package。
+TD2 的 capability stack 已有具体实现：`CapabilityRegistry.visible_capabilities/schema_view/resolve_binding` 负责 discovery/binding；`CapabilityBroker.invoke` 做 invocation-time validation、Policy、Budget 与 executor 调用；`BudgetGovernor` 持有 durable reserve/commit/release；`ExecutionRunService` 持有 ExecutionEnvelope lifecycle；`SandboxBroker` 持有 sandbox create/exec/export/destroy 语义；`RetrievalInvocationService` 持有 Product retrieval request/result/reuse 的 operational record。Identity/network/audit 当前作为 ExecutionEnvelope、Policy、Sandbox 和 owner-local audit state 存在，没有为了目录图额外造空 package。
 
 现在最大的 gap 是 production composition 而不是 contract shape。`apps.investigation_runtime` 当前只开放 local Perception 与 delegation，没有把真实 search/browser/repository/asset capability catalog 接进 active Role。后续应该通过现有 Registry/Binding/Broker 接入这些 executor；直接让 InvestigationRole 调 provider 虽然 demo 更快，但会破坏 TD2 的控制面边界。
 

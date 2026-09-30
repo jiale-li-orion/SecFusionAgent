@@ -45,6 +45,7 @@ from packages.reasoning.model import ModelDecisionPlanner
 from packages.reasoning.storage import DecisionResultStore
 from packages.runtime.model.storage import ModelRequestModel
 from packages.runtime.policy.loader import load_runtime_policy
+from packages.runtime.retrieval.storage import RetrievalInvocationModel
 from packages.shared.config import Settings
 from packages.shared.model_provider import ModelProvider
 from packages.task_runtime.contracts.models import TaskKind
@@ -121,6 +122,8 @@ class ProductQuestionSessionTurnTrace(BaseModel):
     request_id: str
     target_keys: list[str]
     retrieval_refs: list[str] = Field(default_factory=list)
+    retrieval_invocation_refs: list[str] = Field(default_factory=list)
+    retrieval_dispositions: list[str] = Field(default_factory=list)
     knowledge_revision: int | None = None
     context_id: str | None = None
     parent_context_id: str | None = None
@@ -323,6 +326,8 @@ class QABenchmarkRecorder:
         context_chain_correctness: float,
         target_carry_correctness: float,
         retrieval_overlap_rate: float | None = None,
+        retrieval_invocation_coverage: float | None = None,
+        retrieval_reuse_rate: float | None = None,
         subject_ref: str,
     ) -> None:
         values: list[tuple[str, float]] = [
@@ -331,6 +336,15 @@ class QABenchmarkRecorder:
         ]
         if retrieval_overlap_rate is not None:
             values.append(("m6.session_retrieval_overlap_rate", retrieval_overlap_rate))
+        if retrieval_invocation_coverage is not None:
+            values.append(
+                (
+                    "m6.session_retrieval_invocation_coverage",
+                    retrieval_invocation_coverage,
+                )
+            )
+        if retrieval_reuse_rate is not None:
+            values.append(("m6.session_retrieval_reuse_rate", retrieval_reuse_rate))
         for metric_name, value in values:
             definition = metric_definition(metric_name)
             await self._store.observe_metric(
@@ -900,6 +914,8 @@ async def load_product_question_session_trace(
     for turn in turns:
         parent_context_id: str | None = None
         retrieval_refs: list[str] = []
+        retrieval_invocation_refs: list[str] = []
+        retrieval_dispositions: list[str] = []
         if turn.context_id is not None:
             context = await session.scalar(
                 select(ContextManifestVersionModel)
@@ -920,6 +936,26 @@ async def load_product_question_session_trace(
                     for ref in raw_evidence_refs
                     if isinstance(ref, str) and ref.startswith("document-chunk:")
                 ]
+            raw_invocation_refs = context.manifest_json.get("retrieval_invocation_refs")
+            if isinstance(raw_invocation_refs, list):
+                retrieval_invocation_refs = [
+                    ref for ref in raw_invocation_refs if isinstance(ref, str)
+                ]
+            for ref in retrieval_invocation_refs:
+                prefix = "retrieval-invocation:"
+                if not ref.startswith(prefix):
+                    raise ValueError(f"invalid retrieval invocation ref in ContextManifest: {ref}")
+                invocation = await session.get(
+                    RetrievalInvocationModel,
+                    ref.removeprefix(prefix),
+                )
+                if invocation is None:
+                    raise LookupError(f"retrieval invocation does not resolve: {ref}")
+                if invocation.product_session_id != session_id:
+                    raise ValueError("retrieval invocation belongs to another Product session")
+                if invocation.product_turn_index != turn.turn_index:
+                    raise ValueError("retrieval invocation Product turn index does not match")
+                retrieval_dispositions.append(invocation.disposition)
         target_keys: list[str] = []
         for object_id in turn.target_object_ids:
             canonical_key = objects.get(object_id)
@@ -935,6 +971,8 @@ async def load_product_question_session_trace(
                 request_id=turn.request_id,
                 target_keys=_stable_unique(target_keys),
                 retrieval_refs=_stable_unique(retrieval_refs),
+                retrieval_invocation_refs=_stable_unique(retrieval_invocation_refs),
+                retrieval_dispositions=retrieval_dispositions,
                 knowledge_revision=turn.knowledge_revision,
                 context_id=turn.context_id,
                 parent_context_id=parent_context_id,

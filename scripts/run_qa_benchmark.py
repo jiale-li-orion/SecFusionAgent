@@ -729,6 +729,8 @@ async def _run_sessions(
                             "m6.session_context_chain_correctness",
                             "m6.session_target_carry_correctness",
                             "m6.session_retrieval_overlap_rate",
+                            "m6.session_retrieval_invocation_coverage",
+                            "m6.session_retrieval_reuse_rate",
                         ],
                     },
                     created_at=now,
@@ -874,6 +876,13 @@ async def _execute_session_cases(
                 trace.turns,
                 session_case.turns,
             )
+            (
+                retrieval_invocation_coverage,
+                retrieval_reuse_rate,
+            ) = _session_retrieval_invocation_metrics(
+                trace.turns,
+                session_case.turns,
+            )
             async with factory() as session, session.begin():
                 await recorder.record_session_trace_score(
                     session,
@@ -881,6 +890,8 @@ async def _execute_session_cases(
                     context_chain_correctness=context_chain_correctness,
                     target_carry_correctness=target_carry_correctness,
                     retrieval_overlap_rate=retrieval_overlap_rate,
+                    retrieval_invocation_coverage=retrieval_invocation_coverage,
+                    retrieval_reuse_rate=retrieval_reuse_rate,
                     subject_ref=f"qa-session:{session_case.case_id}",
                 )
                 await store.finish_case_run(
@@ -890,6 +901,11 @@ async def _execute_session_cases(
                     artifact_refs=list(
                         dict.fromkeys(
                             [f"question-session:{product_session_id}", *execution_refs]
+                            + [
+                                ref
+                                for turn in trace.turns
+                                for ref in turn.retrieval_invocation_refs
+                            ]
                         )
                     ),
                 )
@@ -899,6 +915,8 @@ async def _execute_session_cases(
                 "context_chain_correctness": context_chain_correctness,
                 "target_carry_correctness": target_carry_correctness,
                 "retrieval_overlap_rate": retrieval_overlap_rate,
+                "retrieval_invocation_coverage": retrieval_invocation_coverage,
+                "retrieval_reuse_rate": retrieval_reuse_rate,
             }
         except Exception as exc:
             async with factory() as session, session.begin():
@@ -964,6 +982,31 @@ def _session_retrieval_overlap_rate(
     if not overlaps:
         return None
     return sum(overlaps) / len(overlaps)
+
+
+def _session_retrieval_invocation_metrics(
+    observed_turns: list[Any],
+    expected_turns: list[QASessionManifestTurn],
+) -> tuple[float | None, float | None]:
+    coverage_checks: list[float] = []
+    reuse_checks: list[float] = []
+    for index, (observed, expected) in enumerate(
+        zip(observed_turns, expected_turns, strict=True),
+        start=1,
+    ):
+        if index <= 1 or expected.question.task_kind is not TaskKind.RETRIEVE:
+            continue
+        invocation_count = len(observed.retrieval_invocation_refs)
+        coverage_checks.append(1.0 if invocation_count == 1 else 0.0)
+        if invocation_count == 1 and len(observed.retrieval_dispositions) == 1:
+            reuse_checks.append(
+                1.0 if observed.retrieval_dispositions[0] == "reused" else 0.0
+            )
+    if not coverage_checks:
+        return None, None
+    coverage = sum(coverage_checks) / len(coverage_checks)
+    reuse = sum(reuse_checks) / len(reuse_checks) if reuse_checks else None
+    return coverage, reuse
 
 
 def _citation_support(values: dict[str, bool]) -> dict[tuple[int, str], bool]:

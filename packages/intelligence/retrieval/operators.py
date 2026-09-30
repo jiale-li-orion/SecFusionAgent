@@ -204,6 +204,72 @@ class LexicalRetrievalOperator:
             )
         return candidates
 
+    async def by_chunk_refs(
+        self,
+        session: AsyncSession,
+        *,
+        refs: Sequence[str],
+    ) -> list[RetrievedCandidate]:
+        parsed: list[tuple[str, str]] = []
+        for ref in refs:
+            prefix = "document-chunk:"
+            if not ref.startswith(prefix):
+                raise ValueError(f"invalid document chunk ref: {ref}")
+            identity, separator, revision_id = ref.removeprefix(prefix).rpartition("@")
+            if not separator or not identity or not revision_id:
+                raise ValueError(f"invalid document chunk ref: {ref}")
+            parsed.append((identity, revision_id))
+        if not parsed:
+            return []
+
+        chunk_ids = {chunk_id for chunk_id, _ in parsed}
+        rows = (
+            await session.execute(
+                select(
+                    DocumentChunkModel,
+                    DocumentRevisionModel,
+                    DocumentModel,
+                    ObservationModel,
+                    SourceModel,
+                )
+                .join(
+                    DocumentRevisionModel,
+                    DocumentRevisionModel.document_revision_id
+                    == DocumentChunkModel.document_revision_id,
+                )
+                .join(
+                    DocumentModel,
+                    DocumentModel.document_id == DocumentRevisionModel.document_id,
+                )
+                .join(
+                    ObservationModel,
+                    ObservationModel.observation_id == DocumentRevisionModel.observation_id,
+                )
+                .join(SourceModel, SourceModel.source_id == ObservationModel.source_id)
+                .where(DocumentChunkModel.chunk_id.in_(chunk_ids))
+            )
+        ).all()
+        candidates: dict[tuple[str, str], RetrievedCandidate] = {}
+        for row in rows:
+            chunk = row[0]
+            revision = row[1]
+            document = row[2]
+            observation = row[3]
+            source = row[4]
+            candidates[(chunk.chunk_id, revision.document_revision_id)] = _document_candidate(
+                chunk,
+                revision,
+                document,
+                observation,
+                source,
+                score_channels={"reused": 1.0},
+            )
+        return [
+            candidate
+            for key in parsed
+            if (candidate := candidates.get(key)) is not None
+        ]
+
 
 class DenseRetrievalOperator:
     async def search(

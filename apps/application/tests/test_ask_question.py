@@ -32,6 +32,7 @@ from packages.reasoning.model import (
     DecisionPlannerResponse,
     FinalDecisionProposal,
 )
+from packages.runtime.retrieval.storage import RetrievalInvocationModel
 from packages.runtime.storage.models import ExecutionRunModel
 from packages.shared.config import get_settings
 from packages.shared.db import Base
@@ -124,6 +125,43 @@ class _FixtureRetrieval(LexicalRetrievalOperator):
                 },
             )
         ]
+
+
+class _ReusableFixtureRetrieval(_FixtureRetrieval):
+    def __init__(self) -> None:
+        self.search_calls = 0
+        self.replay_calls = 0
+
+    async def search(
+        self,
+        session,
+        *,
+        query: str,
+        limit: int = 20,
+        source_ids: Sequence[str] | None = None,
+    ) -> list[RetrievedCandidate]:
+        self.search_calls += 1
+        return await super().search(
+            session,
+            query=query,
+            limit=limit,
+            source_ids=source_ids,
+        )
+
+    async def by_chunk_refs(
+        self,
+        session,
+        *,
+        refs: Sequence[str],
+    ) -> list[RetrievedCandidate]:
+        self.replay_calls += 1
+        assert refs == ["document-chunk:question-doc-chunk@document-r1"]
+        return await _FixtureRetrieval.search(
+            self,
+            session,
+            query="replayed",
+            limit=len(refs),
+        )
 
 
 async def _factory():
@@ -362,6 +400,89 @@ async def test_lookup_question_runs_read_only_decision_without_durable_case() ->
         assert metadata["execution_id"]
         assert metadata["case_id"] is None
         assert metadata["product_request_id"] == "question-direct-1"
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_identical_retrieve_followup_reuses_prior_chunk_results() -> None:
+    engine, factory = await _factory()
+    retrieval = _ReusableFixtureRetrieval()
+    response = DecisionPlannerResponse(
+        action=FinalDecisionProposal(
+            conclusions=[
+                DecisionConclusion(
+                    statement=PROPOSITION,
+                    type=ConclusionType.FACT,
+                    evidence_refs=[f"evidence:{EVIDENCE_ID}"],
+                )
+            ],
+            answer_payload={"score": 9.8},
+            stop_reason="evidence_sufficient",
+        )
+    )
+    question = f"Retrieve supporting context for the CVSS score of {CVE}."
+    try:
+        async with factory() as session:
+            first = await _use_case(_Provider(response), retrieval=retrieval).execute(
+                session,
+                AskQuestionCommand(
+                    principal="user:test",
+                    request_id="question-reuse-1",
+                    question=question,
+                    cve_id=CVE,
+                    task_kind=TaskKind.RETRIEVE,
+                ),
+            )
+        async with factory() as session:
+            second = await _use_case(_Provider(response), retrieval=retrieval).execute(
+                session,
+                AskQuestionCommand(
+                    principal="user:test",
+                    request_id="question-reuse-2",
+                    session_id=first.session_id,
+                    question=question,
+                    task_kind=TaskKind.RETRIEVE,
+                ),
+            )
+
+        assert first.mode == "completed" and second.mode == "completed"
+        assert second.turn_index == 2
+        assert retrieval.search_calls == 1
+        assert retrieval.replay_calls == 1
+
+        async with factory() as session:
+            invocations = list(
+                await session.scalars(
+                    select(RetrievalInvocationModel).order_by(
+                        RetrievalInvocationModel.product_turn_index
+                    )
+                )
+            )
+            assert [item.disposition for item in invocations] == ["executed", "reused"]
+            assert invocations[1].reuse_of_invocation_id == invocations[0].invocation_id
+            assert invocations[0].request_digest == invocations[1].request_digest
+            assert invocations[0].result_refs == invocations[1].result_refs
+
+            runs = list(
+                await session.scalars(
+                    select(TaskRunModel)
+                    .where(TaskRunModel.role_id == "DecisionRole")
+                    .order_by(TaskRunModel.created_at)
+                )
+            )
+            contexts = [
+                await session.get(ContextManifestVersionModel, run.context_manifest_version_id)
+                for run in runs
+            ]
+            assert all(context is not None for context in contexts)
+            assert contexts[0] is not None and contexts[1] is not None
+            assert contexts[0].manifest_json["retrieval_invocation_refs"] == [
+                f"retrieval-invocation:{invocations[0].invocation_id}"
+            ]
+            assert contexts[1].manifest_json["retrieval_invocation_refs"] == [
+                f"retrieval-invocation:{invocations[1].invocation_id}"
+            ]
     finally:
         await engine.dispose()
 

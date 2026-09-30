@@ -19,6 +19,7 @@ _MODEL_MODULES = (
     "packages.investigation.skills.storage",
     "packages.runtime.storage.models",
     "packages.runtime.model.storage",
+    "packages.runtime.retrieval.storage",
     "packages.reasoning.storage",
     "apps.application.question_sessions",
     "packages.evaluation.benchmark.storage",
