@@ -22,7 +22,9 @@ async def _validate(manifest: QABenchmarkManifest) -> dict[str, Any]:
     try:
         async with factory() as session:
             current_revision = await current_knowledge_revision(session)
-            if any(item.live_product_question is not None for item in manifest.cases):
+            if manifest.sessions or any(
+                item.live_product_question is not None for item in manifest.cases
+            ):
                 assert manifest.knowledge_revision is not None
                 if current_revision != manifest.knowledge_revision:
                     raise ValueError(
@@ -49,10 +51,32 @@ async def _validate(manifest: QABenchmarkManifest) -> dict[str, Any]:
                 )
                 structured_cases += 1
 
+            structured_session_turns = 0
+            for session_case in manifest.sessions:
+                for turn in session_case.turns:
+                    provenance = turn.gold_provenance
+                    if provenance is None or provenance.mode != "structured_authority":
+                        continue
+                    assert manifest.knowledge_revision is not None
+                    await validate_structured_qa_gold_provenance(
+                        session,
+                        gold=turn.gold,
+                        evidence_refs=provenance.evidence_refs,
+                        source_ids=provenance.source_ids,
+                        knowledge_revision=manifest.knowledge_revision,
+                        absence_checks=[
+                            (check.subject_key, check.predicate)
+                            for check in provenance.absence_checks
+                        ],
+                    )
+                    structured_session_turns += 1
+
             return {
                 "suite_id": manifest.suite_id,
                 "case_count": len(manifest.cases),
+                "session_count": len(manifest.sessions),
                 "structured_authority_case_count": structured_cases,
+                "structured_authority_session_turn_count": structured_session_turns,
                 "knowledge_revision": manifest.knowledge_revision,
                 "current_knowledge_revision": current_revision,
                 "status": "valid",

@@ -9,12 +9,13 @@ from pathlib import Path
 from time import monotonic
 from typing import cast
 
-from pydantic import JsonValue
+from pydantic import BaseModel, JsonValue
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from apps.application.commands.ask_question import AskQuestionCommand, AskQuestionUseCase
 from apps.application.question_facts import render_claim_fact, render_relation_fact
+from apps.application.question_sessions import QuestionSessionTurnModel
 from apps.decision_runtime import DecisionRuntime
 from packages.evaluation.benchmark import (
     BenchmarkStore,
@@ -65,31 +66,11 @@ class M3BenchmarkRecorder:
         subject_ref: str,
     ) -> None:
         for metric_name, value, direction in (
-            (
-                "m3.micro_precision",
-                score.micro_precision,
-                MetricDirection.HIGHER_IS_BETTER,
-            ),
-            (
-                "m3.micro_recall",
-                score.micro_recall,
-                MetricDirection.HIGHER_IS_BETTER,
-            ),
-            (
-                "m3.true_positive",
-                float(score.true_positive),
-                MetricDirection.INFORMATIONAL,
-            ),
-            (
-                "m3.false_positive",
-                float(score.false_positive),
-                MetricDirection.LOWER_IS_BETTER,
-            ),
-            (
-                "m3.false_negative",
-                float(score.false_negative),
-                MetricDirection.LOWER_IS_BETTER,
-            ),
+            ("m3.micro_precision", score.micro_precision, MetricDirection.HIGHER_IS_BETTER),
+            ("m3.micro_recall", score.micro_recall, MetricDirection.HIGHER_IS_BETTER),
+            ("m3.true_positive", float(score.true_positive), MetricDirection.INFORMATIONAL),
+            ("m3.false_positive", float(score.false_positive), MetricDirection.LOWER_IS_BETTER),
+            ("m3.false_negative", float(score.false_negative), MetricDirection.LOWER_IS_BETTER),
         ):
             await self._store.observe_metric(
                 session,
@@ -104,21 +85,9 @@ class M3BenchmarkRecorder:
         for dimension in score.dimensions:
             prefix = f"m3.dimension.{dimension.dimension.value}"
             for suffix, value, direction in (
-                (
-                    "precision",
-                    dimension.precision,
-                    MetricDirection.HIGHER_IS_BETTER,
-                ),
-                (
-                    "recall",
-                    dimension.recall,
-                    MetricDirection.HIGHER_IS_BETTER,
-                ),
-                (
-                    "true_positive",
-                    float(dimension.true_positive),
-                    MetricDirection.INFORMATIONAL,
-                ),
+                ("precision", dimension.precision, MetricDirection.HIGHER_IS_BETTER),
+                ("recall", dimension.recall, MetricDirection.HIGHER_IS_BETTER),
+                ("true_positive", float(dimension.true_positive), MetricDirection.INFORMATIONAL),
                 (
                     "false_positive",
                     float(dimension.false_positive),
@@ -139,6 +108,28 @@ class M3BenchmarkRecorder:
                     measurement_source=MeasurementSource.SCORER,
                     subject_ref=subject_ref,
                 )
+
+
+class ProductQuestionQAExecution(BaseModel):
+    prediction: QAPrediction
+    session_id: str
+    turn_index: int
+
+
+class ProductQuestionSessionTurnTrace(BaseModel):
+    turn_index: int
+    request_id: str
+    target_keys: list[str]
+    knowledge_revision: int | None = None
+    context_id: str | None = None
+    parent_context_id: str | None = None
+    decision_ref: str | None = None
+    investigation_ref: str | None = None
+
+
+class ProductQuestionSessionTrace(BaseModel):
+    session_id: str
+    turns: list[ProductQuestionSessionTurnTrace]
 
 
 async def validate_structured_qa_gold_provenance(
@@ -320,6 +311,30 @@ class QABenchmarkRecorder:
                 value=value,
                 direction=definition.direction,
                 measurement_source=MeasurementSource.SCORER,
+                subject_ref=subject_ref,
+            )
+
+    async def record_session_trace_score(
+        self,
+        session: AsyncSession,
+        *,
+        case_run_id: str,
+        context_chain_correctness: float,
+        target_carry_correctness: float,
+        subject_ref: str,
+    ) -> None:
+        for metric_name, value in (
+            ("m6.session_context_chain_correctness", context_chain_correctness),
+            ("m6.session_target_carry_correctness", target_carry_correctness),
+        ):
+            definition = metric_definition(metric_name)
+            await self._store.observe_metric(
+                session,
+                case_run_id=case_run_id,
+                metric_name=metric_name,
+                value=value,
+                direction=definition.direction,
+                measurement_source=MeasurementSource.DERIVED,
                 subject_ref=subject_ref,
             )
 
@@ -571,7 +586,7 @@ async def execute_product_case_qa_prediction(
     return prediction
 
 
-async def execute_product_question_qa_prediction(
+async def execute_product_question_qa_execution(
     session_factory: async_sessionmaker[AsyncSession],
     *,
     settings: Settings,
@@ -587,10 +602,11 @@ async def execute_product_question_qa_prediction(
     interactive_timeout_seconds: int = 5,
     retrieval_limit: int = 8,
     principal: str = "system:benchmark-m6",
+    session_id: str | None = None,
     citation_support: Mapping[tuple[int, str], bool] | None = None,
     execution_refs: Iterable[str] = (),
     expected_knowledge_revision: int | None = None,
-) -> QAPrediction:
+) -> ProductQuestionQAExecution:
     """Run the real Product AskQuestion path and project its durable outcome into QA metrics.
 
     Unlike the durable-Case evaluator above, this function intentionally keeps Product runtime
@@ -616,6 +632,7 @@ async def execute_product_question_qa_prediction(
             AskQuestionCommand(
                 principal=principal,
                 request_id=request_id,
+                session_id=session_id,
                 question=question,
                 cve_id=cve_id,
                 object_id=object_id,
@@ -656,13 +673,17 @@ async def execute_product_question_qa_prediction(
             decision = DecisionResult.model_validate(
                 stored.model_dump(mode="json", exclude={"created_at"})
             )
-            return project_validated_decision_to_qa_prediction(
-                benchmark_case_id=benchmark_case_id,
-                decision=decision,
-                relation_paths=runtime_relation_paths,
-                citation_support=citation_support,
-                interactive_latency_seconds=latency,
-                execution_refs=merged_execution_refs,
+            return ProductQuestionQAExecution(
+                prediction=project_validated_decision_to_qa_prediction(
+                    benchmark_case_id=benchmark_case_id,
+                    decision=decision,
+                    relation_paths=runtime_relation_paths,
+                    citation_support=citation_support,
+                    interactive_latency_seconds=latency,
+                    execution_refs=merged_execution_refs,
+                ),
+                session_id=result.session_id,
+                turn_index=result.turn_index,
             )
 
         assert result.investigation is not None
@@ -673,13 +694,61 @@ async def execute_product_question_qa_prediction(
         ]
         if not need_refs:
             raise ValueError("accepted Product question has no durable EvidenceNeed")
-        return project_continuation_state_to_qa_prediction(
-            benchmark_case_id=benchmark_case_id,
-            state=state,
-            evidence_need_refs=need_refs,
-            interactive_latency_seconds=latency,
-            execution_refs=merged_execution_refs,
+        return ProductQuestionQAExecution(
+            prediction=project_continuation_state_to_qa_prediction(
+                benchmark_case_id=benchmark_case_id,
+                state=state,
+                evidence_need_refs=need_refs,
+                interactive_latency_seconds=latency,
+                execution_refs=merged_execution_refs,
+            ),
+            session_id=result.session_id,
+            turn_index=result.turn_index,
         )
+
+
+async def execute_product_question_qa_prediction(
+    session_factory: async_sessionmaker[AsyncSession],
+    *,
+    settings: Settings,
+    benchmark_case_id: str,
+    request_id: str,
+    provider: ModelProvider,
+    question: str,
+    cve_id: str | None = None,
+    object_id: str | None = None,
+    task_kind: TaskKind = TaskKind.LOOKUP,
+    required_source_roles: Iterable[str] = (),
+    priority: int = 50,
+    interactive_timeout_seconds: int = 5,
+    retrieval_limit: int = 8,
+    principal: str = "system:benchmark-m6",
+    session_id: str | None = None,
+    citation_support: Mapping[tuple[int, str], bool] | None = None,
+    execution_refs: Iterable[str] = (),
+    expected_knowledge_revision: int | None = None,
+) -> QAPrediction:
+    execution = await execute_product_question_qa_execution(
+        session_factory,
+        settings=settings,
+        benchmark_case_id=benchmark_case_id,
+        request_id=request_id,
+        provider=provider,
+        question=question,
+        cve_id=cve_id,
+        object_id=object_id,
+        task_kind=task_kind,
+        required_source_roles=required_source_roles,
+        priority=priority,
+        interactive_timeout_seconds=interactive_timeout_seconds,
+        retrieval_limit=retrieval_limit,
+        principal=principal,
+        session_id=session_id,
+        citation_support=citation_support,
+        execution_refs=execution_refs,
+        expected_knowledge_revision=expected_knowledge_revision,
+    )
+    return execution.prediction
 
 
 def project_validated_decision_to_qa_prediction(
@@ -794,6 +863,72 @@ async def _product_question_execution_refs(
             refs.append(item.budget_ref)
     relation_paths = await _relation_paths_for_refs(session, _stable_unique(relation_refs))
     return _stable_unique(refs), context_revisions, relation_paths
+
+
+async def load_product_question_session_trace(
+    session: AsyncSession,
+    session_id: str,
+) -> ProductQuestionSessionTrace:
+    turns = list(
+        await session.scalars(
+            select(QuestionSessionTurnModel)
+            .where(QuestionSessionTurnModel.session_id == session_id)
+            .order_by(QuestionSessionTurnModel.turn_index)
+        )
+    )
+    if not turns:
+        raise LookupError(f"question session has no turns: {session_id}")
+
+    object_ids = {
+        object_id
+        for turn in turns
+        for object_id in turn.target_object_ids
+        if isinstance(object_id, str) and object_id
+    }
+    objects = {
+        item.object_id: item.canonical_key
+        for item in await session.scalars(
+            select(ObjectModel).where(ObjectModel.object_id.in_(object_ids))
+        )
+    }
+    trace_turns: list[ProductQuestionSessionTurnTrace] = []
+    for turn in turns:
+        parent_context_id: str | None = None
+        if turn.context_id is not None:
+            context = await session.scalar(
+                select(ContextManifestVersionModel)
+                .where(ContextManifestVersionModel.context_id == turn.context_id)
+                .order_by(ContextManifestVersionModel.context_revision.desc())
+                .limit(1)
+            )
+            if context is None:
+                raise LookupError(
+                    "question session turn references missing ContextManifest: "
+                    f"{turn.context_id}"
+                )
+            parent_context_id = context.parent_context_id
+        target_keys: list[str] = []
+        for object_id in turn.target_object_ids:
+            canonical_key = objects.get(object_id)
+            if canonical_key is None:
+                raise LookupError(
+                    "question session turn references missing Knowledge object: "
+                    f"{object_id}"
+                )
+            target_keys.append(canonical_key)
+        trace_turns.append(
+            ProductQuestionSessionTurnTrace(
+                turn_index=turn.turn_index,
+                request_id=turn.request_id,
+                target_keys=_stable_unique(target_keys),
+                knowledge_revision=turn.knowledge_revision,
+                context_id=turn.context_id,
+                parent_context_id=parent_context_id,
+                decision_ref=turn.decision_ref,
+                investigation_ref=turn.investigation_ref,
+            )
+        )
+    return ProductQuestionSessionTrace(session_id=session_id, turns=trace_turns)
 
 
 async def _relation_paths_for_refs(

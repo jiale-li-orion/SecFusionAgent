@@ -1,0 +1,62 @@
+{
+  "suite_id": "m6-real-product-qa-session",
+  "knowledge_revision": 606,
+  "evaluator_revision": "qa-session-v1",
+  "purpose": "Real two-turn Product QA session candidate pinned to canonical Knowledge revision 606; requires a configured live model and is not competition evidence until a successful live run.",
+  "sessions": [
+    {
+      "case_id": "qa-session-real-7273-followup",
+      "state_carry_policy": "targets_and_outcomes_v1",
+      "tags": ["real", "candidate", "session", "follow-up", "temporal"],
+      "turns": [
+        {
+          "turn_id": "cvss",
+          "question": {
+            "question": "What is the CVSS score for CVE-2026-7273? Answer only the requested fact from the available evidence.",
+            "cve_id": "CVE-2026-7273",
+            "task_kind": "lookup"
+          },
+          "expected_target_keys": ["cve:CVE-2026-7273"],
+          "gold_provenance": {
+            "mode": "structured_authority",
+            "source_ids": ["nvd-cves-2"],
+            "evidence_refs": ["evidence:fe4aeec1-a8e5-568e-87db-73052c970b94"]
+          },
+          "gold": {
+            "case_id": "qa-session-real-7273-followup#turn:cvss",
+            "required_facts": ["cve:CVE-2026-7273 cvss_score = 8.8"],
+            "forbidden_facts": [
+              "cve:CVE-2026-7273 epss_probability = 0.02501 semantics={\"score_date\":\"2026-09-27\",\"source_semantics\":\"first_epss\"}"
+            ],
+            "required_citation_facts": ["cve:CVE-2026-7273 cvss_score = 8.8"],
+            "completion_expectation": "answered"
+          }
+        },
+        {
+          "turn_id": "epss-followup",
+          "question": {
+            "question": "What about its FIRST EPSS exploit probability on 2026-09-27? Answer only that dated fact.",
+            "task_kind": "lookup"
+          },
+          "expected_target_keys": ["cve:CVE-2026-7273"],
+          "gold_provenance": {
+            "mode": "structured_authority",
+            "source_ids": ["first-epss"],
+            "evidence_refs": ["evidence:b68fd1d7-fa42-5e86-9b8f-42b829fad03e"]
+          },
+          "gold": {
+            "case_id": "qa-session-real-7273-followup#turn:epss-followup",
+            "required_facts": [
+              "cve:CVE-2026-7273 epss_probability = 0.02501 semantics={\"score_date\":\"2026-09-27\",\"source_semantics\":\"first_epss\"}"
+            ],
+            "forbidden_facts": ["cve:CVE-2026-7273 cvss_score = 8.8"],
+            "required_citation_facts": [
+              "cve:CVE-2026-7273 epss_probability = 0.02501 semantics={\"score_date\":\"2026-09-27\",\"source_semantics\":\"first_epss\"}"
+            ],
+            "completion_expectation": "answered"
+          }
+        }
+      ]
+    }
+  ]
+}

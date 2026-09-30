@@ -33,6 +33,15 @@ from packages.sources.storage.models import SourceModel
 from packages.task_runtime.contracts.models import TaskKind
 
 
+class _MetricCaptureStore:
+    def __init__(self) -> None:
+        self.metric_names: list[str] = []
+
+    async def observe_metric(self, session, **kwargs) -> None:
+        del session
+        self.metric_names.append(kwargs["metric_name"])
+
+
 def _deployment(identity: str) -> DeploymentRevision:
     return DeploymentRevision(
         deployment_revision_id=identity,
@@ -211,6 +220,23 @@ def test_project_continuation_state_to_qa_prediction_preserves_gap_state() -> No
     assert prediction.unknowns == ["exploitability:unknown"]
     assert prediction.conflicts == ["vendor-status-conflict"]
     assert "evidence-need:need-1" in prediction.execution_refs
+
+
+@pytest.mark.asyncio
+async def test_qa_recorder_owns_session_trace_metrics() -> None:
+    store = _MetricCaptureStore()
+    recorder = evaluation_runtime.QABenchmarkRecorder(store)  # type: ignore[arg-type]
+    await recorder.record_session_trace_score(
+        None,  # type: ignore[arg-type]
+        case_run_id="case-run:session",
+        context_chain_correctness=1.0,
+        target_carry_correctness=1.0,
+        subject_ref="qa-session:test",
+    )
+    assert store.metric_names == [
+        "m6.session_context_chain_correctness",
+        "m6.session_target_carry_correctness",
+    ]
 
 
 @pytest.mark.asyncio
