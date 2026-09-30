@@ -197,6 +197,33 @@ class QuestionSessionStore:
         await session.flush()
         return _turn_view(turn)
 
+    async def latest_investigation_turn(
+        self,
+        session: AsyncSession,
+        *,
+        session_id: str | None,
+        principal: str,
+    ) -> QuestionSessionTurn | None:
+        if session_id is None:
+            return None
+        model = await session.get(QuestionSessionModel, session_id)
+        if model is None:
+            raise ResourceNotFoundError(
+                "question session not found",
+                context={"session_id": session_id},
+            )
+        _require_principal(model, principal)
+        row = await session.scalar(
+            select(QuestionSessionTurnModel)
+            .where(
+                QuestionSessionTurnModel.session_id == session_id,
+                QuestionSessionTurnModel.investigation_ref.is_not(None),
+            )
+            .order_by(QuestionSessionTurnModel.turn_index.desc())
+            .limit(1)
+        )
+        return _turn_view(row) if row is not None else None
+
 
 def _require_principal(model: QuestionSessionModel, principal: str) -> None:
     if model.principal != principal:

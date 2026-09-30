@@ -38,8 +38,9 @@ from packages.shared.config import get_settings
 from packages.shared.db import Base
 from packages.shared.model_provider import StructuredModelRequest
 from packages.sources.storage.models import SourceModel
-from packages.task_runtime.contracts.models import TaskKind
+from packages.task_runtime.contracts.models import TaskKind, TaskRunStatus
 from packages.task_runtime.storage.models import ContextManifestVersionModel, TaskRunModel
+from packages.task_runtime.storage.service import transition_task_run
 
 NOW = datetime(2026, 9, 29, 8, 0, tzinfo=UTC)
 CVE = "CVE-2026-51515"
@@ -340,6 +341,37 @@ def _use_case(
     )
 
 
+async def _complete_investigation_episode(factory, case_id: str) -> None:
+    settings = get_settings()
+    async with factory() as session, session.begin():
+        run = await session.scalar(
+            select(TaskRunModel).where(
+                TaskRunModel.case_id == case_id,
+                TaskRunModel.role_id == "InvestigationRole",
+            )
+        )
+        assert run is not None and run.status == TaskRunStatus.QUEUED.value
+        await transition_task_run(
+            session,
+            run_id=run.run_id,
+            target=TaskRunStatus.RUNNING,
+            payload_ref=f"test:{run.run_id}:running",
+            idempotency_key=f"test-running:{run.run_id}",
+            stream_name=settings.task_event_stream_name,
+            producer="test",
+        )
+        await transition_task_run(
+            session,
+            run_id=run.run_id,
+            target=TaskRunStatus.COMPLETED,
+            payload_ref=f"test:{run.run_id}:completed",
+            idempotency_key=f"test-completed:{run.run_id}",
+            stream_name=settings.task_event_stream_name,
+            producer="test",
+            stop_reason="test_episode_complete",
+        )
+
+
 @pytest.mark.asyncio
 async def test_lookup_question_runs_read_only_decision_without_durable_case() -> None:
     engine, factory = await _factory()
@@ -400,6 +432,135 @@ async def test_lookup_question_runs_read_only_decision_without_durable_case() ->
         assert metadata["execution_id"]
         assert metadata["case_id"] is None
         assert metadata["product_request_id"] == "question-direct-1"
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_investigation_followup_rejects_concurrent_runtime_episode() -> None:
+    engine, factory = await _factory()
+    try:
+        async with factory() as session:
+            first = await _use_case(None).execute(
+                session,
+                AskQuestionCommand(
+                    principal="user:test",
+                    request_id="question-investigation-concurrent-1",
+                    question="Investigate this vulnerability.",
+                    cve_id=CVE,
+                    task_kind=TaskKind.INVESTIGATE_RELATION,
+                ),
+            )
+        assert first.investigation is not None
+
+        async with factory() as session:
+            with pytest.raises(
+                LifecycleConflictError,
+                match="already has an active runtime episode",
+            ):
+                await _use_case(None).execute(
+                    session,
+                    AskQuestionCommand(
+                        principal="user:test",
+                        request_id="question-investigation-concurrent-2",
+                        session_id=first.session_id,
+                        question="Investigate another gap in the same case.",
+                        task_kind=TaskKind.INVESTIGATE_RELATION,
+                    ),
+                )
+
+        async with factory() as session:
+            assert int(
+                await session.scalar(select(func.count()).select_from(InvestigationCaseModel)) or 0
+            ) == 1
+            assert int(
+                await session.scalar(select(func.count()).select_from(EvidenceNeedModel)) or 0
+            ) == 1
+            assert int(
+                await session.scalar(select(func.count()).select_from(TaskRunModel)) or 0
+            ) == 1
+            turns = list(
+                await session.scalars(
+                    select(QuestionSessionTurnModel).where(
+                        QuestionSessionTurnModel.session_id == first.session_id
+                    )
+                )
+            )
+            assert len(turns) == 1
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_investigation_followup_reuses_case_after_prior_episode_finishes() -> None:
+    engine, factory = await _factory()
+    try:
+        async with factory() as session:
+            first = await _use_case(None).execute(
+                session,
+                AskQuestionCommand(
+                    principal="user:test",
+                    request_id="question-investigation-session-1",
+                    question="Investigate the fix evidence for this vulnerability.",
+                    cve_id=CVE,
+                    task_kind=TaskKind.INVESTIGATE_RELATION,
+                ),
+            )
+        assert first.investigation is not None
+        case_id = first.investigation.case_id
+        await _complete_investigation_episode(factory, case_id)
+
+        async with factory() as session:
+            second = await _use_case(None).execute(
+                session,
+                AskQuestionCommand(
+                    principal="user:test",
+                    request_id="question-investigation-session-2",
+                    session_id=first.session_id,
+                    question="Now verify the remaining primary-source gap.",
+                    task_kind=TaskKind.INVESTIGATE_RELATION,
+                    required_source_roles=["primary"],
+                    priority=75,
+                ),
+            )
+        assert second.session_id == first.session_id
+        assert second.turn_index == 2
+        assert second.investigation is not None
+        assert second.investigation.case_id == case_id
+        assert len(second.investigation.open_evidence_needs) == 2
+        assert any(
+            item.question == "Now verify the remaining primary-source gap."
+            and item.required_source_roles == ["primary"]
+            and item.priority == 75
+            for item in second.investigation.open_evidence_needs
+        )
+
+        async with factory() as session:
+            assert int(
+                await session.scalar(select(func.count()).select_from(InvestigationCaseModel)) or 0
+            ) == 1
+            assert int(
+                await session.scalar(select(func.count()).select_from(EvidenceNeedModel)) or 0
+            ) == 2
+            runs = list(
+                await session.scalars(
+                    select(TaskRunModel)
+                    .where(TaskRunModel.case_id == case_id)
+                    .order_by(TaskRunModel.created_at)
+                )
+            )
+            assert [run.status for run in runs] == ["completed", "queued"]
+            turns = list(
+                await session.scalars(
+                    select(QuestionSessionTurnModel)
+                    .where(QuestionSessionTurnModel.session_id == first.session_id)
+                    .order_by(QuestionSessionTurnModel.turn_index)
+                )
+            )
+            assert [turn.investigation_ref for turn in turns] == [
+                f"case:{case_id}",
+                f"case:{case_id}",
+            ]
     finally:
         await engine.dispose()
 

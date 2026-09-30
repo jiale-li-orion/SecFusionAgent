@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from apps.api.dependencies import database_session
@@ -17,7 +18,11 @@ from packages.intelligence.storage.knowledge_models import (
 )
 from packages.reasoning.decision import DecisionResult
 from packages.reasoning.storage import DecisionResultStore
+from packages.shared.config import get_settings
 from packages.shared.db import Base
+from packages.task_runtime.contracts.models import TaskRunStatus
+from packages.task_runtime.storage.models import TaskRunModel
+from packages.task_runtime.storage.service import transition_task_run
 
 NOW = datetime(2026, 9, 29, 8, 0, tzinfo=UTC)
 
@@ -85,6 +90,81 @@ async def test_product_question_complex_route_returns_accepted_investigation() -
             "primary"
         ]
         assert response.headers["location"].endswith(payload["investigation"]["case_id"])
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_product_question_session_continues_existing_investigation_case() -> None:
+    engine, factory = await _database()
+    app = create_app()
+
+    async def override_session() -> AsyncIterator[AsyncSession]:
+        async with factory() as session:
+            yield session
+
+    app.dependency_overrides[database_session] = override_session
+    settings = get_settings()
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            first_response = await client.post(
+                "/api/v1/questions",
+                headers={"X-Request-ID": "question-http-followup-1", "X-Principal": "user:test"},
+                json={
+                    "question": "Verify the fix evidence.",
+                    "cve_id": "CVE-2026-61616",
+                    "task_kind": "verify_version_fix",
+                },
+            )
+        assert first_response.status_code == 202, first_response.text
+        first = first_response.json()
+        case_id = first["investigation"]["case_id"]
+
+        async with factory() as session, session.begin():
+            run = await session.scalar(
+                select(TaskRunModel).where(
+                    TaskRunModel.case_id == case_id,
+                    TaskRunModel.role_id == "InvestigationRole",
+                )
+            )
+            assert run is not None
+            await transition_task_run(
+                session,
+                run_id=run.run_id,
+                target=TaskRunStatus.RUNNING,
+                payload_ref=f"test:{run.run_id}:running",
+                idempotency_key=f"test-running:{run.run_id}",
+                stream_name=settings.task_event_stream_name,
+                producer="test",
+            )
+            await transition_task_run(
+                session,
+                run_id=run.run_id,
+                target=TaskRunStatus.COMPLETED,
+                payload_ref=f"test:{run.run_id}:completed",
+                idempotency_key=f"test-completed:{run.run_id}",
+                stream_name=settings.task_event_stream_name,
+                producer="test",
+                stop_reason="test_episode_complete",
+            )
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            second_response = await client.post(
+                "/api/v1/questions",
+                headers={"X-Request-ID": "question-http-followup-2", "X-Principal": "user:test"},
+                json={
+                    "session_id": first["session_id"],
+                    "question": "Verify the remaining primary-source gap.",
+                    "task_kind": "verify_version_fix",
+                    "required_source_roles": ["primary"],
+                },
+            )
+        assert second_response.status_code == 202, second_response.text
+        second = second_response.json()
+        assert second["session_id"] == first["session_id"]
+        assert second["turn_index"] == 2
+        assert second["investigation"]["case_id"] == case_id
+        assert len(second["investigation"]["open_evidence_needs"]) == 2
     finally:
         await engine.dispose()
 

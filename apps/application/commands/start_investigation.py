@@ -10,14 +10,18 @@ from pydantic import BaseModel, Field, JsonValue, model_validator
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apps.application.errors import PermissionDeniedError, ResourceNotFoundError
+from apps.application.errors import (
+    LifecycleConflictError,
+    PermissionDeniedError,
+    ResourceNotFoundError,
+)
 from apps.application.queries.investigations import InvestigationQueries
 from apps.application.views.investigations import StartInvestigationResult
 from apps.task_admission import create_task_contract_service
 from packages.intelligence.knowledge.read import get_vulnerability_by_cve
 from packages.intelligence.storage.knowledge_models import KnowledgeRevisionModel, ObjectModel
 from packages.investigation.cases.service import CaseService
-from packages.investigation.state.contracts import EvidenceNeedContract
+from packages.investigation.state.contracts import CaseLifecycle, EvidenceNeedContract
 from packages.investigation.state.service import InvestigationStateService
 from packages.investigation.storage.models import InvestigationCaseModel
 from packages.runtime.budget import BudgetGovernor, BudgetLimits
@@ -38,6 +42,7 @@ from packages.task_runtime.contracts.models import (
     TaskRunStatus,
 )
 from packages.task_runtime.contracts.roles import canonical_roles
+from packages.task_runtime.storage.models import TaskRunModel
 from packages.task_runtime.storage.service import create_task_run, transition_task_run
 
 
@@ -72,6 +77,28 @@ class InvestigationLaunchResult(BaseModel):
     admission: TaskAdmissionResult
     execution_profile: ExecutionProfile
     execution_id: str
+
+
+class ContinueInvestigationCommand(BaseModel):
+    principal: str
+    request_id: str
+    case_id: str
+    trace_id: str | None = None
+    question: str = Field(min_length=1)
+    purpose: str = "interactive_investigation_followup"
+    task_kind: TaskKind = TaskKind.INVESTIGATE_RELATION
+    required_source_roles: list[str] = Field(default_factory=list)
+    priority: int = Field(default=50, ge=0, le=100)
+    allow_wait: bool = True
+    timeout_seconds: int = Field(default=300, ge=30, le=3600)
+    agent_turns: int = Field(default=8, ge=1, le=64)
+    tool_calls: int = Field(default=12, ge=0, le=128)
+
+    @model_validator(mode="after")
+    def validate_kind(self) -> ContinueInvestigationCommand:
+        if self.task_kind not in _INVESTIGATION_KINDS:
+            raise ValueError("task_kind is not an InvestigationRole task")
+        return self
 
 
 class InvestigationTaskLauncher:
@@ -296,6 +323,112 @@ class StartInvestigationUseCase:
         await session.commit()
         return StartInvestigationResult(
             investigation=await self._queries.get(session, case.case_id)
+        )
+
+
+class ContinueInvestigationUseCase:
+    def __init__(
+        self,
+        *,
+        policy_path: Path,
+        task_event_stream_name: str,
+        case_service: CaseService | None = None,
+        state_service: InvestigationStateService | None = None,
+        queries: InvestigationQueries | None = None,
+    ) -> None:
+        self._cases = case_service or CaseService()
+        self._state = state_service or InvestigationStateService()
+        self._queries = queries or InvestigationQueries(self._state)
+        self._launcher = InvestigationTaskLauncher(
+            policy_path=policy_path,
+            task_event_stream_name=task_event_stream_name,
+            state_service=self._state,
+        )
+
+    async def execute(
+        self,
+        session: AsyncSession,
+        command: ContinueInvestigationCommand,
+    ) -> StartInvestigationResult:
+        case = await session.scalar(
+            select(InvestigationCaseModel)
+            .where(InvestigationCaseModel.case_id == command.case_id)
+            .with_for_update()
+        )
+        if case is None:
+            raise ResourceNotFoundError(
+                "investigation not found",
+                context={"case_id": command.case_id},
+            )
+        if case.status not in {
+            CaseLifecycle.ACTIVE.value,
+            CaseLifecycle.WAITING.value,
+            "open",
+            "running",
+        }:
+            raise LifecycleConflictError(
+                "investigation is not open for follow-up",
+                context={"case_id": command.case_id, "status": case.status},
+            )
+        active_run_id = await session.scalar(
+            select(TaskRunModel.run_id)
+            .where(
+                TaskRunModel.case_id == command.case_id,
+                TaskRunModel.role_id == "InvestigationRole",
+                TaskRunModel.status.in_(
+                    [
+                        TaskRunStatus.SUBMITTED.value,
+                        TaskRunStatus.QUEUED.value,
+                        TaskRunStatus.RUNNING.value,
+                        TaskRunStatus.WAITING_INPUT.value,
+                        TaskRunStatus.WAITING_DEPENDENCY.value,
+                    ]
+                ),
+            )
+            .order_by(TaskRunModel.created_at.desc())
+            .limit(1)
+        )
+        if active_run_id is not None:
+            raise LifecycleConflictError(
+                "investigation already has an active runtime episode",
+                context={"case_id": command.case_id, "task_run_id": active_run_id},
+            )
+
+        state = await self._state.get_state(session, command.case_id)
+        opened = await self._state.open_evidence_need(
+            session,
+            case_id=command.case_id,
+            base_case_revision=state.case_revision,
+            need_id=str(uuid4()),
+            proposition_or_question=command.question,
+            purpose=command.purpose,
+            target_objects=list(case.target_object_ids),
+            evidence_contract=EvidenceNeedContract(
+                required_source_roles=command.required_source_roles
+            ),
+            priority=command.priority,
+            writer="product-application",
+            reason_code="product_investigation_followup",
+        )
+        await self._launcher.launch(
+            session,
+            case_id=command.case_id,
+            task_kind=command.task_kind,
+            required_need_ids=[opened.need.need_id],
+            principal=command.principal,
+            trigger_ref=f"product-request:{command.request_id}",
+            surface="product-api-followup",
+            request_id=command.request_id,
+            trace_id=command.trace_id,
+            allow_wait=command.allow_wait,
+            timeout_seconds=command.timeout_seconds,
+            agent_turns=command.agent_turns,
+            tool_calls=command.tool_calls,
+        )
+        await self._cases.activate(session, command.case_id)
+        await session.commit()
+        return StartInvestigationResult(
+            investigation=await self._queries.get(session, command.case_id)
         )
 
 

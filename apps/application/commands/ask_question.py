@@ -11,6 +11,8 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.application.commands.start_investigation import (
+    ContinueInvestigationCommand,
+    ContinueInvestigationUseCase,
     StartInvestigationCommand,
     StartInvestigationUseCase,
 )
@@ -34,6 +36,7 @@ from packages.intelligence.retrieval.contracts import RetrievedCandidate
 from packages.intelligence.retrieval.operators import LexicalRetrievalOperator
 from packages.intelligence.storage.knowledge_models import KnowledgeRevisionModel
 from packages.investigation.state.contracts import InvestigationState, InvestigationStateItem
+from packages.investigation.storage.models import InvestigationCaseModel
 from packages.reasoning.citation import CitationSource
 from packages.reasoning.decision import DecisionDraft, DecisionService
 from packages.reasoning.model import ModelDecisionPlanner
@@ -145,6 +148,51 @@ class AskQuestionUseCase:
             session_id=command.session_id,
             principal=command.principal,
         )
+        if command.task_kind not in {TaskKind.LOOKUP, TaskKind.RETRIEVE}:
+            latest_investigation_turn = await self._sessions.latest_investigation_turn(
+                session,
+                session_id=command.session_id,
+                principal=command.principal,
+            )
+            active_case_id = await _active_session_investigation_case_id(
+                session,
+                latest_investigation_turn.investigation_ref
+                if latest_investigation_turn is not None
+                else None,
+            )
+            if active_case_id is not None:
+                if command.cve_id is not None or command.object_id is not None:
+                    raise LifecycleConflictError(
+                        "active investigation follow-up cannot rebind the session target",
+                        context={"case_id": active_case_id},
+                    )
+                investigation = await self._continue_investigation(
+                    session,
+                    command,
+                    case_id=active_case_id,
+                )
+                turn = await self._sessions.append_turn(
+                    session,
+                    session_id=session_context.session_id,
+                    principal=command.principal,
+                    request_id=command.request_id,
+                    question=command.question,
+                    task_kind=command.task_kind.value,
+                    target_object_ids=investigation.target_object_ids,
+                    knowledge_revision=await _current_knowledge_revision(session),
+                    context_id=None,
+                    decision_ref=None,
+                    investigation_ref=f"case:{investigation.case_id}",
+                )
+                await session.commit()
+                return QuestionResultView(
+                    request_id=command.request_id,
+                    session_id=session_context.session_id,
+                    turn_index=turn.turn_index,
+                    mode="accepted",
+                    execution_profile=investigation.execution_profile or "INVESTIGATE",
+                    investigation=investigation,
+                )
         command = _bind_session_target(command, session_context)
         next_turn_index = (
             session_context.latest_turn.turn_index + 1 if session_context.latest_turn else 1
@@ -764,6 +812,31 @@ class AskQuestionUseCase:
         )
         return result.investigation
 
+    async def _continue_investigation(
+        self,
+        session: AsyncSession,
+        command: AskQuestionCommand,
+        *,
+        case_id: str,
+    ):
+        result = await ContinueInvestigationUseCase(
+            policy_path=self._policy_path,
+            task_event_stream_name=self._stream_name,
+        ).execute(
+            session,
+            ContinueInvestigationCommand(
+                principal=command.principal,
+                request_id=command.request_id,
+                trace_id=command.trace_id,
+                case_id=case_id,
+                question=command.question,
+                task_kind=command.task_kind,
+                required_source_roles=command.required_source_roles,
+                priority=command.priority,
+            ),
+        )
+        return result.investigation
+
 
 async def _resolve_optional_target(
     session: AsyncSession,
@@ -790,6 +863,30 @@ async def _resolve_optional_target(
 
 async def _current_knowledge_revision(session: AsyncSession) -> int:
     return int(await session.scalar(select(func.max(KnowledgeRevisionModel.revision))) or 0)
+
+
+async def _active_session_investigation_case_id(
+    session: AsyncSession,
+    investigation_ref: str | None,
+) -> str | None:
+    if investigation_ref is None:
+        return None
+    prefix = "case:"
+    if not investigation_ref.startswith(prefix):
+        raise LifecycleConflictError(
+            "question session has an invalid investigation reference",
+            context={"investigation_ref": investigation_ref},
+        )
+    case_id = investigation_ref.removeprefix(prefix)
+    case = await session.get(InvestigationCaseModel, case_id)
+    if case is None:
+        raise ResourceNotFoundError(
+            "investigation not found",
+            context={"case_id": case_id},
+        )
+    if case.status in {"active", "waiting", "open", "running"}:
+        return case_id
+    return None
 
 
 def _evidence_refs(
