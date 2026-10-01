@@ -17,6 +17,7 @@
 
 **来源运行口径：101 个 catalog entries → 66 个 executable sources → 39 个 scheduled monitors；8 类产品覆盖，其中 7/8 类存在主动定时监测，`assets` 保持按需查询。**
 **持续监测记账起点：`2026-10-02T04:19:42+08:00`；当前 scheduled source 健康状态 32 healthy / 5 degraded / 2 blocked；epoch 内 Evidence 物理完整性 100.000%。**
+**最近 1h 运行面：Run OK 56.250%；Provider-boundary fail 43.750%；Runtime-owned fail 0.000%；Queue p95 12.479s；Execution p95 30.142s。**
 
 上表全部数字由 benchmark/source config 自动导出，不手抄；详细 run/deployment/provenance 在下方正式评测区。
 <!-- END GENERATED SCOREBOARD -->

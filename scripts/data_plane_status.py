@@ -23,16 +23,21 @@ from packages.sources.taxonomy import SOURCE_PORTFOLIO_CATEGORY_ORDER
 PUBLIC_TIMEZONE = ZoneInfo("Asia/Singapore")
 SUCCESS_STATUSES = {"success", "no_change"}
 BLOCKED_STATUSES = {"auth_failed", "schema_changed", "provider_blocked"}
-TERMINAL_FAILURE_STATUSES = {
-    "failed",
+PROVIDER_BOUNDARY_FAILURE_STATUSES = {
     "fetch_failed",
     "rate_limited",
-    "dependency_unavailable",
     "auth_failed",
     "schema_changed",
     "provider_blocked",
+}
+RUNTIME_OWNED_FAILURE_STATUSES = {
+    "failed",
+    "dependency_unavailable",
     "internal_error",
 }
+TERMINAL_FAILURE_STATUSES = (
+    PROVIDER_BOUNDARY_FAILURE_STATUSES | RUNTIME_OWNED_FAILURE_STATUSES
+)
 
 
 def _ratio(num: int | float, den: int | float) -> float | None:
@@ -401,6 +406,17 @@ async def data_plane_status() -> dict[str, Any]:
             failed_runs = [
                 item for item in terminal_runs if item["status"] in TERMINAL_FAILURE_STATUSES
             ]
+            provider_failed_runs = [
+                item
+                for item in terminal_runs
+                if item["status"] in PROVIDER_BOUNDARY_FAILURE_STATUSES
+            ]
+            runtime_failed_runs = [
+                item
+                for item in terminal_runs
+                if item["status"] in RUNTIME_OWNED_FAILURE_STATUSES
+            ]
+            terminal_status_counts = Counter(item["status"] for item in terminal_runs)
             queue_delays = [
                 (item["started_at"] - item["created_at"]).total_seconds()
                 for item in runs
@@ -449,6 +465,15 @@ async def data_plane_status() -> dict[str, Any]:
                 "scheduled_changed_runs": len(changed_runs),
                 "scheduled_failed_runs": len(failed_runs),
                 "scheduled_run_success_rate": _ratio(len(successful_runs), len(terminal_runs)),
+                "provider_boundary_failed_runs": len(provider_failed_runs),
+                "provider_boundary_failure_rate": _ratio(
+                    len(provider_failed_runs), len(terminal_runs)
+                ),
+                "runtime_owned_failed_runs": len(runtime_failed_runs),
+                "runtime_owned_failure_rate": _ratio(
+                    len(runtime_failed_runs), len(terminal_runs)
+                ),
+                "terminal_status_counts": dict(sorted(terminal_status_counts.items())),
                 "change_poll_yield": _ratio(len(changed_runs), len(successful_runs)),
                 "queue_delay_p50_seconds": _nearest_rank(queue_delays, 0.50),
                 "queue_delay_p95_seconds": _nearest_rank(queue_delays, 0.95),
@@ -517,6 +542,16 @@ async def data_plane_status() -> dict[str, Any]:
             ]
             terminal = [item for item in runs if item["status"] not in {"queued", "running"}]
             successful = [item for item in terminal if item["status"] in SUCCESS_STATUSES]
+            provider_failed = [
+                item
+                for item in terminal
+                if item["status"] in PROVIDER_BOUNDARY_FAILURE_STATUSES
+            ]
+            runtime_failed = [
+                item
+                for item in terminal
+                if item["status"] in RUNTIME_OWNED_FAILURE_STATUSES
+            ]
             queue_delays = [
                 (item["started_at"] - item["created_at"]).total_seconds()
                 for item in runs
@@ -538,6 +573,8 @@ async def data_plane_status() -> dict[str, Any]:
                 "document_text_bytes": sum(item["text_bytes"] for item in relevant_docs),
                 "scheduled_runs": len(runs),
                 "scheduled_run_success_rate": _ratio(len(successful), len(terminal)),
+                "provider_boundary_failure_rate": _ratio(len(provider_failed), len(terminal)),
+                "runtime_owned_failure_rate": _ratio(len(runtime_failed), len(terminal)),
                 "queue_delay_p95_seconds": _nearest_rank(queue_delays, 0.95),
                 "execution_p95_seconds": _nearest_rank(execution_durations, 0.95),
                 "fresh_knowledge_latency_p95_seconds": _nearest_rank(knowledge_latencies, 0.95),
@@ -579,6 +616,16 @@ async def data_plane_status() -> dict[str, Any]:
             terminal = [item for item in runs if item["status"] not in {"queued", "running"}]
             successful = [item for item in terminal if item["status"] in SUCCESS_STATUSES]
             changed = [item for item in terminal if item["status"] == "success"]
+            provider_failed = [
+                item
+                for item in terminal
+                if item["status"] in PROVIDER_BOUNDARY_FAILURE_STATUSES
+            ]
+            runtime_failed = [
+                item
+                for item in terminal
+                if item["status"] in RUNTIME_OWNED_FAILURE_STATUSES
+            ]
             return {
                 "measurement_category": category_by_source.get(source_id),
                 "observations": len(obs),
@@ -590,6 +637,8 @@ async def data_plane_status() -> dict[str, Any]:
                 "document_text_bytes": sum(item["text_bytes"] for item in relevant_docs),
                 "scheduled_runs": len(runs),
                 "scheduled_run_success_rate": _ratio(len(successful), len(terminal)),
+                "provider_boundary_failure_rate": _ratio(len(provider_failed), len(terminal)),
+                "runtime_owned_failure_rate": _ratio(len(runtime_failed), len(terminal)),
                 "change_poll_yield": _ratio(len(changed), len(successful)),
             }
 
@@ -665,6 +714,16 @@ async def data_plane_status() -> dict[str, Any]:
             ]
             terminal = [item for item in runs if item["status"] not in {"queued", "running"}]
             successful = [item for item in terminal if item["status"] in SUCCESS_STATUSES]
+            provider_failed = [
+                item
+                for item in terminal
+                if item["status"] in PROVIDER_BOUNDARY_FAILURE_STATUSES
+            ]
+            runtime_failed = [
+                item
+                for item in terminal
+                if item["status"] in RUNTIME_OWNED_FAILURE_STATUSES
+            ]
             queue_delays = [
                 (item["started_at"] - item["created_at"]).total_seconds()
                 for item in runs
@@ -686,6 +745,8 @@ async def data_plane_status() -> dict[str, Any]:
                 "document_text_bytes": sum(item["text_bytes"] for item in docs),
                 "scheduled_runs": len(runs),
                 "scheduled_run_success_rate": _ratio(len(successful), len(terminal)),
+                "provider_boundary_failure_rate": _ratio(len(provider_failed), len(terminal)),
+                "runtime_owned_failure_rate": _ratio(len(runtime_failed), len(terminal)),
                 "queue_delay_p95_seconds": _nearest_rank(queue_delays, 0.95),
                 "execution_p95_seconds": _nearest_rank(execution_durations, 0.95),
                 "fresh_knowledge_latency_p95_seconds": _nearest_rank(

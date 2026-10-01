@@ -17,6 +17,7 @@ English | [中文](README.zh.md)
 
 **Source runtime contract: 101 catalog entries → 66 executable sources → 39 scheduled monitors; 8 product categories, with active scheduled monitoring in 7/8 categories and `assets` intentionally query-time.**
 **Public continuous-monitoring epoch: `2026-10-02T04:19:42+08:00`; scheduled-source health 32 healthy / 5 degraded / 2 blocked; epoch Evidence integrity 100.000%.**
+**Last-1h operations: Run OK 56.250%; provider-boundary fail 43.750%; runtime-owned fail 0.000%; queue p95 12.479s; execution p95 30.142s.**
 
 Every value above is generated from benchmark/source configuration rather than copied by hand; run/deployment/provenance details remain in the formal evidence section below.
 <!-- END GENERATED SCOREBOARD -->

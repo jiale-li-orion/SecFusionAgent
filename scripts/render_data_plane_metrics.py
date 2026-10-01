@@ -77,13 +77,15 @@ def render(payload: dict[str, Any]) -> str:
         "",
         "## Rolling scheduled-monitoring throughput",
         "",
-        "| Window | Runs OK | Fresh | Fresh src/cat | Queue p95 | Exec p95 | Fresh p95 → Knowledge | Writes/obs | Evidence | Top-1 share |",
-        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+        "| Window | Runs OK | Provider fail | Runtime fail | Fresh | Fresh src/cat | Queue p95 | Exec p95 | Fresh p95 → Knowledge | Writes/obs | Evidence | Top-1 share |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     for key, item in payload["rolling_windows"].items():
         value = item["scheduled_monitoring"]
         lines.append(
             f"| {key} | {_pct(value['scheduled_run_success_rate'])} | "
+            f"{_pct(value.get('provider_boundary_failure_rate'))} | "
+            f"{_pct(value.get('runtime_owned_failure_rate'))} | "
             f"{value['fresh_external_changes']} | "
             f"{value['fresh_contributing_sources']}/{value['fresh_contributing_categories']} | "
             f"{_duration(value['queue_delay_p95_seconds'])} | "
@@ -104,7 +106,8 @@ def render(payload: dict[str, Any]) -> str:
             f"{_number(current['canonical_writes_per_observation'])} canonical writes/Observation; "
             f"{_number(current['chunks_per_document_revision'])} chunks/document revision. "
             f"The same window contains {current['backfill_observations']} backfill Observations and "
-            f"{current['unclocked_first_seen']} unclocked first-seen Observations, both kept separate from fresh-change latency.",
+            f"{current['unclocked_first_seen']} unclocked first-seen Observations, both kept separate from fresh-change latency. "
+            f"Terminal status mix: `{current.get('terminal_status_counts', {})}`. Provider-boundary failures and runtime-owned failures are reported separately so external 403/quota/network conditions do not masquerade as scheduler/storage failures.",
         ]
     )
 
@@ -118,8 +121,8 @@ def render(payload: dict[str, Any]) -> str:
             "",
             f"Window `{category_window['window_start']}` → `{category_window['window_end']}`. Physical sources have exactly one measurement category, so category rows add back to physical totals without double counting.",
             "",
-            "| Category | Catalog | Exec | Scheduled | Fresh | Backfill | Writes | Chunks | Text | Evidence | Run OK |",
-            "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+            "| Category | Catalog | Exec | Scheduled | Fresh | Backfill | Writes | Chunks | Text | Evidence | Run OK | Provider fail | Runtime fail |",
+            "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
         ]
     )
     for category, cfg in taxonomy["categories"].items():
@@ -130,7 +133,9 @@ def render(payload: dict[str, Any]) -> str:
             f"{flow['backfill_observations']} | {flow['canonical_writes']} | "
             f"{flow['document_chunks']} | {_bytes(flow['document_text_bytes'])} | "
             f"{_bytes(flow.get('evidence_physical_bytes', 0))} | "
-            f"{_pct(flow['scheduled_run_success_rate'])} |"
+            f"{_pct(flow['scheduled_run_success_rate'])} | "
+            f"{_pct(flow.get('provider_boundary_failure_rate'))} | "
+            f"{_pct(flow.get('runtime_owned_failure_rate'))} |"
         )
 
     source_rows = list(category_window.get("sources", {}).items())
@@ -147,8 +152,8 @@ def render(payload: dict[str, Any]) -> str:
             "",
             "## Source-level runtime drill-down",
             "",
-            "| Source | Category | Fresh | Backfill | Observations | Writes | Chunks | Evidence | Run OK |",
-            "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+            "| Source | Category | Fresh | Backfill | Observations | Writes | Chunks | Evidence | Run OK | Provider fail | Runtime fail |",
+            "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
         ]
     )
     for source_id, flow in source_rows:
@@ -167,7 +172,9 @@ def render(payload: dict[str, Any]) -> str:
             f"{flow['fresh_external_changes']} | {flow['backfill_observations']} | "
             f"{flow['observations']} | {flow['canonical_writes']} | "
             f"{flow['document_chunks']} | {_bytes(flow.get('evidence_physical_bytes', 0))} | "
-            f"{_pct(flow['scheduled_run_success_rate'])} |"
+            f"{_pct(flow['scheduled_run_success_rate'])} | "
+            f"{_pct(flow.get('provider_boundary_failure_rate'))} | "
+            f"{_pct(flow.get('runtime_owned_failure_rate'))} |"
         )
 
     lines.extend(["", "## Evidence/storage integrity", ""])
@@ -198,6 +205,8 @@ def render(payload: dict[str, Any]) -> str:
             "- **Fresh external change**: scheduled Observation outside backfill whose `updated_at ?? published_at` is within the configured fresh horizon when observed.",
             "- **Backfill**: Observation produced by a run whose input or output cursor has `backfill_pending=true`.",
             "- **Run success rate**: `(success + no_change) / terminal scheduled runs`; provider failures remain in the denominator.",
+            "- **Provider-boundary failure rate**: `fetch_failed + rate_limited + auth_failed + schema_changed + provider_blocked` divided by terminal scheduled runs; it measures upstream access/transport/protocol availability.",
+            "- **Runtime-owned failure rate**: `dependency_unavailable + internal_error + generic failed` divided by terminal scheduled runs; it isolates SecFusionAgent-owned execution/dependency failures.",
             "- **Queue delay**: AcquisitionRun creation → worker start; this isolates scheduler/worker backlog from provider latency.",
             "- **Execution time**: worker start → terminal AcquisitionRun; this surfaces slow or blocking providers.",
             "- **Change poll yield**: change-producing `success` runs divided by successful scheduled runs; this measures useful poll density, not correctness.",

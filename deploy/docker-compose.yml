@@ -2,6 +2,9 @@ x-app-runtime: &app-runtime
   build:
     context: ..
     dockerfile: deploy/Dockerfile
+    args:
+      RUNTIME_UID: ${SECFUSION_RUNTIME_UID:-1000}
+      RUNTIME_GID: ${SECFUSION_RUNTIME_GID:-1000}
   image: secfusion-app:dev
   profiles: ["runtime"]
   restart: unless-stopped

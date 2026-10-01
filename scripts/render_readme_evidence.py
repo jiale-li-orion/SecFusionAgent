@@ -181,9 +181,12 @@ def _scoreboard_block(*, chinese: bool = False) -> str:
     runtime_path = ROOT / "benchmarks/data-plane/current.json"
     runtime_line_zh: str | None = None
     runtime_line_en: str | None = None
+    runtime_flow_line_zh: str | None = None
+    runtime_flow_line_en: str | None = None
     if runtime_path.exists():
         runtime = _load("benchmarks/data-plane/current.json")
         health = runtime["source_health"]["counts"]
+        live = runtime["rolling_windows"]["1h"]["scheduled_monitoring"]
         integrity = (
             runtime["storage"]["artifact_store"].get("public_epoch", {}).get("integrity_rate")
         )
@@ -198,6 +201,20 @@ def _scoreboard_block(*, chinese: bool = False) -> str:
             f"scheduled-source health {health.get('healthy', 0)} healthy / "
             f"{health.get('degraded', 0)} degraded / {health.get('blocked', 0)} blocked; "
             f"epoch Evidence integrity {_pct(integrity)}.**"
+        )
+        runtime_flow_line_zh = (
+            f"**最近 1h 运行面：Run OK {_pct(live.get('scheduled_run_success_rate'))}；"
+            f"Provider-boundary fail {_pct(live.get('provider_boundary_failure_rate'))}；"
+            f"Runtime-owned fail {_pct(live.get('runtime_owned_failure_rate'))}；"
+            f"Queue p95 {_duration(live.get('queue_delay_p95_seconds'))}；"
+            f"Execution p95 {_duration(live.get('execution_p95_seconds'))}。**"
+        )
+        runtime_flow_line_en = (
+            f"**Last-1h operations: Run OK {_pct(live.get('scheduled_run_success_rate'))}; "
+            f"provider-boundary fail {_pct(live.get('provider_boundary_failure_rate'))}; "
+            f"runtime-owned fail {_pct(live.get('runtime_owned_failure_rate'))}; "
+            f"queue p95 {_duration(live.get('queue_delay_p95_seconds'))}; "
+            f"execution p95 {_duration(live.get('execution_p95_seconds'))}.**"
         )
 
     if chinese:
@@ -214,6 +231,7 @@ def _scoreboard_block(*, chinese: bool = False) -> str:
             "",
             f"**来源运行口径：{len(inventory['entries'])} 个 catalog entries → {len(source_files)} 个 executable sources → {scheduled_sources} 个 scheduled monitors；8 类产品覆盖，其中 {len(scheduled_categories)}/8 类存在主动定时监测，`assets` 保持按需查询。**",
             *([runtime_line_zh] if runtime_line_zh is not None else []),
+            *([runtime_flow_line_zh] if runtime_flow_line_zh is not None else []),
             "",
             "上表全部数字由 benchmark/source config 自动导出，不手抄；详细 run/deployment/provenance 在下方正式评测区。",
         ]
@@ -231,6 +249,7 @@ def _scoreboard_block(*, chinese: bool = False) -> str:
             "",
             f"**Source runtime contract: {len(inventory['entries'])} catalog entries → {len(source_files)} executable sources → {scheduled_sources} scheduled monitors; 8 product categories, with active scheduled monitoring in {len(scheduled_categories)}/8 categories and `assets` intentionally query-time.**",
             *([runtime_line_en] if runtime_line_en is not None else []),
+            *([runtime_flow_line_en] if runtime_flow_line_en is not None else []),
             "",
             "Every value above is generated from benchmark/source configuration rather than copied by hand; run/deployment/provenance details remain in the formal evidence section below.",
         ]
