@@ -146,7 +146,7 @@ async def complete_collection_run(
         state.last_change_at = instant
     state.consecutive_failures = 0
     state.backoff_until = None
-    if rate_limit_state:
+    if rate_limit_state is not None:
         state.rate_limit_state = dict(rate_limit_state)
     source = await session.get(SourceModel, run.source_id)
     if source is None:
@@ -154,7 +154,7 @@ async def complete_collection_run(
 
     adaptive_due_at = _adaptive_rate_limit_due_at(
         source.rate_limit_policy,
-        state.rate_limit_state,
+        rate_limit_state or {},
         instant,
     )
     if adaptive_due_at is not None:

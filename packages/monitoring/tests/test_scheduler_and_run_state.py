@@ -123,6 +123,61 @@ async def test_scheduler_outbox_and_cursor_commit_are_transactional() -> None:
         await engine.dispose()
 
 
+@pytest.mark.asyncio
+async def test_adaptive_source_falls_back_to_fixed_due_when_current_quota_is_missing() -> None:
+    engine, factory = await _database()
+    now = datetime(2026, 9, 25, 4, 0, tzinfo=UTC)
+    definitions = load_source_definitions(Path("config/sources"))
+    github = next(item for item in definitions if item.source_id == "github-target-repos")
+    try:
+        async with factory() as session, session.begin():
+            ids = await sync_source_definitions(session, [github])
+            await ensure_source_states(session, ids, now=now)
+            state = await session.get(SourceStateModel, github.source_id)
+            assert state is not None
+            state.next_due_at = now
+            state.rate_limit_state = {
+                "remaining": 45,
+                "reset_epoch": int((now + timedelta(hours=1)).timestamp()),
+                "requests_made": 15,
+            }
+
+        async with factory() as session, session.begin():
+            run_ids = await schedule_due_sources(
+                session,
+                now=now,
+                source_ids={github.source_id},
+            )
+        run_id = run_ids[0]
+        async with factory() as session, session.begin():
+            context = await start_acquisition_run(
+                session,
+                run_id,
+                now=now + timedelta(seconds=1),
+            )
+            assert context is not None
+
+        finished_at = now + timedelta(seconds=10)
+        async with factory() as session, session.begin():
+            await complete_collection_run(
+                session,
+                run_id,
+                next_cursor={"repo_revisions": {}},
+                rate_limit_state={},
+                accepted_count=0,
+                changed=False,
+                now=finished_at,
+            )
+
+        async with factory() as session:
+            state = await session.get(SourceStateModel, github.source_id)
+            assert state is not None
+            assert state.rate_limit_state == {}
+            assert _as_utc(state.next_due_at) == now + timedelta(hours=1)
+    finally:
+        await engine.dispose()
+
+
 def test_adaptive_rate_limit_due_at_preserves_provider_headroom() -> None:
     now = datetime(2026, 9, 25, 4, 0, tzinfo=UTC)
     policy = {
