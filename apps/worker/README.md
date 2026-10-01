@@ -15,6 +15,16 @@
 
 The scheduler never performs provider collection inline.
 
+### Default local runtime
+
+`make dev-up` starts dependency services only. `make dev-runtime-up` is the reproducible always-on local monitoring path: it first brings up PostgreSQL/Redis/LocalStack, runs migrations and registry/Skill synchronization, then starts Compose-managed `scheduler`, a dedicated `worker-collection`, and the general Celery `worker` under the `runtime` profile. All processes use service-name network coordinates rather than host `localhost` endpoints and have `restart: unless-stopped`, so a completed shell command or closed terminal no longer silently removes the monitoring control loop.
+
+`worker-collection` consumes only the `collection` queue with its own concurrency budget. The general worker consumes `enrichment,investigation,indexing`. This isolation keeps scheduled monitoring and catch-up reads from waiting behind projection/enrichment backlog after a long runtime outage.
+
+The runtime image owns its own `/app/.venv`. Root `.dockerignore` excludes the host virtualenv and local caches from the build context, preventing `COPY . .` from replacing container interpreter entry points with host-specific symlinks or shebangs.
+
+Use `make runtime-status` to inspect those process containers and `make dev-runtime-down` to stop only the runtime processes. `make dev-down` tears down both the runtime profile and dependency services. Host-process `make scheduler`, `make worker`, and `make worker-collection` remain available for debugger-focused development, but they are no longer the recommended unattended monitoring path.
+
 `task_event_dispatcher.py` is the independent Task Event Plane delivery loop. It reads committed `task_event_deliveries` from PostgreSQL and publishes them to `redis_task_bus_url` Redis Streams. It does not reuse Celery broker routing.
 
 `task_event_scheduler.py` is the consumer-side Task Event Plane loop. It reads the Task Bus through a Redis consumer group, reloads each event from PostgreSQL, applies the deterministic Task Runtime dependency relevance gate, and maps durable queued-Role `TaskPatched` events to coarse Celery tasks. Database scheduling commits before broker dispatch; Redis `XACK` happens only after any required Celery send succeeds. Unacknowledged messages are reclaimable after `task_event_claim_idle_ms`; replay may redeliver the coarse task, while the PostgreSQL queued-run claim prevents concurrent Role execution.

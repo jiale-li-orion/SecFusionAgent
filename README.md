@@ -185,6 +185,8 @@ make sync-sources
 
 `make dev-up-core` is the verified local core path for PostgreSQL/pgvector and the Redis failure domains. `make dev-up` additionally starts the pinned LocalStack Community S3-compatible backend used by the default development configuration. MinIO remains an opt-in compatibility profile.
 
+For unattended local monitoring, use `make dev-runtime-up`. It completes the dependency, migration and source/Skill synchronization bootstrap, then starts the scheduler, a dedicated collection worker, and the general Celery worker as restartable Compose `runtime` services. Collection has an independent consumer pool, so scheduled acquisition/catch-up is not queued behind enrichment or projection backlog. This keeps monitoring active after the invoking terminal exits. `make runtime-status` inspects the process containers; `make dev-runtime-down` stops only runtime processes while keeping PostgreSQL, Redis and S3 state.
+
 Stop the local stack with:
 
 ```bash

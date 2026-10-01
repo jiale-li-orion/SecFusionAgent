@@ -185,6 +185,8 @@ make sync-sources
 
 `make dev-up-core` 是已经验证的 PostgreSQL/pgvector + Redis 本地 core 路径。`make dev-up` 还会启动默认开发配置使用的固定版本 LocalStack Community S3-compatible backend；MinIO 仅保留为 opt-in compatibility profile。
 
+无人值守的本地监测使用 `make dev-runtime-up`。它先完成依赖、迁移、source/Skill 同步，再以 Compose `runtime` profile 启动可自动重启的 scheduler、独立 collection worker 与通用 Celery worker。collection 拥有独立消费池，scheduled acquisition / catch-up 不再排在 enrichment、projection backlog 后面；调用终端退出后监测仍持续执行。`make runtime-status` 查看 runtime 进程容器，`make dev-runtime-down` 只停止这些进程并保留 PostgreSQL、Redis 与 S3 数据。
+
 停止本地栈：
 
 ```bash

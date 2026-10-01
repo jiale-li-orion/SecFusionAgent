@@ -1,3 +1,39 @@
+x-app-runtime: &app-runtime
+  build:
+    context: ..
+    dockerfile: deploy/Dockerfile
+  image: secfusion-app:dev
+  profiles: ["runtime"]
+  restart: unless-stopped
+  environment: &app-runtime-environment
+    SECFUSION_ENVIRONMENT: dev
+    SECFUSION_DATABASE_URL: postgresql+asyncpg://secfusion:secfusion@postgres:5432/secfusion
+    SECFUSION_REDIS_BROKER_URL: redis://redis-broker:6379/0
+    SECFUSION_REDIS_HOT_CACHE_URL: redis://redis-cache:6379/0
+    SECFUSION_REDIS_TASK_BUS_URL: redis://redis-task-bus:6379/0
+    SECFUSION_S3_ENDPOINT_URL: http://localstack-s3:4566
+    SECFUSION_S3_ACCESS_KEY: secfusion
+    SECFUSION_S3_SECRET_KEY: change-me
+    SECFUSION_S3_BUCKET: secfusion-evidence
+    SECFUSION_RUNTIME_ARTIFACT_BUCKET: secfusion-runtime-artifacts
+    SECFUSION_S3_REGION: us-east-1
+    SECFUSION_NVD_API_KEY: ${SECFUSION_NVD_API_KEY:-}
+    SECFUSION_GITHUB_TOKEN: ${SECFUSION_GITHUB_TOKEN:-}
+    SECFUSION_MODEL_BASE_URL: ${SECFUSION_MODEL_BASE_URL:-}
+    SECFUSION_MODEL_API_KEY: ${SECFUSION_MODEL_API_KEY:-}
+    SECFUSION_MODEL_NAME: ${SECFUSION_MODEL_NAME:-}
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis-broker:
+      condition: service_started
+    redis-cache:
+      condition: service_started
+    redis-task-bus:
+      condition: service_started
+    localstack-s3:
+      condition: service_healthy
+
 services:
   postgres:
     build:
@@ -78,6 +114,39 @@ services:
       retries: 30
     volumes:
       - localstack-data:/var/lib/localstack
+
+  scheduler:
+    <<: *app-runtime
+    command: ["python", "-m", "apps.worker.scheduler"]
+
+  worker-collection:
+    <<: *app-runtime
+    command:
+      [
+        "celery",
+        "-A",
+        "apps.worker.celery_app:celery_app",
+        "worker",
+        "-l",
+        "INFO",
+        "-Q",
+        "collection",
+        "--concurrency=4",
+      ]
+
+  worker:
+    <<: *app-runtime
+    command:
+      [
+        "celery",
+        "-A",
+        "apps.worker.celery_app:celery_app",
+        "worker",
+        "-l",
+        "INFO",
+        "-Q",
+        "enrichment,investigation,indexing",
+      ]
 
 volumes:
   localstack-data:

@@ -1,4 +1,4 @@
-.PHONY: sync lint format typecheck test check site-check site-status dev-up dev-down migrate sync-sources sync-skills worker worker-collection scheduler task-event-dispatcher task-event-scheduler probe-nvd promote-hot product-check m1-doc m1-render-doc m1-doc-check qa-preflight qa-preflight-doc-check investigation-readiness investigation-readiness-doc-check fault-recovery fault-recovery-doc-check competition-report competition-render-doc competition-doc-check evidence-doc-check
+.PHONY: sync lint format typecheck test check site-check site-status dev-up dev-runtime-up dev-runtime-down runtime-status runtime-config-check dev-down migrate sync-sources sync-skills worker worker-collection scheduler task-event-dispatcher task-event-scheduler probe-nvd promote-hot product-check m1-doc m1-render-doc m1-doc-check qa-preflight qa-preflight-doc-check investigation-readiness investigation-readiness-doc-check fault-recovery fault-recovery-doc-check competition-report competition-render-doc competition-doc-check evidence-doc-check
 
 WIKI_PATH ?= ../SecFusionAgent.wiki
 SITE_STATUS_OUTPUT ?= $(WIKI_PATH)/site/project-status.json
@@ -154,6 +154,18 @@ evidence-doc-check: m1-doc-check qa-preflight-doc-check investigation-readiness-
 dev-up:
 	docker compose -f deploy/docker-compose.yml up -d --wait postgres redis-broker redis-cache redis-task-bus localstack-s3
 
+runtime-config-check:
+	docker compose -f deploy/docker-compose.yml --profile runtime config --quiet
+
+dev-runtime-up: dev-up migrate sync-sources sync-skills runtime-config-check
+	docker compose -f deploy/docker-compose.yml --profile runtime up -d --build scheduler worker-collection worker
+
+dev-runtime-down:
+	docker compose -f deploy/docker-compose.yml --profile runtime stop scheduler worker-collection worker
+
+runtime-status:
+	docker compose -f deploy/docker-compose.yml --profile runtime ps scheduler worker-collection worker
+
 .PHONY: dev-up-core
 dev-up-core:
 	docker compose -f deploy/docker-compose.yml up -d --wait postgres redis-broker redis-cache redis-task-bus
@@ -169,7 +181,7 @@ integration-core: dev-up-core migrate sync-sources sync-skills
 		tests/integration/test_runtime_control_plane.py
 
 dev-down:
-	docker compose -f deploy/docker-compose.yml down
+	docker compose -f deploy/docker-compose.yml --profile runtime down
 
 migrate:
 	uv run alembic upgrade head
