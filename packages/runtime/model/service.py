@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import json
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from hashlib import sha256
 from time import monotonic
@@ -29,6 +31,28 @@ from packages.shared.model_provider import (
 )
 
 
+@dataclass(frozen=True)
+class ModelRetryPolicy:
+    max_attempts: int = 1
+    base_delay_seconds: float = 0.5
+    max_delay_seconds: float = 4.0
+
+    def __post_init__(self) -> None:
+        if self.max_attempts < 1:
+            raise ValueError("model retry max_attempts must be >= 1")
+        if self.base_delay_seconds < 0:
+            raise ValueError("model retry base delay must be >= 0")
+        if self.max_delay_seconds < 0:
+            raise ValueError("model retry max delay must be >= 0")
+
+    def delay_after(self, ordinal: int, exc: Exception) -> float:
+        exponential = self.base_delay_seconds * (2 ** max(0, ordinal - 1))
+        requested = getattr(exc, "retry_after_seconds", None)
+        if not isinstance(requested, (int, float)) or isinstance(requested, bool):
+            requested = 0.0
+        return min(self.max_delay_seconds, max(exponential, float(requested)))
+
+
 class RecordedModelProvider:
     """Record logical model requests and physical attempts around an existing provider.
 
@@ -43,10 +67,12 @@ class RecordedModelProvider:
         provider: ModelProvider,
         *,
         artifact_service: RuntimeArtifactService | None = None,
+        retry_policy: ModelRetryPolicy | None = None,
     ) -> None:
         self._session_factory = session_factory
         self._provider = provider
         self._artifact_service = artifact_service
+        self._retry_policy = retry_policy or ModelRetryPolicy()
         self.name = provider.name
         self.version = provider.version
 
@@ -57,11 +83,10 @@ class RecordedModelProvider:
     ) -> TStructured:
         coordinate = _request_coordinate(request)
         model_request_id = str(uuid4())
-        model_attempt_id = str(uuid4())
         request_digest = _digest(request.model_dump(mode="json"))
         request_schema_digest = _digest(StructuredModelRequest.model_json_schema())
         response_schema_digest = _digest(response_model.model_json_schema())
-        started_at = datetime.now(UTC)
+        requested_at = datetime.now(UTC)
         request_artifact_ref: str | None = None
 
         async with self._session_factory() as session, session.begin():
@@ -99,86 +124,132 @@ class RecordedModelProvider:
                     provider_policy_ref=coordinate.provider_policy_ref,
                     budget_ref=coordinate.budget_ref,
                     metadata_json=coordinate.public_metadata,
-                    created_at=started_at,
-                )
-            )
-            session.add(
-                ModelAttemptModel(
-                    model_attempt_id=model_attempt_id,
-                    model_request_id=model_request_id,
-                    ordinal=1,
-                    provider=self._provider.name,
-                    adapter_revision=self._provider.version,
-                    actual_model=self._provider.name,
-                    provider_request_id=None,
-                    started_at=started_at,
-                    finished_at=None,
-                    status=ModelAttemptStatus.STARTED.value,
-                    failure_class=None,
-                    failure_detail=None,
-                    response_schema_digest=response_schema_digest,
-                    response_artifact_ref=None,
-                    usage_json=ModelUsage().model_dump(mode="json"),
-                    cost_json={},
-                    cache_usage_json={},
-                    response_metadata_json={},
-                    latency_ms=None,
+                    created_at=requested_at,
                 )
             )
 
-        started_clock = monotonic()
-        try:
-            provider_result = await _generate_with_metadata(
-                self._provider,
-                request,
-                response_model,
-            )
-        except Exception as exc:
+        logical_started_clock = monotonic()
+        logical_deadline_clock = (
+            logical_started_clock + coordinate.model_wall_seconds
+            if coordinate.model_wall_seconds is not None
+            else None
+        )
+        for ordinal in range(1, self._retry_policy.max_attempts + 1):
+            model_attempt_id = str(uuid4())
+            started_at = datetime.now(UTC)
+            async with self._session_factory() as session, session.begin():
+                session.add(
+                    ModelAttemptModel(
+                        model_attempt_id=model_attempt_id,
+                        model_request_id=model_request_id,
+                        ordinal=ordinal,
+                        provider=self._provider.name,
+                        adapter_revision=self._provider.version,
+                        actual_model=self._provider.name,
+                        provider_request_id=None,
+                        started_at=started_at,
+                        finished_at=None,
+                        status=ModelAttemptStatus.STARTED.value,
+                        failure_class=None,
+                        failure_detail=None,
+                        response_schema_digest=response_schema_digest,
+                        response_artifact_ref=None,
+                        usage_json=ModelUsage().model_dump(mode="json"),
+                        cost_json={},
+                        cache_usage_json={},
+                        response_metadata_json={},
+                        latency_ms=None,
+                    )
+                )
+
+            started_clock = monotonic()
+            try:
+                remaining_seconds = (
+                    logical_deadline_clock - monotonic()
+                    if logical_deadline_clock is not None
+                    else None
+                )
+                if remaining_seconds is not None:
+                    if remaining_seconds <= 0:
+                        raise TimeoutError("model logical request deadline exhausted")
+                    async with asyncio.timeout(remaining_seconds):
+                        provider_result = await _generate_with_metadata(
+                            self._provider,
+                            request,
+                            response_model,
+                        )
+                else:
+                    provider_result = await _generate_with_metadata(
+                        self._provider,
+                        request,
+                        response_model,
+                    )
+            except Exception as exc:
+                finished_at = datetime.now(UTC)
+                latency_ms = max(0, round((monotonic() - started_clock) * 1000))
+                retryable = bool(getattr(exc, "retryable", False))
+                has_retry = retryable and ordinal < self._retry_policy.max_attempts
+                retry_delay = self._retry_policy.delay_after(ordinal, exc) if has_retry else None
+                if has_retry and logical_deadline_clock is not None:
+                    assert retry_delay is not None
+                    has_retry = monotonic() + retry_delay < logical_deadline_clock
+                    if not has_retry:
+                        retry_delay = None
+                async with self._session_factory() as session, session.begin():
+                    attempt = await _require_attempt(session, model_attempt_id)
+                    attempt.status = ModelAttemptStatus.FAILED.value
+                    attempt.failure_class = _failure_class(exc)
+                    attempt.failure_detail = _failure_detail(exc)
+                    attempt.finished_at = finished_at
+                    attempt.response_metadata_json = {
+                        "retryable": retryable,
+                        "retry_scheduled": has_retry,
+                        "retry_delay_seconds": retry_delay,
+                    }
+                    attempt.latency_ms = latency_ms
+                if not has_retry:
+                    raise
+                assert retry_delay is not None
+                if retry_delay > 0:
+                    await asyncio.sleep(retry_delay)
+                continue
+
             finished_at = datetime.now(UTC)
             latency_ms = max(0, round((monotonic() - started_clock) * 1000))
+            usage = _usage(provider_result)
+            response_artifact_ref: str | None = None
             async with self._session_factory() as session, session.begin():
+                if (
+                    self._artifact_service is not None
+                    and coordinate.execution_id is not None
+                    and coordinate.persist_payload_artifacts
+                ):
+                    artifact = await self._artifact_service.write(
+                        session,
+                        execution_id=coordinate.execution_id,
+                        producer_kind="model_response",
+                        producer_ref=model_attempt_id,
+                        logical_name=f"model-response-{model_attempt_id}.json",
+                        media_type="application/json",
+                        body=_canonical_bytes(provider_result.output.model_dump(mode="json")),
+                        trust_class="execution_sensitive",
+                    )
+                    response_artifact_ref = artifact.artifact_ref
                 attempt = await _require_attempt(session, model_attempt_id)
-                attempt.status = ModelAttemptStatus.FAILED.value
-                attempt.failure_class = _failure_class(exc)
-                attempt.failure_detail = _failure_detail(exc)
+                attempt.actual_model = provider_result.actual_model
+                attempt.provider_request_id = provider_result.provider_request_id
                 attempt.finished_at = finished_at
-                attempt.latency_ms = latency_ms
-            raise
-
-        finished_at = datetime.now(UTC)
-        latency_ms = max(0, round((monotonic() - started_clock) * 1000))
-        usage = _usage(provider_result)
-        response_artifact_ref: str | None = None
-        async with self._session_factory() as session, session.begin():
-            if (
-                self._artifact_service is not None
-                and coordinate.execution_id is not None
-                and coordinate.persist_payload_artifacts
-            ):
-                artifact = await self._artifact_service.write(
-                    session,
-                    execution_id=coordinate.execution_id,
-                    producer_kind="model_response",
-                    producer_ref=model_attempt_id,
-                    logical_name=f"model-response-{model_attempt_id}.json",
-                    media_type="application/json",
-                    body=_canonical_bytes(provider_result.output.model_dump(mode="json")),
-                    trust_class="execution_sensitive",
+                attempt.status = ModelAttemptStatus.SUCCEEDED.value
+                attempt.response_artifact_ref = response_artifact_ref
+                attempt.usage_json = usage.model_dump(mode="json")
+                attempt.cache_usage_json = cast(dict[str, object], _cache_usage(usage))
+                attempt.response_metadata_json = cast(
+                    dict[str, object], dict(provider_result.response_metadata or {})
                 )
-                response_artifact_ref = artifact.artifact_ref
-            attempt = await _require_attempt(session, model_attempt_id)
-            attempt.actual_model = provider_result.actual_model
-            attempt.provider_request_id = provider_result.provider_request_id
-            attempt.finished_at = finished_at
-            attempt.status = ModelAttemptStatus.SUCCEEDED.value
-            attempt.response_artifact_ref = response_artifact_ref
-            attempt.usage_json = usage.model_dump(mode="json")
-            attempt.cache_usage_json = cast(dict[str, object], _cache_usage(usage))
-            attempt.response_metadata_json = cast(
-                dict[str, object], dict(provider_result.response_metadata or {})
-            )
-            attempt.latency_ms = latency_ms
-        return provider_result.output
+                attempt.latency_ms = latency_ms
+            return provider_result.output
+
+        raise RuntimeError("model retry loop exhausted without terminal result")
 
 
 class _RequestCoordinate(BaseModel):
@@ -192,6 +263,7 @@ class _RequestCoordinate(BaseModel):
     prompt_assembly_id: str | None = None
     provider_policy_ref: str | None = None
     budget_ref: str | None = None
+    model_wall_seconds: float | None = None
     persist_payload_artifacts: bool = False
     public_metadata: dict[str, JsonValue]
 
@@ -219,6 +291,7 @@ def _request_coordinate(request: StructuredModelRequest) -> _RequestCoordinate:
         prompt_assembly_id=_string_metadata(metadata, "prompt_assembly_id"),
         provider_policy_ref=_string_metadata(metadata, "provider_policy_ref"),
         budget_ref=_string_metadata(metadata, "budget_ref"),
+        model_wall_seconds=_positive_number_metadata(metadata, "model_wall_seconds"),
         persist_payload_artifacts=persist_payload_artifacts,
         public_metadata=public_metadata,
     )
@@ -234,6 +307,13 @@ def _infer_owner(metadata: dict[str, JsonValue]) -> str | None:
         value = _string_metadata(metadata, key)
         if value is not None:
             return f"{prefix}:{value}"
+    return None
+
+
+def _positive_number_metadata(metadata: dict[str, JsonValue], key: str) -> float | None:
+    value = metadata.get(key)
+    if isinstance(value, (int, float)) and not isinstance(value, bool) and value > 0:
+        return float(value)
     return None
 
 

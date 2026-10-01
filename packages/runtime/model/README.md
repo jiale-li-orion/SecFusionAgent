@@ -13,7 +13,7 @@ ModelRequest
   request schema digest / normalized request digest
   requested model / budget ref
 
-ModelAttempt #1
+ModelAttempt #1..N
   provider / adapter revision / actual model
   provider request id when available
   started / finished / latency
@@ -24,15 +24,19 @@ ModelAttempt #1
   response-format fallback metadata
 ```
 
-The request/attempt rows are committed before remote dispatch. The provider call runs outside the recorder database transaction. A second short transaction records success/failure. Failed attempts remain durable; a later success cannot overwrite them.
+The logical `ModelRequest` is committed before remote dispatch. Every physical attempt is inserted before its provider call and finished in a separate short transaction. Transient transport/HTTP failures therefore remain visible as failed attempt ordinals even when a later retry succeeds; a retry never overwrites the original attempt.
 
-`OpenAICompatibleProvider` exposes `ProviderModelResult` metadata while preserving the legacy `generate_structured()` API. It reports provider request identity, actual model, exact token/cache fields when present, and whether `json_schema` fell back to `json_object`. Missing usage is `unavailable`, never zero.
+`ModelRetryPolicy` is configured by `SECFUSION_MODEL_MAX_ATTEMPTS`, `SECFUSION_MODEL_RETRY_BASE_SECONDS`, and `SECFUSION_MODEL_RETRY_MAX_SECONDS`. The default policy retries only failures explicitly classified as transient: network/HTTP transport errors, 408, 429, and selected 5xx responses. `Retry-After` is honored within the configured delay ceiling. Authentication failures, malformed JSON, response-schema violations and ordinary 4xx responses are terminal because replaying the same request cannot repair them. The retry policy is part of `DeploymentRevision` configuration identity, so a latency/quality run cannot silently compare two deployments with different retry behavior.
+
+Interactive M6 adds `model_wall_seconds` to request metadata. `RecordedModelProvider` converts that value into one monotonic logical deadline shared by every physical attempt and retry sleep. An individual HTTP timeout can therefore never silently turn a five-second Product budget into several five-second retries. Deadline exhaustion is persisted as a failed attempt with `timeout_before_response`; retry scheduling is suppressed when the remaining wall budget cannot cover the next backoff. This avoids the more dangerous alternative of cancelling the provider outside the recorder and leaving an attempt permanently in `started` state.
+
+`OpenAICompatibleProvider` exposes `ProviderModelResult` metadata while preserving the legacy `generate_structured()` API. It reports provider request identity, actual model, exact token/cache fields when present, and whether `json_schema` fell back to `json_object`. Missing usage is `unavailable`, never zero. The provider probe also supports OpenAI-compatible `GET /models`: an explicit `SECFUSION_MODEL_NAME` always wins; without it, automatic selection is accepted only when discovery leaves exactly one plausible chat model. Multi-model endpoints fail closed and print candidates rather than choosing a model nondeterministically.
 
 `PromptAssemblyRecordService` persists M5 PromptAssembly identity and fragment manifest: source refs/revisions, trust/cache classes, content hashes, order, assembly hash and cache hints. Fragment content is deliberately not copied into SQL. `request_artifact_ref` is currently nullable; full redacted request persistence is opt-in and remains an R1 follow-up.
 
 ## Ownership boundaries
 
-This package may observe model requests and persist execution facts. It does not choose retries, change Task completion, mutate Knowledge/InvestigationState, select a model fallback policy, or promote a Skill. Online owners retain those decisions.
+This package owns physical-attempt retry recording for an already chosen logical model request. It does not alter the prompt, switch to a different model, change Task completion, mutate Knowledge/InvestigationState, select semantic fallback behavior, or promote a Skill. Provider/model selection remains configuration/runtime composition; response-format fallback remains inside the OpenAI-compatible adapter and is recorded in response metadata.
 
 Payload artifacts are privacy-sensitive. `RecordedModelProvider` only writes request/response RuntimeArtifacts when an artifact service is explicitly provided, an `execution_id` exists, and request metadata opts into `redacted_runtime_artifact`. The default online path records coordinate/digests/usage without copying prompt content.
 
@@ -52,5 +56,18 @@ M5 additionally persists `PromptAssemblyRecord`. M6 Workbench execution now uses
 ```bash
 uv run pytest packages/runtime/model/tests -q
 uv run pytest packages/investigation/runtime/test_model_planner.py -q
+make model-provider-probe
 make integration-core
 ```
+
+For a live provider, the minimum common configuration is:
+
+```bash
+export SECFUSION_MODEL_BASE_URL='https://provider.example/v1'
+export SECFUSION_MODEL_API_KEY='...'
+make model-provider-probe
+```
+
+If `/models` exposes several chat models, also set `SECFUSION_MODEL_NAME`. A successful probe checks authentication, model resolution, `/chat/completions`, structured JSON output, schema validation, actual-model identity and provider metadata before any formal QA run spends its denominator.
+
+After the probe succeeds, `make qa-live` is the formal measurement entry point. The model name (explicit or uniquely discovered), endpoint digest, timeout and retry policy are included in `DeploymentRevision`; the API key is never persisted in that identity.

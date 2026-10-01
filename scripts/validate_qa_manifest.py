@@ -34,7 +34,11 @@ def _model_provider_status(*, model_base_url: str | None, model_name: str | None
     return "configured" if model_base_url and model_name else "unconfigured"
 
 
-async def _validate(manifest: QABenchmarkManifest) -> dict[str, Any]:
+async def _validate(
+    manifest: QABenchmarkManifest,
+    *,
+    rebase_current: bool = False,
+) -> dict[str, Any]:
     register_runtime_models()
     settings = get_settings()
     engine = create_engine(settings.database_url)
@@ -42,6 +46,9 @@ async def _validate(manifest: QABenchmarkManifest) -> dict[str, Any]:
     try:
         async with factory() as session:
             current_revision = await current_knowledge_revision(session)
+            input_knowledge_revision = manifest.knowledge_revision
+            if rebase_current:
+                manifest = manifest.model_copy(update={"knowledge_revision": current_revision})
             live_runtime_world_status = _live_runtime_world_status(
                 manifest,
                 current_revision=current_revision,
@@ -92,6 +99,8 @@ async def _validate(manifest: QABenchmarkManifest) -> dict[str, Any]:
 
             return {
                 "suite_id": manifest.suite_id,
+                "input_knowledge_revision": input_knowledge_revision,
+                "rebase_current": rebase_current,
                 "case_count": len(manifest.cases),
                 "session_count": len(manifest.sessions),
                 "structured_authority_case_count": structured_cases,
@@ -113,11 +122,19 @@ def main() -> None:
     )
     parser.add_argument("manifest", type=Path)
     parser.add_argument("--output", type=Path)
+    parser.add_argument(
+        "--rebase-current",
+        action="store_true",
+        help=(
+            "validate an in-memory copy against the current Knowledge head; "
+            "the source manifest is not rewritten"
+        ),
+    )
     args = parser.parse_args()
     manifest = QABenchmarkManifest.model_validate_json(
         args.manifest.read_text(encoding="utf-8")
     )
-    result = asyncio.run(_validate(manifest))
+    result = asyncio.run(_validate(manifest, rebase_current=args.rebase_current))
     rendered = json.dumps(result, indent=2, ensure_ascii=False) + "\n"
     if args.output is not None:
         args.output.parent.mkdir(parents=True, exist_ok=True)

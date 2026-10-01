@@ -24,6 +24,7 @@ from packages.investigation.runtime.watch import WatchWakeService
 from packages.investigation.state.world_change import KnowledgeChangeNotice, WorldChangeService
 from packages.monitoring.runtime import execute_collection_run
 from packages.runtime.execution.service import ExecutionRunService
+from packages.runtime.model import ModelRetryPolicy
 from packages.runtime.policy.loader import load_runtime_policy
 from packages.shared.config import get_settings
 from packages.shared.db import create_engine, create_session_factory
@@ -310,7 +311,15 @@ async def _index_document_revision(payload: dict[str, object]) -> int:
                     )
 
             if settings.model_name:
-                recorded_provider = record_model_provider(factory, provider)
+                recorded_provider = record_model_provider(
+                    factory,
+                    provider,
+                    retry_policy=ModelRetryPolicy(
+                        max_attempts=settings.model_max_attempts,
+                        base_delay_seconds=settings.model_retry_base_seconds,
+                        max_delay_seconds=settings.model_retry_max_seconds,
+                    ),
+                )
                 async with factory() as session:
                     revision = await session.get(DocumentRevisionModel, document_revision_id)
                     if revision is None:

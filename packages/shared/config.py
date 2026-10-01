@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     embedding_model_name: str | None = None
     embedding_dimensions: int | None = None
     model_timeout_seconds: float = 60.0
+    model_max_attempts: int = 3
+    model_retry_base_seconds: float = 0.5
+    model_retry_max_seconds: float = 4.0
 
 
 @lru_cache(maxsize=1)

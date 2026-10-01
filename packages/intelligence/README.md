@@ -20,6 +20,8 @@ Every accepted claim/relation must resolve to an Observation/Artifact and locato
 
 `knowledge/` owns generic evidence-backed objects, identifiers, claims, relations, revisions, and reads.
 
+The long-lived local data plane now treats this store as an accumulating operational corpus. `make data-plane-up` keeps scheduled acquisition plus enrichment/indexing consumers alive across terminal exit and Docker restart; PostgreSQL and S3-compatible evidence bytes are volume-backed. Redis hot state remains rebuildable and is intentionally excluded from fact authority. Formal QA is the only workflow that temporarily quiesces data-plane writers so a live Product run can bind to one immutable current Knowledge head; the batch runner restores the writers in `finally`.
+
 `EvidenceBackedKnowledgeWriter` is the canonical write path for structured/derived knowledge. Important implementation rules:
 
 - root and target objects are upserted by stable canonical identity;
@@ -123,6 +125,7 @@ This module does not own provider scheduling, LLM selection, Agent policy, or ev
 uv run pytest packages/intelligence -q
 make integration-core
 make integration-object-store
+make data-plane-status
 ```
 
 For changes to evidence or canonical state, prefer a real PostgreSQL integration case when SQLite cannot enforce the same FK/locking/query behavior.

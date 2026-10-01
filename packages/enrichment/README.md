@@ -1,5 +1,25 @@
 # `packages.enrichment`
 
+<!-- BEGIN GENERATED ENRICHMENT STATUS -->
+## Current M3 formal evidence (generated)
+
+Competition aggregation: TP=292, FP=1, FN=1, micro precision=99.659%, micro recall=99.659%.
+
+| Dimension | TP | FP | FN | Precision | Recall |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `advisory_reference` | 21 | 0 | 0 | 100.000% | 100.000% |
+| `exploit_likelihood` | 47 | 1 | 1 | 97.917% | 97.917% |
+| `fix_remediation` | 18 | 0 | 0 | 100.000% | 100.000% |
+| `product_package` | 16 | 0 | 0 | 100.000% | 100.000% |
+| `severity` | 48 | 0 | 0 | 100.000% | 100.000% |
+| `version_applicability` | 127 | 0 | 0 | 100.000% | 100.000% |
+| `weakness` | 15 | 0 | 0 | 100.000% | 100.000% |
+
+Structured replay freezes gold at `provider-snapshot:2c7c06aa468439a08675cab1551ede352234656ff08a6b0ea00e04ceddf97a27` and predictions at `knowledge-revision:1019`; CSAF/VEX freezes gold at `provider-snapshot:cba7f1e65b1c5996b0137cfb9ddeb42a72876bff5a3fb38c34d9767bdaaee5bb` and predictions at `knowledge-revision:596`. Later Knowledge revisions cannot retroactively improve either score.
+
+Inspect exact gold/predictions/missing/extra facts in `benchmarks/m3/current-structured.json` and `benchmarks/m3/current-csaf-vex.json`; the CompetitionReport aggregation is rendered from durable BenchmarkRun metrics, not copied from this README.
+<!-- END GENERATED ENRICHMENT STATUS -->
+
 `packages.enrichment` is the implementation owner of M3 processing that creates additional security claims/relations from existing or newly acquired evidence. Technical Design 1 freezes enrichment authority, vocabulary boundaries, and the M3→M4 handoff; this module documents processor composition, provider querying, semantic extraction, and extension rules.
 
 ## Vulnerability enrichment runtime

@@ -1,49 +1,64 @@
 # M6 QA benchmark assets
 
+<!-- BEGIN GENERATED QA STATUS -->
+## Current M6 readiness (generated)
+
+| Denominator | Gold | Pinned world | Observed DB head | Gold provenance | Live-world status | Provider |
+| --- | ---: | ---: | ---: | --- | --- | --- |
+| Product QA | 14 cases | 606 | 1494 | `valid` | `stale_requires_refresh_or_rebase` | `unconfigured` |
+| Session QA | 4 turns / 2 sessions | 606 | 1494 | `valid` | `stale_requires_refresh_or_rebase` | `unconfigured` |
+
+Preflight is deliberately not a QA score. `make qa-preflight` refreshes historical-pin validation; `make qa-live-preflight` rebases an in-memory copy to the current Knowledge head and proves that the reviewed gold still holds without spending model calls. With provider credentials configured, `make model-provider-probe` verifies auth + structured output; `make qa-live` then repeats current-world validation, runs product and session suites on one frozen DeploymentRevision, and restores the long-lived data plane even if the batch fails.
+<!-- END GENERATED QA STATUS -->
+
 `current-product-preflight.json` and `current-session-preflight.json` are machine-readable no-model preflight results. `current-preflight.md` is generated from those JSON files; run `make qa-preflight` to refresh all three and `make qa-preflight-doc-check` to verify the Markdown projection without model calls. These artifacts report gold-provenance validity, pinned/current Knowledge coordinates, live-world readiness and model-provider configuration. They are preflight evidence only and never substitute for M6 accuracy/latency metrics in CompetitionReport.
 
 `smoke-v1.json` is synthetic harness verification only. It proves the scorer/runtime wiring and must not be used as competition evidence.
 
-`real-product-v1.candidate.json` is the first real Product QA candidate. Its gold is built from exact structured authority facts already materialized in canonical Knowledge, with backing source IDs and EvidenceRefs bound through `gold_provenance`. It is pinned to Knowledge revision `606` and uses `live_product_question`, so execution must pass through `AskQuestionUseCase → DecisionRole → TaskRun / Budget / Execution → RecordedModelProvider → validated DecisionResult`.
+`real-product-v1.candidate.json` and `real-session-v1.candidate.json` are reviewed gold templates. Their checked-in `knowledge_revision` remains the historical provenance coordinate used by no-model preflight, while a formal live batch rebases an in-memory copy to the current Knowledge head and reruns every structured-authority EvidenceRef/fact/path/absence check before it can spend model calls. The generated frozen manifests are written only after a successful batch. Product execution still passes through `AskQuestionUseCase → DecisionRole → TaskRun / Budget / Execution → RecordedModelProvider → validated DecisionResult`.
 
 The candidate currently contains 14 cases: direct NVD CVSS facts, NVD + CISA KEV cross-source facts, one dated FIRST EPSS temporal fact, one CVE Record Format 5.x version-range applicability fact, Red Hat CSAF/VEX `not_affected`/`fixed` applicability facts, one world-relative unknown/continuation case, and one real two-hop development graph case (`CVE → referenced PR → merged-as Commit`). Product Question facts use shared deterministic renderers: ordinary claims stay compact, source-specific claims retain their source identity, FIRST EPSS retains `source_semantics + score_date`, and relation facts retain semantic qualifiers (`state`, version/scope, CSAF status, compact component/platform context and justification) while dropping provenance-only fields and bulky NVD root snapshots. Structured gold may additionally declare `absence_checks`; preflight verifies that the requested canonical predicate is genuinely absent at the pinned Knowledge revision, so an old unknown case fails closed if later Knowledge fills the gap. Required relation paths are also reconstructed from the declared relation EvidenceRefs, so a multi-hop path cannot enter gold merely because it was handwritten in the manifest.
 
-The file is real benchmark content but not yet a completed benchmark result. A formal run requires a configured model provider and the exact pinned Knowledge revision. `run_qa_benchmark.py` fails closed if current Knowledge or the actual Product `ContextManifest.knowledge_revision` differs from the manifest pin. No-model preflight is deliberately different: it validates EvidenceRefs, facts, relation paths and absence checks **as of the pinned Knowledge revision**, even after the live database has advanced. Its output separately reports `live_runtime_world_status=ready|stale_requires_refresh_or_rebase`, so historical gold remains auditable without implying that a live Product run can execute on a stale world pin. Because Historical Knowledge Read is not yet available for Product execution, a stale live world still requires refresh/rebase to a new suite revision rather than pretending to replay revision 606.
+The templates are real benchmark content but are not completed benchmark results. `run_qa_benchmark.py` still fails closed if current Knowledge or the actual Product `ContextManifest.knowledge_revision` differs from the manifest pin. No-model preflight validates historical provenance at the checked-in pin. `make qa-live` handles the live side safely: it first probes the provider, then temporarily stops scheduler/collection/general workers, reads one stable Knowledge head, rebases both templates, validates gold again at that head, freezes one DeploymentRevision, allocates the next suite revisions, executes product + session denominators, and finally restores the data plane even when an exception occurs. The short quiesce prevents background M1–M3 commits from invalidating the live-world pin mid-run while normal operation remains continuously collecting outside the measurement window.
 
-Before spending model calls, validate every structured gold EvidenceRef against the manifest's pinned world. A later current Knowledge revision does not invalidate the historical provenance check; inspect `live_runtime_world_status` to decide whether live execution is currently legal:
+Refresh the historical/no-model preflight at any time:
 
 ```bash
 uv run python -m scripts.validate_qa_manifest \
   benchmarks/qa/real-product-v1.candidate.json
 ```
 
-Run when the model provider is configured and the database is still at the pinned world:
+Validate both reviewed templates against the live Knowledge head without changing either source manifest or calling a model:
 
 ```bash
-uv run python scripts/run_qa_benchmark.py \
-  benchmarks/qa/real-product-v1.candidate.json \
-  --suite-revision 1 \
-  --deployment-revision-id '<deployment-id>' \
-  --output /tmp/m6-real-product-v1.json
+make qa-live-preflight
 ```
 
-`real-session-v1.candidate.json` is the first real `QASessionCase` candidate. It contains two two-turn Product sessions pinned to Knowledge revision `606`. The first asks for NVD CVSS and then a dated FIRST EPSS fact with no repeated target, exercising canonical target carry. The second sends the exact same `RETRIEVE` question twice: turn 1 binds `CVE-2026-7273`, turn 2 omits `cve_id/object_id`, so a live run exercises the exact-request `executed → reused` path while preserving the same factual NVD gold. All four turns have independent structured-authority gold and EvidenceRefs. Session evaluation reuses the normal per-turn QA scorer, then derives context-chain, target-carry and retrieval diagnostics from durable Product/runtime provenance.
+Before formal scoring, configure an OpenAI-compatible endpoint. If `/models` exposes exactly one chat model, Base URL + API key are enough; otherwise provide `SECFUSION_MODEL_NAME` explicitly. Probe first:
+
+```bash
+export SECFUSION_MODEL_BASE_URL='https://provider.example/v1'
+export SECFUSION_MODEL_API_KEY='...'
+make model-provider-probe
+```
+
+Then run the complete formal competition batch:
+
+```bash
+make qa-live
+```
+
+`make qa-live` is intentionally larger than a QA-only loop. Once Product + session QA succeed, the same frozen DeploymentRevision is reused to rerun the fixed M1 window, frozen structured M3 replay, frozen CSAF/VEX replay and controlled fault-recovery suite. Only after all runs complete does the batch persist a new `benchmarks/competition/current-run-set.json`, CompetitionReport, QA/M1/M3/fault `current*.json` files and generated README projections. This prevents a high QA score from being combined with M1/M3 numbers produced by a different code/model configuration. Suite revisions are allocated from durable `benchmark_suites`; no revision number or DeploymentRevision id is typed by hand.
+
+QA-specific successful output is written to `current-live-batch.json`, `current-product-manifest.json`, `current-session-manifest.json`, `current-product.json`, and `current-session.json`. The data-plane writers are restored in `finally` after success or failure.
+
+`real-session-v1.candidate.json` contains two two-turn Product sessions. The first asks for NVD CVSS and then a dated FIRST EPSS fact with no repeated target, exercising canonical target carry. The second sends the exact same `RETRIEVE` question twice: turn 1 binds `CVE-2026-7273`, turn 2 omits `cve_id/object_id`, so a live run exercises the exact-request `executed → reused` path while preserving the same factual NVD gold. All four turns have independent structured-authority gold and EvidenceRefs. Session evaluation reuses the normal per-turn QA scorer, then derives context-chain, target-carry and retrieval diagnostics from durable Product/runtime provenance.
 
 Validate all four structured-authority turns without a model call:
 
 ```bash
 uv run python -m scripts.validate_qa_manifest \
   benchmarks/qa/real-session-v1.candidate.json
-```
-
-Run it only with a configured model provider and the same pinned world:
-
-```bash
-uv run python scripts/run_qa_benchmark.py \
-  benchmarks/qa/real-session-v1.candidate.json \
-  --suite-revision 1 \
-  --deployment-revision-id '<deployment-id>' \
-  --output /tmp/m6-real-session-v1.json
 ```
 
 This first session denominator measures turn correctness, durable context chaining and canonical target carry. Follow-up `RETRIEVE` turns now expose three separate retrieval diagnostics. `m6.session_retrieval_overlap_rate` reports how many current `document-chunk:*` refs were already exposed by prior turns. `m6.session_retrieval_invocation_coverage` checks whether the expected retrieval turn has exactly one durable `RetrievalInvocation`. `m6.session_retrieval_reuse_rate` reads that invocation's `executed/reused` disposition, so exact Product-level reuse is measured from operational provenance instead of inferred from chunk overlap. The current reuse policy is intentionally strict: only the same Product session + exact request digest + same Knowledge revision/operator/limit/source scope may reuse prior ordered chunk refs; any stale/missing chunk ref falls back to a fresh lexical search.

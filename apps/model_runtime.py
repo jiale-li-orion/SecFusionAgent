@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from packages.enrichment.providers.factory import create_configured_ai_provider
 from packages.runtime.artifacts import RuntimeArtifactService
 from packages.runtime.model import (
+    ModelRetryPolicy,
     PromptAssemblyRecord,
     PromptAssemblyRecordService,
     PromptFragmentRecord,
@@ -75,11 +76,13 @@ def record_model_provider(
     provider: ModelProvider,
     *,
     artifact_service: RuntimeArtifactService | None = None,
+    retry_policy: ModelRetryPolicy | None = None,
 ) -> ModelProvider:
     return RecordedModelProvider(
         session_factory,
         provider,
         artifact_service=artifact_service,
+        retry_policy=retry_policy,
     )
 
 
@@ -97,4 +100,9 @@ def create_recorded_model_provider(
         session_factory,
         provider,
         artifact_service=artifact_service,
+        retry_policy=ModelRetryPolicy(
+            max_attempts=settings.model_max_attempts,
+            base_delay_seconds=settings.model_retry_base_seconds,
+            max_delay_seconds=settings.model_retry_max_seconds,
+        ),
     )

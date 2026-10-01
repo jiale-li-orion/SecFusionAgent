@@ -1,4 +1,4 @@
-.PHONY: sync lint format typecheck test check site-check site-status dev-up dev-runtime-up dev-runtime-down runtime-status runtime-config-check dev-down migrate sync-sources sync-skills worker worker-collection scheduler task-event-dispatcher task-event-scheduler probe-nvd promote-hot product-check m1-doc m1-render-doc m1-doc-check qa-preflight qa-preflight-doc-check investigation-readiness investigation-readiness-doc-check fault-recovery fault-recovery-doc-check competition-report competition-render-doc competition-doc-check evidence-doc-check
+.PHONY: sync lint format typecheck test check site-check site-status dev-up dev-runtime-up dev-runtime-down runtime-status runtime-config-check data-plane-up data-plane-down data-plane-status data-plane-logs dev-down migrate sync-sources sync-skills worker worker-collection scheduler task-event-dispatcher task-event-scheduler probe-nvd promote-hot product-check model-provider-probe qa-live qa-live-preflight benchmark-query m1-doc m1-render-doc m1-doc-check qa-preflight qa-preflight-doc-check investigation-readiness investigation-readiness-doc-check fault-recovery fault-recovery-doc-check competition-report competition-render-doc competition-doc-check readme-evidence readme-evidence-check evidence-doc evidence-doc-check
 
 WIKI_PATH ?= ../SecFusionAgent.wiki
 SITE_STATUS_OUTPUT ?= $(WIKI_PATH)/site/project-status.json
@@ -79,6 +79,19 @@ m1-doc-check:
 		--readme-status "$(M1_STATUS_README)" \
 		--check
 
+model-provider-probe:
+	uv run python -m scripts.probe_model_provider
+
+qa-live:
+	uv run python -m scripts.run_live_qa_batch
+
+qa-live-preflight:
+	uv run python -m scripts.validate_qa_manifest --rebase-current benchmarks/qa/real-product-v1.candidate.json
+	uv run python -m scripts.validate_qa_manifest --rebase-current benchmarks/qa/real-session-v1.candidate.json
+
+benchmark-query:
+	uv run python -m scripts.query_benchmark_evidence $(if $(METRIC),--metric "$(METRIC)")
+
 fault-recovery:
 	@test -n "$(FAULT_RECOVERY_SUITE_REVISION)" || (echo "FAULT_RECOVERY_SUITE_REVISION is required" >&2; exit 2)
 	uv run python scripts/run_fault_recovery_benchmark.py \
@@ -149,7 +162,15 @@ competition-doc-check:
 		--markdown-output "$(COMPETITION_STATUS_MD)" \
 		--check
 
-evidence-doc-check: m1-doc-check qa-preflight-doc-check investigation-readiness-doc-check fault-recovery-doc-check competition-doc-check
+readme-evidence:
+	uv run python scripts/render_readme_evidence.py
+
+readme-evidence-check:
+	uv run python scripts/render_readme_evidence.py --check
+
+evidence-doc: m1-render-doc qa-preflight investigation-readiness competition-render-doc readme-evidence
+
+evidence-doc-check: m1-doc-check qa-preflight-doc-check investigation-readiness-doc-check fault-recovery-doc-check competition-doc-check readme-evidence-check
 
 dev-up:
 	docker compose -f deploy/docker-compose.yml up -d --wait postgres redis-broker redis-cache redis-task-bus localstack-s3
@@ -159,6 +180,20 @@ runtime-config-check:
 
 dev-runtime-up: dev-up migrate sync-sources sync-skills runtime-config-check
 	docker compose -f deploy/docker-compose.yml --profile runtime up -d --build scheduler worker-collection worker
+
+# Long-lived M1-M3 data plane. This intentionally does not configure or require a
+# model provider; with SECFUSION_MODEL_* unset, document indexing stays lexical
+# and Investigation/QA model calls are not started by this target.
+data-plane-up: dev-runtime-up
+
+data-plane-down: dev-runtime-down
+
+data-plane-status:
+	docker compose -f deploy/docker-compose.yml --profile runtime ps postgres redis-broker redis-cache redis-task-bus localstack-s3 scheduler worker-collection worker
+	uv run python -m scripts.data_plane_status
+
+data-plane-logs:
+	docker compose -f deploy/docker-compose.yml --profile runtime logs --tail=200 scheduler worker-collection worker
 
 dev-runtime-down:
 	docker compose -f deploy/docker-compose.yml --profile runtime stop scheduler worker-collection worker

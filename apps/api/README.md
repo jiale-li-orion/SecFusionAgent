@@ -37,6 +37,8 @@ Technical Design 2A separates Product API from Workbench and A2A. Product Invest
 
 `POST /api/v1/questions` also carries Product session identity. Investigation-class follow-up may send only `session_id` after the prior InvestigationRole episode is terminal; the Application layer reuses the same durable Case, opens the next EvidenceNeed and returns `202 Accepted` with the same investigation `Location`. A non-terminal InvestigationRole episode produces a lifecycle conflict instead of creating a concurrent TaskRun or orphan EvidenceNeed. Session-only LOOKUP/RETRIEVE is also a valid Product contract: when the session still owns an active/waiting Investigation and no explicit target is supplied, Application may execute a read-only DecisionRole against that live M4 Case. HTTP only validates/transports the request; Case selection, world-revision guards, citation projection and authority remain below the route.
 
+LOOKUP/RETRIEVE model calls use the same recorded provider wrapper as Workbench and formal QA. A logical request has one `ModelRequest`; transient network/408/429/selected-5xx retries become additional `ModelAttempt` rows, while authentication and response-validation failures fail immediately. Route-level `interactive_timeout_seconds` still bounds the HTTP-facing Product operation; retry count/backoff are deployment configuration and are frozen into formal benchmark deployment identity.
+
 `dependencies.py` owns the shared SQLAlchemy session dependency and `RequestContext`. `main.py` creates a request id at the HTTP edge and returns it as `X-Request-ID`; Product Application links that id into the created ExecutionEnvelope trace context. `errors.py` maps Application failures and Product validation errors to RFC 9457-style `ProblemDetail`. Workbench retains its diagnostic transport contract.
 
 `routes/health.py` separates liveness from readiness: liveness only means process alive; readiness verifies the database/schema and required runtime-policy configuration. Aggregate `/health` reports optional model-provider absence as disabled/degraded rather than making the whole API unready.
@@ -63,6 +65,8 @@ Database transactions that change domain state should be owned by the called app
 ## Configuration
 
 The application uses `packages.shared.config.Settings`. Database engine/session lifecycle is process-owned here; credentials and provider configuration remain environment-backed settings. `api_workbench_enabled` controls the local verification mutation surface; it does not change domain authorization rules.
+
+For model-backed Product QA, `SECFUSION_MODEL_BASE_URL` and `SECFUSION_MODEL_API_KEY` are the common minimum. `make model-provider-probe` may resolve a unique chat model through OpenAI-compatible `/models`; if several plausible chat models are exposed, set `SECFUSION_MODEL_NAME` explicitly so formal runs do not choose a model nondeterministically.
 
 ## Verification
 

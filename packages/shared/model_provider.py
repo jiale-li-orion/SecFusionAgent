@@ -8,6 +8,34 @@ from pydantic import BaseModel, Field, JsonValue
 TStructured = TypeVar("TStructured", bound=BaseModel)
 
 
+class ModelProviderError(RuntimeError):
+    """Base error for a physical model-provider request."""
+
+    retryable = False
+
+
+class ModelProviderTransientError(ModelProviderError):
+    """A request may be retried without changing the logical model request."""
+
+    retryable = True
+
+    def __init__(self, message: str, *, retry_after_seconds: float | None = None) -> None:
+        super().__init__(message)
+        self.retry_after_seconds = retry_after_seconds
+
+
+class ModelProviderRateLimited(ModelProviderTransientError):
+    pass
+
+
+class ModelProviderAuthError(ModelProviderError):
+    pass
+
+
+class ModelProviderResponseError(ModelProviderError):
+    pass
+
+
 class StructuredModelRequest(BaseModel):
     system_instruction: str
     data: dict[str, JsonValue]

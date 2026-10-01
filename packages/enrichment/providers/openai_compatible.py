@@ -8,6 +8,11 @@ from pydantic import BaseModel, JsonValue
 
 from packages.intelligence.retrieval.contracts import EmbeddingBatch
 from packages.shared.model_provider import (
+    ModelProviderAuthError,
+    ModelProviderError,
+    ModelProviderRateLimited,
+    ModelProviderResponseError,
+    ModelProviderTransientError,
     ProviderModelResult,
     ProviderUsage,
     StructuredModelRequest,
@@ -16,20 +21,77 @@ from packages.shared.model_provider import (
 TStructured = TypeVar("TStructured", bound=BaseModel)
 
 
-class AIProviderError(RuntimeError):
-    pass
+AIProviderError = ModelProviderError
+AIProviderAuthError = ModelProviderAuthError
+AIProviderRateLimited = ModelProviderRateLimited
+AIProviderResponseError = ModelProviderResponseError
 
 
-class AIProviderAuthError(AIProviderError):
-    pass
+async def discover_openai_compatible_models(
+    client: httpx.AsyncClient,
+    *,
+    base_url: str,
+    api_key: str | None = None,
+) -> list[str]:
+    headers: dict[str, str] = {}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    try:
+        response = await client.get(f"{base_url.rstrip('/')}/models", headers=headers)
+    except httpx.HTTPError as exc:
+        raise ModelProviderTransientError(
+            f"model discovery request failed: {exc.__class__.__name__}"
+        ) from exc
+    if response.status_code in {401, 403}:
+        raise AIProviderAuthError(
+            f"model provider authentication failed with HTTP {response.status_code}"
+        )
+    if response.status_code == 429 or response.status_code >= 500:
+        raise ModelProviderTransientError(
+            f"model discovery returned HTTP {response.status_code}",
+            retry_after_seconds=_retry_after_seconds(response),
+        )
+    payload = _response_json(response)
+    raw_models = payload.get("data")
+    if not isinstance(raw_models, list):
+        raise AIProviderResponseError("model discovery response is missing data[]")
+    model_ids = sorted(
+        {
+            model_id
+            for item in raw_models
+            if isinstance(item, dict)
+            and isinstance((model_id := item.get("id")), str)
+            and model_id.strip()
+        }
+    )
+    if not model_ids:
+        raise AIProviderResponseError("model discovery returned no model ids")
+    return model_ids
 
 
-class AIProviderRateLimited(AIProviderError):
-    pass
-
-
-class AIProviderResponseError(AIProviderError):
-    pass
+def select_discovered_chat_model(model_ids: list[str]) -> str:
+    non_chat_markers = (
+        "embed",
+        "embedding",
+        "rerank",
+        "whisper",
+        "tts",
+        "audio",
+        "image",
+        "moderation",
+    )
+    candidates = [
+        model_id
+        for model_id in model_ids
+        if not any(marker in model_id.lower() for marker in non_chat_markers)
+    ]
+    if len(candidates) == 1:
+        return candidates[0]
+    rendered = ", ".join(candidates or model_ids)
+    raise ValueError(
+        "model endpoint is ambiguous; set SECFUSION_MODEL_NAME explicitly. "
+        f"discovered candidates: {rendered}"
+    )
 
 
 class OpenAICompatibleProvider:
@@ -207,18 +269,35 @@ class OpenAICompatibleProvider:
                 headers=headers,
             )
         except httpx.HTTPError as exc:
-            raise AIProviderError(
+            raise ModelProviderTransientError(
                 f"model provider request failed: {exc.__class__.__name__}"
             ) from exc
         if response.status_code == 429:
-            raise AIProviderRateLimited("model provider rate limit reached")
+            raise AIProviderRateLimited(
+                "model provider rate limit reached",
+                retry_after_seconds=_retry_after_seconds(response),
+            )
         if response.status_code in {401, 403}:
             raise AIProviderAuthError(
                 f"model provider authentication failed with HTTP {response.status_code}"
             )
-        if response.status_code >= 500:
-            raise AIProviderError(f"model provider returned HTTP {response.status_code}")
+        if response.status_code in {408, 500, 502, 503, 504}:
+            raise ModelProviderTransientError(
+                f"model provider returned HTTP {response.status_code}",
+                retry_after_seconds=_retry_after_seconds(response),
+            )
         return response
+
+
+def _retry_after_seconds(response: httpx.Response) -> float | None:
+    raw = response.headers.get("retry-after")
+    if raw is None:
+        return None
+    try:
+        value = float(raw)
+    except ValueError:
+        return None
+    return value if value >= 0 else None
 
 
 def _response_json(response: httpx.Response) -> dict[str, Any]:

@@ -269,6 +269,7 @@ class AskQuestionUseCase:
                     "product_request_id": command.request_id,
                     "product_session_id": session_context.session_id,
                     "product_turn_index": next_turn_index,
+                    "model_wall_seconds": command.interactive_timeout_seconds,
                 },
             )
             if isinstance(proposal, DecisionDraft):

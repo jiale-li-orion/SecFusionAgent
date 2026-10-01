@@ -13,11 +13,35 @@ SecFusionAgent 面向 AI 安全漏洞、研究进展与安全事件构建持续�
 
 [架构视图](https://jiale-li-orion.github.io/SecFusionAgent/) · [项目 Wiki](https://github.com/jiale-li-orion/SecFusionAgent/wiki) · [Requirements-SPEC](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Requirements-SPEC) · [Technical Design 1](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design-1) · [Technical Design 2](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design-2) · Website：[jiale-li-orion.github.io/SecFusionAgent](https://jiale-li-orion.github.io/SecFusionAgent/)
 
+<!-- BEGIN GENERATED EVALUATION STATUS -->
+## 当前正式评测证据（自动生成）
+
+本段由 `benchmarks/**/current*.json` 自动渲染。修改评测结果后运行 `make evidence-doc`；`make evidence-doc-check` 会在 Markdown 与结构化结果漂移时失败。
+
+| 决赛目标 | 指标 | 当前值 | 阈值 | 状态 |
+| --- | --- | ---: | ---: | --- |
+| `source_category_coverage` | `m1.source_category_count` | 8 | >= 7 | **pass** |
+| `enrichment_precision` | `m3.micro_precision` | 99.659% | >= 95.000% | **pass** |
+| `enrichment_recall` | `m3.micro_recall` | 99.659% | >= 95.000% | **pass** |
+| `qa_accuracy` | `m6.answer_accuracy` | — | >= 95.000% | **not_evaluated** |
+| `qa_interactive_latency` | `m6.interactive_latency_seconds` | — | <= 5.000s | **not_evaluated** |
+
+当前 CompetitionReport：`9227c091-3076-4d86-8a88-bc2631b26fe2`；Deployment：`deployment:f518d9f8fd7a776996354d34afa7f299`。
+
+M1 固定窗口 `2026-10-01T10:00:00+00:00` → `2026-10-01T14:02:00+00:00`：12/12 个样本可评，p50 357.709s (5.96min)，p95 7241.893s (2.01h)，≤6h 100.000%；source category=8。
+
+M3 当前选定 run 聚合：TP=292，FP=1，FN=1，precision=99.659%，recall=99.659%。工程故障恢复 `engineering-fault-recovery@2` 为 100.000%（2 cases）。
+
+当前未评项：M6 QA quality、M6 multi-hop、Agent runtime、Long Investigation completion。
+
+复现入口：`make benchmark-query METRIC=m3.micro_precision` 直接回查 PostgreSQL 的 BenchmarkRun/MetricObservation；`make competition-render-doc` 重新渲染报告；`make evidence-doc` 更新全部证据投影；`make evidence-doc-check` 做无写入一致性检查。
+<!-- END GENERATED EVALUATION STATUS -->
+
 ## 项目状态
 
 SecFusionAgent 当前已经推进到 **Technical Design 2 Slice 10 replay / promotion control path 实现阶段**，Slice 9 Decision/A2A 已闭环。在 M1–M3 evidence/data plane 之上，仓库已具备 durable Task Runtime 与双工 TaskEvent bus、统一 `TaskIntent → task_admission → TaskContract` 编译入口、M3 `EnrichmentRole`、M4 Investigation State / Perception、有界 `InvestigationRole`、Context handoff/materialization、Skill resolution、Capability/Policy/Budget 控制面、Sandbox v1 控制面契约、canonical VERIFY/WATCH 异步执行、M6 typed Decision Runtime、A2A compatibility mapping，以及 M7 checkpoint/replay/promotion contract。background enrichment 已改为先经过统一 task admission policy，再生成可执行 TaskContract，不再直接绕过入口构造 contract。M7 已能持久化 Task/Context/Trajectory/runtime checkpoint，做 loop topology、context handoff、policy、sandbox、Skill、Capability 的单变量 intervention，从 append-only M4 event 恢复历史 InvestigationState，并在 pinned M1–M3 Knowledge revision 无法由当前 projection 精确提供时 fail closed；Experience-derived Skill 只有在 support/counterexample/regression replay 均留下 durable evidence 后才能晋级。当前仍开放的边界是 OpenShell/Firecracker 真实 substrate 验收、TD2 Context 对照评测、production external Capability catalog/binding、完整 A2A SendMessage/Subscribe/push transport，以及支持真实历史 Agent re-execution 的 M1–M3 versioned read path。
 
-当前本地质量门：
+仓库质量门：
 
 ```text
 ruff        代码风格、import 与 Python 正确性检查
@@ -25,7 +49,7 @@ mypy        静态类型检查
 pytest      领域、重放、状态迁移与契约测试
 ```
 
-主仓库 CI 持续运行 `ruff`、`mypy` 与 `pytest`。当前本地 fast gate 为 **347 passed + 11 个默认跳过的 infrastructure tests**，`mypy` 对 **402 个 source files** 无错误；`make integration-core` 真实运行 **10/10** PostgreSQL/pgvector/FTS、隔离 Redis domain、Task Runtime/Event Plane scheduling、EnrichmentRole、InvestigationRole 与 runtime control plane tests。`make integration-object-store` 验证真实 S3-compatible ArtifactStore round trip。上一版 live probe 快照为 **41 OK / 10 provider-blocked / 5 transient failures / 1 rate-limited / 7 auth-required**；它只作为时点连通性报告，不作为验收 gate。SQLite/fixture 继续承担快速确定性测试，不替代真实基础设施证据。
+主仓库 CI 持续运行 `ruff`、`mypy` 与 `pytest`，PostgreSQL/Redis/S3 的 integration gate 保持独立显式执行。当前比赛指标不再手写进正文；上方 generated block 直接从 benchmark JSON 渲染，`make evidence-doc-check` 会检查 README 与结构化结果是否漂移。
 
 ## 系统概览
 
@@ -54,7 +78,7 @@ pytest      领域、重放、状态迁移与契约测试
 
 内置来源定义位于 [`config/sources/`](config/sources/)；来源是否进入热缓存、durable 语料、结构化索引或 incident staging，由 `SourceDefinition.retention_mode` 明确决定。
 
-Website 投影的具体来源承诺由 [`config/source-inventory.json`](config/source-inventory.json) 跟踪。当前 inventory 已把 **99/99 个 website 条目**映射到 fixed/grouped source owner 或 executable dynamic resolver；主仓库现有 **64 个 SourceDefinition**，真实 PostgreSQL registry 会同步全部 64 条定义与状态。`make source-inventory-check` 检查中文 catalog identity 与中英文 catalog structural parity，`make verify-data-sources` 继续运行确定性的 source/runtime ownership tests；`make probe-live-sources` 只保留为手动连通性报告。Lifecycle tests 进一步要求每条来源都有可执行的数据流归属：`time_bounded` source 不进入 scheduler 且必须有 downstream consumer，Hot Bug adapter 必须同时拥有 hot/durable normalizer，Incident adapter 必须注册 signal extractor。
+Website 投影的具体来源承诺由 [`config/source-inventory.json`](config/source-inventory.json) 跟踪。[`config/sources/`](config/sources/) 下的全部 `SourceDefinition` 由 `make sync-sources` 幂等同步到真实 PostgreSQL registry；来源数量从配置与 runtime state 自动得到，不再手抄到 README。`make source-inventory-check` 检查中文 catalog identity 与中英文 catalog structural parity，`make verify-data-sources` 继续运行确定性的 source/runtime ownership tests；`make probe-live-sources` 只保留为手动连通性报告。Lifecycle tests 进一步要求每条来源都有可执行的数据流归属：`time_bounded` source 不进入 scheduler 且必须有 downstream consumer，Hot Bug adapter 必须同时拥有 hot/durable normalizer，Incident adapter 必须注册 signal extractor。
 
 ## 证据与知识模型
 
@@ -185,7 +209,18 @@ make sync-sources
 
 `make dev-up-core` 是已经验证的 PostgreSQL/pgvector + Redis 本地 core 路径。`make dev-up` 还会启动默认开发配置使用的固定版本 LocalStack Community S3-compatible backend；MinIO 仅保留为 opt-in compatibility profile。
 
-无人值守的本地监测使用 `make dev-runtime-up`。它先完成依赖、迁移、source/Skill 同步，再以 Compose `runtime` profile 启动可自动重启的 scheduler、独立 collection worker 与通用 Celery worker。collection 拥有独立消费池，scheduled acquisition / catch-up 不再排在 enrichment、projection backlog 后面；调用终端退出后监测仍持续执行。`make runtime-status` 查看 runtime 进程容器，`make dev-runtime-down` 只停止这些进程并保留 PostgreSQL、Redis 与 S3 数据。
+无人值守的 M1–M3 数据面使用 `make data-plane-up`。它完成依赖、迁移、source/Skill 同步，再启动 scheduler、独立 collection worker 与 enrichment/indexing worker。PostgreSQL、broker/task-bus Redis、S3-compatible storage 与 runtime process 都进入 Compose 常驻恢复契约；PostgreSQL、任务状态 Redis 与 S3 使用 named volume，hot cache 仍按设计可重建。关闭终端不会停止采集，Docker daemon 恢复后服务按 `restart: unless-stopped` 回来。`make data-plane-status` 同时查看容器状态与数据库累计量，`make data-plane-logs` 查看最近运行日志。正式 QA batch 只在冻结 Knowledge head 时短暂停 writer，并通过 `finally` 恢复它们。
+
+模型评测使用 OpenAI-compatible 配置。正式跑分前先探测 endpoint：
+
+```bash
+export SECFUSION_MODEL_BASE_URL='https://provider.example/v1'
+export SECFUSION_MODEL_API_KEY='...'
+make model-provider-probe
+make qa-live
+```
+
+若 `/models` 只暴露一个可用 chat model，probe 会自动解析；多模型 endpoint 必须显式设置 `SECFUSION_MODEL_NAME`，避免正式分数依赖随机模型选择。`make qa-live-preflight` 不调用模型，只把 reviewed QA gold 临时 rebase 到当前 Knowledge head 并重新校验证据；`make qa-live` 则冻结一个 clean DeploymentRevision，在同一 deployment 下完成 Product QA、session QA、M1、M3 structured/CSAF 与 fault-recovery，并自动重建 CompetitionReport 和 README 证据投影。endpoint identity、timeout 与 retry policy 进入 DeploymentRevision，API key 不进入。
 
 停止本地栈：
 

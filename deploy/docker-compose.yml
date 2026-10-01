@@ -40,6 +40,7 @@ services:
       context: ..
       dockerfile: deploy/postgres/Dockerfile
     image: secfusion-postgres:pg16-pgvector
+    restart: unless-stopped
     environment:
       POSTGRES_DB: secfusion
       POSTGRES_USER: secfusion
@@ -56,6 +57,7 @@ services:
 
   redis-broker:
     image: public.ecr.aws/docker/library/redis:7-alpine
+    restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
     ports:
       - "6379:6379"
@@ -64,6 +66,7 @@ services:
 
   redis-cache:
     image: public.ecr.aws/docker/library/redis:7-alpine
+    restart: unless-stopped
     command:
       [
         "redis-server",
@@ -77,6 +80,7 @@ services:
 
   redis-task-bus:
     image: public.ecr.aws/docker/library/redis:7-alpine
+    restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
     ports:
       - "6381:6379"
@@ -98,6 +102,7 @@ services:
 
   localstack-s3:
     image: public.ecr.aws/localstack/localstack:4.14.0
+    restart: unless-stopped
     ports:
       - "4566:4566"
     environment:

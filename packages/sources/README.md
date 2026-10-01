@@ -44,6 +44,8 @@ A product source category counts as executable coverage only when the inventory 
 
 Declarative definitions live under `config/sources/*.json`; the product source catalog lives in `config/source-inventory.json`. `registry/loader.py` loads source definitions and `registry/sync.py` synchronizes them into PostgreSQL. `adapters/factory.py` is the only adapter-construction switch used by runtime code.
 
+The registry is intended to run continuously rather than as a demo import. `make data-plane-up` performs `sync-sources` before starting the scheduler/workers, so a newly committed definition is present before scheduled acquisition can reference it. Runtime cursor/backoff/quota state is reconciled without resetting an existing cursor. Configuration count is therefore read from `config/sources/` or PostgreSQL instead of copied into documentation.
+
 Adding a fixed provider normally requires all of the following in one change:
 
 1. add/update a declarative `SourceDefinition`;
@@ -116,6 +118,7 @@ This module must not import `monitoring`, `intelligence`, `enrichment`, `investi
 make source-inventory-check
 make verify-data-sources
 uv run pytest packages/sources/tests -q
+make data-plane-status
 ```
 
 `make probe-live-sources` is a manual reachability snapshot. It is not a deterministic source-coverage gate.

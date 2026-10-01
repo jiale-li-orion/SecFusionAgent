@@ -2,7 +2,7 @@
   "suite_id": "m6-real-product-qa",
   "knowledge_revision": 606,
   "evaluator_revision": "qa-v1",
-  "purpose": "Real structured-authority Product QA candidate pinned to canonical Knowledge revision 596; requires a configured live model and must not be reported as competition evidence before a successful live run.",
+  "purpose": "Real structured-authority Product QA candidate template. The formal live batch rebases it to a validated current Knowledge revision immediately before execution and records that frozen world in BenchmarkSuite/Case/Run provenance.",
   "cases": [
     {
       "case_id": "qa-real-7273-cvss-score",

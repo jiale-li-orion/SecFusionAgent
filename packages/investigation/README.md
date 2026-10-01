@@ -36,6 +36,8 @@ Read-only Product Case-read is allowed while an InvestigationRole episode is act
 
 The worker-side Task Event scheduler now routes queued `InvestigationRole` episodes to a coarse-grained Celery task, and the generic Task Runtime executor atomically claims the run before invoking the Role. `WorldChangeService` still never invokes a model directly. The remaining active-investigation gap is physical capability composition: the production Investigation factory currently exposes the model, Context/Skill path, local Perception and delegation, while external/sandbox Perception remains unavailable until a production Capability catalog/binding/executor is configured.
 
+Model composition is shared with M6 through `apps.model_runtime.create_recorded_model_provider`. Transient provider transport failures are retried as distinct durable `ModelAttempt` rows under one logical `ModelRequest`; auth/schema/JSON failures remain terminal. This keeps provider instability observable without letting retries mutate Task or evidence semantics. Before a live M5/M6 run, `make model-provider-probe` checks endpoint authentication and structured-output compatibility with the same OpenAI-compatible adapter used by production composition.
+
 ## Skills
 
 `skills/` owns investigation procedural knowledge; Task Runtime only carries `skill_selection_refs`. Skill versions use the TD2 four-level disclosure model `manifest → procedure → step → provenance`. Resolver selection is deterministic over Task kind, EvidenceNeed pattern, object type, required inputs/capability classes and validation status. Physical provider/endpoint/CLI instructions are rejected at publish time because Capability Binding owns implementation choice.
@@ -69,4 +71,5 @@ uv run pytest packages/investigation -q
 uv run pytest tests/test_verify_fix_boundary_e2e.py -q
 SECFUSION_RUN_INTEGRATION=1 uv run pytest tests/integration/test_investigation_runtime.py -q
 make integration-core
+make model-provider-probe
 ```

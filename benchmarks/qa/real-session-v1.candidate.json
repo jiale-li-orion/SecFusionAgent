@@ -2,7 +2,7 @@
   "suite_id": "m6-real-product-qa-session",
   "knowledge_revision": 606,
   "evaluator_revision": "qa-session-v1",
-  "purpose": "Real Product QA session candidate pinned to canonical Knowledge revision 606; includes factual follow-up and exact RETRIEVE reuse denominators, requires a configured live model, and is not competition evidence until a successful live run.",
+  "purpose": "Real Product QA session candidate template with factual follow-up and exact RETRIEVE reuse denominators. The formal live batch rebases it to a validated current Knowledge revision immediately before execution.",
   "sessions": [
     {
       "case_id": "qa-session-real-7273-followup",

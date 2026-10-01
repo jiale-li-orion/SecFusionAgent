@@ -13,11 +13,35 @@ The Agent here sits on top of a verifiable data plane. External reads carry acqu
 
 [Architecture Views](https://jiale-li-orion.github.io/SecFusionAgent/index.en.html) · [Project Wiki](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Home.en) · [Requirements](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Requirements-SPEC.en) · [Technical Design 1](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design-1.en) · [Technical Design 2](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design-2.en) · Website：[jiale-li-orion.github.io/SecFusionAgent](https://jiale-li-orion.github.io/SecFusionAgent/)
 
+<!-- BEGIN GENERATED EVALUATION STATUS -->
+## Current formal evaluation evidence (generated)
+
+This block is rendered from `benchmarks/**/current*.json`. Run `make evidence-doc` after benchmark changes; `make evidence-doc-check` fails when Markdown drifts from structured evidence.
+
+| Finals target | Metric | Observed | Threshold | Status |
+| --- | --- | ---: | ---: | --- |
+| `source_category_coverage` | `m1.source_category_count` | 8 | >= 7 | **pass** |
+| `enrichment_precision` | `m3.micro_precision` | 99.659% | >= 95.000% | **pass** |
+| `enrichment_recall` | `m3.micro_recall` | 99.659% | >= 95.000% | **pass** |
+| `qa_accuracy` | `m6.answer_accuracy` | — | >= 95.000% | **not_evaluated** |
+| `qa_interactive_latency` | `m6.interactive_latency_seconds` | — | <= 5.000s | **not_evaluated** |
+
+Current CompetitionReport: `9227c091-3076-4d86-8a88-bc2631b26fe2` on `deployment:f518d9f8fd7a776996354d34afa7f299`.
+
+M1 fixed window `2026-10-01T10:00:00+00:00` → `2026-10-01T14:02:00+00:00`: 12/12 evaluable samples, p50 357.709s (5.96min), p95 7241.893s (2.01h), within 6h 100.000%; source categories=8.
+
+Selected M3 runs aggregate to TP=292, FP=1, FN=1, precision=99.659%, recall=99.659%. Controlled engineering recovery `engineering-fault-recovery@2` is 100.000% across 2 cases.
+
+Unevaluated competition areas: `M6 QA quality`, `M6 multi-hop`, `Agent runtime`, `Long Investigation completion`.
+
+Query the durable rows with `make benchmark-query METRIC=m3.micro_precision`; reproduce the report projection with `make competition-render-doc`; refresh every maintained evidence projection with `make evidence-doc`; verify without writes with `make evidence-doc-check`.
+<!-- END GENERATED EVALUATION STATUS -->
+
 ## Project status
 
 SecFusionAgent has reached **Technical Design 2 Slice 10 replay/promotion control-path implementation**, with Slice 9 Decision/A2A already closed, on top of the M1–M3 evidence/data plane. The repository contains the durable Task Runtime and duplex TaskEvent bus, centralized `TaskIntent → task_admission → TaskContract` compilation, M3 `EnrichmentRole`, M4 Investigation State/Perception, bounded `InvestigationRole`, Context handoff/materialization, Skill resolution, Capability/Policy/Budget control planes, Sandbox v1 control-plane contracts, canonical VERIFY/WATCH async execution, M6 typed Decision Runtime, A2A compatibility mapping, and M7 checkpoint/replay/promotion contracts. Background enrichment now enters through the same policy-admitted TaskContract path instead of constructing executable contracts directly. M7 persists immutable Task/Context/Trajectory/runtime checkpoints, supports single-variable loop-topology/context/policy/sandbox/Skill/Capability interventions, reconstructs historical M4 state from append-only events, fails closed when the pinned M1–M3 Knowledge revision is no longer available from the current projection, and gates Experience-derived Skill promotion on durable support/counterexample/regression replay evidence. Remaining open boundaries are real OpenShell/Firecracker substrate acceptance, TD2 context-ablation evaluation, production external Capability catalog/binding composition, full A2A SendMessage/Subscribe/push transport, and a versioned M1–M3 historical read path for true historical Agent re-execution.
 
-The current local quality gate:
+The repository quality gate:
 
 ```text
 ruff        lint / import / Python correctness checks
@@ -25,7 +49,7 @@ mypy        static type checking
 pytest      domain, replay, state-transition and contract tests
 ```
 
-Repository CI continuously runs `ruff`, `mypy`, and `pytest`. The current local fast gate is **347 passed + 11 infrastructure tests skipped by default**, with `mypy` clean across **402 source files**. `make integration-core` runs **10/10** real PostgreSQL/pgvector/FTS, separated Redis domains, Task Runtime/Event Plane scheduling, EnrichmentRole, InvestigationRole and runtime-control-plane tests; `make integration-object-store` runs the real S3-compatible ArtifactStore round trip. The last recorded live-probe snapshot is **41 OK / 10 provider-blocked / 5 transient failures / 1 rate-limited / 7 auth-required**. It is a point-in-time reachability report rather than an acceptance gate; anti-bot, network, rate-limit and credential handling remain provider-hardening work. Fast SQLite/fixture tests remain useful for deterministic contracts but are not treated as infrastructure evidence.
+Repository CI continuously runs `ruff`, `mypy`, and `pytest`; PostgreSQL/Redis/S3 integration gates remain separate explicit commands. Current competition metrics are never copied into this prose: the generated block above is rendered from benchmark JSON and checked for drift by `make evidence-doc-check`.
 
 ## System overview
 
@@ -54,7 +78,7 @@ The system maintains source protocols, runtime lifecycle, canonical knowledge an
 
 Built-in source definitions live in [`config/sources/`](config/sources/); whether a source enters the hot cache, the durable corpus, the structured index or incident staging is decided explicitly by `SourceDefinition.retention_mode`.
 
-The concrete source commitments projected by the website are tracked in [`config/source-inventory.json`](config/source-inventory.json). The current inventory maps **99/99 website entries** to either a fixed/grouped source owner or an executable dynamic resolver. The repository currently contains **64 SourceDefinition records**; the real PostgreSQL registry syncs all 64 definitions and source states. `make source-inventory-check` verifies Chinese-catalog identity plus bilingual catalog structural parity, while `make verify-data-sources` adds deterministic source/runtime ownership tests. `make probe-live-sources` is kept as a manual reachability report. Lifecycle tests additionally require every configured retention mode to have an executable runtime owner: `time_bounded` sources stay out of the scheduler and have an explicit downstream consumer, every Hot Bug adapter has both hot and durable normalization, and every Incident adapter has a registered signal extractor.
+The concrete source commitments projected by the website are tracked in [`config/source-inventory.json`](config/source-inventory.json). Every configured `SourceDefinition` under [`config/sources/`](config/sources/) is synchronized into the real PostgreSQL registry by `make sync-sources`; source counts are derived from those files/runtime state rather than copied into this README. `make source-inventory-check` verifies Chinese-catalog identity plus bilingual catalog structural parity, while `make verify-data-sources` adds deterministic source/runtime ownership tests. `make probe-live-sources` remains a manual reachability report. Lifecycle tests additionally require every configured retention mode to have an executable runtime owner: `time_bounded` sources stay out of the scheduler and have an explicit downstream consumer, every Hot Bug adapter has both hot and durable normalization, and every Incident adapter has a registered signal extractor.
 
 ## Evidence and knowledge model
 
@@ -185,7 +209,18 @@ make sync-sources
 
 `make dev-up-core` is the verified local core path for PostgreSQL/pgvector and the Redis failure domains. `make dev-up` additionally starts the pinned LocalStack Community S3-compatible backend used by the default development configuration. MinIO remains an opt-in compatibility profile.
 
-For unattended local monitoring, use `make dev-runtime-up`. It completes the dependency, migration and source/Skill synchronization bootstrap, then starts the scheduler, a dedicated collection worker, and the general Celery worker as restartable Compose `runtime` services. Collection has an independent consumer pool, so scheduled acquisition/catch-up is not queued behind enrichment or projection backlog. This keeps monitoring active after the invoking terminal exits. `make runtime-status` inspects the process containers; `make dev-runtime-down` stops only runtime processes while keeping PostgreSQL, Redis and S3 state.
+For unattended M1–M3 operation, use `make data-plane-up`. It completes dependency startup, migrations and registry synchronization, then keeps PostgreSQL, Redis, S3, the scheduler, a dedicated collection worker and the enrichment/indexing worker under Compose restart policy. Durable PostgreSQL/Redis/S3 state uses named volumes; Redis hot cache remains intentionally rebuildable. `make data-plane-status` checks the whole path and `make data-plane-logs` tails its runtime processes. Closing the invoking shell does not stop collection, and Docker daemon restart brings these services back under `restart: unless-stopped`. A formal live QA batch briefly quiesces the three writer processes to freeze one Knowledge head, then restores them in `finally`; normal operation remains continuously collecting.
+
+For model-backed formal evaluation, configure an OpenAI-compatible endpoint and probe it before spending benchmark calls:
+
+```bash
+export SECFUSION_MODEL_BASE_URL='https://provider.example/v1'
+export SECFUSION_MODEL_API_KEY='...'
+make model-provider-probe
+make qa-live
+```
+
+If `/models` exposes exactly one plausible chat model, the probe resolves it automatically. Multi-model endpoints require `SECFUSION_MODEL_NAME` so the formal deployment remains deterministic. `make qa-live-preflight` validates the reviewed QA gold against the current Knowledge head without a model call. `make qa-live` freezes one clean DeploymentRevision, runs Product + session QA, reruns the selected M1/M3/fault suites under the same deployment, regenerates `CompetitionReport`, and updates generated evidence blocks. Provider endpoint identity and retry/timeout policy enter the DeploymentRevision digest; the API key does not.
 
 Stop the local stack with:
 

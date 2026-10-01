@@ -1,5 +1,28 @@
 # `packages.monitoring`
 
+<!-- BEGIN GENERATED MONITORING STATUS -->
+## Current M1 evidence (generated)
+
+Suite `m1-monitoring-current@19`, run `21803fd4-4aaf-42a5-992d-4364e9e31dd2`, deployment `deployment:f518d9f8fd7a776996354d34afa7f299`.
+
+| Measurement | Current result |
+| --- | ---: |
+| Product source categories | 8 |
+| Raw scheduled candidates | 244 |
+| Excluded bootstrap/backfill candidates | 232 |
+| Evaluable steady-state samples | 12/12 |
+| End-to-end p50 | 357.709s (5.96min) |
+| End-to-end p95 | 7241.893s (2.01h) |
+| End-to-end max | 7241.893s (2.01h) |
+| Within 6h | 100.000% |
+| Delivery status | `awaiting_delivery_grace` |
+| Provisional independent-provider delivery | 8/13 (61.538%) |
+
+Latency is source event time → earliest Knowledge commit. `monitoring_diagnostics` keeps provider-discovery, queue-dispatch and ingestion-commit components separate; bootstrap/input/output backfill stays outside the steady-state denominator.
+
+Current diagnostic split: raw=244, eligible=12, excluded=232. Read the complete machine result in `benchmarks/m1/current.json` and reproduce the Markdown projection with `make m1-render-doc`.
+<!-- END GENERATED MONITORING STATUS -->
+
 `packages.monitoring` is the implementation owner of M1 acquisition lifecycle and source runtime state. Technical Design 1 defines the processing paths and M1→M2 boundary; this module records how scheduling, acquisition runs, cursors, retries, and query-time acquisition are concretely executed.
 
 ## Durable state
@@ -12,7 +35,7 @@ An external request is not considered a completed acquisition merely because the
 
 `scheduler/service.py` selects enabled sources whose `next_due_at` has passed, skips sources in backoff or with an active run, locks source state with `SKIP LOCKED`, creates a queued acquisition run, and writes a `collection.requested` outbox event in the same transaction.
 
-The scheduling policy only has operational meaning while the control loop and collection consumer are alive. The canonical unattended local path is `make dev-runtime-up`: Compose keeps `apps.worker.scheduler` running and gives the `collection` queue its own `worker-collection` process. This separates monitoring freshness from enrichment/projection backlog and removes terminal lifetime as an implicit scheduler dependency. Host-process `make scheduler` / `make worker-collection` remain debugging paths.
+The scheduling policy only has operational meaning while the control loop and collection consumer are alive. The canonical unattended path is `make data-plane-up`: Compose keeps `apps.worker.scheduler` running and gives the `collection` queue its own `worker-collection` process. Dependency and runtime containers use restart policies, while PostgreSQL/broker/task-bus/S3 data is volume-backed. This separates monitoring freshness from enrichment/projection backlog and removes terminal lifetime or Docker-daemon restart as an implicit scheduler dependency. `make data-plane-status` is the operator check; host-process `make scheduler` / `make worker-collection` remain debugging paths.
 
 The normal polling interval and catch-up cadence are separate concerns. A source may opt into `schedule_policy.catchup_interval_seconds`. When a completed adapter cursor reports `backfill_pending=true`, `complete_collection_run` shortens `SourceState.next_due_at` to the configured catch-up cadence instead of leaving the source parked until its ordinary polling interval. `oss-security` uses this path while historical catch-up remains incomplete. The adapter still selects newest unseen messages first, so catch-up work cannot sit in front of newly published disclosures. Numeric tuning remains owned by the versioned source definition.
 

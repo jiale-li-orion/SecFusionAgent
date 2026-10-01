@@ -1350,8 +1350,15 @@ async def capture_current_deployment_revision(
     source_inventory_hash = _file_hash(repo_root / "config/source-inventory.json")
     policy = load_runtime_policy(repo_root / settings.runtime_policy_path)
     skill_registry_revision = _skill_registry_digest()
+    model_endpoint_digest = (
+        sha256(settings.model_base_url.rstrip("/").encode()).hexdigest()[:16]
+        if settings.model_base_url
+        else None
+    )
     model_provider_revision = (
-        f"openai-compatible:{settings.model_name}" if settings.model_name else "unconfigured"
+        f"openai-compatible-v1:{settings.model_name}:endpoint-{model_endpoint_digest}"
+        if settings.model_name and model_endpoint_digest
+        else "unconfigured"
     )
     semantic_config = {
         "environment": settings.environment,
@@ -1362,6 +1369,10 @@ async def capture_current_deployment_revision(
         "capability_registry_revision": "unbound",
         "skill_registry_revision": skill_registry_revision,
         "model_provider_revision": model_provider_revision,
+        "model_timeout_seconds": settings.model_timeout_seconds,
+        "model_max_attempts": settings.model_max_attempts,
+        "model_retry_base_seconds": settings.model_retry_base_seconds,
+        "model_retry_max_seconds": settings.model_retry_max_seconds,
         "embedding_model_name": settings.embedding_model_name,
         "embedding_dimensions": settings.embedding_dimensions,
         "hot_cache_ttl_seconds": settings.hot_cache_ttl_seconds,
