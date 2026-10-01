@@ -82,6 +82,66 @@ async def test_observation_replay_preserves_binary_and_request_metadata() -> Non
 
 
 @pytest.mark.asyncio
+async def test_observation_replay_restores_missing_content_addressed_artifact() -> None:
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    first_store = MemoryArtifactStore()
+    recovered_store = MemoryArtifactStore()
+    run_id = "00000000-0000-0000-0000-000000000813"
+    try:
+        async with factory() as session, session.begin():
+            await sync_source_definitions(session, [SOURCE])
+            session.add(
+                AcquisitionRunModel(
+                    run_id=run_id,
+                    source_id=SOURCE.source_id,
+                    trigger="scheduled",
+                    parent_run_id=None,
+                    query_spec={},
+                    status="success",
+                    cursor_in={},
+                    cursor_out={},
+                    attempt=1,
+                    created_at=NOW,
+                    started_at=NOW,
+                    finished_at=NOW,
+                )
+            )
+        envelope = IngestEnvelope.for_binary_payload(
+            acquisition_run_id=run_id,
+            trigger=AcquisitionTrigger.SCHEDULED,
+            source_id=SOURCE.source_id,
+            external_object_id="artifact-recovery",
+            body=b"content addressed replay recovery",
+            media_type="text/plain",
+            canonical_url="https://example.invalid/artifact-recovery",
+            published_at=NOW,
+            updated_at=NOW,
+            external_revision="v1",
+            observed_at=NOW,
+        )
+        async with factory() as session, session.begin():
+            first = await EvidenceIngress(first_store, now=lambda: NOW).accept(
+                session, SOURCE, envelope
+            )
+        assert first.artifact_id is not None
+        assert recovered_store.objects == {}
+
+        async with factory() as session, session.begin():
+            replay = await EvidenceIngress(recovered_store, now=lambda: NOW).accept(
+                session, SOURCE, envelope
+            )
+        assert replay.replay is True
+        assert replay.observation_id == first.observation_id
+        assert len(recovered_store.objects) == 1
+        assert next(iter(recovered_store.objects.values())) == envelope.content_bytes()
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_historical_observation_marks_missing_metadata_without_guessing() -> None:
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as connection:

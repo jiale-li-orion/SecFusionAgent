@@ -12,7 +12,7 @@
 
 `budget/` owns durable account/reservation state with parent-child ceiling propagation and idempotent reserve/commit/release. `execution/` owns durable ExecutionEnvelope lifecycle and bounded-loop stop semantics. Runtime migration `0017` persists budget/capability audit; `0019` persists execution and sandbox audit state.
 
-`artifacts/` owns execution-produced runtime blobs and metadata. Runtime artifacts remain distinct from Evidence: a tool/sandbox output can be replayable and inspectable without acquiring factual authority. Promotion into Evidence is an explicit higher-level operation.
+`artifacts/` owns execution-produced runtime blobs and metadata. Runtime artifacts remain distinct from Evidence: a tool/sandbox output can be replayable and inspectable without acquiring factual authority. The service binds blobs to ExecutionRun + producer/logical-name/trust metadata, uses deterministic content-addressed identity and hash-verifies every read. Promotion into Evidence is an explicit higher-level operation through `apps.observation_promotion`; see `artifacts/README.md` for the owner contract.
 
 `retrieval/` owns durable retrieval-operation provenance used by Product sessions and TD3 measurement. It records the exact request digest/world/operator coordinate, ordered chunk refs, and whether a turn executed retrieval or reused a prior result set. It does not implement ranking: physical lexical/dense reads remain under `packages.intelligence.retrieval`. Exact Product reuse is permitted only when the request digest and Knowledge revision match; stale/missing chunk refs force a fresh search.
 

@@ -24,6 +24,8 @@ class ArtifactStore(Protocol):
 
     async def get(self, storage_uri: str) -> bytes: ...
 
+    async def exists(self, storage_uri: str) -> bool: ...
+
 
 class S3ArtifactStore:
     def __init__(self, client: object, *, bucket: str) -> None:
@@ -78,6 +80,26 @@ class S3ArtifactStore:
 
         return await asyncio.to_thread(_get)
 
+    async def exists(self, storage_uri: str) -> bool:
+        prefix = f"s3://{self._bucket}/"
+        if not storage_uri.startswith(prefix):
+            raise ValueError(f"artifact URI is outside configured bucket: {storage_uri}")
+        key = storage_uri[len(prefix) :]
+
+        def _exists() -> bool:
+            try:
+                self._client.head_object(Bucket=self._bucket, Key=key)  # type: ignore[attr-defined]
+            except ClientError as exc:
+                error = exc.response.get("Error", {})
+                code = str(error.get("Code", ""))
+                status = exc.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+                if code in {"404", "NoSuchKey", "NotFound"} or status == 404:
+                    return False
+                raise
+            return True
+
+        return await asyncio.to_thread(_exists)
+
 
 class MemoryArtifactStore:
     """Small deterministic store for unit tests and probes."""
@@ -99,3 +121,6 @@ class MemoryArtifactStore:
 
     async def get(self, storage_uri: str) -> bytes:
         return self.objects[storage_uri]
+
+    async def exists(self, storage_uri: str) -> bool:
+        return storage_uri in self.objects

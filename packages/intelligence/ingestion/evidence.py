@@ -47,7 +47,7 @@ class EvidenceIngress:
         )
         if existing is not None:
             if existing.content_hash == envelope.content_hash:
-                return await _replay_ack(session, existing)
+                return await self._replay_ack(session, existing, envelope)
             effective_idempotency_key = _revision_collision_key(envelope)
             collision = await session.scalar(
                 select(ObservationModel).where(
@@ -57,7 +57,7 @@ class EvidenceIngress:
             if collision is not None:
                 if collision.content_hash != envelope.content_hash:
                     raise RuntimeError("revision collision key resolved to unexpected content hash")
-                return await _replay_ack(session, collision)
+                return await self._replay_ack(session, collision, envelope)
         else:
             effective_idempotency_key = envelope.idempotency_key
 
@@ -114,24 +114,37 @@ class EvidenceIngress:
             replay=False,
         )
 
-
-async def _replay_ack(
-    session: AsyncSession,
-    observation: ObservationModel,
-) -> ObservationAck:
-    artifact = await session.scalar(
-        select(EvidenceArtifactModel).where(
-            EvidenceArtifactModel.observation_id == observation.observation_id
+    async def _replay_ack(
+        self,
+        session: AsyncSession,
+        observation: ObservationModel,
+        envelope: IngestEnvelope,
+    ) -> ObservationAck:
+        artifact = await session.scalar(
+            select(EvidenceArtifactModel).where(
+                EvidenceArtifactModel.observation_id == observation.observation_id
+            )
         )
-    )
-    if artifact is None:
-        raise RuntimeError("observation exists without evidence artifact")
-    return ObservationAck(
-        observation_id=observation.observation_id,
-        artifact_id=artifact.artifact_id,
-        accepted_at=observation.created_at,
-        replay=True,
-    )
+        if artifact is None:
+            raise RuntimeError("observation exists without evidence artifact")
+        if artifact.content_hash != envelope.content_hash:
+            raise RuntimeError("replayed artifact content hash does not match observation")
+        if not await self._artifact_store.exists(artifact.storage_uri):
+            restored = await self._artifact_store.put(
+                content_hash=artifact.content_hash,
+                body=envelope.content_bytes(),
+                media_type=artifact.media_type,
+            )
+            if restored.storage_uri != artifact.storage_uri:
+                raise RuntimeError(
+                    "artifact replay recovery changed persisted storage URI"
+                )
+        return ObservationAck(
+            observation_id=observation.observation_id,
+            artifact_id=artifact.artifact_id,
+            accepted_at=observation.created_at,
+            replay=True,
+        )
 
 
 def _revision_collision_key(envelope: IngestEnvelope) -> str:

@@ -109,7 +109,7 @@ HTTP vulnerability read、Runtime Workbench 与 M4 Perception 都复用 `knowled
 
 ## Artifact storage
 
-`storage/artifacts.py` defines the `ArtifactStore` boundary. The configured S3-compatible implementation uses content-addressed writes and is verified with a real S3-compatible integration test. PostgreSQL stores artifact metadata and URI, not arbitrary large body bytes.
+`storage/artifacts.py` defines the `ArtifactStore` boundary. The configured S3-compatible implementation uses content-addressed writes and is verified with a real S3-compatible integration test. PostgreSQL stores artifact metadata and URI, not arbitrary large body bytes. `EvidenceIngress` exact replay now also verifies that the referenced object-store blob still exists: if metadata is durable but the content-addressed blob has been lost, the replay envelope restores the exact bytes at the same storage URI after checking the content hash. A replay never rewrites the Observation/EvidenceArtifact identity or accepts mismatched bytes.
 
 ## Dependency boundary
 

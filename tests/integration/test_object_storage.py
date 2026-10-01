@@ -37,7 +37,12 @@ async def test_s3_artifact_store_roundtrip_and_content_addressing() -> None:
     assert first.storage_uri == second.storage_uri
     assert first.storage_uri == (f"s3://{settings.s3_bucket}/sha256/{digest[:2]}/{digest}")
     assert first.size_bytes == len(body)
+    assert await store.exists(first.storage_uri) is True
     assert await store.get(first.storage_uri) == body
+
+    missing_digest = hashlib.sha256(b"missing-object").hexdigest()
+    missing_uri = f"s3://{settings.s3_bucket}/sha256/{missing_digest[:2]}/{missing_digest}"
+    assert await store.exists(missing_uri) is False
 
     with pytest.raises(ValueError, match="outside configured bucket"):
         await store.get("s3://another-bucket/sha256/00/invalid")
