@@ -94,7 +94,9 @@ Manifest shape:
 source_id + external_object_id + (external_revision OR content_hash)
 ```
 
-Accepted keys come only from `trigger=scheduled` Observations whose `observed_at` is inside the same fixed window. An Observation may match the expected key by provider revision or content hash. Unexpected accepted observations are reported separately and never increase the coverage numerator.
+Accepted keys come only from `trigger=scheduled` Observations for source IDs named by the manifest. The provider event window and the delivery observation window are intentionally different: expected events are frozen over `[window_start, window_end)`, while the runner may observe those exact keys until `window_end + delivery_grace_seconds` (six hours by default). An Observation may match the expected key by provider revision or content hash. Unexpected observations from the same evaluated sources are reported separately and never increase the coverage numerator; unrelated scheduled sources never enter this diagnostic.
+
+The grace window prevents right-censoring at `window_end`. If every expected key arrives before the deadline, delivery coverage may finalize early. If expected keys are still missing and the deadline has not passed, the delivery case is persisted as `skipped` with `failure_class=awaiting_delivery_grace` and the metric remains `not_evaluated`; provisional matched/missed counts stay in the runner JSON for diagnosis. Once the deadline passes, the observed coverage is final even when misses remain.
 
 Without an independent expected-event manifest, `m1.source_delivery_coverage` remains `not_evaluated` by design.
 
@@ -119,7 +121,8 @@ uv run python scripts/run_m1_benchmark.py \
   --window-start 2026-10-01T10:00:00Z \
   --window-end 2026-10-01T11:00:00Z \
   --suite-revision 1 \
-  --expected-events-manifest /path/to/provider-window.json
+  --expected-events-manifest /path/to/provider-window.json \
+  --delivery-grace-seconds 21600
 ```
 
 The runner persists the provider snapshot ref, expected-manifest digest, expected/matched/missed/unexpected counts and `m1.source_delivery_coverage` into TD3 BenchmarkCase/Suite/MetricObservation provenance.

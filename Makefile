@@ -6,6 +6,7 @@ M1_SUITE_ID ?= m1-monitoring-current
 M1_STATUS_JSON ?= benchmarks/m1/current.json
 M1_STATUS_MD ?= benchmarks/m1/current.md
 M1_STATUS_README ?= benchmarks/m1/README.md
+M1_DELIVERY_GRACE_SECONDS ?= 21600
 COMPETITION_RUN_SET ?= benchmarks/competition/current-run-set.json
 COMPETITION_STATUS_JSON ?= benchmarks/competition/current.json
 COMPETITION_STATUS_MD ?= benchmarks/competition/current.md
@@ -53,6 +54,7 @@ m1-doc:
 		--suite-revision "$(M1_SUITE_REVISION)" \
 		$(if $(M1_DEPLOYMENT_REVISION_ID),--deployment-revision-id "$(M1_DEPLOYMENT_REVISION_ID)") \
 		$(if $(M1_EXPECTED_EVENTS_MANIFEST),--expected-events-manifest "$(M1_EXPECTED_EVENTS_MANIFEST)") \
+		--delivery-grace-seconds "$(M1_DELIVERY_GRACE_SECONDS)" \
 		--output "$(M1_STATUS_JSON)" \
 		--markdown-output "$(M1_STATUS_MD)" \
 		--readme-status "$(M1_STATUS_README)"

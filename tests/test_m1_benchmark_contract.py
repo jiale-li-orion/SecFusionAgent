@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from pydantic import ValidationError
@@ -14,10 +14,12 @@ from packages.sources.contracts import AcquisitionTrigger
 from scripts.run_m1_benchmark import (
     M1ExpectedEventManifest,
     _accepted_delivery_keys,
+    _finalize_delivery_report,
     _monitoring_diagnostics,
     _monitoring_event_time,
     _monitoring_latency_query,
     _scheduled_observation_query,
+    _scheduled_observation_query_for_sources,
     _steady_state_monitoring_rows,
 )
 
@@ -38,6 +40,80 @@ def test_monitoring_latency_query_only_accepts_scheduled_acquisition() -> None:
     assert AcquisitionTrigger.SCHEDULED.value in values
     assert AcquisitionTrigger.ON_DEMAND.value not in values
     assert AcquisitionTrigger.PROMOTION.value not in values
+
+
+def test_delivery_query_can_scope_to_manifest_sources() -> None:
+    query = _scheduled_observation_query_for_sources(
+        datetime(2026, 9, 26, tzinfo=UTC),
+        datetime(2026, 9, 28, tzinfo=UTC),
+        {"source-a", "source-b"},
+    )
+    compiled = query.compile()
+    values: set[object] = set()
+    for value in compiled.params.values():
+        if isinstance(value, (list, tuple, set, frozenset)):
+            values.update(value)
+        else:
+            values.add(value)
+    assert "source_id" in str(compiled)
+    assert {"source-a", "source-b"} <= values
+
+
+def test_delivery_coverage_waits_for_grace_deadline_when_items_are_missing() -> None:
+    expected = [
+        SourceDeliveryKey(
+            source_id="source-a",
+            external_object_id="item-1",
+            external_revision="r1",
+        ),
+        SourceDeliveryKey(
+            source_id="source-a",
+            external_object_id="item-2",
+            external_revision="r2",
+        ),
+    ]
+    accepted = [expected[0]]
+    now = datetime(2026, 10, 1, 14, tzinfo=UTC)
+    deadline = now + timedelta(hours=6)
+
+    final, status, provisional = _finalize_delivery_report(
+        expected_keys=expected,
+        accepted_keys=accepted,
+        now=now,
+        deadline=deadline,
+    )
+    assert final is None
+    assert status == "awaiting_delivery_grace"
+    assert provisional.coverage == 0.5
+
+    final, status, _ = _finalize_delivery_report(
+        expected_keys=expected,
+        accepted_keys=accepted,
+        now=deadline,
+        deadline=deadline,
+    )
+    assert final is not None and final.coverage == 0.5
+    assert status == "evaluated_deadline"
+
+
+def test_delivery_coverage_can_finalize_early_when_complete() -> None:
+    expected = [
+        SourceDeliveryKey(
+            source_id="source-a",
+            external_object_id="item-1",
+            external_revision="r1",
+        )
+    ]
+    now = datetime(2026, 10, 1, 14, tzinfo=UTC)
+    final, status, provisional = _finalize_delivery_report(
+        expected_keys=expected,
+        accepted_keys=expected,
+        now=now,
+        deadline=now + timedelta(hours=6),
+    )
+    assert final is not None and final.coverage == 1.0
+    assert provisional.coverage == 1.0
+    assert status == "evaluated_complete"
 
 
 def test_m1_status_markdown_renders_not_evaluated_without_inventing_zeroes() -> None:
