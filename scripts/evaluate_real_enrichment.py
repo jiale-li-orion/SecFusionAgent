@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.runtime_models import register_runtime_models
@@ -20,12 +20,16 @@ from packages.evaluation.m1_m3 import (
     EnrichmentScore,
     score_enrichment,
 )
+from packages.intelligence.knowledge.identity import cve_canonical_key
 from packages.intelligence.knowledge.vocabulary import EnrichmentDimension, canonical_term
+from packages.intelligence.retrieval.validation import (
+    current_knowledge_revision,
+    knowledge_revision_at,
+)
 from packages.intelligence.storage.evidence_models import ObservationModel
 from packages.intelligence.storage.knowledge_models import (
     ClaimModel,
     EvidenceLinkModel,
-    ExternalIdentifierModel,
     ObjectModel,
     RelationModel,
 )
@@ -49,6 +53,21 @@ STRUCTURED_SNAPSHOT_SOURCE_IDS = frozenset(
         "cisa-kev",
     }
 )
+
+
+def _snapshot_fetched_at(snapshot: dict[str, Any]) -> datetime:
+    raw = snapshot.get("fetched_at")
+    if not isinstance(raw, str) or not raw:
+        raise ValueError("provider snapshot fetched_at is missing")
+    try:
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ValueError("provider snapshot fetched_at is invalid") from exc
+    if parsed.tzinfo is None:
+        raise ValueError("provider snapshot fetched_at must include timezone")
+    return parsed.astimezone(UTC)
+
+
 FORMAL_DIMENSIONS = {
     EnrichmentDimension.SEVERITY,
     EnrichmentDimension.WEAKNESS,
@@ -908,28 +927,36 @@ async def _current_predictions(
     session: AsyncSession,
     cves: list[str],
     gold_support: dict[EnrichmentFactKey, set[str]],
+    *,
+    knowledge_revision: int,
 ) -> tuple[list[EnrichmentPrediction], int]:
     predictions: list[EnrichmentPrediction] = []
     out_of_scope = 0
     for cve_id in cves:
-        object_id = await session.scalar(
-            select(ExternalIdentifierModel.object_id).where(
-                ExternalIdentifierModel.namespace == "cve",
-                ExternalIdentifierModel.value == cve_id,
+        root = await session.scalar(
+            select(ObjectModel).where(
+                ObjectModel.object_type == "Vulnerability",
+                ObjectModel.canonical_key == cve_canonical_key(cve_id),
             )
         )
-        if object_id is None:
+        if root is None or not _visible_at_revision(
+            created_revision=root.created_revision,
+            superseded_revision=root.superseded_revision,
+            knowledge_revision=knowledge_revision,
+        ):
             continue
-        root = await session.get(ObjectModel, object_id)
-        if root is None:
-            continue
+        object_id = root.object_id
 
         claims = list(
             await session.scalars(
                 select(ClaimModel).where(
                     ClaimModel.subject_id == object_id,
                     ClaimModel.lifecycle == "accepted",
-                    ClaimModel.superseded_revision.is_(None),
+                    ClaimModel.created_revision <= knowledge_revision,
+                    or_(
+                        ClaimModel.superseded_revision.is_(None),
+                        ClaimModel.superseded_revision > knowledge_revision,
+                    ),
                 )
             )
         )
@@ -969,11 +996,21 @@ async def _current_predictions(
                 .where(
                     RelationModel.source_object_id == object_id,
                     RelationModel.lifecycle == "accepted",
-                    RelationModel.superseded_revision.is_(None),
+                    RelationModel.created_revision <= knowledge_revision,
+                    or_(
+                        RelationModel.superseded_revision.is_(None),
+                        RelationModel.superseded_revision > knowledge_revision,
+                    ),
                 )
             )
         ).all()
         for relation, target in relations:
+            if not _visible_at_revision(
+                created_revision=target.created_revision,
+                superseded_revision=target.superseded_revision,
+                knowledge_revision=knowledge_revision,
+            ):
+                continue
             term = canonical_term("relation", relation.relation_type)
             if term is None or not term.benchmarked or term.dimension not in FORMAL_DIMENSIONS:
                 continue
@@ -1001,6 +1038,17 @@ async def _current_predictions(
             else:
                 predictions.append(prediction)
     return predictions, out_of_scope
+
+
+def _visible_at_revision(
+    *,
+    created_revision: int,
+    superseded_revision: int | None,
+    knowledge_revision: int,
+) -> bool:
+    return created_revision <= knowledge_revision and (
+        superseded_revision is None or superseded_revision > knowledge_revision
+    )
 
 
 def _benchmark_claim_qualifier(
@@ -1132,6 +1180,7 @@ async def _evaluate_snapshot(
     snapshot: dict[str, Any],
     *,
     gold_source_mode: str,
+    prediction_knowledge_revision: int | None = None,
 ) -> dict[str, Any]:
     _validate_provider_snapshot(snapshot, cves)
     gold, support, diagnostics = _gold_from_snapshot(snapshot)
@@ -1141,10 +1190,34 @@ async def _evaluate_snapshot(
     factory = create_session_factory(engine)
     try:
         async with factory() as session:
+            current_revision = await current_knowledge_revision(session)
+            snapshot_revision: int | None = None
+            if gold_source_mode == "frozen_snapshot_replay":
+                snapshot_instant = _snapshot_fetched_at(snapshot)
+                snapshot_revision = await knowledge_revision_at(session, snapshot_instant)
+            resolved_prediction_revision = current_revision
+            if snapshot_revision is not None:
+                resolved_prediction_revision = snapshot_revision
+                if (
+                    prediction_knowledge_revision is not None
+                    and prediction_knowledge_revision != snapshot_revision
+                ):
+                    raise ValueError(
+                        "prediction Knowledge revision does not match the frozen provider world: "
+                        f"requested={prediction_knowledge_revision}, snapshot={snapshot_revision}"
+                    )
+            elif prediction_knowledge_revision is not None:
+                resolved_prediction_revision = prediction_knowledge_revision
+            if resolved_prediction_revision > current_revision:
+                raise ValueError(
+                    "prediction Knowledge revision is newer than the current durable world: "
+                    f"requested={resolved_prediction_revision}, current={current_revision}"
+                )
             predicted, out_of_scope_prediction_count = await _current_predictions(
                 session,
                 cves,
                 support,
+                knowledge_revision=resolved_prediction_revision,
             )
     finally:
         await engine.dispose()
@@ -1175,6 +1248,8 @@ async def _evaluate_snapshot(
         "gold_revision": _gold_revision(gold),
         "provider_snapshot_schema": PROVIDER_SNAPSHOT_SCHEMA,
         "provider_snapshot_revision": _provider_snapshot_revision(snapshot),
+        "prediction_knowledge_revision": resolved_prediction_revision,
+        "prediction_world_ref": f"knowledge-revision:{resolved_prediction_revision}",
         "gold_source_mode": gold_source_mode,
         "fetched_at": snapshot["fetched_at"],
         "cisa_catalog_version": snapshot["cisa_catalog_version"],
@@ -1210,13 +1285,20 @@ async def _evaluate_snapshot(
 async def _run(
     cves: list[str],
     snapshot: dict[str, Any] | None = None,
+    *,
+    prediction_knowledge_revision: int | None = None,
 ) -> dict[str, Any]:
     if snapshot is None:
         snapshot = await _fetch_gold_snapshot(cves)
         source_mode = "live_snapshot"
     else:
         source_mode = "frozen_snapshot_replay"
-    return await _evaluate_snapshot(cves, snapshot, gold_source_mode=source_mode)
+    return await _evaluate_snapshot(
+        cves,
+        snapshot,
+        gold_source_mode=source_mode,
+        prediction_knowledge_revision=prediction_knowledge_revision,
+    )
 
 
 def main() -> None:
@@ -1226,6 +1308,7 @@ def main() -> None:
     parser.add_argument("cves", nargs="*")
     parser.add_argument("--snapshot-input", type=Path)
     parser.add_argument("--snapshot-output", type=Path)
+    parser.add_argument("--prediction-knowledge-revision", type=int)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     if args.snapshot_input is not None and args.snapshot_output is not None:
@@ -1243,6 +1326,7 @@ def main() -> None:
                 cves,
                 snapshot,
                 gold_source_mode="frozen_snapshot_replay",
+                prediction_knowledge_revision=args.prediction_knowledge_revision,
             )
         )
     else:
@@ -1252,7 +1336,12 @@ def main() -> None:
         if args.snapshot_output is not None:
             _write_provider_snapshot(args.snapshot_output, snapshot)
         report = asyncio.run(
-            _evaluate_snapshot(cves, snapshot, gold_source_mode="live_snapshot")
+            _evaluate_snapshot(
+                cves,
+                snapshot,
+                gold_source_mode="live_snapshot",
+                prediction_knowledge_revision=args.prediction_knowledge_revision,
+            )
         )
     if args.output is not None:
         args.output.parent.mkdir(parents=True, exist_ok=True)

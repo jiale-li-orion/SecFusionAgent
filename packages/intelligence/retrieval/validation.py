@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,6 +33,18 @@ class EvidenceDependency(BaseModel):
 
 async def current_knowledge_revision(session: AsyncSession) -> int:
     return int(await session.scalar(select(func.max(KnowledgeRevisionModel.revision))) or 0)
+
+
+async def knowledge_revision_at(session: AsyncSession, instant: datetime) -> int:
+    normalized = instant.replace(tzinfo=UTC) if instant.tzinfo is None else instant.astimezone(UTC)
+    return int(
+        await session.scalar(
+            select(func.max(KnowledgeRevisionModel.revision)).where(
+                KnowledgeRevisionModel.committed_at <= normalized
+            )
+        )
+        or 0
+    )
 
 
 async def evidence_dependencies(

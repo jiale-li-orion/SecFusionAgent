@@ -5,9 +5,13 @@ the executable evaluators and durable Benchmark Runtime; files here make the sel
 and scorer output inspectable in code review.
 
 `provider_snapshots/structured-20261001T151331Z.json` is the raw provider world frozen before the
-current structured replay. `current-structured.json` scores canonical Knowledge against that frozen
-world. Provider refreshes may update Knowledge before replay, but replay never re-fetches or edits the
-gold snapshot. `current-csaf-vex.json` independently rebuilds Red Hat CSAF/VEX gold from persisted raw
+current structured replay. Structured replay is dual-frozen: provider bytes define gold, while the
+prediction side resolves the latest `KnowledgeRevision` committed at or before the snapshot's
+`fetched_at` and reads Objects/Claims/Relations as visible at that revision. Later ingestion therefore
+cannot improve an older replay retroactively. `current-structured.json` records both
+`provider_snapshot_revision` and `prediction_world_ref=knowledge-revision:<n>`.
+
+`current-csaf-vex.json` independently rebuilds Red Hat CSAF/VEX gold from persisted raw
 EvidenceArtifact bytes and filters predictions to that source-specific evidence universe.
 
 Point-in-time providers require explicit temporal handling. FIRST EPSS claims carry `score_date` and

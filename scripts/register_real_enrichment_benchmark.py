@@ -40,6 +40,8 @@ async def _register(
     profile = report.get("profile")
     formal_dimensions = report.get("formal_dimensions")
     provider_snapshot_revision = report.get("provider_snapshot_revision")
+    prediction_knowledge_revision = report.get("prediction_knowledge_revision")
+    prediction_world_ref = report.get("prediction_world_ref")
     gold_source_mode = report.get("gold_source_mode")
     if not isinstance(cases, list) or not all(isinstance(item, str) for item in cases):
         raise ValueError("benchmark report cases are invalid")
@@ -59,6 +61,22 @@ async def _register(
         raise ValueError("benchmark report provider_snapshot_revision is invalid")
     if gold_source_mode not in {None, "live_snapshot", "frozen_snapshot_replay"}:
         raise ValueError("benchmark report gold_source_mode is invalid")
+    if prediction_knowledge_revision is not None and (
+        isinstance(prediction_knowledge_revision, bool)
+        or not isinstance(prediction_knowledge_revision, int)
+        or prediction_knowledge_revision < 0
+    ):
+        raise ValueError("benchmark report prediction_knowledge_revision is invalid")
+    if prediction_world_ref is not None and not isinstance(prediction_world_ref, str):
+        raise ValueError("benchmark report prediction_world_ref is invalid")
+    if gold_source_mode == "frozen_snapshot_replay":
+        if not isinstance(provider_snapshot_revision, str) or not provider_snapshot_revision:
+            raise ValueError("frozen replay requires provider_snapshot_revision")
+        if prediction_knowledge_revision is None or prediction_world_ref is None:
+            raise ValueError("frozen replay requires prediction Knowledge world provenance")
+        expected_prediction_world = f"knowledge-revision:{prediction_knowledge_revision}"
+        if prediction_world_ref != expected_prediction_world:
+            raise ValueError("prediction_world_ref does not match prediction_knowledge_revision")
 
     register_runtime_models()
     settings = get_settings()
@@ -83,6 +101,8 @@ async def _register(
                 }
                 if provider_snapshot_revision is not None:
                     expected_behavior["provider_snapshot_revision"] = provider_snapshot_revision
+                if prediction_world_ref is not None:
+                    expected_behavior["prediction_world_ref"] = prediction_world_ref
                 case_ref = f"{benchmark_case_id}@{suite_revision}"
                 case_refs.append(case_ref)
                 await store.register_case(
@@ -93,7 +113,12 @@ async def _register(
                         input={"cve_id": cve_id},
                         execution_profile="offline_scorer",
                         target_refs=[f"cve:{cve_id}"],
-                        world_snapshot_ref=provider_snapshot_revision,
+                        world_snapshot_ref=prediction_world_ref,
+                        fixture_refs=(
+                            [provider_snapshot_revision]
+                            if isinstance(provider_snapshot_revision, str)
+                            else []
+                        ),
                         expected_behavior=expected_behavior,
                         gold_ref=f"{gold_revision}#{cve_id}",
                         tags=[
@@ -114,6 +139,8 @@ async def _register(
             }
             if provider_snapshot_revision is not None:
                 scoring_profile["provider_snapshot_revision"] = provider_snapshot_revision
+            if prediction_world_ref is not None:
+                scoring_profile["prediction_world_ref"] = prediction_world_ref
             suite = BenchmarkSuite(
                 suite_id=suite_id,
                 suite_revision=suite_revision,
@@ -122,7 +149,7 @@ async def _register(
                 case_refs=case_refs,
                 gold_revision=gold_revision,
                 evaluator_revision=profile,
-                default_world_snapshot_ref=provider_snapshot_revision,
+                default_world_snapshot_ref=prediction_world_ref,
                 scoring_profile=scoring_profile,
                 created_at=now,
             )
@@ -140,7 +167,7 @@ async def _register(
                 model_config_ref=(
                     f"model:{settings.model_name}" if settings.model_name else "model:unconfigured"
                 ),
-                world_snapshot_ref=provider_snapshot_revision,
+                world_snapshot_ref=prediction_world_ref,
                 now=now,
             )
             for cve_id in cases:
@@ -177,6 +204,8 @@ async def _register(
             "deployment_revision_id": resolved_deployment_id,
             "suite_ref": f"{suite_id}@{suite_revision}",
             "gold_revision": gold_revision,
+            "provider_snapshot_revision": provider_snapshot_revision or "",
+            "prediction_world_ref": prediction_world_ref or "",
         }
     finally:
         await engine.dispose()
