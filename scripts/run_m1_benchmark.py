@@ -3,11 +3,13 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
+from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy import func, select
 
 from apps.evaluation_runtime import ensure_benchmark_deployment_revision
@@ -25,8 +27,10 @@ from packages.evaluation.benchmark import (
 )
 from packages.evaluation.m1_m3 import (
     MonitoringLatencySample,
+    SourceDeliveryKey,
     monitoring_latency_report,
     source_coverage_report,
+    source_delivery_coverage,
 )
 from packages.intelligence.storage.evidence_models import ObservationModel
 from packages.intelligence.storage.knowledge_models import KnowledgeRevisionModel
@@ -34,6 +38,36 @@ from packages.shared.config import get_settings
 from packages.shared.db import create_engine, create_session_factory
 from packages.sources.contracts import AcquisitionTrigger
 from packages.sources.inventory import load_source_inventory
+
+
+class M1ExpectedEventManifest(BaseModel):
+    manifest_id: str = Field(min_length=1)
+    provider_snapshot_ref: str = Field(min_length=1)
+    captured_at: datetime
+    window_start: datetime
+    window_end: datetime
+    events: list[SourceDeliveryKey]
+
+    @field_validator("captured_at", "window_start", "window_end")
+    @classmethod
+    def require_timezone(cls, value: datetime) -> datetime:
+        if value.tzinfo is None:
+            raise ValueError("M1 expected-event timestamps must include timezone")
+        return value.astimezone(UTC)
+
+    @model_validator(mode="after")
+    def validate_manifest(self) -> M1ExpectedEventManifest:
+        if self.window_end <= self.window_start:
+            raise ValueError("expected-event window_end must be after window_start")
+        if self.captured_at < self.window_end:
+            raise ValueError("provider snapshot must be captured at or after window_end")
+        if not self.provider_snapshot_ref.startswith(("provider-snapshot:", "artifact:")):
+            raise ValueError(
+                "provider_snapshot_ref must be an independent provider-snapshot: or artifact: ref"
+            )
+        if len(set(self.events)) != len(self.events):
+            raise ValueError("expected-event manifest contains duplicate SourceDeliveryKey values")
+        return self
 
 
 def _parse_datetime(value: str) -> datetime:
@@ -88,6 +122,73 @@ def _monitoring_latency_query(window_start: datetime, window_end: datetime):
     )
 
 
+def _scheduled_observation_query(window_start: datetime, window_end: datetime):
+    return (
+        select(
+            ObservationModel.source_id,
+            ObservationModel.external_object_id,
+            ObservationModel.external_revision,
+            ObservationModel.content_hash,
+        )
+        .where(
+            ObservationModel.acquisition_trigger == AcquisitionTrigger.SCHEDULED.value,
+            ObservationModel.observed_at >= window_start,
+            ObservationModel.observed_at < window_end,
+        )
+        .order_by(ObservationModel.observed_at, ObservationModel.observation_id)
+    )
+
+
+def _accepted_delivery_keys(
+    rows: Sequence[Any],
+    expected_keys: list[SourceDeliveryKey],
+) -> list[SourceDeliveryKey]:
+    expected_by_identity: dict[tuple[str, str], list[SourceDeliveryKey]] = {}
+    for item in expected_keys:
+        expected_by_identity.setdefault(
+            (item.source_id, item.external_object_id), []
+        ).append(item)
+
+    accepted: list[SourceDeliveryKey] = []
+    for row in rows:
+        candidates = expected_by_identity.get((row.source_id, row.external_object_id), [])
+        matched = next(
+            (
+                item
+                for item in candidates
+                if (
+                    item.external_revision is not None
+                    and row.external_revision == item.external_revision
+                )
+                or (
+                    item.content_hash is not None
+                    and row.content_hash == item.content_hash
+                )
+            ),
+            None,
+        )
+        if matched is not None:
+            accepted.append(matched)
+            continue
+        if row.external_revision:
+            accepted.append(
+                SourceDeliveryKey(
+                    source_id=row.source_id,
+                    external_object_id=row.external_object_id,
+                    external_revision=row.external_revision,
+                )
+            )
+        else:
+            accepted.append(
+                SourceDeliveryKey(
+                    source_id=row.source_id,
+                    external_object_id=row.external_object_id,
+                    content_hash=row.content_hash,
+                )
+            )
+    return accepted
+
+
 async def _run(
     *,
     window_start: datetime,
@@ -95,9 +196,15 @@ async def _run(
     suite_id: str,
     suite_revision: int,
     deployment_revision_id: str | None,
+    expected_events_manifest: M1ExpectedEventManifest | None = None,
 ) -> dict[str, Any]:
     if window_end <= window_start:
         raise ValueError("window_end must be after window_start")
+    if expected_events_manifest is not None and (
+        expected_events_manifest.window_start != window_start
+        or expected_events_manifest.window_end != window_end
+    ):
+        raise ValueError("expected-event manifest window must exactly match benchmark window")
     register_runtime_models()
     settings = get_settings()
     engine = create_engine(settings.database_url)
@@ -112,6 +219,15 @@ async def _run(
             rows = (
                 await session.execute(_monitoring_latency_query(window_start, window_end))
             ).all()
+            delivery_rows = (
+                (
+                    await session.execute(
+                        _scheduled_observation_query(window_start, window_end)
+                    )
+                ).all()
+                if expected_events_manifest is not None
+                else []
+            )
 
         samples = [
             MonitoringLatencySample(
@@ -122,6 +238,21 @@ async def _run(
             for row in rows
         ]
         latency = monitoring_latency_report(samples)
+        delivery = None
+        accepted_delivery_keys: list[SourceDeliveryKey] = []
+        expected_manifest_digest: str | None = None
+        if expected_events_manifest is not None:
+            accepted_delivery_keys = _accepted_delivery_keys(
+                delivery_rows,
+                expected_events_manifest.events,
+            )
+            delivery = source_delivery_coverage(
+                expected_keys=expected_events_manifest.events,
+                accepted_keys=accepted_delivery_keys,
+            )
+            expected_manifest_digest = _digest(
+                expected_events_manifest.model_dump(mode="json")
+            )
         sample_manifest = [
             {
                 "observation_id": row.observation_id,
@@ -142,6 +273,7 @@ async def _run(
             {
                 "source_inventory": inventory_digest,
                 "latency_samples": sample_digest,
+                "expected_event_manifest": expected_manifest_digest,
             }
         )
 
@@ -155,6 +287,14 @@ async def _run(
             f"{portfolio_case_id}@{suite_revision}",
             f"{latency_case_id}@{suite_revision}",
         ]
+        delivery_case_id: str | None = None
+        if expected_events_manifest is not None:
+            delivery_case_id = (
+                "m1-delivery-window:"
+                f"{window_start.strftime('%Y%m%dT%H%M%SZ')}:"
+                f"{window_end.strftime('%Y%m%dT%H%M%SZ')}"
+            )
+            case_refs.append(f"{delivery_case_id}@{suite_revision}")
 
         async with factory() as session, session.begin():
             resolved_deployment_id = await ensure_benchmark_deployment_revision(
@@ -205,6 +345,41 @@ async def _run(
                     created_at=now,
                 ),
             )
+            if expected_events_manifest is not None and delivery_case_id is not None:
+                await store.register_case(
+                    session,
+                    BenchmarkCase(
+                        case_id=delivery_case_id,
+                        case_revision=suite_revision,
+                        input={
+                            "window_start": window_start.isoformat(),
+                            "window_end": window_end.isoformat(),
+                            "provider_snapshot_ref": (
+                                expected_events_manifest.provider_snapshot_ref
+                            ),
+                            "expected_event_manifest_id": (
+                                expected_events_manifest.manifest_id
+                            ),
+                        },
+                        execution_profile="offline_scorer",
+                        target_refs=["scheduled-observations"],
+                        expected_behavior={
+                            "expected_items": len(expected_events_manifest.events),
+                            "identity": (
+                                "source_id + external_object_id + "
+                                "external_revision|content_hash"
+                            ),
+                        },
+                        gold_ref=(
+                            f"m1-expected-events:{expected_manifest_digest}"
+                        ),
+                        fixture_refs=[expected_events_manifest.provider_snapshot_ref],
+                        tags=["m1", "source-delivery", "fixed-window"],
+                        latency_class="offline",
+                        replay_tier="R0",
+                        created_at=now,
+                    ),
+                )
             suite = BenchmarkSuite(
                 suite_id=suite_id,
                 suite_revision=suite_revision,
@@ -220,7 +395,17 @@ async def _run(
                     "latency_sample_digest": sample_digest,
                     "window_start": window_start.isoformat(),
                     "window_end": window_end.isoformat(),
-                    "source_delivery_coverage": "not_evaluated_without_expected_event_manifest",
+                    "source_delivery_coverage": (
+                        "evaluated_from_independent_expected_event_manifest"
+                        if expected_events_manifest is not None
+                        else "not_evaluated_without_expected_event_manifest"
+                    ),
+                    "expected_event_manifest_digest": expected_manifest_digest,
+                    "provider_snapshot_ref": (
+                        expected_events_manifest.provider_snapshot_ref
+                        if expected_events_manifest is not None
+                        else None
+                    ),
                 },
                 created_at=now,
             )
@@ -233,6 +418,45 @@ async def _run(
                 environment=settings.environment,
                 now=now,
             )
+            if (
+                expected_events_manifest is not None
+                and delivery_case_id is not None
+                and delivery is not None
+            ):
+                delivery_run = await store.start_case_run(
+                    session,
+                    benchmark_run_id=run.benchmark_run_id,
+                    case_ref=f"{delivery_case_id}@{suite_revision}",
+                    now=now,
+                )
+                await store.observe_metric(
+                    session,
+                    case_run_id=delivery_run.case_run_id,
+                    metric_name="m1.source_delivery_coverage",
+                    value=delivery.coverage,
+                    direction=MetricDirection.HIGHER_IS_BETTER,
+                    measurement_source=MeasurementSource.EXACT,
+                    subject_ref=f"m1-delivery:{expected_manifest_digest}",
+                    evidence_refs=[expected_events_manifest.provider_snapshot_ref],
+                    metadata={
+                        "expected_items": delivery.expected_items,
+                        "accepted_expected_items": delivery.accepted_expected_items,
+                        "missed_items": delivery.missed_items,
+                        "unexpected_items": delivery.unexpected_items,
+                        "accepted_keys": [
+                            item.model_dump(mode="json")
+                            for item in accepted_delivery_keys
+                        ],
+                    },
+                    now=now,
+                )
+                await store.finish_case_run(
+                    session,
+                    delivery_run.case_run_id,
+                    status=BenchmarkCaseRunStatus.PASSED,
+                    artifact_refs=[expected_events_manifest.provider_snapshot_ref],
+                    now=now,
+                )
 
             portfolio_run = await store.start_case_run(
                 session,
@@ -351,7 +575,10 @@ async def _run(
             "latency_sample_digest": sample_digest,
             "latency": latency.model_dump(mode="json"),
             "eligible_acquisition_trigger": AcquisitionTrigger.SCHEDULED.value,
-            "source_delivery_coverage": "not_evaluated",
+            "source_delivery_coverage": (
+                delivery.model_dump(mode="json") if delivery is not None else "not_evaluated"
+            ),
+            "expected_event_manifest_digest": expected_manifest_digest,
         }
     finally:
         await engine.dispose()
@@ -364,8 +591,16 @@ def main() -> None:
     parser.add_argument("--suite-id", default="m1-monitoring-window")
     parser.add_argument("--suite-revision", type=int, required=True)
     parser.add_argument("--deployment-revision-id")
+    parser.add_argument("--expected-events-manifest", type=Path)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
+    expected_events_manifest = (
+        M1ExpectedEventManifest.model_validate_json(
+            args.expected_events_manifest.read_text(encoding="utf-8")
+        )
+        if args.expected_events_manifest is not None
+        else None
+    )
     result = asyncio.run(
         _run(
             window_start=args.window_start,
@@ -373,6 +608,7 @@ def main() -> None:
             suite_id=args.suite_id,
             suite_revision=args.suite_revision,
             deployment_revision_id=args.deployment_revision_id,
+            expected_events_manifest=expected_events_manifest,
         )
     )
     rendered = json.dumps(result, indent=2, ensure_ascii=False) + "\n"

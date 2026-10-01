@@ -33,6 +33,8 @@ external_revision OR content_hash
 
 At least one revision discriminator is required. `source_delivery_coverage` separately reports expected, accepted expected, missed, and unexpected keys. Unexpected observations do not increase the coverage numerator.
 
+`scripts/run_m1_benchmark.py --expected-events-manifest ...` is the only executable path that writes the formal delivery metric. The manifest must bind an independent `provider-snapshot:` or frozen `artifact:` reference, complete fixed-window timestamps and a deduplicated set of `SourceDeliveryKey`s. The runner never derives expected keys from SecFusionAgent's own Observation rows. Accepted keys come only from scheduled Observations inside the exact same window. If no independent manifest is supplied, `m1.source_delivery_coverage` remains `not_evaluated`. See `benchmarks/m1/README.md` for the frozen manifest protocol.
+
 ## Monitoring latency
 
 `MonitoringLatencySample` measures `published_at -> M2 available_at/committed_at`. Samples without reliable publication time remain in `evaluable_coverage` but are excluded from numeric latency aggregation.

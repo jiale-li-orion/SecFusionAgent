@@ -2,8 +2,17 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+import pytest
+from pydantic import ValidationError
+
+from packages.evaluation.m1_m3 import SourceDeliveryKey
 from packages.sources.contracts import AcquisitionTrigger
-from scripts.run_m1_benchmark import _monitoring_latency_query
+from scripts.run_m1_benchmark import (
+    M1ExpectedEventManifest,
+    _accepted_delivery_keys,
+    _monitoring_latency_query,
+    _scheduled_observation_query,
+)
 
 
 def test_monitoring_latency_query_only_accepts_scheduled_acquisition() -> None:
@@ -17,3 +26,106 @@ def test_monitoring_latency_query_only_accepts_scheduled_acquisition() -> None:
     assert AcquisitionTrigger.SCHEDULED.value in values
     assert AcquisitionTrigger.ON_DEMAND.value not in values
     assert AcquisitionTrigger.PROMOTION.value not in values
+
+
+def test_delivery_query_only_accepts_scheduled_observations_in_window() -> None:
+    query = _scheduled_observation_query(
+        datetime(2026, 9, 26, tzinfo=UTC),
+        datetime(2026, 9, 28, tzinfo=UTC),
+    )
+    compiled = query.compile()
+    values = set(compiled.params.values())
+    assert "acquisition_trigger" in str(compiled)
+    assert "observed_at" in str(compiled)
+    assert AcquisitionTrigger.SCHEDULED.value in values
+    assert AcquisitionTrigger.ON_DEMAND.value not in values
+
+
+def test_expected_event_manifest_requires_independent_complete_snapshot() -> None:
+    start = datetime(2026, 9, 26, tzinfo=UTC)
+    end = datetime(2026, 9, 27, tzinfo=UTC)
+    event = SourceDeliveryKey(
+        source_id="source-a",
+        external_object_id="item-1",
+        external_revision="r1",
+    )
+    manifest = M1ExpectedEventManifest(
+        manifest_id="m1-provider-window-1",
+        provider_snapshot_ref="provider-snapshot:abc123",
+        captured_at=end,
+        window_start=start,
+        window_end=end,
+        events=[event],
+    )
+    assert manifest.events == [event]
+
+    with pytest.raises(ValidationError, match="captured at or after window_end"):
+        M1ExpectedEventManifest(
+            manifest_id="early",
+            provider_snapshot_ref="provider-snapshot:abc123",
+            captured_at=end.replace(hour=0) - (end - start) / 2,
+            window_start=start,
+            window_end=end,
+            events=[event],
+        )
+    with pytest.raises(ValidationError, match="independent provider-snapshot"):
+        M1ExpectedEventManifest(
+            manifest_id="self-derived",
+            provider_snapshot_ref="observation:self-gold",
+            captured_at=end,
+            window_start=start,
+            window_end=end,
+            events=[event],
+        )
+    with pytest.raises(ValidationError, match="duplicate SourceDeliveryKey"):
+        M1ExpectedEventManifest(
+            manifest_id="duplicate",
+            provider_snapshot_ref="artifact:frozen-provider-baseline",
+            captured_at=end,
+            window_start=start,
+            window_end=end,
+            events=[event, event],
+        )
+
+
+def test_accepted_delivery_keys_match_expected_revision_or_hash_without_double_count() -> None:
+    class Row:
+        def __init__(
+            self,
+            source_id: str,
+            external_object_id: str,
+            external_revision: str | None,
+            content_hash: str,
+        ) -> None:
+            self.source_id = source_id
+            self.external_object_id = external_object_id
+            self.external_revision = external_revision
+            self.content_hash = content_hash
+
+    by_revision = SourceDeliveryKey(
+        source_id="source-a",
+        external_object_id="item-1",
+        external_revision="r1",
+    )
+    by_hash = SourceDeliveryKey(
+        source_id="source-b",
+        external_object_id="item-2",
+        content_hash="hash-2",
+    )
+    accepted = _accepted_delivery_keys(
+        [
+            Row("source-a", "item-1", "r1", "other-hash"),
+            Row("source-b", "item-2", "provider-r2", "hash-2"),
+            Row("source-extra", "extra", "r3", "hash-3"),
+        ],
+        [by_revision, by_hash],
+    )
+    assert accepted == [
+        by_revision,
+        by_hash,
+        SourceDeliveryKey(
+            source_id="source-extra",
+            external_object_id="extra",
+            external_revision="r3",
+        ),
+    ]
