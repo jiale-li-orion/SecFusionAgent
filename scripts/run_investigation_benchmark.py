@@ -29,6 +29,8 @@ from packages.evaluation.benchmark import (
 from packages.shared.config import get_settings
 from packages.shared.db import create_engine, create_session_factory
 
+MAX_PROSPECTIVE_FREEZE_LAG_SECONDS = 300.0
+
 
 class InvestigationBenchmarkManifestCase(BaseModel):
     case_id: str = Field(min_length=1)
@@ -111,6 +113,13 @@ def _measurement_status(
     if trace.case_created_at > frozen_at:
         raise ValueError(
             "Product Case was created after manifest frozen_at; prospective freeze is invalid"
+        )
+    freeze_lag_seconds = (frozen_at - trace.case_created_at).total_seconds()
+    if freeze_lag_seconds > MAX_PROSPECTIVE_FREEZE_LAG_SECONDS:
+        raise ValueError(
+            "Product Case was not frozen promptly after creation; prospective denominator "
+            f"requires freeze lag <= {MAX_PROSPECTIVE_FREEZE_LAG_SECONDS:.0f}s, "
+            f"observed={freeze_lag_seconds:.3f}s"
         )
     if trace.final_decision_at is not None and trace.final_decision_at <= frozen_at:
         raise ValueError(
@@ -259,6 +268,9 @@ async def _run(
                     scoring_profile={
                         "manifest_digest": manifest_digest,
                         "frozen_at": manifest.frozen_at.isoformat(),
+                        "max_prospective_freeze_lag_seconds": (
+                            MAX_PROSPECTIVE_FREEZE_LAG_SECONDS
+                        ),
                         "metrics": [
                             "agent.task_success",
                             "m6.investigation_final_decision_completion",

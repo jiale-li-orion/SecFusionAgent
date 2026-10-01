@@ -6,6 +6,7 @@ import pytest
 
 from apps.evaluation_runtime import InvestigationCompletionTrace
 from scripts.run_investigation_benchmark import (
+    MAX_PROSPECTIVE_FREEZE_LAG_SECONDS,
     InvestigationBenchmarkManifest,
     InvestigationBenchmarkManifestCase,
     _measurement_status,
@@ -127,11 +128,22 @@ def test_measurement_status_rejects_retrospective_case_selection() -> None:
             measured_at=frozen_at + timedelta(minutes=1),
         )
 
+    with pytest.raises(ValueError, match="not frozen promptly after creation"):
+        _measurement_status(
+            item,
+            _trace(
+                created_at=frozen_at
+                - timedelta(seconds=MAX_PROSPECTIVE_FREEZE_LAG_SECONDS + 1)
+            ),
+            frozen_at=frozen_at,
+            measured_at=frozen_at + timedelta(minutes=1),
+        )
+
     with pytest.raises(ValueError, match="already had a final decision before"):
         _measurement_status(
             item,
             _trace(
-                created_at=frozen_at - timedelta(minutes=10),
+                created_at=frozen_at - timedelta(minutes=4),
                 final_decision_at=frozen_at - timedelta(seconds=1),
             ),
             frozen_at=frozen_at,

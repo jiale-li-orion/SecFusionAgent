@@ -48,11 +48,14 @@ Example shape:
 The runner fails closed when:
 
 - the Product Case was created after `frozen_at`;
+- the denominator is frozen more than **300 seconds after Case creation**;
 - a final decision already existed at or before `frozen_at`;
 - a deadline is not after the freeze;
 - one Product Case is duplicated inside the same denominator.
 
-That rule prevents retrospective cherry-picking of successful Cases.
+That rule prevents retrospective cherry-picking based on either a known final outcome or visible
+intermediate progress. Formal v1 Cases must therefore be added to the manifest immediately after
+launch; the five-minute freeze-lag bound is protocol-owned and is not a manifest knob.
 
 ## Preflight while Cases are still running
 
