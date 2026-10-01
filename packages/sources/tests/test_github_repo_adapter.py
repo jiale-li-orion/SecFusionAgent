@@ -26,7 +26,18 @@ async def test_github_repo_discovery_uses_repo_revision_cursor() -> None:
 
     def handler(request: httpx.Request) -> httpx.Response:
         requests.append(request)
-        return httpx.Response(200, json=FIXTURE, request=request)
+        remaining = 45 - len(requests)
+        return httpx.Response(
+            200,
+            json=FIXTURE,
+            headers={
+                "X-RateLimit-Limit": "60",
+                "X-RateLimit-Remaining": str(remaining),
+                "X-RateLimit-Used": str(60 - remaining),
+                "X-RateLimit-Reset": "1790877600",
+            },
+            request=request,
+        )
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
         adapter = GitHubRepoAdapter(client)
@@ -38,9 +49,19 @@ async def test_github_repo_discovery_uses_repo_revision_cursor() -> None:
             "updated=2026-09-25T09:00:00+00:00;pushed=2026-09-25T08:55:00+00:00"
         )
         assert first.next_cursor["repo_revisions"] == {"vllm-project/vllm": ref.external_revision}
+        assert first.rate_limit_state == {
+            "provider": "github",
+            "requests_made": 1,
+            "limit": 60,
+            "remaining": 44,
+            "used": 16,
+            "reset_epoch": 1790877600,
+        }
 
         second = await adapter.discover(SOURCE, SourceState(cursor=first.next_cursor))
         assert second.items == []
+        assert second.rate_limit_state["requests_made"] == 1
+        assert second.rate_limit_state["remaining"] == 43
 
         envelope = await adapter.fetch(
             SOURCE,

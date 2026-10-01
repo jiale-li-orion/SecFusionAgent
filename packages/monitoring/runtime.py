@@ -110,6 +110,7 @@ async def execute_collection_run(run_id: str, settings: Settings) -> str:
                                 session,
                                 run_id,
                                 next_cursor=dict(managed_result.next_cursor),
+                                rate_limit_state=dict(managed_result.rate_limit_state),
                                 accepted_count=len(managed_result.accepted),
                                 changed=any(not item.replay for item in managed_result.accepted),
                             )
@@ -137,6 +138,7 @@ async def execute_collection_run(run_id: str, settings: Settings) -> str:
                                 session,
                                 run_id,
                                 next_cursor=dict(structured_result.next_cursor),
+                                rate_limit_state=dict(structured_result.rate_limit_state),
                                 accepted_count=len(structured_result.accepted),
                                 changed=any(not item.replay for item in structured_result.accepted),
                             )
@@ -179,6 +181,7 @@ async def execute_collection_run(run_id: str, settings: Settings) -> str:
                                 session,
                                 run_id,
                                 next_cursor=dict(incident_result.next_cursor),
+                                rate_limit_state=dict(incident_result.rate_limit_state),
                                 accepted_count=len(incident_result.accepted),
                                 changed=any(
                                     item.material_change for item in incident_result.accepted

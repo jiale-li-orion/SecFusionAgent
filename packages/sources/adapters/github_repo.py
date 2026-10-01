@@ -29,12 +29,16 @@ class GitHubRepoAdapter:
     def __init__(self, client: httpx.AsyncClient, *, token: str | None = None) -> None:
         self._client = client
         self._token = token
+        self._rate_limit_state: dict[str, JsonValue] = {}
+        self._requests_made = 0
 
     async def discover(
         self,
         source: SourceDefinition,
         state: SourceState,
     ) -> DiscoveryBatch:
+        self._rate_limit_state = {}
+        self._requests_made = 0
         repos = _repo_list(source.discovery_method.get("repos"))
         previous = state.cursor.get("repo_revisions")
         previous_revisions = previous if isinstance(previous, dict) else {}
@@ -52,6 +56,7 @@ class GitHubRepoAdapter:
         return DiscoveryBatch(
             items=items,
             next_cursor={"repo_revisions": next_revisions},
+            rate_limit_state=dict(self._rate_limit_state),
         )
 
     async def fetch(
@@ -208,6 +213,7 @@ class GitHubRepoAdapter:
             raise SourceFetchFailed(
                 f"GitHub repository request failed: {exc.__class__.__name__}"
             ) from exc
+        self._capture_rate_limit(response)
         if response.status_code == 401:
             raise SourceAuthFailed("GitHub repository API rejected credentials")
         if response.status_code in {403, 429}:
@@ -215,6 +221,27 @@ class GitHubRepoAdapter:
         if response.is_error:
             raise SourceFetchFailed(f"GitHub repository API returned HTTP {response.status_code}")
         return response.json()
+
+    def _capture_rate_limit(self, response: httpx.Response) -> None:
+        self._requests_made += 1
+        state: dict[str, JsonValue] = {
+            "provider": "github",
+            "requests_made": self._requests_made,
+        }
+        for header, key in (
+            ("x-ratelimit-limit", "limit"),
+            ("x-ratelimit-remaining", "remaining"),
+            ("x-ratelimit-used", "used"),
+            ("x-ratelimit-reset", "reset_epoch"),
+        ):
+            value = response.headers.get(header)
+            if value is None:
+                continue
+            try:
+                state[key] = int(value)
+            except ValueError:
+                continue
+        self._rate_limit_state = state
 
 
 def _to_repo_ref(payload: dict[str, Any]) -> DiscoveredRef:

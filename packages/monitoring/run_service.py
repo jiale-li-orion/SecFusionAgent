@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
+from math import ceil
 from typing import Any
 from uuid import uuid4
 
@@ -111,6 +113,7 @@ async def complete_hot_window_run(
         session,
         run_id,
         next_cursor=_object_dict(result.next_cursor),
+        rate_limit_state=_object_dict(result.rate_limit_state),
         accepted_count=len(result.accepted),
         changed=any(item.changed_fields for item in result.accepted),
         now=now,
@@ -122,6 +125,7 @@ async def complete_collection_run(
     run_id: str,
     *,
     next_cursor: dict[str, object],
+    rate_limit_state: dict[str, object] | None = None,
     accepted_count: int,
     changed: bool,
     now: datetime | None = None,
@@ -142,15 +146,29 @@ async def complete_collection_run(
         state.last_change_at = instant
     state.consecutive_failures = 0
     state.backoff_until = None
+    if rate_limit_state:
+        state.rate_limit_state = dict(rate_limit_state)
+    source = await session.get(SourceModel, run.source_id)
+    if source is None:
+        return
+
+    adaptive_due_at = _adaptive_rate_limit_due_at(
+        source.rate_limit_policy,
+        state.rate_limit_state,
+        instant,
+    )
+    if adaptive_due_at is not None:
+        state.next_due_at = adaptive_due_at
+
     if next_cursor.get("backfill_pending") is True:
-        source = await session.get(SourceModel, run.source_id)
-        if source is not None:
-            catchup_seconds = _backfill_catchup_seconds(source.schedule_policy)
-            if catchup_seconds is not None:
-                catchup_due_at = instant + timedelta(seconds=catchup_seconds)
-                current_due_at = _as_utc_datetime(state.next_due_at)
-                if current_due_at is None or catchup_due_at < current_due_at:
-                    state.next_due_at = catchup_due_at
+        catchup_seconds = _backfill_catchup_seconds(source.schedule_policy)
+        if catchup_seconds is not None:
+            catchup_due_at = instant + timedelta(seconds=catchup_seconds)
+            current_due_at = _as_utc_datetime(state.next_due_at)
+            if adaptive_due_at is not None:
+                state.next_due_at = max(adaptive_due_at, catchup_due_at)
+            elif current_due_at is None or catchup_due_at < current_due_at:
+                state.next_due_at = catchup_due_at
 
 
 async def fail_acquisition_run(
@@ -301,6 +319,50 @@ def _backfill_catchup_seconds(policy: dict[str, object]) -> int | None:
     except ValueError:
         return None
     return interval if interval > 0 else None
+
+
+def _adaptive_rate_limit_due_at(
+    policy: Mapping[str, object],
+    rate_state: Mapping[str, object],
+    instant: datetime,
+) -> datetime | None:
+    if policy.get("adaptive_schedule") is not True:
+        return None
+    remaining = _nonnegative_int(rate_state.get("remaining"))
+    reset_epoch = _nonnegative_int(rate_state.get("reset_epoch"))
+    request_cost = _positive_int(rate_state.get("requests_made"))
+    if remaining is None or reset_epoch is None or request_cost is None:
+        return None
+
+    reserve = _nonnegative_int(policy.get("reserve_requests")) or 0
+    min_interval = _positive_int(policy.get("min_interval_seconds")) or 60
+    reset_safety = _nonnegative_int(policy.get("reset_safety_seconds")) or 5
+    seconds_to_reset = max(0, reset_epoch - int(instant.timestamp()))
+    available = max(0, remaining - reserve)
+    if available < request_cost:
+        return instant + timedelta(seconds=max(min_interval, seconds_to_reset + reset_safety))
+
+    runs_before_reset = max(1, available // request_cost)
+    interval = max(
+        min_interval,
+        ceil(seconds_to_reset / runs_before_reset) if seconds_to_reset else min_interval,
+    )
+    return instant + timedelta(seconds=interval)
+
+
+def _positive_int(value: object) -> int | None:
+    parsed = _nonnegative_int(value)
+    return parsed if parsed is not None and parsed > 0 else None
+
+
+def _nonnegative_int(value: object) -> int | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+        return None
+    try:
+        parsed = int(value)
+    except ValueError:
+        return None
+    return parsed if parsed >= 0 else None
 
 
 def _as_utc_datetime(value: datetime | None) -> datetime | None:

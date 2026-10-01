@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, JsonValue
+from pydantic import BaseModel, Field, JsonValue
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from packages.intelligence.incident.contracts import IncidentSignalResult
@@ -23,6 +23,7 @@ class IncidentCollectionResult(BaseModel):
     accepted: list[IncidentSignalResult]
     promoted: list[IncidentPromotionResult]
     next_cursor: dict[str, JsonValue]
+    rate_limit_state: dict[str, JsonValue] = Field(default_factory=dict)
 
 
 class IncidentSignalCollector:
@@ -79,4 +80,5 @@ class IncidentSignalCollector:
             accepted=accepted,
             promoted=promoted,
             next_cursor=batch.next_cursor,
+            rate_limit_state=batch.rate_limit_state,
         )

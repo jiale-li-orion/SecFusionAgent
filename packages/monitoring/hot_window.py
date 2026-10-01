@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, JsonValue
+from pydantic import BaseModel, Field, JsonValue
 
 from packages.intelligence.hot_cache.contracts import HotNormalizationResult
 from packages.intelligence.normalization.hot_bug import HotBugIngress
@@ -16,6 +16,7 @@ class HotWindowCollectionResult(BaseModel):
     source_id: str
     accepted: list[HotNormalizationResult]
     next_cursor: dict[str, JsonValue]
+    rate_limit_state: dict[str, JsonValue] = Field(default_factory=dict)
 
 
 class HotWindowCollector:
@@ -52,4 +53,5 @@ class HotWindowCollector:
             source_id=source.source_id,
             accepted=accepted,
             next_cursor=batch.next_cursor,
+            rate_limit_state=batch.rate_limit_state,
         )

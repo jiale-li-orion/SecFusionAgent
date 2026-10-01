@@ -55,7 +55,11 @@
   },
   "auth_ref": "SECFUSION_GITHUB_TOKEN",
   "rate_limit_policy": {
-    "provider": "github"
+    "provider": "github",
+    "adaptive_schedule": true,
+    "reserve_requests": 15,
+    "min_interval_seconds": 300,
+    "reset_safety_seconds": 5
   },
   "access_rights": {
     "classification": "public"

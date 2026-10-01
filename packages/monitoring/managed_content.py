@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, JsonValue
+from pydantic import BaseModel, Field, JsonValue
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from packages.intelligence.documents.service import ManagedDocumentResult, ManagedDocumentService
@@ -16,6 +16,7 @@ class ManagedContentCollectionResult(BaseModel):
     source_id: str
     accepted: list[ManagedDocumentResult]
     next_cursor: dict[str, JsonValue]
+    rate_limit_state: dict[str, JsonValue] = Field(default_factory=dict)
 
 
 class ManagedContentCollector:
@@ -52,4 +53,5 @@ class ManagedContentCollector:
             source_id=source.source_id,
             accepted=accepted,
             next_cursor=batch.next_cursor,
+            rate_limit_state=batch.rate_limit_state,
         )

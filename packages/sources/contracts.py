@@ -80,6 +80,7 @@ class DiscoveredRef(BaseModel):
 class DiscoveryBatch(BaseModel):
     items: list[DiscoveredRef]
     next_cursor: dict[str, JsonValue]
+    rate_limit_state: dict[str, JsonValue] = Field(default_factory=dict)
 
 
 class QuerySpec(BaseModel):

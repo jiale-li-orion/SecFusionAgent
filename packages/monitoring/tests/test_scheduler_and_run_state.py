@@ -14,6 +14,7 @@ from packages.intelligence.hot_cache.contracts import HotNormalizationResult
 from packages.intelligence.storage.artifacts import ArtifactStoreUnavailable
 from packages.monitoring.hot_window import HotWindowCollectionResult
 from packages.monitoring.run_service import (
+    _adaptive_rate_limit_due_at,
     classify_source_failure,
     complete_collection_run,
     complete_hot_window_run,
@@ -118,6 +119,97 @@ async def test_scheduler_outbox_and_cursor_commit_are_transactional() -> None:
             assert state is not None
             assert state.cursor == {"last_modified": "2026-09-25T04:00:00+00:00"}
             assert _as_utc(state.last_change_at) == now + timedelta(seconds=3)
+    finally:
+        await engine.dispose()
+
+
+def test_adaptive_rate_limit_due_at_preserves_provider_headroom() -> None:
+    now = datetime(2026, 9, 25, 4, 0, tzinfo=UTC)
+    policy = {
+        "adaptive_schedule": True,
+        "reserve_requests": 15,
+        "min_interval_seconds": 300,
+        "reset_safety_seconds": 5,
+    }
+    reset_epoch = int((now + timedelta(hours=1)).timestamp())
+
+    assert _adaptive_rate_limit_due_at(
+        policy,
+        {
+            "remaining": 45,
+            "reset_epoch": reset_epoch,
+            "requests_made": 15,
+        },
+        now,
+    ) == now + timedelta(minutes=30)
+
+    assert _adaptive_rate_limit_due_at(
+        policy,
+        {
+            "remaining": 20,
+            "reset_epoch": reset_epoch,
+            "requests_made": 15,
+        },
+        now,
+    ) == now + timedelta(seconds=3605)
+
+
+@pytest.mark.asyncio
+async def test_collection_completion_persists_rate_state_and_adapts_next_due() -> None:
+    engine, factory = await _database()
+    now = datetime(2026, 9, 25, 4, 0, tzinfo=UTC)
+    definitions = load_source_definitions(Path("config/sources"))
+    github = next(item for item in definitions if item.source_id == "github-target-repos")
+    try:
+        async with factory() as session, session.begin():
+            ids = await sync_source_definitions(session, [github])
+            await ensure_source_states(session, ids, now=now)
+            state = await session.get(SourceStateModel, github.source_id)
+            assert state is not None
+            state.next_due_at = now
+
+        async with factory() as session, session.begin():
+            run_ids = await schedule_due_sources(
+                session,
+                now=now,
+                source_ids={github.source_id},
+            )
+        assert len(run_ids) == 1
+        run_id = run_ids[0]
+
+        async with factory() as session, session.begin():
+            context = await start_acquisition_run(
+                session,
+                run_id,
+                now=now + timedelta(seconds=1),
+            )
+            assert context is not None
+
+        finished_at = now + timedelta(seconds=10)
+        rate_state = {
+            "provider": "github",
+            "limit": 60,
+            "remaining": 45,
+            "used": 15,
+            "reset_epoch": int((finished_at + timedelta(hours=1)).timestamp()),
+            "requests_made": 15,
+        }
+        async with factory() as session, session.begin():
+            await complete_collection_run(
+                session,
+                run_id,
+                next_cursor={"repo_revisions": {}},
+                rate_limit_state=rate_state,
+                accepted_count=0,
+                changed=False,
+                now=finished_at,
+            )
+
+        async with factory() as session:
+            state = await session.get(SourceStateModel, github.source_id)
+            assert state is not None
+            assert state.rate_limit_state == rate_state
+            assert _as_utc(state.next_due_at) == finished_at + timedelta(minutes=30)
     finally:
         await engine.dispose()
 
