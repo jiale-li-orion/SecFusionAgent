@@ -37,8 +37,22 @@ def build(repo: Path, wiki: Path | None) -> dict[str, object]:
             if path.is_file()
         ),
         "quality_gate": ["ruff", "mypy", "pytest"],
-        "phase_zh": "M1-M3 数据平面 / 集成验证",
-        "phase_en": "M1-M3 Data Plane / Integration Probe",
+        "phase_zh": "M1-M3 持续数据平面 + Agent / QA / Evaluation Control Plane",
+        "phase_en": "M1-M3 Continuous Data Plane + Agent / QA / Evaluation Control Plane",
+        "runtime_owners": [
+            "Task Runtime / TaskEvent",
+            "M4 InvestigationState / EvidenceNeed / StatePatch",
+            "M5 Capability / Policy / Budget / WATCH",
+            "M6 Decision Runtime / Product Question / Session",
+            "M7 Replay / Benchmark / Experience Promotion",
+        ],
+        "next_evidence_zh": (
+            "补齐 M6 正式 live-model 证据。持续加固 production capability substrate。"
+        ),
+        "next_evidence_en": (
+            "Add formal M6 live-model evidence and continue hardening the production "
+            "capability substrate."
+        ),
     }
 
 
