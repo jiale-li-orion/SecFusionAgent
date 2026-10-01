@@ -95,6 +95,46 @@ async def test_product_question_complex_route_returns_accepted_investigation() -
 
 
 @pytest.mark.asyncio
+async def test_product_question_session_lookup_accepts_active_case_without_target() -> None:
+    engine, factory = await _database()
+    app = create_app()
+
+    async def override_session() -> AsyncIterator[AsyncSession]:
+        async with factory() as session:
+            yield session
+
+    app.dependency_overrides[database_session] = override_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            first_response = await client.post(
+                "/api/v1/questions",
+                headers={"X-Request-ID": "question-http-case-read-1"},
+                json={
+                    "question": "Investigate this vulnerability.",
+                    "cve_id": "CVE-2026-61616",
+                    "task_kind": "investigate_relation",
+                },
+            )
+            assert first_response.status_code == 202, first_response.text
+            first = first_response.json()
+            second_response = await client.post(
+                "/api/v1/questions",
+                headers={"X-Request-ID": "question-http-case-read-2"},
+                json={
+                    "session_id": first["session_id"],
+                    "question": "What has this investigation confirmed so far?",
+                    "task_kind": "lookup",
+                },
+            )
+        # Transport/schema accepts session-only LOOKUP and reaches the model dependency.
+        # Application tests cover the configured-provider Case-read execution itself.
+        assert second_response.status_code == 503, second_response.text
+        assert second_response.json()["code"] == "dependency_unavailable"
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_product_question_session_continues_existing_investigation_case() -> None:
     engine, factory = await _database()
     app = create_app()

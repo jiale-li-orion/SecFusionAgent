@@ -34,8 +34,10 @@ from packages.intelligence.knowledge.read import (
 )
 from packages.intelligence.retrieval.contracts import RetrievedCandidate
 from packages.intelligence.retrieval.operators import LexicalRetrievalOperator
-from packages.intelligence.storage.knowledge_models import KnowledgeRevisionModel
+from packages.intelligence.storage.evidence_models import ObservationModel
+from packages.intelligence.storage.knowledge_models import EvidenceLinkModel, KnowledgeRevisionModel
 from packages.investigation.state.contracts import InvestigationState, InvestigationStateItem
+from packages.investigation.state.service import InvestigationStateService
 from packages.investigation.storage.models import InvestigationCaseModel
 from packages.reasoning.citation import CitationSource
 from packages.reasoning.decision import DecisionDraft, DecisionService
@@ -108,6 +110,8 @@ class AskQuestionCommand(BaseModel):
 class _QuestionContext(BaseModel):
     state: InvestigationState
     citation_sources: list[CitationSource] = Field(default_factory=list)
+    case_ref: str | None = None
+    investigation_state_ref: str | None = None
     object_refs: list[str] = Field(default_factory=list)
     relation_refs: list[str] = Field(default_factory=list)
     evidence_refs: list[str] = Field(default_factory=list)
@@ -127,6 +131,7 @@ class AskQuestionUseCase:
         decision_store: DecisionResultStore | None = None,
         session_store: QuestionSessionStore | None = None,
         retrieval_invocations: RetrievalInvocationService | None = None,
+        investigation_state_service: InvestigationStateService | None = None,
     ) -> None:
         self._policy_path = policy_path
         self._stream_name = task_event_stream_name
@@ -137,6 +142,7 @@ class AskQuestionUseCase:
         self._decisions = decision_store or DecisionResultStore()
         self._sessions = session_store or QuestionSessionStore()
         self._retrieval_invocations = retrieval_invocations or RetrievalInvocationService()
+        self._investigation_state = investigation_state_service or InvestigationStateService()
 
     async def execute(
         self,
@@ -148,18 +154,18 @@ class AskQuestionUseCase:
             session_id=command.session_id,
             principal=command.principal,
         )
+        latest_investigation_turn = await self._sessions.latest_investigation_turn(
+            session,
+            session_id=command.session_id,
+            principal=command.principal,
+        )
+        active_case_id = await _active_session_investigation_case_id(
+            session,
+            latest_investigation_turn.investigation_ref
+            if latest_investigation_turn is not None
+            else None,
+        )
         if command.task_kind not in {TaskKind.LOOKUP, TaskKind.RETRIEVE}:
-            latest_investigation_turn = await self._sessions.latest_investigation_turn(
-                session,
-                session_id=command.session_id,
-                principal=command.principal,
-            )
-            active_case_id = await _active_session_investigation_case_id(
-                session,
-                latest_investigation_turn.investigation_ref
-                if latest_investigation_turn is not None
-                else None,
-            )
             if active_case_id is not None:
                 if command.cve_id is not None or command.object_id is not None:
                     raise LifecycleConflictError(
@@ -193,6 +199,13 @@ class AskQuestionUseCase:
                     execution_profile=investigation.execution_profile or "INVESTIGATE",
                     investigation=investigation,
                 )
+        case_read_id = (
+            active_case_id
+            if command.task_kind in {TaskKind.LOOKUP, TaskKind.RETRIEVE}
+            and command.cve_id is None
+            and command.object_id is None
+            else None
+        )
         command = _bind_session_target(command, session_context)
         next_turn_index = (
             session_context.latest_turn.turn_index + 1 if session_context.latest_turn else 1
@@ -229,6 +242,7 @@ class AskQuestionUseCase:
             command,
             session_context=session_context,
             turn_index=next_turn_index,
+            active_case_id=case_read_id,
         )
         history_payload = await self._session_history_payload(session, session_context)
         run_id, execution_id, profile = await self._open_sync_runtime(
@@ -249,9 +263,9 @@ class AskQuestionUseCase:
                     "task_run_id": run_id,
                     "execution_id": execution_id,
                     "budget_ref": f"budget:{run_id}",
-                    # Lightweight DIRECT/RETRIEVE context is not a durable M4 Case.
-                    # Avoid writing a synthetic case id into ModelRequest.case_id FK.
-                    "case_id": None,
+                    # Ordinary DIRECT/RETRIEVE questions remain lightweight. An
+                    # explicit session Case-read carries the real M4 Case FK.
+                    "case_id": context.state.case_id if context.case_ref else None,
                     "product_request_id": command.request_id,
                     "product_session_id": session_context.session_id,
                     "product_turn_index": next_turn_index,
@@ -349,15 +363,26 @@ class AskQuestionUseCase:
             raise LifecycleConflictError(
                 "question continuation requires a bound target before investigation escalation"
             )
-        investigation = await self._start_investigation(
-            session,
-            command,
-            proposal.proposition_or_question,
-            purpose=proposal.purpose,
-            required_source_roles=proposal.evidence_contract.required_source_roles,
-            priority=proposal.priority,
-            target_object_id=continuation_target,
-        )
+        if context.case_ref is not None:
+            investigation = await self._continue_investigation(
+                session,
+                command,
+                case_id=context.case_ref,
+                question=proposal.proposition_or_question,
+                purpose=proposal.purpose,
+                required_source_roles=proposal.evidence_contract.required_source_roles,
+                priority=proposal.priority,
+            )
+        else:
+            investigation = await self._start_investigation(
+                session,
+                command,
+                proposal.proposition_or_question,
+                purpose=proposal.purpose,
+                required_source_roles=proposal.evidence_contract.required_source_roles,
+                priority=proposal.priority,
+                target_object_id=continuation_target,
+            )
         # StartInvestigationUseCase commits its durable launch, then the returned
         # Product projection opens a read transaction. Reuse that transaction for
         # the parent sync-task terminal record instead of beginning a second one.
@@ -448,13 +473,19 @@ class AskQuestionUseCase:
                 f"{admission.contract.task_contract_id}@{admission.contract.contract_revision}"
             ),
             role_ref="DecisionRole@1",
+            case_ref=context.case_ref,
             knowledge_revision=context.state.last_world_revision,
+            investigation_state_ref=context.investigation_state_ref,
             object_refs=list(context.object_refs),
             relation_refs=list(context.relation_refs),
             evidence_refs=list(context.evidence_refs),
             retrieval_invocation_refs=list(context.retrieval_invocation_refs),
             policy_context_ref=f"policy-context:{policy.policy_revision}",
-            capability_envelope_ref="capability:question:local-read-v1",
+            capability_envelope_ref=(
+                "capability:question:case-read-v1"
+                if context.case_ref is not None
+                else "capability:question:local-read-v1"
+            ),
             budget_ref=budget_ref,
         )
         await create_task_run(
@@ -464,6 +495,7 @@ class AskQuestionUseCase:
             role=canonical_roles()["DecisionRole"],
             execution_envelope_ref=execution_id,
             stream_name=self._stream_name,
+            case_id=context.case_ref,
             run_id=run_id,
             producer="product-question",
         )
@@ -572,7 +604,16 @@ class AskQuestionUseCase:
         *,
         session_context: QuestionSessionContext,
         turn_index: int,
+        active_case_id: str | None = None,
     ) -> _QuestionContext:
+        if active_case_id is not None:
+            return await self._load_active_case_context(
+                session,
+                command,
+                session_context=session_context,
+                turn_index=turn_index,
+                case_id=active_case_id,
+            )
         view = await _resolve_optional_target(session, command)
         revision = int(
             await session.scalar(select(func.max(KnowledgeRevisionModel.revision))) or 0
@@ -674,49 +715,14 @@ class AskQuestionUseCase:
                     if added >= _QUESTION_MAX_SECOND_HOP_RELATIONS:
                         break
         if command.task_kind is TaskKind.RETRIEVE:
-            request = RetrievalRequestCoordinate.lexical(
-                query=command.question,
-                knowledge_revision=revision,
-                limit=command.retrieval_limit,
-            )
-            started_at = datetime.now(UTC)
-            reusable = await self._retrieval_invocations.find_reusable(
+            candidates, invocation_ref = await self._retrieve_candidates(
                 session,
-                product_session_id=session_context.session_id,
-                before_turn_index=turn_index,
-                request=request,
+                command,
+                session_context=session_context,
+                turn_index=turn_index,
+                revision=revision,
             )
-            candidates = None
-            disposition = RetrievalDisposition.EXECUTED
-            reuse_of_invocation_id: str | None = None
-            if reusable is not None:
-                replayed = await self._retrieval.by_chunk_refs(
-                    session,
-                    refs=reusable.result_refs,
-                )
-                if len(replayed) == len(reusable.result_refs):
-                    candidates = replayed
-                    disposition = RetrievalDisposition.REUSED
-                    reuse_of_invocation_id = reusable.invocation_id
-            if candidates is None:
-                candidates = await self._retrieval.search(
-                    session,
-                    query=command.question,
-                    limit=command.retrieval_limit,
-                )
-            result_refs = [_document_chunk_ref(candidate) for candidate in candidates]
-            invocation = await self._retrieval_invocations.record(
-                session,
-                request_owner_ref=f"product-request:{command.request_id}",
-                product_session_id=session_context.session_id,
-                product_turn_index=turn_index,
-                request=request,
-                result_refs=result_refs,
-                disposition=disposition,
-                reuse_of_invocation_id=reuse_of_invocation_id,
-                started_at=started_at,
-            )
-            retrieval_invocation_refs.append(invocation.ref)
+            retrieval_invocation_refs.append(invocation_ref)
             for candidate in candidates:
                 chunk_id = candidate.document_chunk_id
                 text = candidate.payload.get("text")
@@ -773,6 +779,155 @@ class AskQuestionUseCase:
             retrieval_invocation_refs=_stable_unique(retrieval_invocation_refs),
         )
 
+    async def _load_active_case_context(
+        self,
+        session: AsyncSession,
+        command: AskQuestionCommand,
+        *,
+        session_context: QuestionSessionContext,
+        turn_index: int,
+        case_id: str,
+    ) -> _QuestionContext:
+        state = await self._investigation_state.get_state(session, case_id)
+        current_revision = await _current_knowledge_revision(session)
+        if (
+            command.task_kind is TaskKind.RETRIEVE
+            and state.last_world_revision != current_revision
+        ):
+            raise LifecycleConflictError(
+                "active investigation state must be refreshed before retrieval follow-up",
+                context={
+                    "case_id": case_id,
+                    "case_world_revision": state.last_world_revision,
+                    "current_world_revision": current_revision,
+                },
+            )
+
+        citations = {
+            item.evidence_ref: item
+            for item in await _citation_sources_for_state(session, state)
+        }
+        evidence_refs = _state_evidence_refs(state)
+        relation_refs = _stable_unique(
+            [
+                item.target_ref
+                for group in _state_item_groups(state)
+                for item in group
+                if item.target_ref is not None and item.target_ref.startswith("relation:")
+            ]
+        )
+        object_refs = _stable_unique([f"object:{item}" for item in state.targets])
+        retrieval_invocation_refs: list[str] = []
+        question_state = _question_state_projection(state, goal=command.question)
+
+        if command.task_kind is TaskKind.RETRIEVE:
+            candidates, invocation_ref = await self._retrieve_candidates(
+                session,
+                command,
+                session_context=session_context,
+                turn_index=turn_index,
+                revision=current_revision,
+            )
+            retrieval_invocation_refs.append(invocation_ref)
+            retrieved_items: list[InvestigationStateItem] = []
+            for candidate in candidates:
+                chunk_id = candidate.document_chunk_id
+                text = candidate.payload.get("text")
+                if not chunk_id or not isinstance(text, str) or not text.strip():
+                    continue
+                ref = _document_chunk_ref(candidate)
+                source_ref = None
+                canonical_url = candidate.payload.get("canonical_url")
+                if isinstance(canonical_url, str) and canonical_url:
+                    source_ref = canonical_url
+                elif candidate.source_id:
+                    source_ref = f"source:{candidate.source_id}"
+                citations[ref] = CitationSource(
+                    evidence_ref=ref,
+                    source_ref=source_ref,
+                    locator=cast(dict[str, JsonValue], dict(candidate.locator)),
+                )
+                retrieved_items.append(
+                    InvestigationStateItem(
+                        proposition=f"retrieved passage: {text[:2000]}",
+                        target_ref=f"chunk:{chunk_id}",
+                        evidence_refs=[ref],
+                        writer="M4Perception",
+                        reason_code="bounded_product_case_retrieval",
+                        updated_revision=max(1, current_revision),
+                    )
+                )
+                evidence_refs.append(ref)
+            question_state = question_state.model_copy(
+                update={
+                    "tentative": [*question_state.tentative, *retrieved_items],
+                    "updated_at": datetime.now(UTC),
+                }
+            )
+
+        return _QuestionContext(
+            state=question_state,
+            citation_sources=list(citations.values()),
+            case_ref=case_id,
+            investigation_state_ref=f"case:{case_id}@{state.case_revision}",
+            object_refs=object_refs,
+            relation_refs=relation_refs,
+            evidence_refs=_stable_unique(evidence_refs),
+            retrieval_invocation_refs=_stable_unique(retrieval_invocation_refs),
+        )
+
+    async def _retrieve_candidates(
+        self,
+        session: AsyncSession,
+        command: AskQuestionCommand,
+        *,
+        session_context: QuestionSessionContext,
+        turn_index: int,
+        revision: int,
+    ) -> tuple[list[RetrievedCandidate], str]:
+        request = RetrievalRequestCoordinate.lexical(
+            query=command.question,
+            knowledge_revision=revision,
+            limit=command.retrieval_limit,
+        )
+        started_at = datetime.now(UTC)
+        reusable = await self._retrieval_invocations.find_reusable(
+            session,
+            product_session_id=session_context.session_id,
+            before_turn_index=turn_index,
+            request=request,
+        )
+        candidates: list[RetrievedCandidate] | None = None
+        disposition = RetrievalDisposition.EXECUTED
+        reuse_of_invocation_id: str | None = None
+        if reusable is not None:
+            replayed = await self._retrieval.by_chunk_refs(
+                session,
+                refs=reusable.result_refs,
+            )
+            if len(replayed) == len(reusable.result_refs):
+                candidates = replayed
+                disposition = RetrievalDisposition.REUSED
+                reuse_of_invocation_id = reusable.invocation_id
+        if candidates is None:
+            candidates = await self._retrieval.search(
+                session,
+                query=command.question,
+                limit=command.retrieval_limit,
+            )
+        invocation = await self._retrieval_invocations.record(
+            session,
+            request_owner_ref=f"product-request:{command.request_id}",
+            product_session_id=session_context.session_id,
+            product_turn_index=turn_index,
+            request=request,
+            result_refs=[_document_chunk_ref(candidate) for candidate in candidates],
+            disposition=disposition,
+            reuse_of_invocation_id=reuse_of_invocation_id,
+            started_at=started_at,
+        )
+        return candidates, invocation.ref
+
     async def _start_investigation(
         self,
         session: AsyncSession,
@@ -818,7 +973,14 @@ class AskQuestionUseCase:
         command: AskQuestionCommand,
         *,
         case_id: str,
+        question: str | None = None,
+        purpose: str = "interactive_investigation_followup",
+        required_source_roles: list[str] | None = None,
+        priority: int | None = None,
     ):
+        kind = command.task_kind
+        if kind in {TaskKind.LOOKUP, TaskKind.RETRIEVE}:
+            kind = TaskKind.INVESTIGATE_RELATION
         result = await ContinueInvestigationUseCase(
             policy_path=self._policy_path,
             task_event_stream_name=self._stream_name,
@@ -829,10 +991,15 @@ class AskQuestionUseCase:
                 request_id=command.request_id,
                 trace_id=command.trace_id,
                 case_id=case_id,
-                question=command.question,
-                task_kind=command.task_kind,
-                required_source_roles=command.required_source_roles,
-                priority=command.priority,
+                question=question or command.question,
+                purpose=purpose,
+                task_kind=kind,
+                required_source_roles=(
+                    list(required_source_roles)
+                    if required_source_roles is not None
+                    else command.required_source_roles
+                ),
+                priority=priority if priority is not None else command.priority,
             ),
         )
         return result.investigation
@@ -887,6 +1054,86 @@ async def _active_session_investigation_case_id(
     if case.status in {"active", "waiting", "open", "running"}:
         return case_id
     return None
+
+
+def _state_item_groups(state: InvestigationState) -> list[list[InvestigationStateItem]]:
+    return [
+        state.confirmed,
+        state.tentative,
+        state.conflicts,
+        state.unknowns,
+        state.hypotheses,
+    ]
+
+
+def _state_evidence_refs(state: InvestigationState) -> list[str]:
+    return _stable_unique(
+        [
+            _canonical_evidence_ref(ref)
+            for group in _state_item_groups(state)
+            for item in group
+            for ref in item.evidence_refs
+        ]
+    )
+
+
+def _canonical_evidence_ref(ref: str) -> str:
+    return ref if ref.startswith("evidence:") else f"evidence:{ref}"
+
+
+def _question_state_projection(
+    state: InvestigationState,
+    *,
+    goal: str,
+) -> InvestigationState:
+    def project(items: list[InvestigationStateItem]) -> list[InvestigationStateItem]:
+        return [
+            item.model_copy(
+                update={
+                    "evidence_refs": [
+                        _canonical_evidence_ref(ref) for ref in item.evidence_refs
+                    ]
+                }
+            )
+            for item in items
+        ]
+
+    return state.model_copy(
+        update={
+            "goal": goal,
+            "confirmed": project(state.confirmed),
+            "tentative": project(state.tentative),
+            "conflicts": project(state.conflicts),
+            "unknowns": project(state.unknowns),
+            "hypotheses": project(state.hypotheses),
+        }
+    )
+
+
+async def _citation_sources_for_state(
+    session: AsyncSession,
+    state: InvestigationState,
+) -> list[CitationSource]:
+    refs = _state_evidence_refs(state)
+    result: list[CitationSource] = []
+    for ref in sorted(refs):
+        link = await session.get(EvidenceLinkModel, ref.removeprefix("evidence:"))
+        if link is None:
+            continue
+        observation = await session.get(ObservationModel, link.observation_id)
+        if observation is None:
+            continue
+        source_ref = f"source:{observation.source_id}:{observation.external_object_id}"
+        if observation.external_revision:
+            source_ref += f"@{observation.external_revision}"
+        result.append(
+            CitationSource(
+                evidence_ref=ref,
+                source_ref=source_ref,
+                locator=cast(dict[str, JsonValue], dict(link.locator)),
+            )
+        )
+    return result
 
 
 def _evidence_refs(

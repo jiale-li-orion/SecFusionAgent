@@ -24,7 +24,13 @@ from packages.intelligence.storage.knowledge_models import (
     ObjectModel,
     RelationModel,
 )
-from packages.investigation.state.contracts import EvidenceNeedContract
+from packages.investigation.state.contracts import (
+    EvidenceNeedContract,
+    ProposedState,
+    StatePatch,
+    StatePatchOperation,
+)
+from packages.investigation.state.service import InvestigationStateService
 from packages.investigation.storage.models import EvidenceNeedModel, InvestigationCaseModel
 from packages.reasoning.decision import ConclusionType, DecisionConclusion
 from packages.reasoning.model import (
@@ -372,6 +378,30 @@ async def _complete_investigation_episode(factory, case_id: str) -> None:
         )
 
 
+async def _confirm_case_fact(factory, case_id: str) -> int:
+    service = InvestigationStateService()
+    async with factory() as session, session.begin():
+        state = await service.get_state(session, case_id)
+        applied = await service.apply_patch(
+            session,
+            StatePatch(
+                patch_id=f"case-read-confirm:{case_id}",
+                case_id=case_id,
+                base_case_revision=state.case_revision,
+                producer="test:case-read",
+                operations=[
+                    StatePatchOperation(
+                        proposition=PROPOSITION,
+                        target_ref=f"object:{OBJECT_ID}",
+                        proposed_state=ProposedState.CONFIRMED,
+                        evidence_refs=[EVIDENCE_ID],
+                    )
+                ],
+            ),
+        )
+        return applied.state.case_revision
+
+
 @pytest.mark.asyncio
 async def test_lookup_question_runs_read_only_decision_without_durable_case() -> None:
     engine, factory = await _factory()
@@ -432,6 +462,242 @@ async def test_lookup_question_runs_read_only_decision_without_durable_case() ->
         assert metadata["execution_id"]
         assert metadata["case_id"] is None
         assert metadata["product_request_id"] == "question-direct-1"
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_retrieve_session_rejects_stale_live_case_world() -> None:
+    engine, factory = await _factory()
+    provider = _Provider(
+        DecisionPlannerResponse(
+            action=FinalDecisionProposal(
+                conclusions=[],
+                answer_payload={},
+                stop_reason="evidence_sufficient",
+            )
+        )
+    )
+    try:
+        async with factory() as session:
+            first = await _use_case(None).execute(
+                session,
+                AskQuestionCommand(
+                    principal="user:test",
+                    request_id="question-case-retrieve-investigate",
+                    question="Investigate this vulnerability.",
+                    cve_id=CVE,
+                    task_kind=TaskKind.INVESTIGATE_RELATION,
+                ),
+            )
+        assert first.investigation is not None
+
+        async with factory() as session, session.begin():
+            session.add(
+                KnowledgeRevisionModel(
+                    cause_processing_run_id=None,
+                    cause_observation_id=None,
+                    committed_at=NOW,
+                )
+            )
+
+        async with factory() as session:
+            with pytest.raises(
+                LifecycleConflictError,
+                match="must be refreshed before retrieval follow-up",
+            ):
+                await _use_case(provider).execute(
+                    session,
+                    AskQuestionCommand(
+                        principal="user:test",
+                        request_id="question-case-retrieve-stale",
+                        session_id=first.session_id,
+                        question="Retrieve more evidence for the active investigation.",
+                        task_kind=TaskKind.RETRIEVE,
+                    ),
+                )
+
+        assert provider.requests == []
+        async with factory() as session:
+            assert int(
+                await session.scalar(select(func.count()).select_from(RetrievalInvocationModel))
+                or 0
+            ) == 0
+            assert int(
+                await session.scalar(select(func.count()).select_from(TaskRunModel)) or 0
+            ) == 1
+            assert int(
+                await session.scalar(select(func.count()).select_from(QuestionSessionTurnModel))
+                or 0
+            ) == 1
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_case_read_continuation_keeps_same_investigation_case() -> None:
+    engine, factory = await _factory()
+    provider = _Provider(
+        DecisionPlannerResponse(
+            action=ContinuationProposal(
+                proposition_or_question="Which primary source closes the remaining gap?",
+                purpose="case_read_followup_gap",
+                target_objects=[OBJECT_ID],
+                preferred_source_roles=["primary"],
+                evidence_contract=EvidenceNeedContract(required_source_roles=["primary"]),
+                priority=85,
+                reason="active case still has an evidence gap",
+            )
+        )
+    )
+    try:
+        async with factory() as session:
+            first = await _use_case(None).execute(
+                session,
+                AskQuestionCommand(
+                    principal="user:test",
+                    request_id="question-case-continuation-investigate",
+                    question="Investigate this vulnerability.",
+                    cve_id=CVE,
+                    task_kind=TaskKind.INVESTIGATE_RELATION,
+                ),
+            )
+        assert first.investigation is not None
+        case_id = first.investigation.case_id
+        await _complete_investigation_episode(factory, case_id)
+
+        async with factory() as session:
+            second = await _use_case(provider).execute(
+                session,
+                AskQuestionCommand(
+                    principal="user:test",
+                    request_id="question-case-continuation-read",
+                    session_id=first.session_id,
+                    question="What evidence is still missing?",
+                    task_kind=TaskKind.LOOKUP,
+                ),
+            )
+        assert second.mode == "accepted"
+        assert second.investigation is not None
+        assert second.investigation.case_id == case_id
+        assert any(
+            item.question == "Which primary source closes the remaining gap?"
+            and item.purpose == "case_read_followup_gap"
+            and item.priority == 85
+            for item in second.investigation.open_evidence_needs
+        )
+
+        async with factory() as session:
+            assert int(
+                await session.scalar(select(func.count()).select_from(InvestigationCaseModel)) or 0
+            ) == 1
+            assert int(
+                await session.scalar(select(func.count()).select_from(EvidenceNeedModel)) or 0
+            ) == 2
+            investigation_runs = list(
+                await session.scalars(
+                    select(TaskRunModel)
+                    .where(
+                        TaskRunModel.case_id == case_id,
+                        TaskRunModel.role_id == "InvestigationRole",
+                    )
+                    .order_by(TaskRunModel.created_at)
+                )
+            )
+            assert [item.status for item in investigation_runs] == ["completed", "queued"]
+            turns = list(
+                await session.scalars(
+                    select(QuestionSessionTurnModel)
+                    .where(QuestionSessionTurnModel.session_id == first.session_id)
+                    .order_by(QuestionSessionTurnModel.turn_index)
+                )
+            )
+            assert [turn.investigation_ref for turn in turns] == [
+                f"case:{case_id}",
+                f"case:{case_id}",
+            ]
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_lookup_session_reads_live_case_without_m4_decision_commit() -> None:
+    engine, factory = await _factory()
+    provider = _Provider(
+        DecisionPlannerResponse(
+            action=FinalDecisionProposal(
+                conclusions=[
+                    DecisionConclusion(
+                        statement=PROPOSITION,
+                        type=ConclusionType.FACT,
+                        evidence_refs=[f"evidence:{EVIDENCE_ID}"],
+                    )
+                ],
+                answer_payload={"cvss_score": 9.8},
+                stop_reason="evidence_sufficient",
+            )
+        )
+    )
+    try:
+        async with factory() as session:
+            first = await _use_case(None).execute(
+                session,
+                AskQuestionCommand(
+                    principal="user:test",
+                    request_id="question-case-read-investigate",
+                    question="Investigate this vulnerability.",
+                    cve_id=CVE,
+                    task_kind=TaskKind.INVESTIGATE_RELATION,
+                ),
+            )
+        assert first.investigation is not None
+        case_id = first.investigation.case_id
+        case_revision = await _confirm_case_fact(factory, case_id)
+
+        async with factory() as session:
+            second = await _use_case(provider).execute(
+                session,
+                AskQuestionCommand(
+                    principal="user:test",
+                    request_id="question-case-read-lookup",
+                    session_id=first.session_id,
+                    question="What has this investigation confirmed so far?",
+                    task_kind=TaskKind.LOOKUP,
+                ),
+            )
+        assert second.mode == "completed"
+        assert second.decision is not None
+        assert second.decision.answer == {"cvss_score": 9.8}
+        state_payload = provider.requests[0].data["investigation_state"]
+        assert isinstance(state_payload, dict)
+        assert state_payload["case_id"] == case_id
+        assert state_payload["goal"] == "What has this investigation confirmed so far?"
+        assert PROPOSITION in str(state_payload["confirmed"])
+        assert provider.requests[0].metadata["case_id"] == case_id
+
+        async with factory() as session:
+            decision_run = await session.scalar(
+                select(TaskRunModel).where(
+                    TaskRunModel.role_id == "DecisionRole",
+                    TaskRunModel.case_id == case_id,
+                )
+            )
+            assert decision_run is not None
+            context = await session.get(
+                ContextManifestVersionModel,
+                decision_run.context_manifest_version_id,
+            )
+            assert context is not None
+            assert context.manifest_json["case_ref"] == case_id
+            assert context.manifest_json["investigation_state_ref"] == (
+                f"case:{case_id}@{case_revision}"
+            )
+            assert context.manifest_json["capability_envelope_ref"] == (
+                "capability:question:case-read-v1"
+            )
+            state = await InvestigationStateService().get_state(session, case_id)
+            assert state.case_revision == case_revision
+            assert state.current_decision is None
     finally:
         await engine.dispose()
 
