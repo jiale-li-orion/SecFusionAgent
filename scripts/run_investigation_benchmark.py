@@ -26,10 +26,9 @@ from packages.evaluation.benchmark import (
     BenchmarkStore,
     BenchmarkSuite,
 )
+from packages.evaluation.investigation_readiness import MAX_PROSPECTIVE_FREEZE_LAG_SECONDS
 from packages.shared.config import get_settings
 from packages.shared.db import create_engine, create_session_factory
-
-MAX_PROSPECTIVE_FREEZE_LAG_SECONDS = 300.0
 
 
 class InvestigationBenchmarkManifestCase(BaseModel):

@@ -1,4 +1,4 @@
-.PHONY: sync lint format typecheck test check site-check site-status dev-up dev-down migrate sync-sources sync-skills worker worker-collection scheduler task-event-dispatcher task-event-scheduler probe-nvd promote-hot product-check m1-doc m1-render-doc m1-doc-check qa-preflight qa-preflight-doc-check competition-report competition-render-doc competition-doc-check
+.PHONY: sync lint format typecheck test check site-check site-status dev-up dev-down migrate sync-sources sync-skills worker worker-collection scheduler task-event-dispatcher task-event-scheduler probe-nvd promote-hot product-check m1-doc m1-render-doc m1-doc-check qa-preflight qa-preflight-doc-check investigation-readiness investigation-readiness-doc-check competition-report competition-render-doc competition-doc-check
 
 WIKI_PATH ?= ../SecFusionAgent.wiki
 SITE_STATUS_OUTPUT ?= $(WIKI_PATH)/site/project-status.json
@@ -10,6 +10,8 @@ M1_DELIVERY_GRACE_SECONDS ?= 21600
 QA_PRODUCT_PREFLIGHT_JSON ?= benchmarks/qa/current-product-preflight.json
 QA_SESSION_PREFLIGHT_JSON ?= benchmarks/qa/current-session-preflight.json
 QA_PREFLIGHT_MD ?= benchmarks/qa/current-preflight.md
+INVESTIGATION_READINESS_JSON ?= benchmarks/investigation/current-readiness.json
+INVESTIGATION_READINESS_MD ?= benchmarks/investigation/current-readiness.md
 COMPETITION_RUN_SET ?= benchmarks/competition/current-run-set.json
 COMPETITION_STATUS_JSON ?= benchmarks/competition/current.json
 COMPETITION_STATUS_MD ?= benchmarks/competition/current.md
@@ -73,6 +75,20 @@ m1-doc-check:
 	uv run python scripts/render_m1_status.py "$(M1_STATUS_JSON)" \
 		--markdown-output "$(M1_STATUS_MD)" \
 		--readme-status "$(M1_STATUS_README)" \
+		--check
+
+investigation-readiness:
+	uv run python scripts/check_investigation_readiness.py \
+		--output "$(INVESTIGATION_READINESS_JSON)"
+	uv run python scripts/render_investigation_readiness.py \
+		"$(INVESTIGATION_READINESS_JSON)" \
+		--markdown-output "$(INVESTIGATION_READINESS_MD)"
+
+investigation-readiness-doc-check:
+	@test -f "$(INVESTIGATION_READINESS_JSON)" || (echo "$(INVESTIGATION_READINESS_JSON) does not exist" >&2; exit 2)
+	uv run python scripts/render_investigation_readiness.py \
+		"$(INVESTIGATION_READINESS_JSON)" \
+		--markdown-output "$(INVESTIGATION_READINESS_MD)" \
 		--check
 
 qa-preflight:

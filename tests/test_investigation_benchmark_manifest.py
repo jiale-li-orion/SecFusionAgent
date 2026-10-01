@@ -5,6 +5,10 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from apps.evaluation_runtime import InvestigationCompletionTrace
+from packages.evaluation.investigation_readiness import (
+    assess_prospective_investigation_case,
+    render_investigation_readiness_markdown,
+)
 from scripts.run_investigation_benchmark import (
     MAX_PROSPECTIVE_FREEZE_LAG_SECONDS,
     InvestigationBenchmarkManifest,
@@ -170,3 +174,48 @@ def test_measurement_status_accepts_decision_after_prospective_freeze() -> None:
     )
     assert status.status == "ready"
     assert status.final_decision_at == decision_at
+
+
+def test_investigation_readiness_rejects_old_or_decided_cases() -> None:
+    frozen_at = datetime(2026, 10, 1, 8, 0, tzinfo=UTC)
+    old = assess_prospective_investigation_case(
+        created_at=frozen_at - timedelta(minutes=6),
+        final_decision_at=None,
+        frozen_at=frozen_at,
+        max_freeze_lag_seconds=MAX_PROSPECTIVE_FREEZE_LAG_SECONDS,
+    )
+    assert old["eligible"] is False
+    assert old["rejection_reason"] == "freeze_lag_exceeded"
+
+    decided = assess_prospective_investigation_case(
+        created_at=frozen_at - timedelta(minutes=2),
+        final_decision_at=frozen_at - timedelta(seconds=1),
+        frozen_at=frozen_at,
+        max_freeze_lag_seconds=MAX_PROSPECTIVE_FREEZE_LAG_SECONDS,
+    )
+    assert decided["eligible"] is False
+    assert decided["rejection_reason"] == "final_decision_already_visible"
+
+
+def test_investigation_readiness_markdown_projects_machine_result() -> None:
+    payload = {
+        "generated_at": "2026-10-01T16:00:00+00:00",
+        "model_provider_status": "unconfigured",
+        "launch_readiness": "blocked_model_provider_unconfigured",
+        "case_count": 1,
+        "eligible_case_count": 0,
+        "cases": [
+            {
+                "case_id": "case-1",
+                "case_status": "active",
+                "created_at": "2026-09-27T13:20:15+00:00",
+                "final_decision_at": None,
+                "eligible": False,
+                "freeze_lag_seconds": 300000.0,
+                "rejection_reason": "freeze_lag_exceeded",
+            }
+        ],
+    }
+    rendered = render_investigation_readiness_markdown(payload)
+    assert "blocked_model_provider_unconfigured" in rendered
+    assert "`freeze_lag_exceeded`" in rendered

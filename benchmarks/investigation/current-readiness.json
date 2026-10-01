@@ -1,0 +1,19 @@
+{
+  "generated_at": "2026-10-01T16:10:21.554235+00:00",
+  "model_provider_status": "unconfigured",
+  "launch_readiness": "blocked_model_provider_unconfigured",
+  "max_prospective_freeze_lag_seconds": 300.0,
+  "case_count": 1,
+  "eligible_case_count": 0,
+  "cases": [
+    {
+      "case_id": "bbc06533-d4f5-4ce1-8729-c41b09817615",
+      "case_status": "active",
+      "created_at": "2026-09-27T13:20:15.603727+00:00",
+      "final_decision_at": null,
+      "eligible": false,
+      "freeze_lag_seconds": 355805.950508,
+      "rejection_reason": "freeze_lag_exceeded"
+    }
+  ]
+}

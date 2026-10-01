@@ -1,5 +1,7 @@
 # Long-Investigation Benchmark
 
+`current-readiness.json` is the machine-readable readiness scan for the live Product Investigation corpus and `current-readiness.md` is its generated projection. `make investigation-readiness` refreshes both. This readiness artifact reports model-provider launch readiness and whether any already-created Product Case can still satisfy the prospective freeze rule; it never creates Cases and never promotes an old Case into the formal denominator.
+
 This directory owns the **prospectively frozen** denominator for Product Investigation completion. It is deliberately separate from interactive QA latency: `202 Accepted` only means the Product accepted a durable Investigation; it is not a final answer and is never used as `time_to_final_decision`.
 
 ## What is measured
