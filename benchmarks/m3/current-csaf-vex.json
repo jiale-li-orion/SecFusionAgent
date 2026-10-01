@@ -1,6 +1,6 @@
 {
   "profile": "redhat-csaf-vex-source-specific-v2",
-  "fetched_at": "2026-10-01T15:17:53.599369+00:00",
+  "fetched_at": "2026-10-01T15:58:07.898445+00:00",
   "cases": [
     "CVE-2026-67215",
     "CVE-2024-3094",

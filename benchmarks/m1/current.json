@@ -1,7 +1,7 @@
 {
-  "benchmark_run_id": "535d8476-ea17-4084-be10-78b409ef65c8",
-  "deployment_revision_id": "deployment:cdf7f3d1be6deb3316cad1ae590737ed",
-  "suite_ref": "m1-monitoring-current@14",
+  "benchmark_run_id": "be72d886-817f-4cf8-a025-764c32fa5939",
+  "deployment_revision_id": "deployment:c547c6cd953f4b1dbac8b3395d46d955",
+  "suite_ref": "m1-monitoring-current@15",
   "window_start": "2026-10-01T10:00:00+00:00",
   "window_end": "2026-10-01T14:02:00+00:00",
   "source_category_count": 8,
@@ -448,13 +448,18 @@
     "within_6h_rate": 1.0
   },
   "eligible_acquisition_trigger": "scheduled",
-  "source_delivery_coverage": {
+  "source_delivery_coverage": "not_evaluated",
+  "source_delivery_status": "awaiting_delivery_grace",
+  "source_delivery_provisional": {
     "expected_items": 13,
     "accepted_expected_items": 8,
     "missed_items": 5,
-    "unexpected_items": 236,
+    "unexpected_items": 19,
     "coverage": 0.6153846153846154
   },
+  "delivery_grace_seconds": 21600,
+  "delivery_deadline": "2026-10-01T20:02:00+00:00",
+  "delivery_observation_end": "2026-10-01T15:57:52.376800+00:00",
   "expected_event_manifest_id": "github-target-repos-20261001T1000Z-1402Z",
   "expected_event_manifest_digest": "d1e7624bd35f66ab422c6dc9a93ac5394c3e44e84bf297560a3b98577d23dd54",
   "provider_snapshot_ref": "provider-snapshot:6f23e9a0efccc6b88a9a2da60a8cfa43fa153f90da84123d5b1d1c1762cc1b1c"
