@@ -138,32 +138,19 @@ class CompetitionReportService:
         metric_map = {item.metric_name: item for item in metrics}
         checks = _competition_target_checks(metric_map)
         unevaluated = _unevaluated_areas(metric_map)
-        report_payload = {
-            "deployment_revision_id": deployment_revision_id,
-            "benchmark_run_ids": list(benchmark_run_ids),
-            "metrics": [item.model_dump(mode="json") for item in metrics],
-            "target_checks": [item.model_dump(mode="json") for item in checks],
-            "metric_definition_refs": definition_refs,
-            "unevaluated_competition_areas": unevaluated,
-        }
-        return CompetitionReport(
+        report = CompetitionReport(
             report_id=str(uuid4()),
-            report_digest=sha256(
-                json.dumps(
-                    report_payload,
-                    sort_keys=True,
-                    separators=(",", ":"),
-                    ensure_ascii=False,
-                ).encode()
-            ).hexdigest(),
+            report_digest="",
             deployment_revision_id=deployment_revision_id,
             benchmark_run_ids=list(benchmark_run_ids),
             generated_at=now or datetime.now(UTC),
             metrics=metrics,
             target_checks=checks,
             metric_definition_refs=definition_refs,
+            artifact_refs=[],
             unevaluated_competition_areas=unevaluated,
         )
+        return report.model_copy(update={"report_digest": _competition_report_digest(report)})
 
     async def generate_and_persist(
         self,
@@ -180,6 +167,9 @@ class CompetitionReportService:
             benchmark_run_ids=benchmark_run_ids,
             now=now,
         )
+        resolved_artifacts = list(artifact_refs or [])
+        report = report.model_copy(update={"artifact_refs": resolved_artifacts})
+        report = report.model_copy(update={"report_digest": _competition_report_digest(report)})
         existing = await session.scalar(
             select(CompetitionReportModel).where(
                 CompetitionReportModel.report_digest == report.report_digest
@@ -187,8 +177,6 @@ class CompetitionReportService:
         )
         if existing is not None:
             return CompetitionReport.model_validate(existing.payload_json)
-        resolved_artifacts = list(artifact_refs or [])
-        report = report.model_copy(update={"artifact_refs": resolved_artifacts})
         payload = report.model_dump(mode="json")
         session.add(
             CompetitionReportModel(
@@ -204,6 +192,21 @@ class CompetitionReportService:
         )
         await session.flush()
         return report
+
+
+def _competition_report_digest(report: CompetitionReport) -> str:
+    payload = report.model_dump(
+        mode="json",
+        exclude={"report_id", "report_digest", "generated_at"},
+    )
+    return sha256(
+        json.dumps(
+            payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode()
+    ).hexdigest()
 
 
 def _aggregate_observations(

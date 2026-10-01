@@ -1,4 +1,4 @@
-.PHONY: sync lint format typecheck test check site-check site-status dev-up dev-down migrate sync-sources sync-skills worker worker-collection scheduler task-event-dispatcher task-event-scheduler probe-nvd promote-hot product-check m1-doc m1-render-doc m1-doc-check
+.PHONY: sync lint format typecheck test check site-check site-status dev-up dev-down migrate sync-sources sync-skills worker worker-collection scheduler task-event-dispatcher task-event-scheduler probe-nvd promote-hot product-check m1-doc m1-render-doc m1-doc-check competition-report competition-render-doc competition-doc-check
 
 WIKI_PATH ?= ../SecFusionAgent.wiki
 SITE_STATUS_OUTPUT ?= $(WIKI_PATH)/site/project-status.json
@@ -6,6 +6,9 @@ M1_SUITE_ID ?= m1-monitoring-current
 M1_STATUS_JSON ?= benchmarks/m1/current.json
 M1_STATUS_MD ?= benchmarks/m1/current.md
 M1_STATUS_README ?= benchmarks/m1/README.md
+COMPETITION_RUN_SET ?= benchmarks/competition/current-run-set.json
+COMPETITION_STATUS_JSON ?= benchmarks/competition/current.json
+COMPETITION_STATUS_MD ?= benchmarks/competition/current.md
 
 sync:
 	uv sync --dev
@@ -65,6 +68,24 @@ m1-doc-check:
 	uv run python scripts/render_m1_status.py "$(M1_STATUS_JSON)" \
 		--markdown-output "$(M1_STATUS_MD)" \
 		--readme-status "$(M1_STATUS_README)" \
+		--check
+
+competition-report:
+	@test -f "$(COMPETITION_RUN_SET)" || (echo "$(COMPETITION_RUN_SET) does not exist" >&2; exit 2)
+	uv run python scripts/export_competition_report.py \
+		--run-set-manifest "$(COMPETITION_RUN_SET)" \
+		--json-output "$(COMPETITION_STATUS_JSON)" \
+		--markdown-output "$(COMPETITION_STATUS_MD)"
+
+competition-render-doc:
+	@test -f "$(COMPETITION_STATUS_JSON)" || (echo "$(COMPETITION_STATUS_JSON) does not exist" >&2; exit 2)
+	uv run python scripts/render_competition_status.py "$(COMPETITION_STATUS_JSON)" \
+		--markdown-output "$(COMPETITION_STATUS_MD)"
+
+competition-doc-check:
+	@test -f "$(COMPETITION_STATUS_JSON)" || (echo "$(COMPETITION_STATUS_JSON) does not exist" >&2; exit 2)
+	uv run python scripts/render_competition_status.py "$(COMPETITION_STATUS_JSON)" \
+		--markdown-output "$(COMPETITION_STATUS_MD)" \
 		--check
 
 dev-up:

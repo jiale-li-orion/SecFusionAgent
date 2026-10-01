@@ -1,0 +1,5283 @@
+{
+  "profile": "real-structured-v1",
+  "gold_revision": "real-structured:40edb7bd77afa098174515252f9570512ac491d44274a15f783dad8effa59e80",
+  "provider_snapshot_schema": "real-structured-provider-snapshot-v1",
+  "provider_snapshot_revision": "provider-snapshot:2c7c06aa468439a08675cab1551ede352234656ff08a6b0ea00e04ceddf97a27",
+  "gold_source_mode": "frozen_snapshot_replay",
+  "fetched_at": "2026-10-01T15:15:53.954536+00:00",
+  "cisa_catalog_version": "2026.09.30",
+  "cases": [
+    "CVE-2026-57443",
+    "CVE-2026-100368",
+    "CVE-2026-100369",
+    "CVE-2026-92161",
+    "CVE-2026-57307",
+    "CVE-2026-57305",
+    "CVE-2026-12986",
+    "CVE-2026-57306",
+    "CVE-2026-57304",
+    "CVE-2026-57303",
+    "CVE-2026-57302",
+    "CVE-2026-86439"
+  ],
+  "formal_dimensions": [
+    "advisory_reference",
+    "exploit_likelihood",
+    "exploit_state",
+    "fix_remediation",
+    "product_package",
+    "severity",
+    "version_applicability",
+    "weakness"
+  ],
+  "evaluated_source_ids": [
+    "cisa-kev",
+    "first-epss",
+    "github-global-advisories",
+    "nvd-cves-2",
+    "osv-vulnerabilities"
+  ],
+  "gold_fact_count": 210,
+  "gold_facts": [
+    {
+      "root_object_key": "cve:CVE-2026-100368",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "advisory_reference",
+      "predicate_or_relation_type": "described-by",
+      "normalized_value_or_target_id": "document:github-advisory:ghsa-wrvw-254r-wpmv",
+      "target_object_type": "Document",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100368",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_percentile",
+      "normalized_value_or_target_id": "0.45541",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100368",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_percentile",
+      "normalized_value_or_target_id": "0.45744",
+      "target_object_type": null,
+      "qualifier_keys": [
+        "score_date",
+        "source_semantics"
+      ],
+      "normalized_qualifier": "{\"score_date\":\"2026-10-01\",\"source_semantics\":\"first_epss\"}",
+      "temporal_scope": "2026-10-01",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100368",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_probability",
+      "normalized_value_or_target_id": "0.00581",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100368",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_probability",
+      "normalized_value_or_target_id": "0.00581",
+      "target_object_type": null,
+      "qualifier_keys": [
+        "score_date",
+        "source_semantics"
+      ],
+      "normalized_qualifier": "{\"score_date\":\"2026-10-01\",\"source_semantics\":\"first_epss\"}",
+      "temporal_scope": "2026-10-01",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100368",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "fix_remediation",
+      "predicate_or_relation_type": "fixed-version",
+      "normalized_value_or_target_id": "software-version:nuget:alastairlundy.cliinvoke.specializations:2.0.2",
+      "target_object_type": "SoftwareVersion",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100368",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "fix_remediation",
+      "predicate_or_relation_type": "fixed-version",
+      "normalized_value_or_target_id": "software-version:nuget:cliinvoke.specializations:2.10.5",
+      "target_object_type": "SoftwareVersion",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100368",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "fix_remediation",
+      "predicate_or_relation_type": "fixed-version",
+      "normalized_value_or_target_id": "software-version:nuget:cliinvoke.specializations:2.8.5",
+      "target_object_type": "SoftwareVersion",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100368",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "fix_remediation",
+      "predicate_or_relation_type": "fixed-version",
+      "normalized_value_or_target_id": "software-version:nuget:cliinvoke.specializations:2.9.4",
+      "target_object_type": "SoftwareVersion",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100368",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "fix_remediation",
+      "predicate_or_relation_type": "fixed-version",
+      "normalized_value_or_target_id": "software-version:nuget:cliinvoke.specializations:3.0.0-beta.1",
+      "target_object_type": "SoftwareVersion",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100368",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "product_package",
+      "predicate_or_relation_type": "affects-package",
+      "normalized_value_or_target_id": "package:nuget:alastairlundy.cliinvoke.specializations",
+      "target_object_type": "Package",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100368",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "product_package",
+      "predicate_or_relation_type": "affects-package",
+      "normalized_value_or_target_id": "package:nuget:cliinvoke.specializations",
+      "target_object_type": "Package",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100368",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_score",
+      "normalized_value_or_target_id": "8.4",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100368",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_severity",
+      "normalized_value_or_target_id": "\"HIGH\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100368",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_vector",
+      "normalized_value_or_target_id": "\"CVSS:3.1/AV:L/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100368",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_version",
+      "normalized_value_or_target_id": "\"3.1\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100368",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:nuget:alastairlundy.cliinvoke.specializations",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "ranges",
+        "source_semantics",
+        "state",
+        "versions"
+      ],
+      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"1.0.0-rc.1\"},{\"fixed\":\"2.0.2\"}],\"type\":\"ECOSYSTEM\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\",\"versions\":[\"1.0.0\",\"1.1.0\",\"1.2.0\",\"1.2.1\",\"1.3.0\",\"1.3.1\",\"1.4.1\",\"1.4.3\",\"1.4.4\",\"1.4.5\",\"1.5.1\",\"1.5.2\",\"1.6.0\",\"1.6.1\",\"1.6.1.1\",\"2.0.0\"]}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100368",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:nuget:alastairlundy.cliinvoke.specializations",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "source_semantics",
+        "state",
+        "version_range"
+      ],
+      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\">= 1.0.0-rc.1, <= 1.6.1.1\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100368",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:nuget:cliinvoke.specializations",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "source_semantics",
+        "state",
+        "version_range"
+      ],
+      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\">= 2.10.0, <= 2.10.4\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100368",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:nuget:cliinvoke.specializations",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "source_semantics",
+        "state",
+        "version_range"
+      ],
+      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\">= 3.0.0-alpha.8, <= 3.0.0-alpha.10\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100368",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:nuget:cliinvoke.specializations",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "source_semantics",
+        "state",
+        "version_range"
+      ],
+      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\">= 2.2.0, <= 2.8.4\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100368",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:nuget:cliinvoke.specializations",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "source_semantics",
+        "state",
+        "version_range"
+      ],
+      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\">= 3.0.0-alpha.1, <= 3.0.0-alpha.4\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100368",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:nuget:cliinvoke.specializations",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "ranges",
+        "source_semantics",
+        "state"
+      ],
+      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"3.0.0-alpha.1\"},{\"fixed\":\"3.0.0-beta.1\"}],\"type\":\"ECOSYSTEM\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100368",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:nuget:cliinvoke.specializations",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "ranges",
+        "source_semantics",
+        "state"
+      ],
+      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"3.0.0-alpha.8\"},{\"fixed\":\"3.0.0-beta.1\"}],\"type\":\"ECOSYSTEM\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100368",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:nuget:cliinvoke.specializations",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "ranges",
+        "source_semantics",
+        "state",
+        "versions"
+      ],
+      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"2.2.0\"},{\"fixed\":\"2.8.5\"}],\"type\":\"ECOSYSTEM\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\",\"versions\":[\"2.2.0\",\"2.2.1\",\"2.3.0\",\"2.3.1\",\"2.3.2\",\"2.3.3\",\"2.3.4\",\"2.4.0\",\"2.4.1\",\"2.4.2\",\"2.4.3\",\"2.4.4\",\"2.4.5\",\"2.5.0\",\"2.5.1\",\"2.5.2\",\"2.5.3\",\"2.5.4\",\"2.6.0\",\"2.6.1\",\"2.7.0\",\"2.7.1\",\"2.8.0\",\"2.8.1\",\"2.8.2\",\"2.8.3\",\"2.8.4\"]}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100368",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:nuget:cliinvoke.specializations",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "ranges",
+        "source_semantics",
+        "state",
+        "versions"
+      ],
+      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"2.9.0\"},{\"fixed\":\"2.9.4\"}],\"type\":\"ECOSYSTEM\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\",\"versions\":[\"2.9.1\",\"2.9.2\",\"2.9.3\"]}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100368",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:nuget:cliinvoke.specializations",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "ranges",
+        "source_semantics",
+        "state",
+        "versions"
+      ],
+      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"2.10.0\"},{\"fixed\":\"2.10.5\"}],\"type\":\"ECOSYSTEM\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\",\"versions\":[\"2.10.0\",\"2.10.2\",\"2.10.3\",\"2.10.4\"]}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100368",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:nuget:cliinvoke.specializations",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "source_semantics",
+        "state",
+        "version_range"
+      ],
+      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\">= 2.9.0, <= 2.9.3\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100368",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "weakness",
+      "predicate_or_relation_type": "has-weakness",
+      "normalized_value_or_target_id": "weakness:CWE-78",
+      "target_object_type": "Weakness",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100369",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "advisory_reference",
+      "predicate_or_relation_type": "described-by",
+      "normalized_value_or_target_id": "document:github-advisory:ghsa-j73w-8hfr-4gc9",
+      "target_object_type": "Document",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100369",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_percentile",
+      "normalized_value_or_target_id": "0.27131",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100369",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_percentile",
+      "normalized_value_or_target_id": "0.27319",
+      "target_object_type": null,
+      "qualifier_keys": [
+        "score_date",
+        "source_semantics"
+      ],
+      "normalized_qualifier": "{\"score_date\":\"2026-10-01\",\"source_semantics\":\"first_epss\"}",
+      "temporal_scope": "2026-10-01",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100369",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_probability",
+      "normalized_value_or_target_id": "0.00359",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100369",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_probability",
+      "normalized_value_or_target_id": "0.00359",
+      "target_object_type": null,
+      "qualifier_keys": [
+        "score_date",
+        "source_semantics"
+      ],
+      "normalized_qualifier": "{\"score_date\":\"2026-10-01\",\"source_semantics\":\"first_epss\"}",
+      "temporal_scope": "2026-10-01",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100369",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "fix_remediation",
+      "predicate_or_relation_type": "fixed-version",
+      "normalized_value_or_target_id": "software-version:nuget:alastairlundy.cliinvoke:2.0.2",
+      "target_object_type": "SoftwareVersion",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100369",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "fix_remediation",
+      "predicate_or_relation_type": "fixed-version",
+      "normalized_value_or_target_id": "software-version:nuget:cliinvoke:2.10.5",
+      "target_object_type": "SoftwareVersion",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100369",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "fix_remediation",
+      "predicate_or_relation_type": "fixed-version",
+      "normalized_value_or_target_id": "software-version:nuget:cliinvoke:2.8.5",
+      "target_object_type": "SoftwareVersion",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100369",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "fix_remediation",
+      "predicate_or_relation_type": "fixed-version",
+      "normalized_value_or_target_id": "software-version:nuget:cliinvoke:2.9.4",
+      "target_object_type": "SoftwareVersion",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100369",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "fix_remediation",
+      "predicate_or_relation_type": "fixed-version",
+      "normalized_value_or_target_id": "software-version:nuget:cliinvoke:3.0.0-beta.2",
+      "target_object_type": "SoftwareVersion",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100369",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "product_package",
+      "predicate_or_relation_type": "affects-package",
+      "normalized_value_or_target_id": "package:nuget:alastairlundy.cliinvoke",
+      "target_object_type": "Package",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100369",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "product_package",
+      "predicate_or_relation_type": "affects-package",
+      "normalized_value_or_target_id": "package:nuget:cliinvoke",
+      "target_object_type": "Package",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100369",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_score",
+      "normalized_value_or_target_id": "8.4",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100369",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_severity",
+      "normalized_value_or_target_id": "\"HIGH\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100369",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_vector",
+      "normalized_value_or_target_id": "\"CVSS:3.1/AV:L/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100369",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_version",
+      "normalized_value_or_target_id": "\"3.1\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100369",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:nuget:alastairlundy.cliinvoke",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "ranges",
+        "source_semantics",
+        "state",
+        "versions"
+      ],
+      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"2.0.0-alpha.1\"},{\"fixed\":\"2.0.2\"}],\"type\":\"ECOSYSTEM\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\",\"versions\":[\"2.0.0\"]}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100369",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:nuget:alastairlundy.cliinvoke",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "source_semantics",
+        "state",
+        "version_range"
+      ],
+      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\">= 2.0.0-alpha.1, <= 2.0.0\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100369",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:nuget:cliinvoke",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "ranges",
+        "source_semantics",
+        "state",
+        "versions"
+      ],
+      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"2.9.0\"},{\"fixed\":\"2.9.4\"}],\"type\":\"ECOSYSTEM\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\",\"versions\":[\"2.9.0\",\"2.9.1\",\"2.9.2\",\"2.9.3\"]}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100369",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:nuget:cliinvoke",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "ranges",
+        "source_semantics",
+        "state"
+      ],
+      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"3.0.0-alpha.1\"},{\"fixed\":\"3.0.0-beta.2\"}],\"type\":\"ECOSYSTEM\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100369",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:nuget:cliinvoke",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "ranges",
+        "source_semantics",
+        "state",
+        "versions"
+      ],
+      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"2.0.0\"},{\"fixed\":\"2.8.5\"}],\"type\":\"ECOSYSTEM\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\",\"versions\":[\"2.0.0\",\"2.0.1\",\"2.1.0\",\"2.1.1\",\"2.1.2\",\"2.1.3\",\"2.1.4\",\"2.1.5\",\"2.2.0\",\"2.2.1\",\"2.3.0\",\"2.3.1\",\"2.3.2\",\"2.3.3\",\"2.3.4\",\"2.4.0\",\"2.4.1\",\"2.4.2\",\"2.4.3\",\"2.4.4\",\"2.4.5\",\"2.5.0\",\"2.5.1\",\"2.5.2\",\"2.5.3\",\"2.5.4\",\"2.6.0\",\"2.6.1\",\"2.7.0\",\"2.7.1\",\"2.7.2\",\"2.8.0\",\"2.8.1\",\"2.8.2\",\"2.8.3\",\"2.8.4\"]}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100369",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:nuget:cliinvoke",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "source_semantics",
+        "state",
+        "version_range"
+      ],
+      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\">= 3.0.0-alpha.1, <= 3.0.0-beta.1\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100369",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:nuget:cliinvoke",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "ranges",
+        "source_semantics",
+        "state",
+        "versions"
+      ],
+      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"2.10.0\"},{\"fixed\":\"2.10.5\"}],\"type\":\"ECOSYSTEM\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\",\"versions\":[\"2.10.1\",\"2.10.2\",\"2.10.3\",\"2.10.4\"]}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100369",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:nuget:cliinvoke",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "source_semantics",
+        "state",
+        "version_range"
+      ],
+      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\">= 2.10.0, <= 2.10.4\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100369",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:nuget:cliinvoke",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "source_semantics",
+        "state",
+        "version_range"
+      ],
+      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\">= 2.0.0, <= 2.8.4\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100369",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:nuget:cliinvoke",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "source_semantics",
+        "state",
+        "version_range"
+      ],
+      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\">= 2.9.0, <= 2.9.3\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100369",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "weakness",
+      "predicate_or_relation_type": "has-weakness",
+      "normalized_value_or_target_id": "weakness:CWE-88",
+      "target_object_type": "Weakness",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-12986",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "advisory_reference",
+      "predicate_or_relation_type": "described-by",
+      "normalized_value_or_target_id": "document:github-advisory:ghsa-x939-7fq5-v9v6",
+      "target_object_type": "Document",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-12986",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_percentile",
+      "normalized_value_or_target_id": "0.17601",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-12986",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_percentile",
+      "normalized_value_or_target_id": "0.1792",
+      "target_object_type": null,
+      "qualifier_keys": [
+        "score_date",
+        "source_semantics"
+      ],
+      "normalized_qualifier": "{\"score_date\":\"2026-10-01\",\"source_semantics\":\"first_epss\"}",
+      "temporal_scope": "2026-10-01",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-12986",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_probability",
+      "normalized_value_or_target_id": "0.00274",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-12986",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_probability",
+      "normalized_value_or_target_id": "0.00274",
+      "target_object_type": null,
+      "qualifier_keys": [
+        "score_date",
+        "source_semantics"
+      ],
+      "normalized_qualifier": "{\"score_date\":\"2026-10-01\",\"source_semantics\":\"first_epss\"}",
+      "temporal_scope": "2026-10-01",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-12986",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "fix_remediation",
+      "predicate_or_relation_type": "fixed-version",
+      "normalized_value_or_target_id": "software-version:maven:fish.payara.distributions:payara:7.2026.6",
+      "target_object_type": "SoftwareVersion",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-12986",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "product_package",
+      "predicate_or_relation_type": "affects-package",
+      "normalized_value_or_target_id": "package:maven:fish.payara.distributions:payara",
+      "target_object_type": "Package",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-12986",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_score",
+      "normalized_value_or_target_id": "7.3",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-12986",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_severity",
+      "normalized_value_or_target_id": "\"HIGH\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-12986",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_vector",
+      "normalized_value_or_target_id": "\"CVSS:4.0/AV:A/AC:L/AT:P/PR:N/UI:A/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H/E:P/CR:X/IR:X/AR:X/MAV:X/MAC:X/MAT:X/MPR:X/MUI:X/MVC:X/MVI:X/MVA:X/MSC:X/MSI:X/MSA:X/S:P/AU:Y/R:U/V:C/RE:M/U:Amber\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-12986",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_version",
+      "normalized_value_or_target_id": "\"4.0\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-12986",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:maven:fish.payara.distributions:payara",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "source_semantics",
+        "state",
+        "version_range"
+      ],
+      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\">= 4.0.0, < 7.2026.6\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-12986",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "weakness",
+      "predicate_or_relation_type": "has-weakness",
+      "normalized_value_or_target_id": "weakness:CWE-352",
+      "target_object_type": "Weakness",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-12986",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "weakness",
+      "predicate_or_relation_type": "has-weakness",
+      "normalized_value_or_target_id": "weakness:CWE-918",
+      "target_object_type": "Weakness",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57302",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "advisory_reference",
+      "predicate_or_relation_type": "described-by",
+      "normalized_value_or_target_id": "document:github-advisory:ghsa-j4ph-wp3c-c37w",
+      "target_object_type": "Document",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57302",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "advisory_reference",
+      "predicate_or_relation_type": "vendor-advisory",
+      "normalized_value_or_target_id": "document:url-sha256:2f062ddce05f0284c0bbb8d06e87b0a3f726bf1dae738bd7581bd5f6a725b030",
+      "target_object_type": "Document",
+      "qualifier_keys": [
+        "source_semantics"
+      ],
+      "normalized_qualifier": "{\"source_semantics\":\"nvd_vendor_advisory_tag\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57302",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_percentile",
+      "normalized_value_or_target_id": "0.18537",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57302",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_percentile",
+      "normalized_value_or_target_id": "0.18564",
+      "target_object_type": null,
+      "qualifier_keys": [
+        "score_date",
+        "source_semantics"
+      ],
+      "normalized_qualifier": "{\"score_date\":\"2026-10-01\",\"source_semantics\":\"first_epss\"}",
+      "temporal_scope": "2026-10-01",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57302",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_probability",
+      "normalized_value_or_target_id": "0.00281",
+      "target_object_type": null,
+      "qualifier_keys": [
+        "score_date",
+        "source_semantics"
+      ],
+      "normalized_qualifier": "{\"score_date\":\"2026-10-01\",\"source_semantics\":\"first_epss\"}",
+      "temporal_scope": "2026-10-01",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57302",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_probability",
+      "normalized_value_or_target_id": "0.00281",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57302",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "product_package",
+      "predicate_or_relation_type": "affects-package",
+      "normalized_value_or_target_id": "package:maven:org.jenkins-ci.plugins:fitnesse",
+      "target_object_type": "Package",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57302",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_score",
+      "normalized_value_or_target_id": "4.3",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57302",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_severity",
+      "normalized_value_or_target_id": "\"MEDIUM\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57302",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_vector",
+      "normalized_value_or_target_id": "\"CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:N/A:N\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57302",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_version",
+      "normalized_value_or_target_id": "\"3.1\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57302",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:maven:org.jenkins-ci.plugins:fitnesse",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "source_semantics",
+        "state",
+        "version_range"
+      ],
+      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\"<= 1.36\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57302",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:maven:org.jenkins-ci.plugins:fitnesse",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "ranges",
+        "source_semantics",
+        "state",
+        "versions"
+      ],
+      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"0\"},{\"last_affected\":\"1.36\"}],\"type\":\"ECOSYSTEM\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\",\"versions\":[\"1.10\",\"1.11\",\"1.12\",\"1.13\",\"1.14\",\"1.15\",\"1.16\",\"1.24\",\"1.26\",\"1.27\",\"1.28\",\"1.30\",\"1.31\",\"1.33\",\"1.34\",\"1.35\",\"1.36\",\"1.5\",\"1.6\",\"1.7\",\"1.8\",\"1.8.1\",\"1.9\"]}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57302",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "product:cpe23-sha256:bc2556c65f3dc4c680e5433efa7b8c6e41edd313b83cda29c05a3e81fb6b71bf",
+      "target_object_type": "Product",
+      "qualifier_keys": [
+        "configuration",
+        "platform",
+        "source_semantics",
+        "state",
+        "version_range"
+      ],
+      "normalized_qualifier": "{\"configuration\":{\"match_criteria_id\":\"A9A99457-45B9-4255-BB61-E64DADD3CC47\",\"match_index\":0,\"node_negate\":false,\"node_operator\":\"OR\",\"node_path\":[0],\"root_index\":0,\"root_negate\":false,\"root_operator\":null,\"root_snapshot\":{\"nodes\":[{\"cpeMatch\":[{\"criteria\":\"cpe:2.3:a:jenkins:fitnesse:*:*:*:*:*:jenkins:*:*\",\"matchCriteriaId\":\"A9A99457-45B9-4255-BB61-E64DADD3CC47\",\"versionEndIncluding\":\"1.36\",\"vulnerable\":true}],\"negate\":false,\"operator\":\"OR\"}]}},\"platform\":\"cpe:2.3:a:jenkins:fitnesse:*:*:*:*:*:jenkins:*:*\",\"source_semantics\":\"nvd_cpe\",\"state\":\"affected\",\"version_range\":{\"versionEndIncluding\":\"1.36\"}}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57302",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "weakness",
+      "predicate_or_relation_type": "has-weakness",
+      "normalized_value_or_target_id": "weakness:CWE-256",
+      "target_object_type": "Weakness",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57303",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "advisory_reference",
+      "predicate_or_relation_type": "described-by",
+      "normalized_value_or_target_id": "document:github-advisory:ghsa-2q27-6p2h-q6r3",
+      "target_object_type": "Document",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57303",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "advisory_reference",
+      "predicate_or_relation_type": "vendor-advisory",
+      "normalized_value_or_target_id": "document:url-sha256:39ac45474d43e6529f9bf325d9bec7f5814bd5dd4a279048514b23c2687956bb",
+      "target_object_type": "Document",
+      "qualifier_keys": [
+        "source_semantics"
+      ],
+      "normalized_qualifier": "{\"source_semantics\":\"nvd_vendor_advisory_tag\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57303",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_percentile",
+      "normalized_value_or_target_id": "0.26858",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57303",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_percentile",
+      "normalized_value_or_target_id": "0.27251",
+      "target_object_type": null,
+      "qualifier_keys": [
+        "score_date",
+        "source_semantics"
+      ],
+      "normalized_qualifier": "{\"score_date\":\"2026-10-01\",\"source_semantics\":\"first_epss\"}",
+      "temporal_scope": "2026-10-01",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57303",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_probability",
+      "normalized_value_or_target_id": "0.00359",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57303",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_probability",
+      "normalized_value_or_target_id": "0.00359",
+      "target_object_type": null,
+      "qualifier_keys": [
+        "score_date",
+        "source_semantics"
+      ],
+      "normalized_qualifier": "{\"score_date\":\"2026-10-01\",\"source_semantics\":\"first_epss\"}",
+      "temporal_scope": "2026-10-01",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57303",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "product_package",
+      "predicate_or_relation_type": "affects-package",
+      "normalized_value_or_target_id": "package:maven:org.jenkins-ci.plugins:assembla",
+      "target_object_type": "Package",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57303",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_score",
+      "normalized_value_or_target_id": "7.1",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57303",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_severity",
+      "normalized_value_or_target_id": "\"HIGH\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57303",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_vector",
+      "normalized_value_or_target_id": "\"CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:L/A:N\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57303",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_version",
+      "normalized_value_or_target_id": "\"3.1\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57303",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:maven:org.jenkins-ci.plugins:assembla",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "source_semantics",
+        "state",
+        "version_range"
+      ],
+      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\"<= 1.4\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57303",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:maven:org.jenkins-ci.plugins:assembla",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "ranges",
+        "source_semantics",
+        "state",
+        "versions"
+      ],
+      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"0\"},{\"last_affected\":\"1.4\"}],\"type\":\"ECOSYSTEM\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\",\"versions\":[\"1.2\",\"1.3\",\"1.4\"]}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57303",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "product:cpe23-sha256:f26ce595a29a0126bb3ec433e5dfe6ee627743c58b97ffa60be6b3e404a6d4de",
+      "target_object_type": "Product",
+      "qualifier_keys": [
+        "configuration",
+        "platform",
+        "source_semantics",
+        "state",
+        "version_range"
+      ],
+      "normalized_qualifier": "{\"configuration\":{\"match_criteria_id\":\"CF48857F-46D2-4BB3-A90E-EBF623FEBEBE\",\"match_index\":0,\"node_negate\":false,\"node_operator\":\"OR\",\"node_path\":[0],\"root_index\":0,\"root_negate\":false,\"root_operator\":null,\"root_snapshot\":{\"nodes\":[{\"cpeMatch\":[{\"criteria\":\"cpe:2.3:a:jenkins:assembla:*:*:*:*:*:jenkins:*:*\",\"matchCriteriaId\":\"CF48857F-46D2-4BB3-A90E-EBF623FEBEBE\",\"versionEndIncluding\":\"1.4\",\"vulnerable\":true}],\"negate\":false,\"operator\":\"OR\"}]}},\"platform\":\"cpe:2.3:a:jenkins:assembla:*:*:*:*:*:jenkins:*:*\",\"source_semantics\":\"nvd_cpe\",\"state\":\"affected\",\"version_range\":{\"versionEndIncluding\":\"1.4\"}}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57303",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "weakness",
+      "predicate_or_relation_type": "has-weakness",
+      "normalized_value_or_target_id": "weakness:CWE-918",
+      "target_object_type": "Weakness",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57304",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "advisory_reference",
+      "predicate_or_relation_type": "described-by",
+      "normalized_value_or_target_id": "document:github-advisory:ghsa-2r5w-jh6g-8hff",
+      "target_object_type": "Document",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57304",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "advisory_reference",
+      "predicate_or_relation_type": "vendor-advisory",
+      "normalized_value_or_target_id": "document:url-sha256:3ae0111ee95019b0fec33882c6f8c41f2b0775d31559a82e01116a99709b5b60",
+      "target_object_type": "Document",
+      "qualifier_keys": [
+        "source_semantics"
+      ],
+      "normalized_qualifier": "{\"source_semantics\":\"nvd_vendor_advisory_tag\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57304",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_percentile",
+      "normalized_value_or_target_id": "0.1513",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57304",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_percentile",
+      "normalized_value_or_target_id": "0.15415",
+      "target_object_type": null,
+      "qualifier_keys": [
+        "score_date",
+        "source_semantics"
+      ],
+      "normalized_qualifier": "{\"score_date\":\"2026-10-01\",\"source_semantics\":\"first_epss\"}",
+      "temporal_scope": "2026-10-01",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57304",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_probability",
+      "normalized_value_or_target_id": "0.00254",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57304",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_probability",
+      "normalized_value_or_target_id": "0.00254",
+      "target_object_type": null,
+      "qualifier_keys": [
+        "score_date",
+        "source_semantics"
+      ],
+      "normalized_qualifier": "{\"score_date\":\"2026-10-01\",\"source_semantics\":\"first_epss\"}",
+      "temporal_scope": "2026-10-01",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57304",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "product_package",
+      "predicate_or_relation_type": "affects-package",
+      "normalized_value_or_target_id": "package:maven:org.jenkins-ci.plugins:assembla",
+      "target_object_type": "Package",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57304",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_score",
+      "normalized_value_or_target_id": "5.4",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57304",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_severity",
+      "normalized_value_or_target_id": "\"MEDIUM\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57304",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_vector",
+      "normalized_value_or_target_id": "\"CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:N\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57304",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_version",
+      "normalized_value_or_target_id": "\"3.1\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57304",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:maven:org.jenkins-ci.plugins:assembla",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "source_semantics",
+        "state",
+        "version_range"
+      ],
+      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\"<= 1.4\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57304",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:maven:org.jenkins-ci.plugins:assembla",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "ranges",
+        "source_semantics",
+        "state",
+        "versions"
+      ],
+      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"0\"},{\"last_affected\":\"1.4\"}],\"type\":\"ECOSYSTEM\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\",\"versions\":[\"1.2\",\"1.3\",\"1.4\"]}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57304",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "product:cpe23-sha256:f26ce595a29a0126bb3ec433e5dfe6ee627743c58b97ffa60be6b3e404a6d4de",
+      "target_object_type": "Product",
+      "qualifier_keys": [
+        "configuration",
+        "platform",
+        "source_semantics",
+        "state",
+        "version_range"
+      ],
+      "normalized_qualifier": "{\"configuration\":{\"match_criteria_id\":\"CF48857F-46D2-4BB3-A90E-EBF623FEBEBE\",\"match_index\":0,\"node_negate\":false,\"node_operator\":\"OR\",\"node_path\":[0],\"root_index\":0,\"root_negate\":false,\"root_operator\":null,\"root_snapshot\":{\"nodes\":[{\"cpeMatch\":[{\"criteria\":\"cpe:2.3:a:jenkins:assembla:*:*:*:*:*:jenkins:*:*\",\"matchCriteriaId\":\"CF48857F-46D2-4BB3-A90E-EBF623FEBEBE\",\"versionEndIncluding\":\"1.4\",\"vulnerable\":true}],\"negate\":false,\"operator\":\"OR\"}]}},\"platform\":\"cpe:2.3:a:jenkins:assembla:*:*:*:*:*:jenkins:*:*\",\"source_semantics\":\"nvd_cpe\",\"state\":\"affected\",\"version_range\":{\"versionEndIncluding\":\"1.4\"}}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57304",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "weakness",
+      "predicate_or_relation_type": "has-weakness",
+      "normalized_value_or_target_id": "weakness:CWE-862",
+      "target_object_type": "Weakness",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57305",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "advisory_reference",
+      "predicate_or_relation_type": "described-by",
+      "normalized_value_or_target_id": "document:github-advisory:ghsa-429r-3j78-2pxm",
+      "target_object_type": "Document",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57305",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "advisory_reference",
+      "predicate_or_relation_type": "vendor-advisory",
+      "normalized_value_or_target_id": "document:url-sha256:3ae0111ee95019b0fec33882c6f8c41f2b0775d31559a82e01116a99709b5b60",
+      "target_object_type": "Document",
+      "qualifier_keys": [
+        "source_semantics"
+      ],
+      "normalized_qualifier": "{\"source_semantics\":\"nvd_vendor_advisory_tag\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57305",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_percentile",
+      "normalized_value_or_target_id": "0.11237",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57305",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_percentile",
+      "normalized_value_or_target_id": "0.11445",
+      "target_object_type": null,
+      "qualifier_keys": [
+        "score_date",
+        "source_semantics"
+      ],
+      "normalized_qualifier": "{\"score_date\":\"2026-10-01\",\"source_semantics\":\"first_epss\"}",
+      "temporal_scope": "2026-10-01",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57305",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_probability",
+      "normalized_value_or_target_id": "0.00221",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57305",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_probability",
+      "normalized_value_or_target_id": "0.00221",
+      "target_object_type": null,
+      "qualifier_keys": [
+        "score_date",
+        "source_semantics"
+      ],
+      "normalized_qualifier": "{\"score_date\":\"2026-10-01\",\"source_semantics\":\"first_epss\"}",
+      "temporal_scope": "2026-10-01",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57305",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "product_package",
+      "predicate_or_relation_type": "affects-package",
+      "normalized_value_or_target_id": "package:maven:org.jenkins-ci.plugins:assembla",
+      "target_object_type": "Package",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57305",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_score",
+      "normalized_value_or_target_id": "5.4",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57305",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_severity",
+      "normalized_value_or_target_id": "\"MEDIUM\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57305",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_vector",
+      "normalized_value_or_target_id": "\"CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:N\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57305",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_version",
+      "normalized_value_or_target_id": "\"3.1\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57305",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:maven:org.jenkins-ci.plugins:assembla",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "source_semantics",
+        "state",
+        "version_range"
+      ],
+      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\"<= 1.4\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57305",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:maven:org.jenkins-ci.plugins:assembla",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "ranges",
+        "source_semantics",
+        "state",
+        "versions"
+      ],
+      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"0\"},{\"last_affected\":\"1.4\"}],\"type\":\"ECOSYSTEM\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\",\"versions\":[\"1.2\",\"1.3\",\"1.4\"]}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57305",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "product:cpe23-sha256:f26ce595a29a0126bb3ec433e5dfe6ee627743c58b97ffa60be6b3e404a6d4de",
+      "target_object_type": "Product",
+      "qualifier_keys": [
+        "configuration",
+        "platform",
+        "source_semantics",
+        "state",
+        "version_range"
+      ],
+      "normalized_qualifier": "{\"configuration\":{\"match_criteria_id\":\"CF48857F-46D2-4BB3-A90E-EBF623FEBEBE\",\"match_index\":0,\"node_negate\":false,\"node_operator\":\"OR\",\"node_path\":[0],\"root_index\":0,\"root_negate\":false,\"root_operator\":null,\"root_snapshot\":{\"nodes\":[{\"cpeMatch\":[{\"criteria\":\"cpe:2.3:a:jenkins:assembla:*:*:*:*:*:jenkins:*:*\",\"matchCriteriaId\":\"CF48857F-46D2-4BB3-A90E-EBF623FEBEBE\",\"versionEndIncluding\":\"1.4\",\"vulnerable\":true}],\"negate\":false,\"operator\":\"OR\"}]}},\"platform\":\"cpe:2.3:a:jenkins:assembla:*:*:*:*:*:jenkins:*:*\",\"source_semantics\":\"nvd_cpe\",\"state\":\"affected\",\"version_range\":{\"versionEndIncluding\":\"1.4\"}}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57305",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "weakness",
+      "predicate_or_relation_type": "has-weakness",
+      "normalized_value_or_target_id": "weakness:CWE-352",
+      "target_object_type": "Weakness",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57306",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "advisory_reference",
+      "predicate_or_relation_type": "described-by",
+      "normalized_value_or_target_id": "document:github-advisory:ghsa-43m2-hcmm-qpm7",
+      "target_object_type": "Document",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57306",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "advisory_reference",
+      "predicate_or_relation_type": "vendor-advisory",
+      "normalized_value_or_target_id": "document:url-sha256:8d142e58f182fd60e72f233f8a6927a757fe86e90e92e97e2f38b79821bcf347",
+      "target_object_type": "Document",
+      "qualifier_keys": [
+        "source_semantics"
+      ],
+      "normalized_qualifier": "{\"source_semantics\":\"nvd_vendor_advisory_tag\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57306",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_percentile",
+      "normalized_value_or_target_id": "0.07034",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57306",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_percentile",
+      "normalized_value_or_target_id": "0.07163",
+      "target_object_type": null,
+      "qualifier_keys": [
+        "score_date",
+        "source_semantics"
+      ],
+      "normalized_qualifier": "{\"score_date\":\"2026-10-01\",\"source_semantics\":\"first_epss\"}",
+      "temporal_scope": "2026-10-01",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57306",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_probability",
+      "normalized_value_or_target_id": "0.00184",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57306",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_probability",
+      "normalized_value_or_target_id": "0.00184",
+      "target_object_type": null,
+      "qualifier_keys": [
+        "score_date",
+        "source_semantics"
+      ],
+      "normalized_qualifier": "{\"score_date\":\"2026-10-01\",\"source_semantics\":\"first_epss\"}",
+      "temporal_scope": "2026-10-01",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57306",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "product_package",
+      "predicate_or_relation_type": "affects-package",
+      "normalized_value_or_target_id": "package:maven:io.jenkins.plugins:zdevops",
+      "target_object_type": "Package",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57306",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_score",
+      "normalized_value_or_target_id": "4.2",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57306",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_severity",
+      "normalized_value_or_target_id": "\"MEDIUM\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57306",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_vector",
+      "normalized_value_or_target_id": "\"CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:L/I:L/A:N\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57306",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_version",
+      "normalized_value_or_target_id": "\"3.1\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57306",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:maven:io.jenkins.plugins:zdevops",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "source_semantics",
+        "state",
+        "version_range"
+      ],
+      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\"<= 1.1.3.50.ve350c9b\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57306",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "product:cpe23-sha256:416c6ddcf39c2ad325d2b08d79f5fdb283c252c478a3edd451e7d2733d71e6b1",
+      "target_object_type": "Product",
+      "qualifier_keys": [
+        "configuration",
+        "platform",
+        "source_semantics",
+        "state",
+        "version_range"
+      ],
+      "normalized_qualifier": "{\"configuration\":{\"match_criteria_id\":\"26D18D31-2A06-4A0C-B9EA-A20695A26F90\",\"match_index\":0,\"node_negate\":false,\"node_operator\":\"OR\",\"node_path\":[0],\"root_index\":0,\"root_negate\":false,\"root_operator\":null,\"root_snapshot\":{\"nodes\":[{\"cpeMatch\":[{\"criteria\":\"cpe:2.3:a:jenkins:zowe_zdevops:*:*:*:*:*:jenkins:*:*\",\"matchCriteriaId\":\"26D18D31-2A06-4A0C-B9EA-A20695A26F90\",\"versionEndIncluding\":\"1.1.3.50.ve350c9b_450b_1\",\"vulnerable\":true}],\"negate\":false,\"operator\":\"OR\"}]}},\"platform\":\"cpe:2.3:a:jenkins:zowe_zdevops:*:*:*:*:*:jenkins:*:*\",\"source_semantics\":\"nvd_cpe\",\"state\":\"affected\",\"version_range\":{\"versionEndIncluding\":\"1.1.3.50.ve350c9b_450b_1\"}}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57306",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "weakness",
+      "predicate_or_relation_type": "has-weakness",
+      "normalized_value_or_target_id": "weakness:CWE-352",
+      "target_object_type": "Weakness",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57307",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "advisory_reference",
+      "predicate_or_relation_type": "described-by",
+      "normalized_value_or_target_id": "document:github-advisory:ghsa-xx59-jv36-5r44",
+      "target_object_type": "Document",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57307",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "advisory_reference",
+      "predicate_or_relation_type": "vendor-advisory",
+      "normalized_value_or_target_id": "document:url-sha256:8d142e58f182fd60e72f233f8a6927a757fe86e90e92e97e2f38b79821bcf347",
+      "target_object_type": "Document",
+      "qualifier_keys": [
+        "source_semantics"
+      ],
+      "normalized_qualifier": "{\"source_semantics\":\"nvd_vendor_advisory_tag\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57307",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_percentile",
+      "normalized_value_or_target_id": "0.09619",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57307",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_percentile",
+      "normalized_value_or_target_id": "0.09796",
+      "target_object_type": null,
+      "qualifier_keys": [
+        "score_date",
+        "source_semantics"
+      ],
+      "normalized_qualifier": "{\"score_date\":\"2026-10-01\",\"source_semantics\":\"first_epss\"}",
+      "temporal_scope": "2026-10-01",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57307",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_probability",
+      "normalized_value_or_target_id": "0.00208",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57307",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_probability",
+      "normalized_value_or_target_id": "0.00208",
+      "target_object_type": null,
+      "qualifier_keys": [
+        "score_date",
+        "source_semantics"
+      ],
+      "normalized_qualifier": "{\"score_date\":\"2026-10-01\",\"source_semantics\":\"first_epss\"}",
+      "temporal_scope": "2026-10-01",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57307",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "product_package",
+      "predicate_or_relation_type": "affects-package",
+      "normalized_value_or_target_id": "package:maven:io.jenkins.plugins:zdevops",
+      "target_object_type": "Package",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57307",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_score",
+      "normalized_value_or_target_id": "4.2",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57307",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_severity",
+      "normalized_value_or_target_id": "\"MEDIUM\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57307",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_vector",
+      "normalized_value_or_target_id": "\"CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:L/I:L/A:N\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57307",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_version",
+      "normalized_value_or_target_id": "\"3.1\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57307",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:maven:io.jenkins.plugins:zdevops",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "source_semantics",
+        "state",
+        "version_range"
+      ],
+      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\"<= 1.1.3.50.ve350c9b\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57307",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "product:cpe23-sha256:416c6ddcf39c2ad325d2b08d79f5fdb283c252c478a3edd451e7d2733d71e6b1",
+      "target_object_type": "Product",
+      "qualifier_keys": [
+        "configuration",
+        "platform",
+        "source_semantics",
+        "state",
+        "version_range"
+      ],
+      "normalized_qualifier": "{\"configuration\":{\"match_criteria_id\":\"26D18D31-2A06-4A0C-B9EA-A20695A26F90\",\"match_index\":0,\"node_negate\":false,\"node_operator\":\"OR\",\"node_path\":[0],\"root_index\":0,\"root_negate\":false,\"root_operator\":null,\"root_snapshot\":{\"nodes\":[{\"cpeMatch\":[{\"criteria\":\"cpe:2.3:a:jenkins:zowe_zdevops:*:*:*:*:*:jenkins:*:*\",\"matchCriteriaId\":\"26D18D31-2A06-4A0C-B9EA-A20695A26F90\",\"versionEndIncluding\":\"1.1.3.50.ve350c9b_450b_1\",\"vulnerable\":true}],\"negate\":false,\"operator\":\"OR\"}]}},\"platform\":\"cpe:2.3:a:jenkins:zowe_zdevops:*:*:*:*:*:jenkins:*:*\",\"source_semantics\":\"nvd_cpe\",\"state\":\"affected\",\"version_range\":{\"versionEndIncluding\":\"1.1.3.50.ve350c9b_450b_1\"}}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57307",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "weakness",
+      "predicate_or_relation_type": "has-weakness",
+      "normalized_value_or_target_id": "weakness:CWE-862",
+      "target_object_type": "Weakness",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57443",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "advisory_reference",
+      "predicate_or_relation_type": "described-by",
+      "normalized_value_or_target_id": "document:github-advisory:ghsa-q986-4x7x-gx39",
+      "target_object_type": "Document",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57443",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_percentile",
+      "normalized_value_or_target_id": "0.45059",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57443",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_percentile",
+      "normalized_value_or_target_id": "0.45265",
+      "target_object_type": null,
+      "qualifier_keys": [
+        "score_date",
+        "source_semantics"
+      ],
+      "normalized_qualifier": "{\"score_date\":\"2026-10-01\",\"source_semantics\":\"first_epss\"}",
+      "temporal_scope": "2026-10-01",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57443",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_probability",
+      "normalized_value_or_target_id": "0.00572",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57443",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_probability",
+      "normalized_value_or_target_id": "0.00572",
+      "target_object_type": null,
+      "qualifier_keys": [
+        "score_date",
+        "source_semantics"
+      ],
+      "normalized_qualifier": "{\"score_date\":\"2026-10-01\",\"source_semantics\":\"first_epss\"}",
+      "temporal_scope": "2026-10-01",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57443",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "fix_remediation",
+      "predicate_or_relation_type": "fixed-version",
+      "normalized_value_or_target_id": "software-version:pip:scbe-aethermoore:4.2.1",
+      "target_object_type": "SoftwareVersion",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57443",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "fix_remediation",
+      "predicate_or_relation_type": "fixed-version",
+      "normalized_value_or_target_id": "software-version:pypi:scbe-aethermoore:4.2.1",
+      "target_object_type": "SoftwareVersion",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57443",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "product_package",
+      "predicate_or_relation_type": "affects-package",
+      "normalized_value_or_target_id": "package:pip:scbe-aethermoore",
+      "target_object_type": "Package",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57443",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "product_package",
+      "predicate_or_relation_type": "affects-package",
+      "normalized_value_or_target_id": "package:pypi:scbe-aethermoore",
+      "target_object_type": "Package",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57443",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_score",
+      "normalized_value_or_target_id": "7.5",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57443",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_severity",
+      "normalized_value_or_target_id": "\"HIGH\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57443",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_vector",
+      "normalized_value_or_target_id": "\"CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57443",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_version",
+      "normalized_value_or_target_id": "\"3.1\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57443",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:pip:scbe-aethermoore",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "source_semantics",
+        "state",
+        "version_range"
+      ],
+      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\">= 4.0.2, < 4.2.1\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57443",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:pypi:scbe-aethermoore",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "ranges",
+        "source_semantics",
+        "state",
+        "versions"
+      ],
+      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"4.0.2\"},{\"fixed\":\"4.2.1\"}],\"type\":\"ECOSYSTEM\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\",\"versions\":[\"4.1.3\",\"4.2.0\"]}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-57443",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "weakness",
+      "predicate_or_relation_type": "has-weakness",
+      "normalized_value_or_target_id": "weakness:CWE-306",
+      "target_object_type": "Weakness",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-86439",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "advisory_reference",
+      "predicate_or_relation_type": "described-by",
+      "normalized_value_or_target_id": "document:github-advisory:ghsa-9gfj-28hw-jchp",
+      "target_object_type": "Document",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-86439",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_percentile",
+      "normalized_value_or_target_id": "0.63578",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-86439",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_percentile",
+      "normalized_value_or_target_id": "0.63817",
+      "target_object_type": null,
+      "qualifier_keys": [
+        "score_date",
+        "source_semantics"
+      ],
+      "normalized_qualifier": "{\"score_date\":\"2026-10-01\",\"source_semantics\":\"first_epss\"}",
+      "temporal_scope": "2026-10-01",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-86439",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_probability",
+      "normalized_value_or_target_id": "0.01079",
+      "target_object_type": null,
+      "qualifier_keys": [
+        "score_date",
+        "source_semantics"
+      ],
+      "normalized_qualifier": "{\"score_date\":\"2026-10-01\",\"source_semantics\":\"first_epss\"}",
+      "temporal_scope": "2026-10-01",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-86439",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_probability",
+      "normalized_value_or_target_id": "0.01079",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-86439",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "fix_remediation",
+      "predicate_or_relation_type": "fixed-version",
+      "normalized_value_or_target_id": "software-version:npm:knowns:0.30.0",
+      "target_object_type": "SoftwareVersion",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-86439",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "product_package",
+      "predicate_or_relation_type": "affects-package",
+      "normalized_value_or_target_id": "package:npm:knowns",
+      "target_object_type": "Package",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-86439",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_score",
+      "normalized_value_or_target_id": "8.7",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-86439",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_severity",
+      "normalized_value_or_target_id": "\"HIGH\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-86439",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_vector",
+      "normalized_value_or_target_id": "\"CVSS:4.0/AV:N/AC:L/AT:N/PR:L/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N/E:X/CR:X/IR:X/AR:X/MAV:X/MAC:X/MAT:X/MPR:X/MUI:X/MVC:X/MVI:X/MVA:X/MSC:X/MSI:X/MSA:X/S:X/AU:X/R:X/V:X/RE:X/U:X\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-86439",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_version",
+      "normalized_value_or_target_id": "\"4.0\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-86439",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:npm:knowns",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "source_semantics",
+        "state",
+        "version_range"
+      ],
+      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\"<= 0.29.1\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-86439",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:npm:knowns",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "ranges",
+        "source_semantics",
+        "state"
+      ],
+      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"0\"},{\"fixed\":\"0.30.0\"}],\"type\":\"SEMVER\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-86439",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "weakness",
+      "predicate_or_relation_type": "has-weakness",
+      "normalized_value_or_target_id": "weakness:CWE-22",
+      "target_object_type": "Weakness",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-86439",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "weakness",
+      "predicate_or_relation_type": "has-weakness",
+      "normalized_value_or_target_id": "weakness:CWE-306",
+      "target_object_type": "Weakness",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-86439",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "weakness",
+      "predicate_or_relation_type": "has-weakness",
+      "normalized_value_or_target_id": "weakness:CWE-863",
+      "target_object_type": "Weakness",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-92161",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "advisory_reference",
+      "predicate_or_relation_type": "described-by",
+      "normalized_value_or_target_id": "document:github-advisory:ghsa-g7vj-c29h-3h5m",
+      "target_object_type": "Document",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-92161",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_percentile",
+      "normalized_value_or_target_id": "0.17565",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-92161",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_percentile",
+      "normalized_value_or_target_id": "0.17705",
+      "target_object_type": null,
+      "qualifier_keys": [
+        "score_date",
+        "source_semantics"
+      ],
+      "normalized_qualifier": "{\"score_date\":\"2026-10-01\",\"source_semantics\":\"first_epss\"}",
+      "temporal_scope": "2026-10-01",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-92161",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_probability",
+      "normalized_value_or_target_id": "0.00272",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-92161",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_probability",
+      "normalized_value_or_target_id": "0.00272",
+      "target_object_type": null,
+      "qualifier_keys": [
+        "score_date",
+        "source_semantics"
+      ],
+      "normalized_qualifier": "{\"score_date\":\"2026-10-01\",\"source_semantics\":\"first_epss\"}",
+      "temporal_scope": "2026-10-01",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-92161",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "fix_remediation",
+      "predicate_or_relation_type": "fixed-version",
+      "normalized_value_or_target_id": "software-version:composer:fof/oauth:1.7.4",
+      "target_object_type": "SoftwareVersion",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-92161",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "fix_remediation",
+      "predicate_or_relation_type": "fixed-version",
+      "normalized_value_or_target_id": "software-version:composer:fof/oauth:2.0.0-beta.4",
+      "target_object_type": "SoftwareVersion",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-92161",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "fix_remediation",
+      "predicate_or_relation_type": "fixed-version",
+      "normalized_value_or_target_id": "software-version:packagist:fof/oauth:1.7.4",
+      "target_object_type": "SoftwareVersion",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-92161",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "fix_remediation",
+      "predicate_or_relation_type": "fixed-version",
+      "normalized_value_or_target_id": "software-version:packagist:fof/oauth:2.0.0-beta.4",
+      "target_object_type": "SoftwareVersion",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-92161",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "product_package",
+      "predicate_or_relation_type": "affects-package",
+      "normalized_value_or_target_id": "package:composer:fof/oauth",
+      "target_object_type": "Package",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-92161",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "product_package",
+      "predicate_or_relation_type": "affects-package",
+      "normalized_value_or_target_id": "package:packagist:fof/oauth",
+      "target_object_type": "Package",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-92161",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_score",
+      "normalized_value_or_target_id": "9.8",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-92161",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_severity",
+      "normalized_value_or_target_id": "\"CRITICAL\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-92161",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_vector",
+      "normalized_value_or_target_id": "\"CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-92161",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "severity",
+      "predicate_or_relation_type": "cvss_version",
+      "normalized_value_or_target_id": "\"3.1\"",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-92161",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:composer:fof/oauth",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "source_semantics",
+        "state",
+        "version_range"
+      ],
+      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\">= 2.0.0-beta.1, < 2.0.0-beta.4\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-92161",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:composer:fof/oauth",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "source_semantics",
+        "state",
+        "version_range"
+      ],
+      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\"< 1.7.4\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-92161",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:packagist:fof/oauth",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "ranges",
+        "source_semantics",
+        "state",
+        "versions"
+      ],
+      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"2.0.0-beta.1\"},{\"fixed\":\"2.0.0-beta.4\"}],\"type\":\"ECOSYSTEM\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\",\"versions\":[\"2.0.0-beta.1\",\"2.0.0-beta.2\",\"2.0.0-beta.3\"]}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-92161",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:packagist:fof/oauth",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "ranges",
+        "source_semantics",
+        "state",
+        "versions"
+      ],
+      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"0\"},{\"fixed\":\"1.7.4\"}],\"type\":\"ECOSYSTEM\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\",\"versions\":[\"0.1.0\",\"0.2.0\",\"0.2.1\",\"0.3.0\",\"1.0.0\",\"1.0.1\",\"1.0.2\",\"1.1.0\",\"1.1.1\",\"1.2.0\",\"1.2.1\",\"1.2.2\",\"1.2.3\",\"1.2.4\",\"1.2.5\",\"1.3.0\",\"1.3.1\",\"1.3.2\",\"1.4.0\",\"1.4.1\",\"1.4.2\",\"1.4.3\",\"1.4.4\",\"1.5.0\",\"1.5.1\",\"1.5.2\",\"1.5.3\",\"1.5.4\",\"1.6.1\",\"1.6.10\",\"1.6.11\",\"1.6.12\",\"1.6.13\",\"1.6.14\",\"1.6.16\",\"1.6.2\",\"1.6.3\",\"1.6.4\",\"1.6.5\",\"1.6.6\",\"1.6.7\",\"1.6.8\",\"1.6.9\",\"1.7.0\",\"1.7.1\",\"1.7.2\",\"1.7.3\"]}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-92161",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "weakness",
+      "predicate_or_relation_type": "has-weakness",
+      "normalized_value_or_target_id": "weakness:CWE-345",
+      "target_object_type": "Weakness",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    }
+  ],
+  "prediction_count": 258,
+  "valid_prediction_count": 210,
+  "out_of_scope_prediction_count": 25,
+  "score": {
+    "true_positive": 209,
+    "false_positive": 1,
+    "false_negative": 1,
+    "micro_precision": 0.9952380952380953,
+    "micro_recall": 0.9952380952380953,
+    "dimension_macro_precision": 0.9970238095238095,
+    "dimension_macro_recall": 0.9970238095238095,
+    "dimensions": [
+      {
+        "dimension": "advisory_reference",
+        "true_positive": 18,
+        "false_positive": 0,
+        "false_negative": 0,
+        "precision": 1.0,
+        "recall": 1.0
+      },
+      {
+        "dimension": "exploit_likelihood",
+        "true_positive": 47,
+        "false_positive": 1,
+        "false_negative": 1,
+        "precision": 0.9791666666666666,
+        "recall": 0.9791666666666666
+      },
+      {
+        "dimension": "fix_remediation",
+        "true_positive": 18,
+        "false_positive": 0,
+        "false_negative": 0,
+        "precision": 1.0,
+        "recall": 1.0
+      },
+      {
+        "dimension": "product_package",
+        "true_positive": 16,
+        "false_positive": 0,
+        "false_negative": 0,
+        "precision": 1.0,
+        "recall": 1.0
+      },
+      {
+        "dimension": "severity",
+        "true_positive": 48,
+        "false_positive": 0,
+        "false_negative": 0,
+        "precision": 1.0,
+        "recall": 1.0
+      },
+      {
+        "dimension": "version_applicability",
+        "true_positive": 47,
+        "false_positive": 0,
+        "false_negative": 0,
+        "precision": 1.0,
+        "recall": 1.0
+      },
+      {
+        "dimension": "weakness",
+        "true_positive": 15,
+        "false_positive": 0,
+        "false_negative": 0,
+        "precision": 1.0,
+        "recall": 1.0
+      }
+    ]
+  },
+  "dimension_summary": {
+    "advisory_reference": {
+      "tp": 18,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "exploit_likelihood": {
+      "tp": 47,
+      "fp": 1,
+      "fn": 1,
+      "precision": 0.9791666666666666,
+      "recall": 0.9791666666666666
+    },
+    "fix_remediation": {
+      "tp": 18,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "product_package": {
+      "tp": 16,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "severity": {
+      "tp": 48,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "version_applicability": {
+      "tp": 47,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "weakness": {
+      "tp": 15,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0
+    }
+  },
+  "case_scores": {
+    "CVE-2026-57443": {
+      "gold_fact_count": 16,
+      "prediction_count": 17,
+      "score": {
+        "true_positive": 16,
+        "false_positive": 0,
+        "false_negative": 0,
+        "micro_precision": 1.0,
+        "micro_recall": 1.0,
+        "dimension_macro_precision": 1.0,
+        "dimension_macro_recall": 1.0,
+        "dimensions": [
+          {
+            "dimension": "advisory_reference",
+            "true_positive": 1,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "exploit_likelihood",
+            "true_positive": 4,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "fix_remediation",
+            "true_positive": 2,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "product_package",
+            "true_positive": 2,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "severity",
+            "true_positive": 4,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "version_applicability",
+            "true_positive": 2,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "weakness",
+            "true_positive": 1,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          }
+        ]
+      },
+      "dimension_summary": {
+        "advisory_reference": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "exploit_likelihood": {
+          "tp": 4,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "fix_remediation": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "product_package": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "severity": {
+          "tp": 4,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "version_applicability": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "weakness": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        }
+      }
+    },
+    "CVE-2026-100368": {
+      "gold_fact_count": 29,
+      "prediction_count": 45,
+      "score": {
+        "true_positive": 29,
+        "false_positive": 0,
+        "false_negative": 0,
+        "micro_precision": 1.0,
+        "micro_recall": 1.0,
+        "dimension_macro_precision": 1.0,
+        "dimension_macro_recall": 1.0,
+        "dimensions": [
+          {
+            "dimension": "advisory_reference",
+            "true_positive": 1,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "exploit_likelihood",
+            "true_positive": 4,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "fix_remediation",
+            "true_positive": 5,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "product_package",
+            "true_positive": 2,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "severity",
+            "true_positive": 4,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "version_applicability",
+            "true_positive": 12,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "weakness",
+            "true_positive": 1,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          }
+        ]
+      },
+      "dimension_summary": {
+        "advisory_reference": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "exploit_likelihood": {
+          "tp": 4,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "fix_remediation": {
+          "tp": 5,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "product_package": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "severity": {
+          "tp": 4,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "version_applicability": {
+          "tp": 12,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "weakness": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        }
+      }
+    },
+    "CVE-2026-100369": {
+      "gold_fact_count": 27,
+      "prediction_count": 41,
+      "score": {
+        "true_positive": 27,
+        "false_positive": 0,
+        "false_negative": 0,
+        "micro_precision": 1.0,
+        "micro_recall": 1.0,
+        "dimension_macro_precision": 1.0,
+        "dimension_macro_recall": 1.0,
+        "dimensions": [
+          {
+            "dimension": "advisory_reference",
+            "true_positive": 1,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "exploit_likelihood",
+            "true_positive": 4,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "fix_remediation",
+            "true_positive": 5,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "product_package",
+            "true_positive": 2,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "severity",
+            "true_positive": 4,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "version_applicability",
+            "true_positive": 10,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "weakness",
+            "true_positive": 1,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          }
+        ]
+      },
+      "dimension_summary": {
+        "advisory_reference": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "exploit_likelihood": {
+          "tp": 4,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "fix_remediation": {
+          "tp": 5,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "product_package": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "severity": {
+          "tp": 4,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "version_applicability": {
+          "tp": 10,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "weakness": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        }
+      }
+    },
+    "CVE-2026-92161": {
+      "gold_fact_count": 20,
+      "prediction_count": 23,
+      "score": {
+        "true_positive": 20,
+        "false_positive": 0,
+        "false_negative": 0,
+        "micro_precision": 1.0,
+        "micro_recall": 1.0,
+        "dimension_macro_precision": 1.0,
+        "dimension_macro_recall": 1.0,
+        "dimensions": [
+          {
+            "dimension": "advisory_reference",
+            "true_positive": 1,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "exploit_likelihood",
+            "true_positive": 4,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "fix_remediation",
+            "true_positive": 4,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "product_package",
+            "true_positive": 2,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "severity",
+            "true_positive": 4,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "version_applicability",
+            "true_positive": 4,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "weakness",
+            "true_positive": 1,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          }
+        ]
+      },
+      "dimension_summary": {
+        "advisory_reference": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "exploit_likelihood": {
+          "tp": 4,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "fix_remediation": {
+          "tp": 4,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "product_package": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "severity": {
+          "tp": 4,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "version_applicability": {
+          "tp": 4,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "weakness": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        }
+      }
+    },
+    "CVE-2026-57307": {
+      "gold_fact_count": 14,
+      "prediction_count": 15,
+      "score": {
+        "true_positive": 14,
+        "false_positive": 0,
+        "false_negative": 0,
+        "micro_precision": 1.0,
+        "micro_recall": 1.0,
+        "dimension_macro_precision": 1.0,
+        "dimension_macro_recall": 1.0,
+        "dimensions": [
+          {
+            "dimension": "advisory_reference",
+            "true_positive": 2,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "exploit_likelihood",
+            "true_positive": 4,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "product_package",
+            "true_positive": 1,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "severity",
+            "true_positive": 4,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "version_applicability",
+            "true_positive": 2,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "weakness",
+            "true_positive": 1,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          }
+        ]
+      },
+      "dimension_summary": {
+        "advisory_reference": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "exploit_likelihood": {
+          "tp": 4,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "product_package": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "severity": {
+          "tp": 4,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "version_applicability": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "weakness": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        }
+      }
+    },
+    "CVE-2026-57305": {
+      "gold_fact_count": 15,
+      "prediction_count": 17,
+      "score": {
+        "true_positive": 15,
+        "false_positive": 0,
+        "false_negative": 0,
+        "micro_precision": 1.0,
+        "micro_recall": 1.0,
+        "dimension_macro_precision": 1.0,
+        "dimension_macro_recall": 1.0,
+        "dimensions": [
+          {
+            "dimension": "advisory_reference",
+            "true_positive": 2,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "exploit_likelihood",
+            "true_positive": 4,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "product_package",
+            "true_positive": 1,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "severity",
+            "true_positive": 4,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "version_applicability",
+            "true_positive": 3,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "weakness",
+            "true_positive": 1,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          }
+        ]
+      },
+      "dimension_summary": {
+        "advisory_reference": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "exploit_likelihood": {
+          "tp": 4,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "product_package": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "severity": {
+          "tp": 4,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "version_applicability": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "weakness": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        }
+      }
+    },
+    "CVE-2026-12986": {
+      "gold_fact_count": 14,
+      "prediction_count": 15,
+      "score": {
+        "true_positive": 14,
+        "false_positive": 0,
+        "false_negative": 0,
+        "micro_precision": 1.0,
+        "micro_recall": 1.0,
+        "dimension_macro_precision": 1.0,
+        "dimension_macro_recall": 1.0,
+        "dimensions": [
+          {
+            "dimension": "advisory_reference",
+            "true_positive": 1,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "exploit_likelihood",
+            "true_positive": 4,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "fix_remediation",
+            "true_positive": 1,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "product_package",
+            "true_positive": 1,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "severity",
+            "true_positive": 4,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "version_applicability",
+            "true_positive": 1,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "weakness",
+            "true_positive": 2,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          }
+        ]
+      },
+      "dimension_summary": {
+        "advisory_reference": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "exploit_likelihood": {
+          "tp": 4,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "fix_remediation": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "product_package": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "severity": {
+          "tp": 4,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "version_applicability": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "weakness": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        }
+      }
+    },
+    "CVE-2026-57306": {
+      "gold_fact_count": 14,
+      "prediction_count": 15,
+      "score": {
+        "true_positive": 14,
+        "false_positive": 0,
+        "false_negative": 0,
+        "micro_precision": 1.0,
+        "micro_recall": 1.0,
+        "dimension_macro_precision": 1.0,
+        "dimension_macro_recall": 1.0,
+        "dimensions": [
+          {
+            "dimension": "advisory_reference",
+            "true_positive": 2,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "exploit_likelihood",
+            "true_positive": 4,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "product_package",
+            "true_positive": 1,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "severity",
+            "true_positive": 4,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "version_applicability",
+            "true_positive": 2,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "weakness",
+            "true_positive": 1,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          }
+        ]
+      },
+      "dimension_summary": {
+        "advisory_reference": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "exploit_likelihood": {
+          "tp": 4,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "product_package": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "severity": {
+          "tp": 4,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "version_applicability": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "weakness": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        }
+      }
+    },
+    "CVE-2026-57304": {
+      "gold_fact_count": 15,
+      "prediction_count": 17,
+      "score": {
+        "true_positive": 15,
+        "false_positive": 0,
+        "false_negative": 0,
+        "micro_precision": 1.0,
+        "micro_recall": 1.0,
+        "dimension_macro_precision": 1.0,
+        "dimension_macro_recall": 1.0,
+        "dimensions": [
+          {
+            "dimension": "advisory_reference",
+            "true_positive": 2,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "exploit_likelihood",
+            "true_positive": 4,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "product_package",
+            "true_positive": 1,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "severity",
+            "true_positive": 4,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "version_applicability",
+            "true_positive": 3,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "weakness",
+            "true_positive": 1,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          }
+        ]
+      },
+      "dimension_summary": {
+        "advisory_reference": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "exploit_likelihood": {
+          "tp": 4,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "product_package": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "severity": {
+          "tp": 4,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "version_applicability": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "weakness": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        }
+      }
+    },
+    "CVE-2026-57303": {
+      "gold_fact_count": 15,
+      "prediction_count": 17,
+      "score": {
+        "true_positive": 15,
+        "false_positive": 0,
+        "false_negative": 0,
+        "micro_precision": 1.0,
+        "micro_recall": 1.0,
+        "dimension_macro_precision": 1.0,
+        "dimension_macro_recall": 1.0,
+        "dimensions": [
+          {
+            "dimension": "advisory_reference",
+            "true_positive": 2,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "exploit_likelihood",
+            "true_positive": 4,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "product_package",
+            "true_positive": 1,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "severity",
+            "true_positive": 4,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "version_applicability",
+            "true_positive": 3,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "weakness",
+            "true_positive": 1,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          }
+        ]
+      },
+      "dimension_summary": {
+        "advisory_reference": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "exploit_likelihood": {
+          "tp": 4,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "product_package": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "severity": {
+          "tp": 4,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "version_applicability": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "weakness": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        }
+      }
+    },
+    "CVE-2026-57302": {
+      "gold_fact_count": 15,
+      "prediction_count": 17,
+      "score": {
+        "true_positive": 14,
+        "false_positive": 1,
+        "false_negative": 1,
+        "micro_precision": 0.9333333333333333,
+        "micro_recall": 0.9333333333333333,
+        "dimension_macro_precision": 0.9583333333333334,
+        "dimension_macro_recall": 0.9583333333333334,
+        "dimensions": [
+          {
+            "dimension": "advisory_reference",
+            "true_positive": 2,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "exploit_likelihood",
+            "true_positive": 3,
+            "false_positive": 1,
+            "false_negative": 1,
+            "precision": 0.75,
+            "recall": 0.75
+          },
+          {
+            "dimension": "product_package",
+            "true_positive": 1,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "severity",
+            "true_positive": 4,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "version_applicability",
+            "true_positive": 3,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "weakness",
+            "true_positive": 1,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          }
+        ]
+      },
+      "dimension_summary": {
+        "advisory_reference": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "exploit_likelihood": {
+          "tp": 3,
+          "fp": 1,
+          "fn": 1,
+          "precision": 0.75,
+          "recall": 0.75
+        },
+        "product_package": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "severity": {
+          "tp": 4,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "version_applicability": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "weakness": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        }
+      }
+    },
+    "CVE-2026-86439": {
+      "gold_fact_count": 16,
+      "prediction_count": 19,
+      "score": {
+        "true_positive": 16,
+        "false_positive": 0,
+        "false_negative": 0,
+        "micro_precision": 1.0,
+        "micro_recall": 1.0,
+        "dimension_macro_precision": 1.0,
+        "dimension_macro_recall": 1.0,
+        "dimensions": [
+          {
+            "dimension": "advisory_reference",
+            "true_positive": 1,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "exploit_likelihood",
+            "true_positive": 4,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "fix_remediation",
+            "true_positive": 1,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "product_package",
+            "true_positive": 1,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "severity",
+            "true_positive": 4,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "version_applicability",
+            "true_positive": 2,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "weakness",
+            "true_positive": 3,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          }
+        ]
+      },
+      "dimension_summary": {
+        "advisory_reference": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "exploit_likelihood": {
+          "tp": 4,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "fix_remediation": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "product_package": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "severity": {
+          "tp": 4,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "version_applicability": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "weakness": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0
+        }
+      }
+    }
+  },
+  "missing_facts": [
+    {
+      "root_object_key": "cve:CVE-2026-57302",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_percentile",
+      "normalized_value_or_target_id": "0.18537",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    }
+  ],
+  "extra_facts": [
+    {
+      "root_object_key": "cve:CVE-2026-57302",
+      "root_object_type": "Vulnerability",
+      "kind": "claim",
+      "dimension": "exploit_likelihood",
+      "predicate_or_relation_type": "epss_percentile",
+      "normalized_value_or_target_id": "0.18255",
+      "target_object_type": null,
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    }
+  ],
+  "structured_diagnostics": {
+    "weakness_cwe_gold": 13,
+    "nvd_poc_gold": 0,
+    "nvd_vendor_advisory_gold": 6,
+    "nvd_cpe_applicability_gold": 6,
+    "first_epss_gold": 24,
+    "github_first_patched_version_gold": 16,
+    "github_vulnerable_range_gold": 22,
+    "github_epss_gold": 24,
+    "advisory_gold": 12,
+    "osv_applicability_gold": 19,
+    "osv_fixed_version_gold": 15,
+    "per_case": {
+      "CVE-2026-57443": {
+        "cwes": [
+          "CWE-306"
+        ],
+        "nvd_exploit_urls": [],
+        "nvd_vendor_advisory_urls": [],
+        "nvd_cpe_applicability": [],
+        "first_patched_versions": [
+          "4.2.1"
+        ],
+        "vulnerable_ranges": [
+          ">= 4.0.2, < 4.2.1"
+        ],
+        "epss": [
+          {
+            "probability": 0.00572,
+            "percentile": 0.45059
+          }
+        ],
+        "first_epss": {
+          "probability": 0.00572,
+          "percentile": 0.45265,
+          "score_date": "2026-10-01"
+        },
+        "github_advisories": [
+          "GHSA-q986-4x7x-gx39"
+        ],
+        "osv_affected_packages": [
+          "package:pypi:scbe-aethermoore"
+        ],
+        "osv_fixed_versions": [
+          "4.2.1"
+        ]
+      },
+      "CVE-2026-100368": {
+        "cwes": [
+          "CWE-78"
+        ],
+        "nvd_exploit_urls": [],
+        "nvd_vendor_advisory_urls": [],
+        "nvd_cpe_applicability": [],
+        "first_patched_versions": [
+          "2.8.5",
+          "2.9.4",
+          "2.10.5",
+          "3.0.0-beta.1",
+          "3.0.0-beta.1",
+          "2.0.2"
+        ],
+        "vulnerable_ranges": [
+          ">= 2.2.0, <= 2.8.4",
+          ">= 2.9.0, <= 2.9.3",
+          ">= 2.10.0, <= 2.10.4",
+          ">= 3.0.0-alpha.1, <= 3.0.0-alpha.4",
+          ">= 3.0.0-alpha.8, <= 3.0.0-alpha.10",
+          ">= 1.0.0-rc.1, <= 1.6.1.1"
+        ],
+        "epss": [
+          {
+            "probability": 0.00581,
+            "percentile": 0.45541
+          }
+        ],
+        "first_epss": {
+          "probability": 0.00581,
+          "percentile": 0.45744,
+          "score_date": "2026-10-01"
+        },
+        "github_advisories": [
+          "GHSA-wrvw-254r-wpmv"
+        ],
+        "osv_affected_packages": [
+          "package:nuget:cliinvoke.specializations",
+          "package:nuget:cliinvoke.specializations",
+          "package:nuget:cliinvoke.specializations",
+          "package:nuget:cliinvoke.specializations",
+          "package:nuget:cliinvoke.specializations",
+          "package:nuget:alastairlundy.cliinvoke.specializations"
+        ],
+        "osv_fixed_versions": [
+          "2.8.5",
+          "2.9.4",
+          "2.10.5",
+          "3.0.0-beta.1",
+          "3.0.0-beta.1",
+          "2.0.2"
+        ]
+      },
+      "CVE-2026-100369": {
+        "cwes": [
+          "CWE-88"
+        ],
+        "nvd_exploit_urls": [],
+        "nvd_vendor_advisory_urls": [],
+        "nvd_cpe_applicability": [],
+        "first_patched_versions": [
+          "2.8.5",
+          "2.9.4",
+          "2.10.5",
+          "3.0.0-beta.2",
+          "2.0.2"
+        ],
+        "vulnerable_ranges": [
+          ">= 2.0.0, <= 2.8.4",
+          ">= 2.9.0, <= 2.9.3",
+          ">= 2.10.0, <= 2.10.4",
+          ">= 3.0.0-alpha.1, <= 3.0.0-beta.1",
+          ">= 2.0.0-alpha.1, <= 2.0.0"
+        ],
+        "epss": [
+          {
+            "probability": 0.00359,
+            "percentile": 0.27131
+          }
+        ],
+        "first_epss": {
+          "probability": 0.00359,
+          "percentile": 0.27319,
+          "score_date": "2026-10-01"
+        },
+        "github_advisories": [
+          "GHSA-j73w-8hfr-4gc9"
+        ],
+        "osv_affected_packages": [
+          "package:nuget:cliinvoke",
+          "package:nuget:cliinvoke",
+          "package:nuget:cliinvoke",
+          "package:nuget:cliinvoke",
+          "package:nuget:alastairlundy.cliinvoke"
+        ],
+        "osv_fixed_versions": [
+          "2.8.5",
+          "2.9.4",
+          "2.10.5",
+          "3.0.0-beta.2",
+          "2.0.2"
+        ]
+      },
+      "CVE-2026-92161": {
+        "cwes": [
+          "CWE-345"
+        ],
+        "nvd_exploit_urls": [],
+        "nvd_vendor_advisory_urls": [],
+        "nvd_cpe_applicability": [],
+        "first_patched_versions": [
+          "1.7.4",
+          "2.0.0-beta.4"
+        ],
+        "vulnerable_ranges": [
+          "< 1.7.4",
+          ">= 2.0.0-beta.1, < 2.0.0-beta.4"
+        ],
+        "epss": [
+          {
+            "probability": 0.00272,
+            "percentile": 0.17565
+          }
+        ],
+        "first_epss": {
+          "probability": 0.00272,
+          "percentile": 0.17705,
+          "score_date": "2026-10-01"
+        },
+        "github_advisories": [
+          "GHSA-g7vj-c29h-3h5m"
+        ],
+        "osv_affected_packages": [
+          "package:packagist:fof/oauth",
+          "package:packagist:fof/oauth"
+        ],
+        "osv_fixed_versions": [
+          "1.7.4",
+          "2.0.0-beta.4"
+        ]
+      },
+      "CVE-2026-57307": {
+        "cwes": [
+          "CWE-862"
+        ],
+        "nvd_exploit_urls": [],
+        "nvd_vendor_advisory_urls": [
+          "https://www.jenkins.io/security/advisory/2026-06-24/#SECURITY-3747"
+        ],
+        "nvd_cpe_applicability": [
+          {
+            "target_key": "product:cpe23-sha256:416c6ddcf39c2ad325d2b08d79f5fdb283c252c478a3edd451e7d2733d71e6b1",
+            "qualifier": {
+              "state": "affected",
+              "source_semantics": "nvd_cpe",
+              "platform": "cpe:2.3:a:jenkins:zowe_zdevops:*:*:*:*:*:jenkins:*:*",
+              "configuration": {
+                "root_index": 0,
+                "root_operator": null,
+                "root_negate": false,
+                "node_path": [
+                  0
+                ],
+                "node_operator": "OR",
+                "node_negate": false,
+                "match_index": 0,
+                "match_criteria_id": "26D18D31-2A06-4A0C-B9EA-A20695A26F90",
+                "root_snapshot": {
+                  "nodes": [
+                    {
+                      "operator": "OR",
+                      "negate": false,
+                      "cpeMatch": [
+                        {
+                          "vulnerable": true,
+                          "criteria": "cpe:2.3:a:jenkins:zowe_zdevops:*:*:*:*:*:jenkins:*:*",
+                          "versionEndIncluding": "1.1.3.50.ve350c9b_450b_1",
+                          "matchCriteriaId": "26D18D31-2A06-4A0C-B9EA-A20695A26F90"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "version_range": {
+                "versionEndIncluding": "1.1.3.50.ve350c9b_450b_1"
+              }
+            }
+          }
+        ],
+        "first_patched_versions": [],
+        "vulnerable_ranges": [
+          "<= 1.1.3.50.ve350c9b"
+        ],
+        "epss": [
+          {
+            "probability": 0.00208,
+            "percentile": 0.09619
+          }
+        ],
+        "first_epss": {
+          "probability": 0.00208,
+          "percentile": 0.09796,
+          "score_date": "2026-10-01"
+        },
+        "github_advisories": [
+          "GHSA-xx59-jv36-5r44"
+        ],
+        "osv_affected_packages": [],
+        "osv_fixed_versions": []
+      },
+      "CVE-2026-57305": {
+        "cwes": [
+          "CWE-352"
+        ],
+        "nvd_exploit_urls": [],
+        "nvd_vendor_advisory_urls": [
+          "https://www.jenkins.io/security/advisory/2026-06-24/#SECURITY-3692%20(2)"
+        ],
+        "nvd_cpe_applicability": [
+          {
+            "target_key": "product:cpe23-sha256:f26ce595a29a0126bb3ec433e5dfe6ee627743c58b97ffa60be6b3e404a6d4de",
+            "qualifier": {
+              "state": "affected",
+              "source_semantics": "nvd_cpe",
+              "platform": "cpe:2.3:a:jenkins:assembla:*:*:*:*:*:jenkins:*:*",
+              "configuration": {
+                "root_index": 0,
+                "root_operator": null,
+                "root_negate": false,
+                "node_path": [
+                  0
+                ],
+                "node_operator": "OR",
+                "node_negate": false,
+                "match_index": 0,
+                "match_criteria_id": "CF48857F-46D2-4BB3-A90E-EBF623FEBEBE",
+                "root_snapshot": {
+                  "nodes": [
+                    {
+                      "operator": "OR",
+                      "negate": false,
+                      "cpeMatch": [
+                        {
+                          "vulnerable": true,
+                          "criteria": "cpe:2.3:a:jenkins:assembla:*:*:*:*:*:jenkins:*:*",
+                          "versionEndIncluding": "1.4",
+                          "matchCriteriaId": "CF48857F-46D2-4BB3-A90E-EBF623FEBEBE"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "version_range": {
+                "versionEndIncluding": "1.4"
+              }
+            }
+          }
+        ],
+        "first_patched_versions": [],
+        "vulnerable_ranges": [
+          "<= 1.4"
+        ],
+        "epss": [
+          {
+            "probability": 0.00221,
+            "percentile": 0.11237
+          }
+        ],
+        "first_epss": {
+          "probability": 0.00221,
+          "percentile": 0.11445,
+          "score_date": "2026-10-01"
+        },
+        "github_advisories": [
+          "GHSA-429r-3j78-2pxm"
+        ],
+        "osv_affected_packages": [
+          "package:maven:org.jenkins-ci.plugins:assembla"
+        ],
+        "osv_fixed_versions": []
+      },
+      "CVE-2026-12986": {
+        "cwes": [
+          "CWE-352",
+          "CWE-918"
+        ],
+        "nvd_exploit_urls": [],
+        "nvd_vendor_advisory_urls": [],
+        "nvd_cpe_applicability": [],
+        "first_patched_versions": [
+          "7.2026.6"
+        ],
+        "vulnerable_ranges": [
+          ">= 4.0.0, < 7.2026.6"
+        ],
+        "epss": [
+          {
+            "probability": 0.00274,
+            "percentile": 0.17601
+          }
+        ],
+        "first_epss": {
+          "probability": 0.00274,
+          "percentile": 0.1792,
+          "score_date": "2026-10-01"
+        },
+        "github_advisories": [
+          "GHSA-x939-7fq5-v9v6"
+        ],
+        "osv_affected_packages": [],
+        "osv_fixed_versions": []
+      },
+      "CVE-2026-57306": {
+        "cwes": [
+          "CWE-352"
+        ],
+        "nvd_exploit_urls": [],
+        "nvd_vendor_advisory_urls": [
+          "https://www.jenkins.io/security/advisory/2026-06-24/#SECURITY-3747"
+        ],
+        "nvd_cpe_applicability": [
+          {
+            "target_key": "product:cpe23-sha256:416c6ddcf39c2ad325d2b08d79f5fdb283c252c478a3edd451e7d2733d71e6b1",
+            "qualifier": {
+              "state": "affected",
+              "source_semantics": "nvd_cpe",
+              "platform": "cpe:2.3:a:jenkins:zowe_zdevops:*:*:*:*:*:jenkins:*:*",
+              "configuration": {
+                "root_index": 0,
+                "root_operator": null,
+                "root_negate": false,
+                "node_path": [
+                  0
+                ],
+                "node_operator": "OR",
+                "node_negate": false,
+                "match_index": 0,
+                "match_criteria_id": "26D18D31-2A06-4A0C-B9EA-A20695A26F90",
+                "root_snapshot": {
+                  "nodes": [
+                    {
+                      "operator": "OR",
+                      "negate": false,
+                      "cpeMatch": [
+                        {
+                          "vulnerable": true,
+                          "criteria": "cpe:2.3:a:jenkins:zowe_zdevops:*:*:*:*:*:jenkins:*:*",
+                          "versionEndIncluding": "1.1.3.50.ve350c9b_450b_1",
+                          "matchCriteriaId": "26D18D31-2A06-4A0C-B9EA-A20695A26F90"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "version_range": {
+                "versionEndIncluding": "1.1.3.50.ve350c9b_450b_1"
+              }
+            }
+          }
+        ],
+        "first_patched_versions": [],
+        "vulnerable_ranges": [
+          "<= 1.1.3.50.ve350c9b"
+        ],
+        "epss": [
+          {
+            "probability": 0.00184,
+            "percentile": 0.07034
+          }
+        ],
+        "first_epss": {
+          "probability": 0.00184,
+          "percentile": 0.07163,
+          "score_date": "2026-10-01"
+        },
+        "github_advisories": [
+          "GHSA-43m2-hcmm-qpm7"
+        ],
+        "osv_affected_packages": [],
+        "osv_fixed_versions": []
+      },
+      "CVE-2026-57304": {
+        "cwes": [
+          "CWE-862"
+        ],
+        "nvd_exploit_urls": [],
+        "nvd_vendor_advisory_urls": [
+          "https://www.jenkins.io/security/advisory/2026-06-24/#SECURITY-3692%20(2)"
+        ],
+        "nvd_cpe_applicability": [
+          {
+            "target_key": "product:cpe23-sha256:f26ce595a29a0126bb3ec433e5dfe6ee627743c58b97ffa60be6b3e404a6d4de",
+            "qualifier": {
+              "state": "affected",
+              "source_semantics": "nvd_cpe",
+              "platform": "cpe:2.3:a:jenkins:assembla:*:*:*:*:*:jenkins:*:*",
+              "configuration": {
+                "root_index": 0,
+                "root_operator": null,
+                "root_negate": false,
+                "node_path": [
+                  0
+                ],
+                "node_operator": "OR",
+                "node_negate": false,
+                "match_index": 0,
+                "match_criteria_id": "CF48857F-46D2-4BB3-A90E-EBF623FEBEBE",
+                "root_snapshot": {
+                  "nodes": [
+                    {
+                      "operator": "OR",
+                      "negate": false,
+                      "cpeMatch": [
+                        {
+                          "vulnerable": true,
+                          "criteria": "cpe:2.3:a:jenkins:assembla:*:*:*:*:*:jenkins:*:*",
+                          "versionEndIncluding": "1.4",
+                          "matchCriteriaId": "CF48857F-46D2-4BB3-A90E-EBF623FEBEBE"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "version_range": {
+                "versionEndIncluding": "1.4"
+              }
+            }
+          }
+        ],
+        "first_patched_versions": [],
+        "vulnerable_ranges": [
+          "<= 1.4"
+        ],
+        "epss": [
+          {
+            "probability": 0.00254,
+            "percentile": 0.1513
+          }
+        ],
+        "first_epss": {
+          "probability": 0.00254,
+          "percentile": 0.15415,
+          "score_date": "2026-10-01"
+        },
+        "github_advisories": [
+          "GHSA-2r5w-jh6g-8hff"
+        ],
+        "osv_affected_packages": [
+          "package:maven:org.jenkins-ci.plugins:assembla"
+        ],
+        "osv_fixed_versions": []
+      },
+      "CVE-2026-57303": {
+        "cwes": [
+          "CWE-918"
+        ],
+        "nvd_exploit_urls": [],
+        "nvd_vendor_advisory_urls": [
+          "https://www.jenkins.io/security/advisory/2026-06-24/#SECURITY-3692%20(1)"
+        ],
+        "nvd_cpe_applicability": [
+          {
+            "target_key": "product:cpe23-sha256:f26ce595a29a0126bb3ec433e5dfe6ee627743c58b97ffa60be6b3e404a6d4de",
+            "qualifier": {
+              "state": "affected",
+              "source_semantics": "nvd_cpe",
+              "platform": "cpe:2.3:a:jenkins:assembla:*:*:*:*:*:jenkins:*:*",
+              "configuration": {
+                "root_index": 0,
+                "root_operator": null,
+                "root_negate": false,
+                "node_path": [
+                  0
+                ],
+                "node_operator": "OR",
+                "node_negate": false,
+                "match_index": 0,
+                "match_criteria_id": "CF48857F-46D2-4BB3-A90E-EBF623FEBEBE",
+                "root_snapshot": {
+                  "nodes": [
+                    {
+                      "operator": "OR",
+                      "negate": false,
+                      "cpeMatch": [
+                        {
+                          "vulnerable": true,
+                          "criteria": "cpe:2.3:a:jenkins:assembla:*:*:*:*:*:jenkins:*:*",
+                          "versionEndIncluding": "1.4",
+                          "matchCriteriaId": "CF48857F-46D2-4BB3-A90E-EBF623FEBEBE"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "version_range": {
+                "versionEndIncluding": "1.4"
+              }
+            }
+          }
+        ],
+        "first_patched_versions": [],
+        "vulnerable_ranges": [
+          "<= 1.4"
+        ],
+        "epss": [
+          {
+            "probability": 0.00359,
+            "percentile": 0.26858
+          }
+        ],
+        "first_epss": {
+          "probability": 0.00359,
+          "percentile": 0.27251,
+          "score_date": "2026-10-01"
+        },
+        "github_advisories": [
+          "GHSA-2q27-6p2h-q6r3"
+        ],
+        "osv_affected_packages": [
+          "package:maven:org.jenkins-ci.plugins:assembla"
+        ],
+        "osv_fixed_versions": []
+      },
+      "CVE-2026-57302": {
+        "cwes": [
+          "CWE-256"
+        ],
+        "nvd_exploit_urls": [],
+        "nvd_vendor_advisory_urls": [
+          "https://www.jenkins.io/security/advisory/2026-06-24/#SECURITY-3555"
+        ],
+        "nvd_cpe_applicability": [
+          {
+            "target_key": "product:cpe23-sha256:bc2556c65f3dc4c680e5433efa7b8c6e41edd313b83cda29c05a3e81fb6b71bf",
+            "qualifier": {
+              "state": "affected",
+              "source_semantics": "nvd_cpe",
+              "platform": "cpe:2.3:a:jenkins:fitnesse:*:*:*:*:*:jenkins:*:*",
+              "configuration": {
+                "root_index": 0,
+                "root_operator": null,
+                "root_negate": false,
+                "node_path": [
+                  0
+                ],
+                "node_operator": "OR",
+                "node_negate": false,
+                "match_index": 0,
+                "match_criteria_id": "A9A99457-45B9-4255-BB61-E64DADD3CC47",
+                "root_snapshot": {
+                  "nodes": [
+                    {
+                      "operator": "OR",
+                      "negate": false,
+                      "cpeMatch": [
+                        {
+                          "vulnerable": true,
+                          "criteria": "cpe:2.3:a:jenkins:fitnesse:*:*:*:*:*:jenkins:*:*",
+                          "versionEndIncluding": "1.36",
+                          "matchCriteriaId": "A9A99457-45B9-4255-BB61-E64DADD3CC47"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "version_range": {
+                "versionEndIncluding": "1.36"
+              }
+            }
+          }
+        ],
+        "first_patched_versions": [],
+        "vulnerable_ranges": [
+          "<= 1.36"
+        ],
+        "epss": [
+          {
+            "probability": 0.00281,
+            "percentile": 0.18537
+          }
+        ],
+        "first_epss": {
+          "probability": 0.00281,
+          "percentile": 0.18564,
+          "score_date": "2026-10-01"
+        },
+        "github_advisories": [
+          "GHSA-j4ph-wp3c-c37w"
+        ],
+        "osv_affected_packages": [
+          "package:maven:org.jenkins-ci.plugins:fitnesse"
+        ],
+        "osv_fixed_versions": []
+      },
+      "CVE-2026-86439": {
+        "cwes": [
+          "CWE-22"
+        ],
+        "nvd_exploit_urls": [],
+        "nvd_vendor_advisory_urls": [],
+        "nvd_cpe_applicability": [],
+        "first_patched_versions": [
+          "0.30.0"
+        ],
+        "vulnerable_ranges": [
+          "<= 0.29.1"
+        ],
+        "epss": [
+          {
+            "probability": 0.01079,
+            "percentile": 0.63578
+          }
+        ],
+        "first_epss": {
+          "probability": 0.01079,
+          "percentile": 0.63817,
+          "score_date": "2026-10-01"
+        },
+        "github_advisories": [
+          "GHSA-9gfj-28hw-jchp"
+        ],
+        "osv_affected_packages": [
+          "package:npm:knowns"
+        ],
+        "osv_fixed_versions": [
+          "0.30.0"
+        ]
+      }
+    }
+  }
+}

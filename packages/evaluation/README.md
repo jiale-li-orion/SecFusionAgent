@@ -501,32 +501,21 @@ service-level asset feed, those regression cases are **not** promoted into the l
 denominator. The InternetDB 1/1 suite therefore remains the only formal live asset checkpoint and
 must not be described as general asset affectedness accuracy.
 
-### Latest formal M3 checkpoint — 2026-09-28
+### Current formal evidence projection
 
-The latest M3 evidence is persisted under one clean DeploymentRevision rather than existing only as
-local probe JSON:
+Current benchmark coordinates and scores are maintained under `benchmarks/` rather than copied into
+this module README. `benchmarks/m3/current-structured.json` is the reviewed structured-provider
+replay, `benchmarks/m3/current-csaf-vex.json` is the Red Hat source-specific replay, and
+`benchmarks/competition/current.json` is the combined CompetitionReport built from one explicit
+same-deployment run set. `benchmarks/competition/current.md` is generated from that JSON and exposes
+the target checks, aggregate metrics, drill-down run/case coordinates and every area that remains
+`not_evaluated`.
 
-- Deployment: `deployment:ae519f4d4d188800f566e669b6c16a25`
-- Git coordinate: `d919dbdb6f7592b0846ed66997ce540e2a6603ea`
-- Structured suite/run: `m3-real-structured@6` / `1f49b686-7c57-4b6d-9f86-4ae82f91cc47`
-- Structured gold: `real-structured:7bd4d0be08d71f87e2a9d7c1462b7084f92b327b59a83f37c07734270d3fd944`
-- Structured frozen provider world: `provider-snapshot:97af8fc348b5bb34382971e045dc57324d381e3897e8ee6e355ff165144c2eb0`
-- Red Hat CSAF/VEX suite/run: `m3-redhat-csaf-vex@4` / `a373b1ea-f5fe-4f67-b6ff-aca8a321b36e`
-- CSAF/VEX gold: `csaf-vex:b8d7557895ad1676756180d52c605ad97ccb787c3be759ffc0e710033b6dfd5c`
-- CSAF/VEX provider world: `provider-snapshot:cba7f1e65b1c5996b0137cfb9ddeb42a72876bff5a3fb38c34d9767bdaaee5bb`
-- CSAF/VEX source-specific CompetitionReport: `0154370d-59c7-454d-9396-e6f6830cd8b4`
-- Current combined CompetitionReport: `ca75f185-32aa-4c65-b79c-85e69f29fceb`
-- Combined report digest: `656fd526ae4cae34fd2b3e888f45a084da17ad32fda31a5d4f36b61940721e1b`
+Formal batches freeze one DeploymentRevision while the repository is clean and write runner outputs
+outside the tracked tree first. Only after all selected runs have completed is the reviewed result
+projected into `benchmarks/**/current.*`. This keeps evidence publication from changing the Git dirty
+coordinate halfway through a same-deployment benchmark batch. The explicit run-set manifest is the
+authority for report composition; report tooling never searches for a newest run implicitly.
 
-`m3-real-structured@6` contributes **210 TP / 0 FP / 0 FN** and
-`m3-redhat-csaf-vex@4` contributes **83 TP / 0 FP / 0 FN**. The combined report therefore aggregates
-**293 TP / 0 FP / 0 FN** across 15 case-runs; advisory/reference contributes **21 TP** across the
-two suites. M3 micro precision and recall are both `1.0` and pass
-the `>=0.95` development targets. This is a multi-suite aggregate: the two gold sets and provider
-world snapshots remain distinct rather than being flattened into one artificial 293-fact dataset.
-Source-category coverage is not part of this selected run set and is therefore `not_evaluated` in
-this report; M6 QA, Agent runtime and fault/recovery also remain explicitly unevaluated rather than
-receiving inferred or zero-filled values.
-
-The previous `m3-real-structured@3` / 204-fact checkpoint remains a historical baseline for the
-pre-Vendor-Advisory evaluator surface; it is not the current formal M3 structured revision.
+Older suite/report coordinates in the sections above are historical checkpoints. They remain useful
+for regression archaeology but no longer serve as the source of the current competition summary.

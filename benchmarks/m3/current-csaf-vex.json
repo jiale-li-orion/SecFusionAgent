@@ -1,0 +1,148 @@
+{
+  "profile": "redhat-csaf-vex-source-specific-v2",
+  "fetched_at": "2026-10-01T15:17:53.599369+00:00",
+  "cases": [
+    "CVE-2026-67215",
+    "CVE-2024-3094",
+    "CVE-2025-32463"
+  ],
+  "formal_dimensions": [
+    "version_applicability",
+    "advisory_reference"
+  ],
+  "gold_revision": "csaf-vex:b8d7557895ad1676756180d52c605ad97ccb787c3be759ffc0e710033b6dfd5c",
+  "provider_snapshot_revision": "provider-snapshot:cba7f1e65b1c5996b0137cfb9ddeb42a72876bff5a3fb38c34d9767bdaaee5bb",
+  "gold_source_mode": "frozen_snapshot_replay",
+  "gold_fact_count": 83,
+  "prediction_count": 83,
+  "score": {
+    "true_positive": 83,
+    "false_positive": 0,
+    "false_negative": 0,
+    "micro_precision": 1.0,
+    "micro_recall": 1.0,
+    "dimension_macro_precision": 1.0,
+    "dimension_macro_recall": 1.0,
+    "dimensions": [
+      {
+        "dimension": "advisory_reference",
+        "true_positive": 3,
+        "false_positive": 0,
+        "false_negative": 0,
+        "precision": 1.0,
+        "recall": 1.0
+      },
+      {
+        "dimension": "version_applicability",
+        "true_positive": 80,
+        "false_positive": 0,
+        "false_negative": 0,
+        "precision": 1.0,
+        "recall": 1.0
+      }
+    ]
+  },
+  "case_scores": {
+    "CVE-2026-67215": {
+      "gold_fact_count": 9,
+      "prediction_count": 9,
+      "score": {
+        "true_positive": 9,
+        "false_positive": 0,
+        "false_negative": 0,
+        "micro_precision": 1.0,
+        "micro_recall": 1.0,
+        "dimension_macro_precision": 1.0,
+        "dimension_macro_recall": 1.0,
+        "dimensions": [
+          {
+            "dimension": "advisory_reference",
+            "true_positive": 1,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "version_applicability",
+            "true_positive": 8,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          }
+        ]
+      }
+    },
+    "CVE-2024-3094": {
+      "gold_fact_count": 27,
+      "prediction_count": 27,
+      "score": {
+        "true_positive": 27,
+        "false_positive": 0,
+        "false_negative": 0,
+        "micro_precision": 1.0,
+        "micro_recall": 1.0,
+        "dimension_macro_precision": 1.0,
+        "dimension_macro_recall": 1.0,
+        "dimensions": [
+          {
+            "dimension": "advisory_reference",
+            "true_positive": 1,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "version_applicability",
+            "true_positive": 26,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          }
+        ]
+      }
+    },
+    "CVE-2025-32463": {
+      "gold_fact_count": 47,
+      "prediction_count": 47,
+      "score": {
+        "true_positive": 47,
+        "false_positive": 0,
+        "false_negative": 0,
+        "micro_precision": 1.0,
+        "micro_recall": 1.0,
+        "dimension_macro_precision": 1.0,
+        "dimension_macro_recall": 1.0,
+        "dimensions": [
+          {
+            "dimension": "advisory_reference",
+            "true_positive": 1,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          {
+            "dimension": "version_applicability",
+            "true_positive": 46,
+            "false_positive": 0,
+            "false_negative": 0,
+            "precision": 1.0,
+            "recall": 1.0
+          }
+        ]
+      }
+    }
+  },
+  "missing_facts": [],
+  "extra_facts": [],
+  "status_counts": {
+    "affected": 1,
+    "not_affected": 46,
+    "fixed": 33,
+    "under_investigation": 0
+  }
+}

@@ -101,25 +101,19 @@ The active M3 implementation backlog is therefore:
 
 Processor-version refresh is expected to be replay-safe. The canonical writer and NVD durable normalizer reactivate an identical immutable claim/relation when a newer processor run supersedes the previous active source projection and then reproduces the same normalized tuple. This prevents mapper upgrades from accidentally making stable facts disappear.
 
-The deterministic structured path is continuously checked against live provider gold rather than
-fixtures alone. The current durable TD3 checkpoint is `m3-real-structured@6`: the same frozen
-12-CVE case list now contains **210 formal facts / 210 TP / 0 FP / 0 FN** after adding six NVD
-`Vendor Advisory` assertions and closing the evaluated provider universe. It is bound to deployment
-`deployment:ae519f4d4d188800f566e669b6c16a25`, run
-`1f49b686-7c57-4b6d-9f86-4ae82f91cc47`, and gold revision
-`real-structured:7bd4d0be08d71f87e2a9d7c1462b7084f92b327b59a83f37c07734270d3fd944`.
-Gold-bearing dimension counts are now:
-severity 48, weakness 15, product/package 16, qualifier-aware version applicability 47,
-fix/remediation 18, exploit likelihood 48, and advisory/reference **18**.
+The deterministic structured path is continuously checked against provider-derived gold rather than
+fixtures alone. The reviewed structured result and its frozen raw provider world live under
+`benchmarks/m3/`; dynamic fact counts, TP/FP/FN, run IDs and gold/provider revisions are read from
+those machine-readable artifacts and from the generated combined CompetitionReport instead of being
+duplicated here.
 
 The main structured runner now also closes its **source universe** explicitly. Snapshot schema
 `real-structured-provider-snapshot-v1` evaluates only NVD, GitHub Global Advisories, OSV, FIRST
 EPSS, and CISA KEV. Canonical facts backed only by sources outside that frozen world remain in
-Knowledge but are reported as `out_of_scope_prediction_count` instead of false positives. On the
-210-fact replay, current Knowledge contained 25 such predictions (primarily CVE5 facts already
-covered by their own source-specific suite); none entered TP/FP/FN. This prevents a newly connected
-provider from making an older frozen suite appear less precise merely because that suite did not
-freeze the new provider's world state.
+Knowledge but are reported as `out_of_scope_prediction_count` instead of false positives. Those
+diagnostic predictions do not enter TP/FP/FN. This prevents a newly connected provider from making
+an older frozen suite appear less precise merely because that suite did not freeze the new provider's
+world state.
 
 Red Hat CSAF/VEX now has a separate source-specific applicability path and benchmark rather than
 being flattened into generic vendor assertions. `redhat-csaf-vex` performs exact-CVE lookup against
@@ -130,32 +124,12 @@ full CSAF product ID, component/platform relationship, PURL/CPE identification h
 justifications. The evaluator independently reparses the persisted raw CSAF EvidenceArtifact and
 filters predictions to Red Hat Evidence only; it does not reuse the production mapper.
 
-The current advisory-expanded frozen stratum is revision 4 and deliberately combines three different VEX
-shapes: `CVE-2026-67215` contributes **1 `affected` + 7 `not_affected`** assertions with two live
-justification classes (`vulnerable_code_not_present` and `component_not_present`),
-`CVE-2024-3094` contributes **26 `not_affected`** assertions, and `CVE-2025-32463` contributes
-**33 `fixed` + 13 `not_affected`** assertions. The same three persisted VEX documents now also
-contribute one formal `vendor-advisory` fact each, so the result is **83 formal facts / 83 TP /
-0 FP / 0 FN**: 80 `version_applicability` plus 3 `advisory_reference`. Gold revision is
-`csaf-vex:b8d7557895ad1676756180d52c605ad97ccb787c3be759ffc0e710033b6dfd5c` and provider-world
-coordinate `provider-snapshot:cba7f1e65b1c5996b0137cfb9ddeb42a72876bff5a3fb38c34d9767bdaaee5bb`.
-`under_investigation` is implemented in the contract and mapper but is still not claimed as live
-positive coverage because this frozen stratum contains no such Red Hat status. The durable TD3
-coordinates are suite `m3-redhat-csaf-vex@4`, run
-`a373b1ea-f5fe-4f67-b6ff-aca8a321b36e`, deployment
-`deployment:ae519f4d4d188800f566e669b6c16a25`, and source-specific CompetitionReport
-`0154370d-59c7-454d-9396-e6f6830cd8b4` (digest
-`66b70c6138e1197715d0b45d4c90643737d765f6570f5b6764a76650acc3fc80`). Earlier suite revisions
-remain immutable historical checkpoints; revision 2 is the prior 80-fact applicability-only stratum.
-
-The structured@6 and CSAF/VEX@4 runs are aggregated into current CompetitionReport
-`ca75f185-32aa-4c65-b79c-85e69f29fceb` (digest
-`656fd526ae4cae34fd2b3e888f45a084da17ad32fda31a5d4f36b61940721e1b`). Across the two explicit
-M3 suites the report contains **293 TP / 0 FP / 0 FN** across 15 case-runs; advisory/reference now
-contributes **21 TP** across the two provider worlds. Micro precision and recall are both `1.0` and
-pass the `>=0.95` development targets. The 293 count is a multi-suite report aggregate, not one
-merged 293-fact gold set; the structured and CSAF provider worlds remain
-separately versioned.
+The frozen Red Hat stratum deliberately combines affected, not-affected and fixed VEX shapes plus
+vendor-advisory evidence. `under_investigation` is implemented in the contract and mapper but is not
+claimed as live positive coverage until a frozen stratum contains that status. Current source-specific
+counts and coordinates are maintained in `benchmarks/m3/current-csaf-vex.json`; combined M3 metrics
+are derived by CompetitionReport from explicit structured and CSAF/VEX runs, while their provider
+worlds remain separately versioned.
 
 A separate recent CISA KEV stratum exercises positive exploit-state coverage: 6 real KEV CVEs,
 51 formal facts overall, `51 TP / 0 FP / 0 FN`, including `known_exploited` **6/6**. Keeping this

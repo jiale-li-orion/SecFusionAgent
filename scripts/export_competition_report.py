@@ -5,13 +5,63 @@ import asyncio
 import json
 from pathlib import Path
 
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import select
 
 from apps.runtime_models import register_runtime_models
 from packages.evaluation.benchmark import CompetitionReport, CompetitionReportService
-from packages.evaluation.benchmark.storage import BenchmarkRunModel
+from packages.evaluation.benchmark.storage import BenchmarkCaseRunModel, BenchmarkRunModel
+from packages.evaluation.competition_status import render_competition_report_markdown
 from packages.shared.config import get_settings
 from packages.shared.db import create_engine, create_session_factory
+
+
+class CompetitionRunSet(BaseModel):
+    schema_version: str = "competition-run-set-v1"
+    deployment_revision_id: str = Field(min_length=1)
+    benchmark_run_ids: list[str] = Field(min_length=1)
+    artifact_refs: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_run_set(self) -> CompetitionRunSet:
+        if self.schema_version != "competition-run-set-v1":
+            raise ValueError("unsupported competition run-set schema")
+        if len(set(self.benchmark_run_ids)) != len(self.benchmark_run_ids):
+            raise ValueError("competition run-set benchmark ids must be unique")
+        if len(set(self.artifact_refs)) != len(self.artifact_refs):
+            raise ValueError("competition run-set artifact refs must be unique")
+        return self
+
+
+def _load_run_set(path: Path) -> CompetitionRunSet:
+    return CompetitionRunSet.model_validate_json(path.read_text(encoding="utf-8"))
+
+
+def _validate_provider_snapshot_refs(
+    *,
+    run_world_snapshot_refs: list[str | None],
+    case_artifact_refs: list[list[str]],
+    declared_artifact_refs: list[str],
+) -> None:
+    if not declared_artifact_refs:
+        return
+    required = {
+        ref
+        for ref in run_world_snapshot_refs
+        if isinstance(ref, str) and ref.startswith("provider-snapshot:")
+    }
+    required.update(
+        ref
+        for refs in case_artifact_refs
+        for ref in refs
+        if ref.startswith("provider-snapshot:")
+    )
+    missing = sorted(required - set(declared_artifact_refs))
+    if missing:
+        raise ValueError(
+            "competition report artifact refs omit provider snapshots bound to selected runs: "
+            f"{missing}"
+        )
 
 
 async def _export(
@@ -52,6 +102,18 @@ async def _export(
                 raise ValueError(
                     "selected benchmark runs do not belong to the requested deployment revision"
                 )
+            artifact_rows = list(
+                await session.scalars(
+                    select(BenchmarkCaseRunModel.artifact_refs_json).where(
+                        BenchmarkCaseRunModel.benchmark_run_id.in_(run_ids)
+                    )
+                )
+            )
+            _validate_provider_snapshot_refs(
+                run_world_snapshot_refs=[item.world_snapshot_ref for item in runs],
+                case_artifact_refs=[list(item) for item in artifact_rows],
+                declared_artifact_refs=artifact_refs,
+            )
             return await CompetitionReportService().generate_and_persist(
                 session,
                 deployment_revision_id=resolved_deployment_id,
@@ -62,71 +124,6 @@ async def _export(
         await engine.dispose()
 
 
-def _markdown(report: CompetitionReport) -> str:
-    lines = [
-        "# SecFusionAgent Competition Evaluation Report",
-        "",
-        f"- Report: `{report.report_id}`",
-        f"- Digest: `{report.report_digest}`",
-        f"- Deployment: `{report.deployment_revision_id}`",
-        f"- Benchmark runs: {', '.join(f'`{item}`' for item in report.benchmark_run_ids)}",
-        f"- Generated at: `{report.generated_at.isoformat()}`",
-        "",
-        "## Competition target checks",
-        "",
-        "| Target | Metric | Observed | Requirement | Status |",
-        "| --- | --- | ---: | --- | --- |",
-    ]
-    for check in report.target_checks:
-        observed = "—" if check.observed_value is None else f"{check.observed_value:.6g}"
-        lines.append(
-            f"| {check.target_name} | `{check.metric_name}` | {observed} | "
-            f"{check.comparator} {check.threshold:g} | **{check.status.value}** |"
-        )
-    lines.extend(
-        [
-            "",
-            "## Metrics",
-            "",
-            "| Metric | Value | Unit | Definition | Aggregation | Cases |",
-            "| --- | ---: | --- | --- | --- | ---: |",
-        ]
-    )
-    for metric in report.metrics:
-        lines.append(
-            f"| `{metric.metric_name}` | {metric.value:.6g} | {metric.unit or '—'} | "
-            f"`@{metric.metric_definition_revision}` | {metric.aggregation.value} | "
-            f"{metric.observation_count} |"
-        )
-    lines.extend(["", "## Metric definitions", ""])
-    for metric in report.metrics:
-        lines.extend(
-            [
-                f"### `{metric.metric_name}@{metric.metric_definition_revision}`",
-                "",
-                f"- denominator: {metric.denominator}",
-                f"- missing-value policy: `{metric.missing_value_policy.value}`",
-                f"- direction: `{metric.direction.value}`",
-                "",
-            ]
-        )
-    lines.extend(["## Not evaluated", ""])
-    if report.unevaluated_competition_areas:
-        lines.extend(f"- {item}" for item in report.unevaluated_competition_areas)
-    else:
-        lines.append("- None")
-    lines.extend(["", "## Drill-down coordinates", ""])
-    for metric in report.metrics:
-        lines.append(
-            f"- `{metric.metric_name}`: runs={metric.benchmark_run_ids}; "
-            f"case_runs={metric.case_run_ids}"
-        )
-    if report.artifact_refs:
-        lines.extend(["", "## Artifacts", ""])
-        lines.extend(f"- `{item}`" for item in report.artifact_refs)
-    return "\n".join(lines) + "\n"
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Generate and persist a competition report from completed benchmark runs"
@@ -135,16 +132,29 @@ def main() -> None:
     parser.add_argument("--run-id", action="append", default=[])
     parser.add_argument("--deployment-revision-id")
     parser.add_argument("--artifact-ref", action="append", default=[])
+    parser.add_argument("--run-set-manifest", type=Path)
     parser.add_argument("--json-output", type=Path)
     parser.add_argument("--markdown-output", type=Path)
     parser.add_argument("--output", type=Path, help="legacy alias for --json-output")
     args = parser.parse_args()
     run_ids = [*args.run_ids, *args.run_id]
+    deployment_revision_id = args.deployment_revision_id
+    artifact_refs = list(args.artifact_ref)
+    if args.run_set_manifest is not None:
+        if run_ids or deployment_revision_id is not None or artifact_refs:
+            parser.error(
+                "--run-set-manifest cannot be combined with run IDs, deployment ID, "
+                "or artifact refs"
+            )
+        run_set = _load_run_set(args.run_set_manifest)
+        run_ids = list(run_set.benchmark_run_ids)
+        deployment_revision_id = run_set.deployment_revision_id
+        artifact_refs = list(run_set.artifact_refs)
     report = asyncio.run(
         _export(
             run_ids,
-            deployment_revision_id=args.deployment_revision_id,
-            artifact_refs=args.artifact_ref,
+            deployment_revision_id=deployment_revision_id,
+            artifact_refs=artifact_refs,
         )
     )
     payload = report.model_dump(mode="json")
@@ -155,7 +165,10 @@ def main() -> None:
         json_output.write_text(rendered, encoding="utf-8")
     if args.markdown_output is not None:
         args.markdown_output.parent.mkdir(parents=True, exist_ok=True)
-        args.markdown_output.write_text(_markdown(report), encoding="utf-8")
+        args.markdown_output.write_text(
+            render_competition_report_markdown(report),
+            encoding="utf-8",
+        )
     print(rendered, end="")
 
 

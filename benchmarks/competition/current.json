@@ -1,0 +1,1408 @@
+{
+  "report_id": "97124d5a-0622-49b4-841c-d68bbc1d6ff6",
+  "report_digest": "3eb03a81bd332147b27ad48805f856f0a0055244afa303320f2927171ecee671",
+  "deployment_revision_id": "deployment:cdf7f3d1be6deb3316cad1ae590737ed",
+  "benchmark_run_ids": [
+    "535d8476-ea17-4084-be10-78b409ef65c8",
+    "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9",
+    "cc47bffe-99c0-4084-a3f0-3c4359fbe0e4"
+  ],
+  "generated_at": "2026-10-01T15:49:01.409795Z",
+  "metrics": [
+    {
+      "metric_name": "m1.monitoring.evaluable_coverage",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "last",
+      "denominator": "all monitoring latency samples in the frozen window",
+      "missing_value_policy": "fail",
+      "direction": "higher_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "83a79ca9-d816-4211-8371-f9c708d39fa3"
+      ],
+      "benchmark_run_ids": [
+        "535d8476-ea17-4084-be10-78b409ef65c8"
+      ]
+    },
+    {
+      "metric_name": "m1.monitoring.max_seconds",
+      "metric_definition_revision": "1",
+      "value": 7241.893449,
+      "unit": "seconds",
+      "aggregation": "last",
+      "denominator": "latency-evaluable samples only",
+      "missing_value_policy": "not_evaluated",
+      "direction": "lower_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "83a79ca9-d816-4211-8371-f9c708d39fa3"
+      ],
+      "benchmark_run_ids": [
+        "535d8476-ea17-4084-be10-78b409ef65c8"
+      ]
+    },
+    {
+      "metric_name": "m1.monitoring.p50_seconds",
+      "metric_definition_revision": "1",
+      "value": 357.708647,
+      "unit": "seconds",
+      "aggregation": "last",
+      "denominator": "latency-evaluable samples only",
+      "missing_value_policy": "not_evaluated",
+      "direction": "lower_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "83a79ca9-d816-4211-8371-f9c708d39fa3"
+      ],
+      "benchmark_run_ids": [
+        "535d8476-ea17-4084-be10-78b409ef65c8"
+      ]
+    },
+    {
+      "metric_name": "m1.monitoring.p95_seconds",
+      "metric_definition_revision": "1",
+      "value": 7241.893449,
+      "unit": "seconds",
+      "aggregation": "last",
+      "denominator": "latency-evaluable samples only",
+      "missing_value_policy": "not_evaluated",
+      "direction": "lower_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "83a79ca9-d816-4211-8371-f9c708d39fa3"
+      ],
+      "benchmark_run_ids": [
+        "535d8476-ea17-4084-be10-78b409ef65c8"
+      ]
+    },
+    {
+      "metric_name": "m1.monitoring.within_6h_rate",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "last",
+      "denominator": "latency-evaluable samples only",
+      "missing_value_policy": "not_evaluated",
+      "direction": "higher_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "83a79ca9-d816-4211-8371-f9c708d39fa3"
+      ],
+      "benchmark_run_ids": [
+        "535d8476-ea17-4084-be10-78b409ef65c8"
+      ]
+    },
+    {
+      "metric_name": "m1.source_category_count",
+      "metric_definition_revision": "1",
+      "value": 8.0,
+      "unit": "categories",
+      "aggregation": "last",
+      "denominator": "fixed eight-category product source taxonomy",
+      "missing_value_policy": "fail",
+      "direction": "higher_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "0f687a06-c1d4-4c72-806f-a9c89af46122"
+      ],
+      "benchmark_run_ids": [
+        "535d8476-ea17-4084-be10-78b409ef65c8"
+      ]
+    },
+    {
+      "metric_name": "m1.source_delivery_coverage",
+      "metric_definition_revision": "1",
+      "value": 0.6153846153846154,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "frozen expected source delivery keys",
+      "missing_value_policy": "not_evaluated",
+      "direction": "higher_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "3bd313aa-25f1-40a0-964b-2d675603bd5d"
+      ],
+      "benchmark_run_ids": [
+        "535d8476-ea17-4084-be10-78b409ef65c8"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.advisory_reference.false_negative",
+      "metric_definition_revision": "1",
+      "value": 0.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "lower_is_better",
+      "observation_count": 15,
+      "case_run_ids": [
+        "16eb854b-956e-4f22-b3c2-9713c0bde61c",
+        "180558e6-71f3-41cd-9483-853d9e1670e2",
+        "26b50558-aa40-4d21-a98f-9a299f137014",
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "2d828d1b-1f7a-4080-81d8-ec503488f898",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "aabb359f-acbb-4b81-a25d-c04cd730c9e8",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974",
+        "e627f284-d70d-47a1-a41e-903ab1a1142a",
+        "faaaa49c-007c-41a3-9eba-b173d504e785",
+        "fed93fbd-fd0c-4e62-aa4d-469935f4866f",
+        "fef17dd5-2963-4de4-8cb9-0112d17935bc"
+      ],
+      "benchmark_run_ids": [
+        "cc47bffe-99c0-4084-a3f0-3c4359fbe0e4",
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.advisory_reference.false_positive",
+      "metric_definition_revision": "1",
+      "value": 0.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "lower_is_better",
+      "observation_count": 15,
+      "case_run_ids": [
+        "16eb854b-956e-4f22-b3c2-9713c0bde61c",
+        "180558e6-71f3-41cd-9483-853d9e1670e2",
+        "26b50558-aa40-4d21-a98f-9a299f137014",
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "2d828d1b-1f7a-4080-81d8-ec503488f898",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "aabb359f-acbb-4b81-a25d-c04cd730c9e8",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974",
+        "e627f284-d70d-47a1-a41e-903ab1a1142a",
+        "faaaa49c-007c-41a3-9eba-b173d504e785",
+        "fed93fbd-fd0c-4e62-aa4d-469935f4866f",
+        "fef17dd5-2963-4de4-8cb9-0112d17935bc"
+      ],
+      "benchmark_run_ids": [
+        "cc47bffe-99c0-4084-a3f0-3c4359fbe0e4",
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.advisory_reference.precision",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "higher_is_better",
+      "observation_count": 15,
+      "case_run_ids": [
+        "16eb854b-956e-4f22-b3c2-9713c0bde61c",
+        "180558e6-71f3-41cd-9483-853d9e1670e2",
+        "26b50558-aa40-4d21-a98f-9a299f137014",
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "2d828d1b-1f7a-4080-81d8-ec503488f898",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "aabb359f-acbb-4b81-a25d-c04cd730c9e8",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974",
+        "e627f284-d70d-47a1-a41e-903ab1a1142a",
+        "faaaa49c-007c-41a3-9eba-b173d504e785",
+        "fed93fbd-fd0c-4e62-aa4d-469935f4866f",
+        "fef17dd5-2963-4de4-8cb9-0112d17935bc"
+      ],
+      "benchmark_run_ids": [
+        "cc47bffe-99c0-4084-a3f0-3c4359fbe0e4",
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.advisory_reference.recall",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "higher_is_better",
+      "observation_count": 15,
+      "case_run_ids": [
+        "16eb854b-956e-4f22-b3c2-9713c0bde61c",
+        "180558e6-71f3-41cd-9483-853d9e1670e2",
+        "26b50558-aa40-4d21-a98f-9a299f137014",
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "2d828d1b-1f7a-4080-81d8-ec503488f898",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "aabb359f-acbb-4b81-a25d-c04cd730c9e8",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974",
+        "e627f284-d70d-47a1-a41e-903ab1a1142a",
+        "faaaa49c-007c-41a3-9eba-b173d504e785",
+        "fed93fbd-fd0c-4e62-aa4d-469935f4866f",
+        "fef17dd5-2963-4de4-8cb9-0112d17935bc"
+      ],
+      "benchmark_run_ids": [
+        "cc47bffe-99c0-4084-a3f0-3c4359fbe0e4",
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.advisory_reference.true_positive",
+      "metric_definition_revision": "1",
+      "value": 21.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "informational",
+      "observation_count": 15,
+      "case_run_ids": [
+        "16eb854b-956e-4f22-b3c2-9713c0bde61c",
+        "180558e6-71f3-41cd-9483-853d9e1670e2",
+        "26b50558-aa40-4d21-a98f-9a299f137014",
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "2d828d1b-1f7a-4080-81d8-ec503488f898",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "aabb359f-acbb-4b81-a25d-c04cd730c9e8",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974",
+        "e627f284-d70d-47a1-a41e-903ab1a1142a",
+        "faaaa49c-007c-41a3-9eba-b173d504e785",
+        "fed93fbd-fd0c-4e62-aa4d-469935f4866f",
+        "fef17dd5-2963-4de4-8cb9-0112d17935bc"
+      ],
+      "benchmark_run_ids": [
+        "cc47bffe-99c0-4084-a3f0-3c4359fbe0e4",
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.exploit_likelihood.false_negative",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "lower_is_better",
+      "observation_count": 12,
+      "case_run_ids": [
+        "16eb854b-956e-4f22-b3c2-9713c0bde61c",
+        "180558e6-71f3-41cd-9483-853d9e1670e2",
+        "26b50558-aa40-4d21-a98f-9a299f137014",
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "2d828d1b-1f7a-4080-81d8-ec503488f898",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974",
+        "e627f284-d70d-47a1-a41e-903ab1a1142a",
+        "faaaa49c-007c-41a3-9eba-b173d504e785"
+      ],
+      "benchmark_run_ids": [
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.exploit_likelihood.false_positive",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "lower_is_better",
+      "observation_count": 12,
+      "case_run_ids": [
+        "16eb854b-956e-4f22-b3c2-9713c0bde61c",
+        "180558e6-71f3-41cd-9483-853d9e1670e2",
+        "26b50558-aa40-4d21-a98f-9a299f137014",
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "2d828d1b-1f7a-4080-81d8-ec503488f898",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974",
+        "e627f284-d70d-47a1-a41e-903ab1a1142a",
+        "faaaa49c-007c-41a3-9eba-b173d504e785"
+      ],
+      "benchmark_run_ids": [
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.exploit_likelihood.precision",
+      "metric_definition_revision": "1",
+      "value": 0.9791666666666666,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "higher_is_better",
+      "observation_count": 12,
+      "case_run_ids": [
+        "16eb854b-956e-4f22-b3c2-9713c0bde61c",
+        "180558e6-71f3-41cd-9483-853d9e1670e2",
+        "26b50558-aa40-4d21-a98f-9a299f137014",
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "2d828d1b-1f7a-4080-81d8-ec503488f898",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974",
+        "e627f284-d70d-47a1-a41e-903ab1a1142a",
+        "faaaa49c-007c-41a3-9eba-b173d504e785"
+      ],
+      "benchmark_run_ids": [
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.exploit_likelihood.recall",
+      "metric_definition_revision": "1",
+      "value": 0.9791666666666666,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "higher_is_better",
+      "observation_count": 12,
+      "case_run_ids": [
+        "16eb854b-956e-4f22-b3c2-9713c0bde61c",
+        "180558e6-71f3-41cd-9483-853d9e1670e2",
+        "26b50558-aa40-4d21-a98f-9a299f137014",
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "2d828d1b-1f7a-4080-81d8-ec503488f898",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974",
+        "e627f284-d70d-47a1-a41e-903ab1a1142a",
+        "faaaa49c-007c-41a3-9eba-b173d504e785"
+      ],
+      "benchmark_run_ids": [
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.exploit_likelihood.true_positive",
+      "metric_definition_revision": "1",
+      "value": 47.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "informational",
+      "observation_count": 12,
+      "case_run_ids": [
+        "16eb854b-956e-4f22-b3c2-9713c0bde61c",
+        "180558e6-71f3-41cd-9483-853d9e1670e2",
+        "26b50558-aa40-4d21-a98f-9a299f137014",
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "2d828d1b-1f7a-4080-81d8-ec503488f898",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974",
+        "e627f284-d70d-47a1-a41e-903ab1a1142a",
+        "faaaa49c-007c-41a3-9eba-b173d504e785"
+      ],
+      "benchmark_run_ids": [
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.fix_remediation.false_negative",
+      "metric_definition_revision": "1",
+      "value": 0.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "lower_is_better",
+      "observation_count": 6,
+      "case_run_ids": [
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974"
+      ],
+      "benchmark_run_ids": [
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.fix_remediation.false_positive",
+      "metric_definition_revision": "1",
+      "value": 0.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "lower_is_better",
+      "observation_count": 6,
+      "case_run_ids": [
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974"
+      ],
+      "benchmark_run_ids": [
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.fix_remediation.precision",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "higher_is_better",
+      "observation_count": 6,
+      "case_run_ids": [
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974"
+      ],
+      "benchmark_run_ids": [
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.fix_remediation.recall",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "higher_is_better",
+      "observation_count": 6,
+      "case_run_ids": [
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974"
+      ],
+      "benchmark_run_ids": [
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.fix_remediation.true_positive",
+      "metric_definition_revision": "1",
+      "value": 18.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "informational",
+      "observation_count": 6,
+      "case_run_ids": [
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974"
+      ],
+      "benchmark_run_ids": [
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.product_package.false_negative",
+      "metric_definition_revision": "1",
+      "value": 0.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "lower_is_better",
+      "observation_count": 12,
+      "case_run_ids": [
+        "16eb854b-956e-4f22-b3c2-9713c0bde61c",
+        "180558e6-71f3-41cd-9483-853d9e1670e2",
+        "26b50558-aa40-4d21-a98f-9a299f137014",
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "2d828d1b-1f7a-4080-81d8-ec503488f898",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974",
+        "e627f284-d70d-47a1-a41e-903ab1a1142a",
+        "faaaa49c-007c-41a3-9eba-b173d504e785"
+      ],
+      "benchmark_run_ids": [
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.product_package.false_positive",
+      "metric_definition_revision": "1",
+      "value": 0.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "lower_is_better",
+      "observation_count": 12,
+      "case_run_ids": [
+        "16eb854b-956e-4f22-b3c2-9713c0bde61c",
+        "180558e6-71f3-41cd-9483-853d9e1670e2",
+        "26b50558-aa40-4d21-a98f-9a299f137014",
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "2d828d1b-1f7a-4080-81d8-ec503488f898",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974",
+        "e627f284-d70d-47a1-a41e-903ab1a1142a",
+        "faaaa49c-007c-41a3-9eba-b173d504e785"
+      ],
+      "benchmark_run_ids": [
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.product_package.precision",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "higher_is_better",
+      "observation_count": 12,
+      "case_run_ids": [
+        "16eb854b-956e-4f22-b3c2-9713c0bde61c",
+        "180558e6-71f3-41cd-9483-853d9e1670e2",
+        "26b50558-aa40-4d21-a98f-9a299f137014",
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "2d828d1b-1f7a-4080-81d8-ec503488f898",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974",
+        "e627f284-d70d-47a1-a41e-903ab1a1142a",
+        "faaaa49c-007c-41a3-9eba-b173d504e785"
+      ],
+      "benchmark_run_ids": [
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.product_package.recall",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "higher_is_better",
+      "observation_count": 12,
+      "case_run_ids": [
+        "16eb854b-956e-4f22-b3c2-9713c0bde61c",
+        "180558e6-71f3-41cd-9483-853d9e1670e2",
+        "26b50558-aa40-4d21-a98f-9a299f137014",
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "2d828d1b-1f7a-4080-81d8-ec503488f898",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974",
+        "e627f284-d70d-47a1-a41e-903ab1a1142a",
+        "faaaa49c-007c-41a3-9eba-b173d504e785"
+      ],
+      "benchmark_run_ids": [
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.product_package.true_positive",
+      "metric_definition_revision": "1",
+      "value": 16.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "informational",
+      "observation_count": 12,
+      "case_run_ids": [
+        "16eb854b-956e-4f22-b3c2-9713c0bde61c",
+        "180558e6-71f3-41cd-9483-853d9e1670e2",
+        "26b50558-aa40-4d21-a98f-9a299f137014",
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "2d828d1b-1f7a-4080-81d8-ec503488f898",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974",
+        "e627f284-d70d-47a1-a41e-903ab1a1142a",
+        "faaaa49c-007c-41a3-9eba-b173d504e785"
+      ],
+      "benchmark_run_ids": [
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.severity.false_negative",
+      "metric_definition_revision": "1",
+      "value": 0.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "lower_is_better",
+      "observation_count": 12,
+      "case_run_ids": [
+        "16eb854b-956e-4f22-b3c2-9713c0bde61c",
+        "180558e6-71f3-41cd-9483-853d9e1670e2",
+        "26b50558-aa40-4d21-a98f-9a299f137014",
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "2d828d1b-1f7a-4080-81d8-ec503488f898",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974",
+        "e627f284-d70d-47a1-a41e-903ab1a1142a",
+        "faaaa49c-007c-41a3-9eba-b173d504e785"
+      ],
+      "benchmark_run_ids": [
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.severity.false_positive",
+      "metric_definition_revision": "1",
+      "value": 0.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "lower_is_better",
+      "observation_count": 12,
+      "case_run_ids": [
+        "16eb854b-956e-4f22-b3c2-9713c0bde61c",
+        "180558e6-71f3-41cd-9483-853d9e1670e2",
+        "26b50558-aa40-4d21-a98f-9a299f137014",
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "2d828d1b-1f7a-4080-81d8-ec503488f898",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974",
+        "e627f284-d70d-47a1-a41e-903ab1a1142a",
+        "faaaa49c-007c-41a3-9eba-b173d504e785"
+      ],
+      "benchmark_run_ids": [
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.severity.precision",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "higher_is_better",
+      "observation_count": 12,
+      "case_run_ids": [
+        "16eb854b-956e-4f22-b3c2-9713c0bde61c",
+        "180558e6-71f3-41cd-9483-853d9e1670e2",
+        "26b50558-aa40-4d21-a98f-9a299f137014",
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "2d828d1b-1f7a-4080-81d8-ec503488f898",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974",
+        "e627f284-d70d-47a1-a41e-903ab1a1142a",
+        "faaaa49c-007c-41a3-9eba-b173d504e785"
+      ],
+      "benchmark_run_ids": [
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.severity.recall",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "higher_is_better",
+      "observation_count": 12,
+      "case_run_ids": [
+        "16eb854b-956e-4f22-b3c2-9713c0bde61c",
+        "180558e6-71f3-41cd-9483-853d9e1670e2",
+        "26b50558-aa40-4d21-a98f-9a299f137014",
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "2d828d1b-1f7a-4080-81d8-ec503488f898",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974",
+        "e627f284-d70d-47a1-a41e-903ab1a1142a",
+        "faaaa49c-007c-41a3-9eba-b173d504e785"
+      ],
+      "benchmark_run_ids": [
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.severity.true_positive",
+      "metric_definition_revision": "1",
+      "value": 48.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "informational",
+      "observation_count": 12,
+      "case_run_ids": [
+        "16eb854b-956e-4f22-b3c2-9713c0bde61c",
+        "180558e6-71f3-41cd-9483-853d9e1670e2",
+        "26b50558-aa40-4d21-a98f-9a299f137014",
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "2d828d1b-1f7a-4080-81d8-ec503488f898",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974",
+        "e627f284-d70d-47a1-a41e-903ab1a1142a",
+        "faaaa49c-007c-41a3-9eba-b173d504e785"
+      ],
+      "benchmark_run_ids": [
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.version_applicability.false_negative",
+      "metric_definition_revision": "1",
+      "value": 0.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "lower_is_better",
+      "observation_count": 15,
+      "case_run_ids": [
+        "16eb854b-956e-4f22-b3c2-9713c0bde61c",
+        "180558e6-71f3-41cd-9483-853d9e1670e2",
+        "26b50558-aa40-4d21-a98f-9a299f137014",
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "2d828d1b-1f7a-4080-81d8-ec503488f898",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "aabb359f-acbb-4b81-a25d-c04cd730c9e8",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974",
+        "e627f284-d70d-47a1-a41e-903ab1a1142a",
+        "faaaa49c-007c-41a3-9eba-b173d504e785",
+        "fed93fbd-fd0c-4e62-aa4d-469935f4866f",
+        "fef17dd5-2963-4de4-8cb9-0112d17935bc"
+      ],
+      "benchmark_run_ids": [
+        "cc47bffe-99c0-4084-a3f0-3c4359fbe0e4",
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.version_applicability.false_positive",
+      "metric_definition_revision": "1",
+      "value": 0.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "lower_is_better",
+      "observation_count": 15,
+      "case_run_ids": [
+        "16eb854b-956e-4f22-b3c2-9713c0bde61c",
+        "180558e6-71f3-41cd-9483-853d9e1670e2",
+        "26b50558-aa40-4d21-a98f-9a299f137014",
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "2d828d1b-1f7a-4080-81d8-ec503488f898",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "aabb359f-acbb-4b81-a25d-c04cd730c9e8",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974",
+        "e627f284-d70d-47a1-a41e-903ab1a1142a",
+        "faaaa49c-007c-41a3-9eba-b173d504e785",
+        "fed93fbd-fd0c-4e62-aa4d-469935f4866f",
+        "fef17dd5-2963-4de4-8cb9-0112d17935bc"
+      ],
+      "benchmark_run_ids": [
+        "cc47bffe-99c0-4084-a3f0-3c4359fbe0e4",
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.version_applicability.precision",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "higher_is_better",
+      "observation_count": 15,
+      "case_run_ids": [
+        "16eb854b-956e-4f22-b3c2-9713c0bde61c",
+        "180558e6-71f3-41cd-9483-853d9e1670e2",
+        "26b50558-aa40-4d21-a98f-9a299f137014",
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "2d828d1b-1f7a-4080-81d8-ec503488f898",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "aabb359f-acbb-4b81-a25d-c04cd730c9e8",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974",
+        "e627f284-d70d-47a1-a41e-903ab1a1142a",
+        "faaaa49c-007c-41a3-9eba-b173d504e785",
+        "fed93fbd-fd0c-4e62-aa4d-469935f4866f",
+        "fef17dd5-2963-4de4-8cb9-0112d17935bc"
+      ],
+      "benchmark_run_ids": [
+        "cc47bffe-99c0-4084-a3f0-3c4359fbe0e4",
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.version_applicability.recall",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "higher_is_better",
+      "observation_count": 15,
+      "case_run_ids": [
+        "16eb854b-956e-4f22-b3c2-9713c0bde61c",
+        "180558e6-71f3-41cd-9483-853d9e1670e2",
+        "26b50558-aa40-4d21-a98f-9a299f137014",
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "2d828d1b-1f7a-4080-81d8-ec503488f898",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "aabb359f-acbb-4b81-a25d-c04cd730c9e8",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974",
+        "e627f284-d70d-47a1-a41e-903ab1a1142a",
+        "faaaa49c-007c-41a3-9eba-b173d504e785",
+        "fed93fbd-fd0c-4e62-aa4d-469935f4866f",
+        "fef17dd5-2963-4de4-8cb9-0112d17935bc"
+      ],
+      "benchmark_run_ids": [
+        "cc47bffe-99c0-4084-a3f0-3c4359fbe0e4",
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.version_applicability.true_positive",
+      "metric_definition_revision": "1",
+      "value": 127.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "informational",
+      "observation_count": 15,
+      "case_run_ids": [
+        "16eb854b-956e-4f22-b3c2-9713c0bde61c",
+        "180558e6-71f3-41cd-9483-853d9e1670e2",
+        "26b50558-aa40-4d21-a98f-9a299f137014",
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "2d828d1b-1f7a-4080-81d8-ec503488f898",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "aabb359f-acbb-4b81-a25d-c04cd730c9e8",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974",
+        "e627f284-d70d-47a1-a41e-903ab1a1142a",
+        "faaaa49c-007c-41a3-9eba-b173d504e785",
+        "fed93fbd-fd0c-4e62-aa4d-469935f4866f",
+        "fef17dd5-2963-4de4-8cb9-0112d17935bc"
+      ],
+      "benchmark_run_ids": [
+        "cc47bffe-99c0-4084-a3f0-3c4359fbe0e4",
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.weakness.false_negative",
+      "metric_definition_revision": "1",
+      "value": 0.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "lower_is_better",
+      "observation_count": 12,
+      "case_run_ids": [
+        "16eb854b-956e-4f22-b3c2-9713c0bde61c",
+        "180558e6-71f3-41cd-9483-853d9e1670e2",
+        "26b50558-aa40-4d21-a98f-9a299f137014",
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "2d828d1b-1f7a-4080-81d8-ec503488f898",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974",
+        "e627f284-d70d-47a1-a41e-903ab1a1142a",
+        "faaaa49c-007c-41a3-9eba-b173d504e785"
+      ],
+      "benchmark_run_ids": [
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.weakness.false_positive",
+      "metric_definition_revision": "1",
+      "value": 0.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "lower_is_better",
+      "observation_count": 12,
+      "case_run_ids": [
+        "16eb854b-956e-4f22-b3c2-9713c0bde61c",
+        "180558e6-71f3-41cd-9483-853d9e1670e2",
+        "26b50558-aa40-4d21-a98f-9a299f137014",
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "2d828d1b-1f7a-4080-81d8-ec503488f898",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974",
+        "e627f284-d70d-47a1-a41e-903ab1a1142a",
+        "faaaa49c-007c-41a3-9eba-b173d504e785"
+      ],
+      "benchmark_run_ids": [
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.weakness.precision",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "higher_is_better",
+      "observation_count": 12,
+      "case_run_ids": [
+        "16eb854b-956e-4f22-b3c2-9713c0bde61c",
+        "180558e6-71f3-41cd-9483-853d9e1670e2",
+        "26b50558-aa40-4d21-a98f-9a299f137014",
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "2d828d1b-1f7a-4080-81d8-ec503488f898",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974",
+        "e627f284-d70d-47a1-a41e-903ab1a1142a",
+        "faaaa49c-007c-41a3-9eba-b173d504e785"
+      ],
+      "benchmark_run_ids": [
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.weakness.recall",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "higher_is_better",
+      "observation_count": 12,
+      "case_run_ids": [
+        "16eb854b-956e-4f22-b3c2-9713c0bde61c",
+        "180558e6-71f3-41cd-9483-853d9e1670e2",
+        "26b50558-aa40-4d21-a98f-9a299f137014",
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "2d828d1b-1f7a-4080-81d8-ec503488f898",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974",
+        "e627f284-d70d-47a1-a41e-903ab1a1142a",
+        "faaaa49c-007c-41a3-9eba-b173d504e785"
+      ],
+      "benchmark_run_ids": [
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.weakness.true_positive",
+      "metric_definition_revision": "1",
+      "value": 15.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "informational",
+      "observation_count": 12,
+      "case_run_ids": [
+        "16eb854b-956e-4f22-b3c2-9713c0bde61c",
+        "180558e6-71f3-41cd-9483-853d9e1670e2",
+        "26b50558-aa40-4d21-a98f-9a299f137014",
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "2d828d1b-1f7a-4080-81d8-ec503488f898",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974",
+        "e627f284-d70d-47a1-a41e-903ab1a1142a",
+        "faaaa49c-007c-41a3-9eba-b173d504e785"
+      ],
+      "benchmark_run_ids": [
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.false_negative",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "evidence-aware closed-set facts",
+      "missing_value_policy": "fail",
+      "direction": "lower_is_better",
+      "observation_count": 15,
+      "case_run_ids": [
+        "16eb854b-956e-4f22-b3c2-9713c0bde61c",
+        "180558e6-71f3-41cd-9483-853d9e1670e2",
+        "26b50558-aa40-4d21-a98f-9a299f137014",
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "2d828d1b-1f7a-4080-81d8-ec503488f898",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "aabb359f-acbb-4b81-a25d-c04cd730c9e8",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974",
+        "e627f284-d70d-47a1-a41e-903ab1a1142a",
+        "faaaa49c-007c-41a3-9eba-b173d504e785",
+        "fed93fbd-fd0c-4e62-aa4d-469935f4866f",
+        "fef17dd5-2963-4de4-8cb9-0112d17935bc"
+      ],
+      "benchmark_run_ids": [
+        "cc47bffe-99c0-4084-a3f0-3c4359fbe0e4",
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.false_positive",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "evidence-aware closed-set facts",
+      "missing_value_policy": "fail",
+      "direction": "lower_is_better",
+      "observation_count": 15,
+      "case_run_ids": [
+        "16eb854b-956e-4f22-b3c2-9713c0bde61c",
+        "180558e6-71f3-41cd-9483-853d9e1670e2",
+        "26b50558-aa40-4d21-a98f-9a299f137014",
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "2d828d1b-1f7a-4080-81d8-ec503488f898",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "aabb359f-acbb-4b81-a25d-c04cd730c9e8",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974",
+        "e627f284-d70d-47a1-a41e-903ab1a1142a",
+        "faaaa49c-007c-41a3-9eba-b173d504e785",
+        "fed93fbd-fd0c-4e62-aa4d-469935f4866f",
+        "fef17dd5-2963-4de4-8cb9-0112d17935bc"
+      ],
+      "benchmark_run_ids": [
+        "cc47bffe-99c0-4084-a3f0-3c4359fbe0e4",
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.micro_precision",
+      "metric_definition_revision": "1",
+      "value": 0.9965870307167235,
+      "unit": "ratio",
+      "aggregation": "derived",
+      "denominator": "evidence-aware closed-set predicted facts",
+      "missing_value_policy": "fail",
+      "direction": "higher_is_better",
+      "observation_count": 15,
+      "case_run_ids": [
+        "16eb854b-956e-4f22-b3c2-9713c0bde61c",
+        "180558e6-71f3-41cd-9483-853d9e1670e2",
+        "26b50558-aa40-4d21-a98f-9a299f137014",
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "2d828d1b-1f7a-4080-81d8-ec503488f898",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "aabb359f-acbb-4b81-a25d-c04cd730c9e8",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974",
+        "e627f284-d70d-47a1-a41e-903ab1a1142a",
+        "faaaa49c-007c-41a3-9eba-b173d504e785",
+        "fed93fbd-fd0c-4e62-aa4d-469935f4866f",
+        "fef17dd5-2963-4de4-8cb9-0112d17935bc"
+      ],
+      "benchmark_run_ids": [
+        "cc47bffe-99c0-4084-a3f0-3c4359fbe0e4",
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.micro_recall",
+      "metric_definition_revision": "1",
+      "value": 0.9965870307167235,
+      "unit": "ratio",
+      "aggregation": "derived",
+      "denominator": "evidence-aware closed-set gold facts",
+      "missing_value_policy": "fail",
+      "direction": "higher_is_better",
+      "observation_count": 15,
+      "case_run_ids": [
+        "16eb854b-956e-4f22-b3c2-9713c0bde61c",
+        "180558e6-71f3-41cd-9483-853d9e1670e2",
+        "26b50558-aa40-4d21-a98f-9a299f137014",
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "2d828d1b-1f7a-4080-81d8-ec503488f898",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "aabb359f-acbb-4b81-a25d-c04cd730c9e8",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974",
+        "e627f284-d70d-47a1-a41e-903ab1a1142a",
+        "faaaa49c-007c-41a3-9eba-b173d504e785",
+        "fed93fbd-fd0c-4e62-aa4d-469935f4866f",
+        "fef17dd5-2963-4de4-8cb9-0112d17935bc"
+      ],
+      "benchmark_run_ids": [
+        "cc47bffe-99c0-4084-a3f0-3c4359fbe0e4",
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    },
+    {
+      "metric_name": "m3.true_positive",
+      "metric_definition_revision": "1",
+      "value": 292.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "evidence-aware closed-set facts",
+      "missing_value_policy": "fail",
+      "direction": "informational",
+      "observation_count": 15,
+      "case_run_ids": [
+        "16eb854b-956e-4f22-b3c2-9713c0bde61c",
+        "180558e6-71f3-41cd-9483-853d9e1670e2",
+        "26b50558-aa40-4d21-a98f-9a299f137014",
+        "2ce612ed-a370-432a-87b4-4dbbf1ff2247",
+        "2d828d1b-1f7a-4080-81d8-ec503488f898",
+        "55614a99-f739-4c1d-b2f2-afc7aecf314a",
+        "730b4860-dbf7-4301-a48e-bda5db66296c",
+        "931d23d4-14ab-4fbf-b213-74f6ddc7973a",
+        "aabb359f-acbb-4b81-a25d-c04cd730c9e8",
+        "c1e26373-9390-489a-ace9-95db8656292a",
+        "df905299-1f79-4e71-9588-d381f6c2c974",
+        "e627f284-d70d-47a1-a41e-903ab1a1142a",
+        "faaaa49c-007c-41a3-9eba-b173d504e785",
+        "fed93fbd-fd0c-4e62-aa4d-469935f4866f",
+        "fef17dd5-2963-4de4-8cb9-0112d17935bc"
+      ],
+      "benchmark_run_ids": [
+        "cc47bffe-99c0-4084-a3f0-3c4359fbe0e4",
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ]
+    }
+  ],
+  "target_checks": [
+    {
+      "target_name": "source_category_coverage",
+      "requirement": "Competition excellent/full-coverage target: at least 7 source categories",
+      "metric_name": "m1.source_category_count",
+      "comparator": ">=",
+      "threshold": 7.0,
+      "observed_value": 8.0,
+      "status": "pass",
+      "benchmark_run_ids": [
+        "535d8476-ea17-4084-be10-78b409ef65c8"
+      ],
+      "note": null
+    },
+    {
+      "target_name": "enrichment_precision",
+      "requirement": "Finals development target: enrichment precision >= 95%",
+      "metric_name": "m3.micro_precision",
+      "comparator": ">=",
+      "threshold": 0.95,
+      "observed_value": 0.9965870307167235,
+      "status": "pass",
+      "benchmark_run_ids": [
+        "cc47bffe-99c0-4084-a3f0-3c4359fbe0e4",
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ],
+      "note": null
+    },
+    {
+      "target_name": "enrichment_recall",
+      "requirement": "Finals development target: enrichment recall >= 95%",
+      "metric_name": "m3.micro_recall",
+      "comparator": ">=",
+      "threshold": 0.95,
+      "observed_value": 0.9965870307167235,
+      "status": "pass",
+      "benchmark_run_ids": [
+        "cc47bffe-99c0-4084-a3f0-3c4359fbe0e4",
+        "fe4eef45-a22b-4fbe-b21c-ff996da5e9b9"
+      ],
+      "note": null
+    },
+    {
+      "target_name": "qa_accuracy",
+      "requirement": "Finals excellent target: QA accuracy >= 95%",
+      "metric_name": "m6.answer_accuracy",
+      "comparator": ">=",
+      "threshold": 0.95,
+      "observed_value": null,
+      "status": "not_evaluated",
+      "benchmark_run_ids": [],
+      "note": "required benchmark metric is absent from the selected run set"
+    },
+    {
+      "target_name": "qa_interactive_latency",
+      "requirement": "Finals QA response target for interactive cases: <= 5 seconds",
+      "metric_name": "m6.interactive_latency_seconds",
+      "comparator": "<=",
+      "threshold": 5.0,
+      "observed_value": null,
+      "status": "not_evaluated",
+      "benchmark_run_ids": [],
+      "note": "required benchmark metric is absent from the selected run set"
+    }
+  ],
+  "metric_definition_refs": [
+    "m1.monitoring.evaluable_coverage@1",
+    "m1.monitoring.max_seconds@1",
+    "m1.monitoring.p50_seconds@1",
+    "m1.monitoring.p95_seconds@1",
+    "m1.monitoring.within_6h_rate@1",
+    "m1.source_category_count@1",
+    "m1.source_delivery_coverage@1",
+    "m3.dimension.advisory_reference.false_negative@1",
+    "m3.dimension.advisory_reference.false_positive@1",
+    "m3.dimension.advisory_reference.precision@1",
+    "m3.dimension.advisory_reference.recall@1",
+    "m3.dimension.advisory_reference.true_positive@1",
+    "m3.dimension.exploit_likelihood.false_negative@1",
+    "m3.dimension.exploit_likelihood.false_positive@1",
+    "m3.dimension.exploit_likelihood.precision@1",
+    "m3.dimension.exploit_likelihood.recall@1",
+    "m3.dimension.exploit_likelihood.true_positive@1",
+    "m3.dimension.fix_remediation.false_negative@1",
+    "m3.dimension.fix_remediation.false_positive@1",
+    "m3.dimension.fix_remediation.precision@1",
+    "m3.dimension.fix_remediation.recall@1",
+    "m3.dimension.fix_remediation.true_positive@1",
+    "m3.dimension.product_package.false_negative@1",
+    "m3.dimension.product_package.false_positive@1",
+    "m3.dimension.product_package.precision@1",
+    "m3.dimension.product_package.recall@1",
+    "m3.dimension.product_package.true_positive@1",
+    "m3.dimension.severity.false_negative@1",
+    "m3.dimension.severity.false_positive@1",
+    "m3.dimension.severity.precision@1",
+    "m3.dimension.severity.recall@1",
+    "m3.dimension.severity.true_positive@1",
+    "m3.dimension.version_applicability.false_negative@1",
+    "m3.dimension.version_applicability.false_positive@1",
+    "m3.dimension.version_applicability.precision@1",
+    "m3.dimension.version_applicability.recall@1",
+    "m3.dimension.version_applicability.true_positive@1",
+    "m3.dimension.weakness.false_negative@1",
+    "m3.dimension.weakness.false_positive@1",
+    "m3.dimension.weakness.precision@1",
+    "m3.dimension.weakness.recall@1",
+    "m3.dimension.weakness.true_positive@1",
+    "m3.false_negative@1",
+    "m3.false_positive@1",
+    "m3.micro_precision@1",
+    "m3.micro_recall@1",
+    "m3.true_positive@1"
+  ],
+  "artifact_refs": [
+    "provider-snapshot:6f23e9a0efccc6b88a9a2da60a8cfa43fa153f90da84123d5b1d1c1762cc1b1c",
+    "provider-snapshot:2c7c06aa468439a08675cab1551ede352234656ff08a6b0ea00e04ceddf97a27",
+    "provider-snapshot:cba7f1e65b1c5996b0137cfb9ddeb42a72876bff5a3fb38c34d9767bdaaee5bb"
+  ],
+  "unevaluated_competition_areas": [
+    "M6 QA quality",
+    "M6 multi-hop",
+    "Agent runtime",
+    "Long Investigation completion",
+    "Engineering fault/recovery"
+  ]
+}

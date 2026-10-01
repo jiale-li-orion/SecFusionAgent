@@ -33,3 +33,10 @@ Generated blocks carry explicit begin/end markers and a source-file reference. `
 Historical truth stays in durable `BenchmarkRun`, `BenchmarkCaseRun`, `MetricObservation` and `CompetitionReport` rows. A mutable `current-result.json` is only the repository's reviewed pointer to the evidence currently presented in docs; it never replaces the database provenance or an explicit CompetitionReport run set.
 
 Competition reports continue to require explicit run IDs from one deployment revision. Documentation automation must not select “the newest run” and silently compose a report, because recency is not an evaluation policy.
+
+For a formal multi-module batch, freeze the DeploymentRevision while the worktree is clean and send
+runner JSON/Markdown to an untracked staging location first. Running a benchmark directly into a
+tracked `current.*` file makes the repository dirty and changes the deployment coordinate seen by the
+next runner. After every selected run is durable and the combined report succeeds, copy the reviewed
+machine-readable artifacts into `benchmarks/` and regenerate presentation Markdown. Evidence
+publication is therefore a final projection step, not part of measurement execution.

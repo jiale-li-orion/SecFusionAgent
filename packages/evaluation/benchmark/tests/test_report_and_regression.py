@@ -155,7 +155,7 @@ async def test_competition_report_derives_global_m3_precision_recall_and_target_
 
 
 @pytest.mark.asyncio
-async def test_competition_report_persistence_is_idempotent_by_logical_digest() -> None:
+async def test_competition_report_persistence_binds_artifact_refs_into_digest() -> None:
     engine, factory = await _database()
     try:
         await _seed_run(factory, run_id="persistent", tp=20, fp=0, fn=0)
@@ -172,16 +172,26 @@ async def test_competition_report_persistence_is_idempotent_by_logical_digest() 
                 session,
                 deployment_revision_id="deployment:report-test",
                 benchmark_run_ids=["persistent"],
-                artifact_refs=["artifact:ignored-second-export"],
+                artifact_refs=["artifact:report-json"],
+                now=NOW,
+            )
+            third = await service.generate_and_persist(
+                session,
+                deployment_revision_id="deployment:report-test",
+                benchmark_run_ids=["persistent"],
+                artifact_refs=["artifact:second-provider-world"],
                 now=NOW,
             )
             assert second.report_id == first.report_id
             assert second.report_digest == first.report_digest
             assert second.artifact_refs == ["artifact:report-json"]
+            assert third.report_id != first.report_id
+            assert third.report_digest != first.report_digest
+            assert third.artifact_refs == ["artifact:second-provider-world"]
         async with factory() as session:
             rows = list(await session.scalars(select(CompetitionReportModel)))
-            assert len(rows) == 1
-            assert rows[0].metric_definition_refs_json
+            assert len(rows) == 2
+            assert all(row.metric_definition_refs_json for row in rows)
     finally:
         await engine.dispose()
 
