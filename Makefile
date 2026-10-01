@@ -1,4 +1,4 @@
-.PHONY: sync lint format typecheck test check site-check site-status dev-up dev-down migrate sync-sources sync-skills worker worker-collection scheduler task-event-dispatcher task-event-scheduler probe-nvd promote-hot product-check m1-doc m1-render-doc m1-doc-check qa-preflight qa-preflight-doc-check investigation-readiness investigation-readiness-doc-check fault-recovery fault-recovery-doc-check competition-report competition-render-doc competition-doc-check
+.PHONY: sync lint format typecheck test check site-check site-status dev-up dev-down migrate sync-sources sync-skills worker worker-collection scheduler task-event-dispatcher task-event-scheduler probe-nvd promote-hot product-check m1-doc m1-render-doc m1-doc-check qa-preflight qa-preflight-doc-check investigation-readiness investigation-readiness-doc-check fault-recovery fault-recovery-doc-check competition-report competition-render-doc competition-doc-check evidence-doc-check
 
 WIKI_PATH ?= ../SecFusionAgent.wiki
 SITE_STATUS_OUTPUT ?= $(WIKI_PATH)/site/project-status.json
@@ -148,6 +148,8 @@ competition-doc-check:
 	uv run python scripts/render_competition_status.py "$(COMPETITION_STATUS_JSON)" \
 		--markdown-output "$(COMPETITION_STATUS_MD)" \
 		--check
+
+evidence-doc-check: m1-doc-check qa-preflight-doc-check investigation-readiness-doc-check fault-recovery-doc-check competition-doc-check
 
 dev-up:
 	docker compose -f deploy/docker-compose.yml up -d --wait postgres redis-broker redis-cache redis-task-bus localstack-s3

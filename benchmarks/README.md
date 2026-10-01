@@ -34,6 +34,17 @@ Historical truth stays in durable `BenchmarkRun`, `BenchmarkCaseRun`, `MetricObs
 
 Competition reports continue to require explicit run IDs from one deployment revision. Documentation automation must not select “the newest run” and silently compose a report, because recency is not an evaluation policy.
 
+The reviewed current projections are split by evidence type instead of forcing unlike states into one document:
+
+- `m1/current.json|md` — formal M1 run plus steady-state latency and provisional/final delivery diagnostics;
+- `m3/current-structured.json` and `m3/current-csaf-vex.json` — frozen-world enrichment scorer outputs used by registered M3 runs;
+- `qa/current-*-preflight.json` + `qa/current-preflight.md` — no-model gold-provenance and live-readiness evidence only;
+- `investigation/current-readiness.json|md` — prospective-denominator readiness only, never an Agent score;
+- `fault-recovery/current.json|md` — formal controlled engineering fault/recovery BenchmarkRun;
+- `competition/current-run-set.json` + `competition/current.json|md` — explicit same-deployment aggregation of the formal selected runs.
+
+Run `make evidence-doc-check` to recompute every deterministic Markdown projection from its checked-in machine-readable source. This command does not call external providers and does not mutate benchmark state.
+
 For a formal multi-module batch, freeze the DeploymentRevision while the worktree is clean and send
 runner JSON/Markdown to an untracked staging location first. Running a benchmark directly into a
 tracked `current.*` file makes the repository dirty and changes the deployment coordinate seen by the

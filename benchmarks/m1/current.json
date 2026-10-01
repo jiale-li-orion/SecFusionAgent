@@ -1,7 +1,7 @@
 {
-  "benchmark_run_id": "be72d886-817f-4cf8-a025-764c32fa5939",
-  "deployment_revision_id": "deployment:c547c6cd953f4b1dbac8b3395d46d955",
-  "suite_ref": "m1-monitoring-current@15",
+  "benchmark_run_id": "966a2298-b2f4-4484-b2fd-e9bb562d29c2",
+  "deployment_revision_id": "deployment:711abec1f895ab4108b30f66788bd536",
+  "suite_ref": "m1-monitoring-current@16",
   "window_start": "2026-10-01T10:00:00+00:00",
   "window_end": "2026-10-01T14:02:00+00:00",
   "source_category_count": 8,
@@ -459,7 +459,7 @@
   },
   "delivery_grace_seconds": 21600,
   "delivery_deadline": "2026-10-01T20:02:00+00:00",
-  "delivery_observation_end": "2026-10-01T15:57:52.376800+00:00",
+  "delivery_observation_end": "2026-10-01T16:16:54.905699+00:00",
   "expected_event_manifest_id": "github-target-repos-20261001T1000Z-1402Z",
   "expected_event_manifest_digest": "d1e7624bd35f66ab422c6dc9a93ac5394c3e44e84bf297560a3b98577d23dd54",
   "provider_snapshot_ref": "provider-snapshot:6f23e9a0efccc6b88a9a2da60a8cfa43fa153f90da84123d5b1d1c1762cc1b1c"

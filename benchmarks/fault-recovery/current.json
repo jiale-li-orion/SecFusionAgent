@@ -1,0 +1,31 @@
+{
+  "benchmark_run_id": "780fb593-9dd1-4ed3-89d4-c10ff21dc25e",
+  "deployment_revision_id": "deployment:711abec1f895ab4108b30f66788bd536",
+  "suite_ref": "engineering-fault-recovery@1",
+  "gold_revision": "fault-recovery:5370cbef4a6051ff8e972559454f88b8b157628e20a3cc01386b98f7b9576c52",
+  "execution_mode": "live_controlled",
+  "success_rate": 1.0,
+  "cases": [
+    {
+      "case_id": "engineering-stale-acquisition-requeue",
+      "mechanism": "stale acquisition run -> queued + collection.requested outbox",
+      "success": true,
+      "diagnostics": {
+        "recovered_count": 1,
+        "run_status": "queued",
+        "outbox_count": 1
+      }
+    },
+    {
+      "case_id": "engineering-outbox-fail-once-retry",
+      "mechanism": "publisher failure -> pending retry -> delivered",
+      "success": true,
+      "diagnostics": {
+        "first_delivered": 0,
+        "first_pending": true,
+        "second_delivered": 1,
+        "second_delivered_state": true
+      }
+    }
+  ]
+}
