@@ -15,4 +15,5 @@ build/
 # Runtime artifacts
 .runtime/
 /artifacts/
+/.local/
 logs/

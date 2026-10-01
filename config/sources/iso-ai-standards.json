@@ -73,7 +73,7 @@
   },
   "retention_mode": "durable_managed",
   "schedule_policy": {
-    "enabled": false,
+    "enabled": true,
     "interval_seconds": 86400
   },
   "schema_version": "1"

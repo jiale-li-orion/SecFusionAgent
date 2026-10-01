@@ -15,6 +15,8 @@ ENRICHMENT_BEGIN = "<!-- BEGIN GENERATED ENRICHMENT STATUS -->"
 ENRICHMENT_END = "<!-- END GENERATED ENRICHMENT STATUS -->"
 QA_BEGIN = "<!-- BEGIN GENERATED QA STATUS -->"
 QA_END = "<!-- END GENERATED QA STATUS -->"
+SCOREBOARD_BEGIN = "<!-- BEGIN GENERATED SCOREBOARD -->"
+SCOREBOARD_END = "<!-- END GENERATED SCOREBOARD -->"
 
 
 def _load(relative: str) -> dict[str, Any]:
@@ -81,7 +83,11 @@ def _evaluation_block(*, chinese: bool = False) -> str:
     m1 = _load("benchmarks/m1/current.json")
     fault = _load("benchmarks/fault-recovery/current.json")
     metrics = _metric_map(report)
-    title = "## 当前正式评测证据（自动生成）" if chinese else "## Current formal evaluation evidence (generated)"
+    title = (
+        "## 当前正式评测证据（自动生成）"
+        if chinese
+        else "## Current formal evaluation evidence (generated)"
+    )
     note = (
         "本段由 `benchmarks/**/current*.json` 自动渲染。修改评测结果后运行 `make evidence-doc`；`make evidence-doc-check` 会在 Markdown 与结构化结果漂移时失败。"
         if chinese
@@ -142,34 +148,144 @@ def _evaluation_block(*, chinese: bool = False) -> str:
     return "\n".join(lines)
 
 
+def _scoreboard_block(*, chinese: bool = False) -> str:
+    report = _load("benchmarks/competition/current.json")
+    m1 = _load("benchmarks/m1/current.json")
+    fault = _load("benchmarks/fault-recovery/current.json")
+    metrics = _metric_map(report)
+    inventory = _load("config/source-inventory.json")
+    source_files = list((ROOT / "config/sources").glob("*.json"))
+    scheduled_sources = 0
+    category_sources: dict[str, set[str]] = {}
+    for path in source_files:
+        source = json.loads(path.read_text(encoding="utf-8"))
+        source_id = source["source_id"]
+        schedule_policy = source.get("schedule_policy") or {}
+        if schedule_policy.get("enabled", True) is not False:
+            scheduled_sources += 1
+        for entry in inventory["entries"]:
+            if source_id in entry.get("source_ids", []):
+                category_sources.setdefault(entry["category"], set()).add(source_id)
+
+    scheduled_categories: set[str] = set()
+    for path in source_files:
+        source = json.loads(path.read_text(encoding="utf-8"))
+        schedule_policy = source.get("schedule_policy") or {}
+        if schedule_policy.get("enabled", True) is False:
+            continue
+        source_id = source["source_id"]
+        for category, source_ids in category_sources.items():
+            if source_id in source_ids:
+                scheduled_categories.add(category)
+
+    runtime_path = ROOT / "benchmarks/data-plane/current.json"
+    runtime_line_zh: str | None = None
+    runtime_line_en: str | None = None
+    if runtime_path.exists():
+        runtime = _load("benchmarks/data-plane/current.json")
+        health = runtime["source_health"]["counts"]
+        integrity = (
+            runtime["storage"]["artifact_store"].get("public_epoch", {}).get("integrity_rate")
+        )
+        runtime_line_zh = (
+            f"**持续监测记账起点：`{runtime['public_monitoring_epoch_local']}`；"
+            f"当前 scheduled source 健康状态 {health.get('healthy', 0)} healthy / "
+            f"{health.get('degraded', 0)} degraded / {health.get('blocked', 0)} blocked；"
+            f"epoch 内 Evidence 物理完整性 {_pct(integrity)}。**"
+        )
+        runtime_line_en = (
+            f"**Public continuous-monitoring epoch: `{runtime['public_monitoring_epoch_local']}`; "
+            f"scheduled-source health {health.get('healthy', 0)} healthy / "
+            f"{health.get('degraded', 0)} degraded / {health.get('blocked', 0)} blocked; "
+            f"epoch Evidence integrity {_pct(integrity)}.**"
+        )
+
+    if chinese:
+        lines = [
+            "## 决赛硬指标",
+            "",
+            "| 指标 | 当前正式结果 |",
+            "| --- | ---: |",
+            f"| 来源类别覆盖 | **{m1['source_category_count']}/8**（目标 ≥7） |",
+            f"| M1 监测时效 | **p50 {_duration(m1['latency']['p50_seconds'])} / p95 {_duration(m1['latency']['p95_seconds'])} / ≤6h {_pct(m1['latency']['within_6h_rate'])}（{m1['latency']['evaluable_samples']}/{m1['latency']['total_samples']}）** |",
+            f"| M3 富化 Precision / Recall | **{_pct(metrics['m3.micro_precision']['value'])} / {_pct(metrics['m3.micro_recall']['value'])}（TP={_number(metrics['m3.true_positive']['value'])}, FP={_number(metrics['m3.false_positive']['value'])}, FN={_number(metrics['m3.false_negative']['value'])}）** |",
+            f"| Controlled fault recovery | **{_pct(fault['success_rate'])}（{len(fault['cases'])}/{len(fault['cases'])}）** |",
+            "| M6 QA | **待接入真实模型 provider 后正式测分** |",
+            "",
+            f"**来源运行口径：{len(inventory['entries'])} 个 catalog entries → {len(source_files)} 个 executable sources → {scheduled_sources} 个 scheduled monitors；8 类产品覆盖，其中 {len(scheduled_categories)}/8 类存在主动定时监测，`assets` 保持按需查询。**",
+            *([runtime_line_zh] if runtime_line_zh is not None else []),
+            "",
+            "上表全部数字由 benchmark/source config 自动导出，不手抄；详细 run/deployment/provenance 在下方正式评测区。",
+        ]
+    else:
+        lines = [
+            "## Competition scoreboard",
+            "",
+            "| Metric | Current formal result |",
+            "| --- | ---: |",
+            f"| Source category coverage | **{m1['source_category_count']}/8** (target ≥7) |",
+            f"| M1 monitoring latency | **p50 {_duration(m1['latency']['p50_seconds'])} / p95 {_duration(m1['latency']['p95_seconds'])} / ≤6h {_pct(m1['latency']['within_6h_rate'])} ({m1['latency']['evaluable_samples']}/{m1['latency']['total_samples']})** |",
+            f"| M3 enrichment Precision / Recall | **{_pct(metrics['m3.micro_precision']['value'])} / {_pct(metrics['m3.micro_recall']['value'])} (TP={_number(metrics['m3.true_positive']['value'])}, FP={_number(metrics['m3.false_positive']['value'])}, FN={_number(metrics['m3.false_negative']['value'])})** |",
+            f"| Controlled fault recovery | **{_pct(fault['success_rate'])} ({len(fault['cases'])}/{len(fault['cases'])})** |",
+            "| M6 QA | **pending formal live-model run** |",
+            "",
+            f"**Source runtime contract: {len(inventory['entries'])} catalog entries → {len(source_files)} executable sources → {scheduled_sources} scheduled monitors; 8 product categories, with active scheduled monitoring in {len(scheduled_categories)}/8 categories and `assets` intentionally query-time.**",
+            *([runtime_line_en] if runtime_line_en is not None else []),
+            "",
+            "Every value above is generated from benchmark/source configuration rather than copied by hand; run/deployment/provenance details remain in the formal evidence section below.",
+        ]
+    return "\n".join(lines)
+
+
 def _monitoring_block() -> str:
     m1 = _load("benchmarks/m1/current.json")
     provisional = m1["source_delivery_provisional"]
     diagnostics = m1["monitoring_diagnostics"]
-    return "\n".join(
-        [
-            "## Current M1 evidence (generated)",
-            "",
-            f"Suite `{m1['suite_ref']}`, run `{m1['benchmark_run_id']}`, deployment `{m1['deployment_revision_id']}`.",
-            "",
-            "| Measurement | Current result |",
-            "| --- | ---: |",
-            f"| Product source categories | {m1['source_category_count']} |",
-            f"| Raw scheduled candidates | {m1['raw_latency_candidate_count']} |",
-            f"| Excluded bootstrap/backfill candidates | {m1['excluded_nonsteady_count']} |",
-            f"| Evaluable steady-state samples | {m1['latency']['evaluable_samples']}/{m1['latency']['total_samples']} |",
-            f"| End-to-end p50 | {_duration(m1['latency']['p50_seconds'])} |",
-            f"| End-to-end p95 | {_duration(m1['latency']['p95_seconds'])} |",
-            f"| End-to-end max | {_duration(m1['latency']['max_seconds'])} |",
-            f"| Within 6h | {_pct(m1['latency']['within_6h_rate'])} |",
-            f"| Delivery status | `{m1['source_delivery_status']}` |",
-            f"| Provisional independent-provider delivery | {provisional['accepted_expected_items']}/{provisional['expected_items']} ({_pct(provisional['coverage'])}) |",
-            "",
-            "Latency is source event time → earliest Knowledge commit. `monitoring_diagnostics` keeps provider-discovery, queue-dispatch and ingestion-commit components separate; bootstrap/input/output backfill stays outside the steady-state denominator.",
-            "",
-            f"Current diagnostic split: raw={diagnostics['raw_candidate_count']}, eligible={diagnostics['eligible_count']}, excluded={diagnostics['excluded_count']}. Read the complete machine result in `benchmarks/m1/current.json` and reproduce the Markdown projection with `make m1-render-doc`.",
-        ]
-    )
+    lines = [
+        "## Current M1 evidence (generated)",
+        "",
+        f"Suite `{m1['suite_ref']}`, run `{m1['benchmark_run_id']}`, deployment `{m1['deployment_revision_id']}`.",
+        "",
+        "| Measurement | Current result |",
+        "| --- | ---: |",
+        f"| Product source categories | {m1['source_category_count']} |",
+        f"| Raw scheduled candidates | {m1['raw_latency_candidate_count']} |",
+        f"| Excluded bootstrap/backfill candidates | {m1['excluded_nonsteady_count']} |",
+        f"| Evaluable steady-state samples | {m1['latency']['evaluable_samples']}/{m1['latency']['total_samples']} |",
+        f"| End-to-end p50 | {_duration(m1['latency']['p50_seconds'])} |",
+        f"| End-to-end p95 | {_duration(m1['latency']['p95_seconds'])} |",
+        f"| End-to-end max | {_duration(m1['latency']['max_seconds'])} |",
+        f"| Within 6h | {_pct(m1['latency']['within_6h_rate'])} |",
+        f"| Delivery status | `{m1['source_delivery_status']}` |",
+        f"| Provisional independent-provider delivery | {provisional['accepted_expected_items']}/{provisional['expected_items']} ({_pct(provisional['coverage'])}) |",
+        "",
+        "Latency is source event time → earliest Knowledge commit. `monitoring_diagnostics` keeps provider-discovery, queue-dispatch and ingestion-commit components separate; bootstrap/input/output backfill stays outside the steady-state denominator.",
+        "",
+        f"Current diagnostic split: raw={diagnostics['raw_candidate_count']}, eligible={diagnostics['eligible_count']}, excluded={diagnostics['excluded_count']}. Read the complete machine result in `benchmarks/m1/current.json` and reproduce the Markdown projection with `make m1-render-doc`.",
+    ]
+
+    runtime_path = ROOT / "benchmarks/data-plane/current.json"
+    if runtime_path.exists():
+        runtime = _load("benchmarks/data-plane/current.json")
+        health = runtime["source_health"]["counts"]
+        one_hour = runtime["rolling_windows"]["1h"]["scheduled_monitoring"]
+        artifact = runtime["storage"]["artifact_store"]
+        epoch_integrity = artifact.get("public_epoch", {}).get("integrity_rate")
+        lines.extend(
+            [
+                "",
+                "### Live data-plane status (generated)",
+                "",
+                f"Public continuous-monitoring epoch: `{runtime['public_monitoring_epoch_local']}`. Pre-epoch rows are bootstrap/corpus-prefill and stay outside public runtime throughput.",
+                "",
+                f"Source contract: {runtime['taxonomy']['catalog_entries']} catalog entries → {runtime['taxonomy']['executable_sources']} executable sources → {runtime['taxonomy']['scheduled_monitors']} scheduled monitors; {runtime['taxonomy']['scheduled_categories']}/8 categories are actively scheduled and `assets` remains query-time.",
+                "",
+                f"Current health: {health.get('healthy', 0)} healthy / {health.get('degraded', 0)} degraded / {health.get('blocked', 0)} blocked / {health.get('warming', 0)} warming. Last-hour runtime: run success {_pct(one_hour['scheduled_run_success_rate'])}, queue p95 {_duration(one_hour['queue_delay_p95_seconds'])}, execution p95 {_duration(one_hour['execution_p95_seconds'])}, fresh changes {one_hour['fresh_external_changes']}, fresh contributing sources/categories {one_hour['fresh_contributing_sources']}/{one_hour['fresh_contributing_categories']}. Public-epoch Evidence integrity: {_pct(epoch_integrity)}.",
+                "",
+                "`benchmarks/data-plane/current.json` owns 1h/6h/24h/7d rolling windows plus chart-ready hourly/category series; `make data-plane-metrics` refreshes the snapshot.",
+            ]
+        )
+    return "\n".join(lines)
 
 
 def _enrichment_block() -> str:
@@ -285,10 +401,27 @@ def _replace(path: Path, begin: str, end: str, body: str, *, check: bool) -> boo
 
 def render(*, check: bool) -> list[str]:
     specs = [
+        (ROOT / "README.md", SCOREBOARD_BEGIN, SCOREBOARD_END, _scoreboard_block()),
+        (
+            ROOT / "README.zh.md",
+            SCOREBOARD_BEGIN,
+            SCOREBOARD_END,
+            _scoreboard_block(chinese=True),
+        ),
         (ROOT / "README.md", EVAL_BEGIN, EVAL_END, _evaluation_block()),
         (ROOT / "README.zh.md", EVAL_BEGIN, EVAL_END, _evaluation_block(chinese=True)),
-        (ROOT / "packages/monitoring/README.md", MONITORING_BEGIN, MONITORING_END, _monitoring_block()),
-        (ROOT / "packages/enrichment/README.md", ENRICHMENT_BEGIN, ENRICHMENT_END, _enrichment_block()),
+        (
+            ROOT / "packages/monitoring/README.md",
+            MONITORING_BEGIN,
+            MONITORING_END,
+            _monitoring_block(),
+        ),
+        (
+            ROOT / "packages/enrichment/README.md",
+            ENRICHMENT_BEGIN,
+            ENRICHMENT_END,
+            _enrichment_block(),
+        ),
         (ROOT / "packages/evaluation/README.md", EVAL_BEGIN, EVAL_END, _evaluation_block()),
         (ROOT / "benchmarks/README.md", EVAL_BEGIN, EVAL_END, _evaluation_block()),
         (ROOT / "benchmarks/qa/README.md", QA_BEGIN, QA_END, _qa_block()),
@@ -301,7 +434,9 @@ def render(*, check: bool) -> list[str]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Render current benchmark evidence into README blocks")
+    parser = argparse.ArgumentParser(
+        description="Render current benchmark evidence into README blocks"
+    )
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
     changed = render(check=args.check)

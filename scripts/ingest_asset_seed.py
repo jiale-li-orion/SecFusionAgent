@@ -9,7 +9,7 @@ from uuid import NAMESPACE_URL, uuid5
 
 from packages.enrichment.runtime.post_ingress import ObservationProcessingRuntime
 from packages.intelligence.ingestion.evidence import EvidenceIngress
-from packages.intelligence.storage.factory import create_s3_artifact_store
+from packages.intelligence.storage.factory import create_artifact_store
 from packages.monitoring.storage.models import AcquisitionRunModel
 from packages.shared.config import get_settings
 from packages.shared.db import create_engine, create_session_factory
@@ -61,7 +61,7 @@ async def _run(path: Path) -> None:
     source = sources[SOURCE_ID]
     engine = create_engine(settings.database_url)
     factory = create_session_factory(engine)
-    store = create_s3_artifact_store(settings)
+    store = create_artifact_store(settings)
     await store.ensure_bucket()
     run_id = _stable_run_id(case_key, observed_at_raw, ip)
     try:

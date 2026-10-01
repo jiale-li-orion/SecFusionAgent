@@ -2,7 +2,10 @@
   "source_id": "bleepingcomputer-news",
   "adapter_type": "rss_incident",
   "source_class": "incident_news",
-  "authority_scope": ["breaking_signal", "secondary_reporting"],
+  "authority_scope": [
+    "breaking_signal",
+    "secondary_reporting"
+  ],
   "source_role": "signal",
   "source_family": "bleepingcomputer",
   "access_mode": "rss",
@@ -24,7 +27,7 @@
   },
   "retention_mode": "incident_signal",
   "schedule_policy": {
-    "enabled": false,
+    "enabled": true,
     "interval_seconds": 900
   },
   "schema_version": "1"

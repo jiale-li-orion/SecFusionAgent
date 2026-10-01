@@ -20,7 +20,7 @@ from packages.intelligence.ingestion.evidence import EvidenceIngress
 from packages.intelligence.retrieval.indexing import DocumentIndexService
 from packages.intelligence.storage.document_models import DocumentChunkModel, DocumentRevisionModel
 from packages.intelligence.storage.evidence_models import ObservationModel
-from packages.intelligence.storage.factory import create_s3_artifact_store
+from packages.intelligence.storage.factory import create_artifact_store
 from packages.shared.config import get_settings
 from packages.shared.db import create_engine, create_session_factory
 from packages.sources.contracts import RetentionMode
@@ -67,7 +67,7 @@ async def _run(source_id: str | None, observation_id: str | None, index_document
     sources = {item.source_id: item for item in definitions}
     engine = create_engine(settings.database_url)
     factory = create_session_factory(engine)
-    store = create_s3_artifact_store(settings)
+    store = create_artifact_store(settings)
     await store.ensure_bucket()
     redis = Redis.from_url(settings.redis_hot_cache_url)
     incident_store = RedisIncidentSignalStore(redis)

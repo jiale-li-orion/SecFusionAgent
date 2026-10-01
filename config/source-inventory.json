@@ -7,7 +7,7 @@
     "dynamic": "The source is intentionally resolved at investigation time and has a named resolver owner."
   },
   "monitoring_measurement": {
-    "public_epoch": "2026-10-01T20:35:09+00:00",
+    "public_epoch": "2026-10-01T20:19:42+00:00",
     "fresh_event_max_age_seconds": 21600,
     "recent_event_max_age_seconds": 86400,
     "rolling_windows_hours": [

@@ -36,7 +36,9 @@ These are independent dimensions:
 | `incident_signal` | short-lived incident signal staging |
 | `time_bounded` | query-bound observation side path |
 
-One provider may expose multiple source streams. The eight product categories are coverage taxonomy rather than `SourceDefinition.source_class`; they are not required to be a one-to-one partition of provider/source IDs. One executable source stream may support more than one coverage category when it genuinely carries both information roles, while its runtime `source_class`, provenance, authority and processing path remain unchanged. One taxonomy category may use several retention modes. `durable_promoted` is a downstream state after promotion and is not a sixth source retention mode.
+One provider may expose multiple source streams. The eight product categories are coverage taxonomy rather than `SourceDefinition.source_class`; they are not required to be a one-to-one partition of provider/source IDs. One executable source stream may support more than one product-coverage category when it genuinely carries both information roles, while its runtime `source_class`, provenance, authority and processing path remain unchanged. For runtime measurement, however, every executable source has exactly one `measurement_category`; the five cross-category sources are frozen through `measurement_category_overrides` in `source-inventory.json`. This makes the eight runtime traffic rows additive instead of double-counting shared providers. One taxonomy category may use several retention modes. `durable_promoted` is a downstream state after promotion and is not a sixth source retention mode.
+
+The source inventory also owns the public continuous-monitoring measurement epoch and the fresh/recent event horizons. Rows before that epoch remain available for bootstrap and corpus-prefill work but cannot enter public live-throughput or freshness claims. `scheduled monitor` has one precise runtime meaning: a synchronized executable source with `SourceModel.enabled=true` and `schedule_policy.enabled != false`. Product catalog entries, executable sources, scheduled monitors, and eight-category coverage are therefore four related but distinct counts.
 
 A product source category counts as executable coverage only when the inventory has an `owned` fixed/grouped owner whose adapter/runtime owner can be constructed. `partial` ownership, `dynamic_resolution`, and a successful point-in-time live probe do not create a new supported category. Live reachability remains an operational snapshot rather than taxonomy/coverage evidence.
 
@@ -63,6 +65,8 @@ A provider whose availability depends on target/domain resolution uses the resol
 `schedule_policy.enabled` answers whether a source participates in periodic scheduling; it is independent from adapter/query capability. A source can remain queryable while disabled for scheduled collection. `time_bounded` asset providers are intentionally on-demand and are expected to have scheduling disabled.
 
 Rate-aware sources may declare an adaptive scheduling policy in `rate_limit_policy`. The source definition owns static intent such as minimum cadence and reserved request headroom; the adapter supplies live quota observations. A fixed `schedule_policy.interval_seconds` remains the fallback whenever the provider does not expose usable quota headers.
+
+Cadence follows upstream update semantics rather than one global polling interval. Vulnerability and breaking-incident streams remain minute/hour scale; mutable vendor/research pages are typically multi-hour; standards and arXiv discovery are day scale. A transport failure may delay the next run but cannot accelerate a low-frequency source above its normal cadence.
 
 The source module does not own `next_due_at`, backoff, acquisition-run state, or cursor commit. Those belong to `packages.monitoring`.
 

@@ -11,7 +11,9 @@ x-app-runtime: &app-runtime
     SECFUSION_REDIS_BROKER_URL: redis://redis-broker:6379/0
     SECFUSION_REDIS_HOT_CACHE_URL: redis://redis-cache:6379/0
     SECFUSION_REDIS_TASK_BUS_URL: redis://redis-task-bus:6379/0
-    SECFUSION_S3_ENDPOINT_URL: http://localstack-s3:4566
+    SECFUSION_ARTIFACT_STORE_BACKEND: ${SECFUSION_ARTIFACT_STORE_BACKEND:-filesystem}
+    SECFUSION_ARTIFACT_ROOT: /var/lib/secfusion/artifacts
+    SECFUSION_S3_ENDPOINT_URL: ${SECFUSION_S3_ENDPOINT_URL:-http://localstack-s3:4566}
     SECFUSION_S3_ACCESS_KEY: secfusion
     SECFUSION_S3_SECRET_KEY: change-me
     SECFUSION_S3_BUCKET: secfusion-evidence
@@ -31,8 +33,8 @@ x-app-runtime: &app-runtime
       condition: service_started
     redis-task-bus:
       condition: service_started
-    localstack-s3:
-      condition: service_healthy
+  volumes:
+    - ../.local/secfusion-artifacts:/var/lib/secfusion/artifacts
 
 services:
   postgres:
@@ -87,22 +89,9 @@ services:
     volumes:
       - secfusion-redis-task-bus:/data
 
-  minio:
-    image: minio/minio:latest
-    profiles: ["minio"]
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: secfusion
-      MINIO_ROOT_PASSWORD: change-me
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - secfusion-minio:/data
-
   localstack-s3:
     image: public.ecr.aws/localstack/localstack:4.14.0
-    restart: unless-stopped
+    profiles: ["localstack"]
     ports:
       - "4566:4566"
     environment:
@@ -158,4 +147,3 @@ volumes:
   secfusion-postgres:
   secfusion-redis-broker:
   secfusion-redis-task-bus:
-  secfusion-minio:

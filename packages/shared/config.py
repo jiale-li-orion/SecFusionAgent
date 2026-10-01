@@ -1,5 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -25,6 +26,8 @@ class Settings(BaseSettings):
     scheduler_tick_seconds: int = 5
     api_workbench_enabled: bool = True
 
+    artifact_store_backend: Literal["filesystem", "s3"] = "filesystem"
+    artifact_root: Path = Path(".local/secfusion-artifacts")
     s3_endpoint_url: str = "http://localhost:4566"
     s3_access_key: str = "secfusion"
     s3_secret_key: str = "change-me"

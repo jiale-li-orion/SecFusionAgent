@@ -1,4 +1,4 @@
-.PHONY: sync lint format typecheck test check site-check site-status dev-up dev-runtime-up dev-runtime-down runtime-status runtime-config-check data-plane-up data-plane-down data-plane-status data-plane-logs dev-down migrate sync-sources sync-skills worker worker-collection scheduler task-event-dispatcher task-event-scheduler probe-nvd promote-hot product-check model-provider-probe qa-live qa-live-preflight benchmark-query m1-doc m1-render-doc m1-doc-check qa-preflight qa-preflight-doc-check investigation-readiness investigation-readiness-doc-check fault-recovery fault-recovery-doc-check competition-report competition-render-doc competition-doc-check readme-evidence readme-evidence-check evidence-doc evidence-doc-check
+.PHONY: sync lint format typecheck test check site-check site-status dev-up dev-runtime-up dev-runtime-down runtime-status runtime-config-check data-plane-up data-plane-down data-plane-status data-plane-logs data-plane-metrics data-plane-metrics-render data-plane-metrics-check data-plane-site data-plane-site-check dev-down migrate sync-sources sync-skills worker worker-collection scheduler task-event-dispatcher task-event-scheduler probe-nvd promote-hot product-check model-provider-probe qa-live qa-live-preflight benchmark-query m1-doc m1-render-doc m1-doc-check qa-preflight qa-preflight-doc-check investigation-readiness investigation-readiness-doc-check fault-recovery fault-recovery-doc-check competition-report competition-render-doc competition-doc-check readme-evidence readme-evidence-check evidence-doc evidence-doc-check
 
 WIKI_PATH ?= ../SecFusionAgent.wiki
 SITE_STATUS_OUTPUT ?= $(WIKI_PATH)/site/project-status.json
@@ -44,7 +44,7 @@ product-check:
 		packages/reasoning/tests \
 		tests/test_decision_runtime.py
 
-site-check:
+site-check: data-plane-site-check
 	python3 scripts/validate_site.py --site $(WIKI_PATH)/site
 
 site-status:
@@ -168,12 +168,12 @@ readme-evidence:
 readme-evidence-check:
 	uv run python scripts/render_readme_evidence.py --check
 
-evidence-doc: m1-render-doc qa-preflight investigation-readiness competition-render-doc readme-evidence
+evidence-doc: m1-render-doc qa-preflight investigation-readiness competition-render-doc data-plane-metrics-render readme-evidence
 
-evidence-doc-check: m1-doc-check qa-preflight-doc-check investigation-readiness-doc-check fault-recovery-doc-check competition-doc-check readme-evidence-check
+evidence-doc-check: m1-doc-check qa-preflight-doc-check investigation-readiness-doc-check fault-recovery-doc-check competition-doc-check data-plane-metrics-check readme-evidence-check
 
 dev-up:
-	docker compose -f deploy/docker-compose.yml up -d --wait postgres redis-broker redis-cache redis-task-bus localstack-s3
+	docker compose -f deploy/docker-compose.yml up -d --wait postgres redis-broker redis-cache redis-task-bus
 
 runtime-config-check:
 	docker compose -f deploy/docker-compose.yml --profile runtime config --quiet
@@ -189,8 +189,31 @@ data-plane-up: dev-runtime-up
 data-plane-down: dev-runtime-down
 
 data-plane-status:
-	docker compose -f deploy/docker-compose.yml --profile runtime ps postgres redis-broker redis-cache redis-task-bus localstack-s3 scheduler worker-collection worker
+	docker compose -f deploy/docker-compose.yml --profile runtime ps postgres redis-broker redis-cache redis-task-bus scheduler worker-collection worker
 	uv run python -m scripts.data_plane_status
+
+data-plane-metrics:
+	uv run python -m scripts.data_plane_status --output benchmarks/data-plane/current.json >/dev/null
+	uv run python scripts/render_data_plane_metrics.py benchmarks/data-plane/current.json --output benchmarks/data-plane/current.md
+	uv run python scripts/render_readme_evidence.py
+	@if [ -d "$(WIKI_PATH)/site/data" ]; then $(MAKE) data-plane-site; fi
+
+data-plane-metrics-render:
+	@test -f benchmarks/data-plane/current.json || (echo "benchmarks/data-plane/current.json does not exist" >&2; exit 2)
+	uv run python scripts/render_data_plane_metrics.py benchmarks/data-plane/current.json --output benchmarks/data-plane/current.md
+
+data-plane-metrics-check:
+	@test -f benchmarks/data-plane/current.json || (echo "benchmarks/data-plane/current.json does not exist" >&2; exit 2)
+	uv run python scripts/render_data_plane_metrics.py benchmarks/data-plane/current.json --output benchmarks/data-plane/current.md --check
+
+data-plane-site:
+	@test -f benchmarks/data-plane/current.json || (echo "benchmarks/data-plane/current.json does not exist" >&2; exit 2)
+	@test -d "$(WIKI_PATH)/site/data" || (echo "$(WIKI_PATH)/site/data does not exist" >&2; exit 2)
+	uv run python scripts/render_data_plane_site.py benchmarks/data-plane/current.json --output "$(WIKI_PATH)/site/data/data-plane-runtime.js"
+
+data-plane-site-check:
+	@test -f "$(WIKI_PATH)/site/data/data-plane-runtime.js" || (echo "data-plane website projection does not exist" >&2; exit 2)
+	uv run python scripts/render_data_plane_site.py benchmarks/data-plane/current.json --output "$(WIKI_PATH)/site/data/data-plane-runtime.js" --check
 
 data-plane-logs:
 	docker compose -f deploy/docker-compose.yml --profile runtime logs --tail=200 scheduler worker-collection worker
@@ -254,7 +277,7 @@ probe-live-sources:
 
 .PHONY: dev-up-s3-test
 dev-up-s3-test:
-	docker compose -f deploy/docker-compose.yml up -d --wait localstack-s3
+	docker compose -f deploy/docker-compose.yml --profile localstack up -d --wait localstack-s3
 
 .PHONY: integration-object-store
 integration-object-store: dev-up-s3-test

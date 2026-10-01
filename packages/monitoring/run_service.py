@@ -17,6 +17,7 @@ from packages.monitoring.storage.models import AcquisitionRunModel, SourceStateM
 from packages.shared.storage.models import OutboxEventModel
 from packages.sources.contracts import AcquisitionTrigger, SourceDefinition, SourceState
 from packages.sources.errors import (
+    SourceAccessBlocked,
     SourceAuthFailed,
     SourceFetchFailed,
     SourceRateLimited,
@@ -31,6 +32,7 @@ TERMINAL_STATUSES = frozenset(
         "no_change",
         "rate_limited",
         "auth_failed",
+        "provider_blocked",
         "schema_changed",
         "fetch_failed",
         "internal_error",
@@ -187,7 +189,14 @@ async def fail_acquisition_run(
     state.consecutive_failures += 1
     backoff_until = instant + timedelta(seconds=failure.backoff_seconds)
     state.backoff_until = backoff_until
-    state.next_due_at = backoff_until
+    # Backoff is a lower bound, never an accelerated retry schedule. The scheduler
+    # already advanced next_due_at when it queued this run; preserving the later
+    # of that normal cadence and the failure backoff prevents a daily/6-hour source
+    # from turning into an accidental 5-minute hammer after one transport failure.
+    scheduled_due_at = _as_utc_datetime(state.next_due_at)
+    state.next_due_at = (
+        max(scheduled_due_at, backoff_until) if scheduled_due_at is not None else backoff_until
+    )
     run.status = failure.status
     run.finished_at = instant
     run.error_code = failure.error_code
@@ -203,11 +212,15 @@ def classify_source_failure(exc: Exception, *, consecutive_failures: int = 0) ->
             backoff_seconds=60,
         )
     if isinstance(exc, SourceRateLimited):
+        retry_after = exc.retry_after_seconds
+        backoff_seconds = 15 * 60
+        if isinstance(retry_after, (int, float)) and not isinstance(retry_after, bool):
+            backoff_seconds = max(backoff_seconds, int(max(0.0, retry_after)))
         return AcquisitionFailure(
             status="rate_limited",
             error_code="source_rate_limited",
             error_detail=str(exc),
-            backoff_seconds=15 * 60,
+            backoff_seconds=backoff_seconds,
         )
     if isinstance(exc, SourceAuthFailed):
         return AcquisitionFailure(
@@ -215,6 +228,13 @@ def classify_source_failure(exc: Exception, *, consecutive_failures: int = 0) ->
             error_code="source_auth_failed",
             error_detail=str(exc),
             backoff_seconds=6 * 60 * 60,
+        )
+    if isinstance(exc, SourceAccessBlocked):
+        return AcquisitionFailure(
+            status="provider_blocked",
+            error_code="source_access_blocked",
+            error_detail=str(exc),
+            backoff_seconds=24 * 60 * 60,
         )
     if isinstance(exc, SourceSchemaChanged):
         return AcquisitionFailure(

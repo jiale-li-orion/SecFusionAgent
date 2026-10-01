@@ -19,7 +19,7 @@ from packages.intelligence.projections.service import CurrentProjectionService
 from packages.intelligence.retrieval.indexing import DocumentIndexService
 from packages.intelligence.storage.document_models import DocumentRevisionModel
 from packages.intelligence.storage.evidence_models import ObservationModel
-from packages.intelligence.storage.factory import create_s3_artifact_store
+from packages.intelligence.storage.factory import create_artifact_store
 from packages.investigation.runtime.watch import WatchWakeService
 from packages.investigation.state.world_change import KnowledgeChangeNotice, WorldChangeService
 from packages.monitoring.runtime import execute_collection_run
@@ -133,7 +133,7 @@ async def _run_enrichment(run_id: str) -> str:
     engine = create_engine(settings.database_url)
     factory = create_session_factory(engine)
     execution_service = ExecutionRunService()
-    artifact_store = create_s3_artifact_store(settings)
+    artifact_store = create_artifact_store(settings)
     await artifact_store.ensure_bucket()
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -246,7 +246,7 @@ async def _enrich_vulnerability(payload: dict[str, object]) -> int:
     settings = get_settings()
     engine = create_engine(settings.database_url)
     factory = create_session_factory(engine)
-    artifact_store = create_s3_artifact_store(settings)
+    artifact_store = create_artifact_store(settings)
     task_admission = create_task_contract_service(load_runtime_policy(settings.runtime_policy_path))
     await artifact_store.ensure_bucket()
     try:

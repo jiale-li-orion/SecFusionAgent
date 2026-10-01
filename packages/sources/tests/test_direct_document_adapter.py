@@ -14,6 +14,7 @@ from packages.sources.contracts import (
     SourceRole,
     SourceState,
 )
+from packages.sources.errors import SourceAccessBlocked
 
 SOURCE = SourceDefinition(
     source_id="normative-direct",
@@ -91,3 +92,20 @@ async def test_direct_document_rejects_untrusted_configured_host() -> None:
     ) as client:
         with pytest.raises(ValueError, match="allowed_hosts"):
             await DirectDocumentAdapter(client).discover(source, SourceState())
+
+
+@pytest.mark.asyncio
+async def test_direct_document_classifies_http_403_as_provider_blocked() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(403, request=request)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        adapter = DirectDocumentAdapter(client)
+        batch = await adapter.discover(SOURCE, SourceState())
+        with pytest.raises(SourceAccessBlocked):
+            await adapter.fetch(
+                SOURCE,
+                batch.items[0],
+                acquisition_run_id=str(uuid4()),
+                trigger=AcquisitionTrigger.SCHEDULED,
+            )

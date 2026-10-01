@@ -17,7 +17,12 @@ from packages.sources.contracts import (
     SourceDefinition,
     SourceState,
 )
-from packages.sources.errors import SourceFetchFailed, SourceRateLimited, SourceSchemaChanged
+from packages.sources.errors import (
+    SourceAccessBlocked,
+    SourceFetchFailed,
+    SourceRateLimited,
+    SourceSchemaChanged,
+)
 
 
 class HTMLIncidentAdapter:
@@ -150,6 +155,10 @@ class HTMLIncidentAdapter:
             ) from exc
         if response.status_code == 429:
             raise SourceRateLimited("HTML incident source rate limit reached")
+        if response.status_code in {401, 403}:
+            raise SourceAccessBlocked(
+                f"HTML incident source rejected access with HTTP {response.status_code}"
+            )
         if response.is_error:
             raise SourceFetchFailed(f"HTML incident source returned HTTP {response.status_code}")
         return response

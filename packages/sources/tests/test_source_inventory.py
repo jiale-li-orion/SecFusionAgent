@@ -14,7 +14,7 @@ def test_source_inventory_has_explicit_owner_for_every_concrete_commitment() -> 
     inventory = load_source_inventory()
     assert len(inventory.entries) == 101
     assert inventory.monitoring_measurement.public_epoch == datetime(
-        2026, 10, 1, 20, 35, 9, tzinfo=UTC
+        2026, 10, 1, 20, 19, 42, tzinfo=UTC
     )
     keys = [(item.category, item.name) for item in inventory.entries]
     assert len(keys) == len(set(keys))
@@ -60,7 +60,7 @@ def test_measurement_category_is_total_and_single_valued_for_every_executable_so
 def test_monitoring_measurement_contract_freezes_public_epoch_and_windows() -> None:
     inventory = load_source_inventory()
     contract = inventory.monitoring_measurement
-    assert contract.public_epoch.isoformat() == "2026-10-01T20:35:09+00:00"
+    assert contract.public_epoch.isoformat() == "2026-10-01T20:19:42+00:00"
     assert contract.fresh_event_max_age_seconds == 6 * 60 * 60
     assert contract.recent_event_max_age_seconds == 24 * 60 * 60
     assert contract.rolling_windows_hours == (1, 6, 24, 168)
@@ -77,7 +77,7 @@ def test_scheduled_monitor_set_has_one_frozen_runtime_semantics() -> None:
     scheduled_categories = {inventory.measurement_category(source_id) for source_id in scheduled}
 
     assert len(definitions) == 66
-    assert len(scheduled) == 34
+    assert len(scheduled) == 39
     assert len(scheduled_categories) == 7
     assert "assets" not in {item.value for item in scheduled_categories}
 

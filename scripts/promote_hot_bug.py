@@ -11,7 +11,7 @@ from packages.intelligence.hot_cache.redis import RedisHotBugCache
 from packages.intelligence.ingestion.evidence import EvidenceIngress
 from packages.intelligence.normalization.factory import create_durable_bug_normalizer
 from packages.intelligence.promotion.service import PromotionService
-from packages.intelligence.storage.factory import create_s3_artifact_store
+from packages.intelligence.storage.factory import create_artifact_store
 from packages.shared.config import get_settings
 from packages.shared.db import create_engine, create_session_factory
 from packages.sources.registry.loader import load_source_definitions
@@ -35,7 +35,7 @@ async def main() -> None:
     redis = Redis.from_url(settings.redis_hot_cache_url)
     engine = create_engine(settings.database_url)
     factory = create_session_factory(engine)
-    store = create_s3_artifact_store(settings)
+    store = create_artifact_store(settings)
     await store.ensure_bucket()
     service = PromotionService(
         RedisHotBugCache(redis),

@@ -21,7 +21,12 @@ from packages.sources.contracts import (
     SourceDefinition,
     SourceState,
 )
-from packages.sources.errors import SourceFetchFailed, SourceRateLimited, SourceSchemaChanged
+from packages.sources.errors import (
+    SourceAccessBlocked,
+    SourceFetchFailed,
+    SourceRateLimited,
+    SourceSchemaChanged,
+)
 
 CVE_RE = re.compile(r"\bCVE-\d{4}-\d{4,8}\b", re.IGNORECASE)
 GHSA_RE = re.compile(
@@ -55,6 +60,10 @@ class RSSIncidentAdapter:
             raise SourceFetchFailed(f"RSS request failed: {exc.__class__.__name__}") from exc
         if response.status_code == 429:
             raise SourceRateLimited("RSS source rate limit reached")
+        if response.status_code in {401, 403}:
+            raise SourceAccessBlocked(
+                f"RSS source rejected access with HTTP {response.status_code}"
+            )
         if response.is_error:
             raise SourceFetchFailed(f"RSS source returned HTTP {response.status_code}")
 

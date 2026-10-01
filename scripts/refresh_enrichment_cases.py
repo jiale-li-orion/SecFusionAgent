@@ -15,7 +15,7 @@ from packages.intelligence.ingestion.evidence import EvidenceIngress
 from packages.intelligence.knowledge.read import get_vulnerability_by_cve
 from packages.intelligence.knowledge.write import EvidenceBackedKnowledgeWriter
 from packages.intelligence.normalization.nvd_durable import NVDCanonicalNormalizer
-from packages.intelligence.storage.factory import create_s3_artifact_store
+from packages.intelligence.storage.factory import create_artifact_store
 from packages.monitoring.acquisition.service import AcquisitionService
 from packages.shared.config import get_settings
 from packages.shared.db import create_engine, create_session_factory
@@ -56,7 +56,7 @@ async def _run(
     async with factory() as session, session.begin():
         await sync_source_definitions(session, definitions)
     nvd = sources["nvd-cves-2"]
-    artifact_store = create_s3_artifact_store(settings)
+    artifact_store = create_artifact_store(settings)
     await artifact_store.ensure_bucket()
     ingress = EvidenceIngress(artifact_store)
     acquisition = AcquisitionService(factory)

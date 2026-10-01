@@ -4,6 +4,23 @@ English | [中文](README.zh.md)
 
 [![CI](https://github.com/jiale-li-orion/SecFusionAgent/actions/workflows/ci.yml/badge.svg)](https://github.com/jiale-li-orion/SecFusionAgent/actions/workflows/ci.yml) [![Pages](https://github.com/jiale-li-orion/SecFusionAgent/actions/workflows/pages.yml/badge.svg)](https://github.com/jiale-li-orion/SecFusionAgent/actions/workflows/pages.yml)
 
+<!-- BEGIN GENERATED SCOREBOARD -->
+## Competition scoreboard
+
+| Metric | Current formal result |
+| --- | ---: |
+| Source category coverage | **8/8** (target ≥7) |
+| M1 monitoring latency | **p50 357.709s (5.96min) / p95 7241.893s (2.01h) / ≤6h 100.000% (12/12)** |
+| M3 enrichment Precision / Recall | **99.659% / 99.659% (TP=292, FP=1, FN=1)** |
+| Controlled fault recovery | **100.000% (2/2)** |
+| M6 QA | **pending formal live-model run** |
+
+**Source runtime contract: 101 catalog entries → 66 executable sources → 39 scheduled monitors; 8 product categories, with active scheduled monitoring in 7/8 categories and `assets` intentionally query-time.**
+**Public continuous-monitoring epoch: `2026-10-02T04:19:42+08:00`; scheduled-source health 32 healthy / 5 degraded / 2 blocked; epoch Evidence integrity 100.000%.**
+
+Every value above is generated from benchmark/source configuration rather than copied by hand; run/deployment/provenance details remain in the formal evidence section below.
+<!-- END GENERATED SCOREBOARD -->
+
 **Evidence-first AI Security Intelligence System**
 **Agent-driven AI security intelligence fusion and assessment**
 
@@ -51,7 +68,7 @@ mypy        static type checking
 pytest      domain, replay, state-transition and contract tests
 ```
 
-Repository CI continuously runs `ruff`, `mypy`, and `pytest`; PostgreSQL/Redis/S3 integration gates remain separate explicit commands. Current competition metrics are never copied into this prose: the generated block above is rendered from benchmark JSON and checked for drift by `make evidence-doc-check`.
+Repository CI continuously runs `ruff`, `mypy`, and `pytest`; PostgreSQL/Redis and explicit S3-compatibility integration gates remain separate commands. Current competition metrics are never copied into this prose: the generated block above is rendered from benchmark JSON and checked for drift by `make evidence-doc-check`.
 
 ## System overview
 
@@ -174,7 +191,7 @@ These READMEs refine Technical Design 1 below the cross-module architecture boun
 
 - Python **3.12+**
 - [`uv`](https://docs.astral.sh/uv/)
-- Docker with Compose support for the local PostgreSQL / Redis / S3-compatible stack
+- Docker with Compose support for the local PostgreSQL / Redis runtime and optional S3-compatible integration profile
 
 The runtime has no cloud-vendor requirement. Container registry mirrors, proxies and credentials are host-level configuration and are intentionally kept outside the repository contract.
 
@@ -209,9 +226,9 @@ make migrate
 make sync-sources
 ```
 
-`make dev-up-core` is the verified local core path for PostgreSQL/pgvector and the Redis failure domains. `make dev-up` additionally starts the pinned LocalStack Community S3-compatible backend used by the default development configuration. MinIO remains an opt-in compatibility profile.
+`make dev-up-core` and `make dev-up` start PostgreSQL/pgvector plus the Redis failure domains. The default ArtifactStore is the host-backed content-addressed filesystem under `.local/secfusion-artifacts`; LocalStack is started only by the explicit S3 integration path.
 
-For unattended M1–M3 operation, use `make data-plane-up`. It completes dependency startup, migrations and registry synchronization, then keeps PostgreSQL, Redis, S3, the scheduler, a dedicated collection worker and the enrichment/indexing worker under Compose restart policy. Durable PostgreSQL/Redis/S3 state uses named volumes; Redis hot cache remains intentionally rebuildable. `make data-plane-status` checks the whole path and `make data-plane-logs` tails its runtime processes. Closing the invoking shell does not stop collection, and Docker daemon restart brings these services back under `restart: unless-stopped`. A formal live QA batch briefly quiesces the three writer processes to freeze one Knowledge head, then restores them in `finally`; normal operation remains continuously collecting.
+For unattended M1–M3 operation, use `make data-plane-up`. It completes dependency startup, migrations and registry synchronization, then keeps PostgreSQL, Redis, the scheduler, a dedicated collection worker and the enrichment/indexing worker under Compose restart policy. PostgreSQL and durable Redis roles use named volumes; Evidence/runtime artifacts live in the host-backed content-addressed filesystem; the hot cache remains intentionally rebuildable. `make data-plane-status` checks the whole path, `make data-plane-metrics` exports rolling runtime metrics, and `make data-plane-logs` tails runtime processes. Closing the invoking shell does not stop collection, and Docker daemon restart brings these services back under `restart: unless-stopped`. A formal live QA batch briefly quiesces the three writer processes to freeze one Knowledge head, then restores them in `finally`; normal operation remains continuously collecting.
 
 For model-backed formal evaluation, configure an OpenAI-compatible endpoint and probe it before spending benchmark calls:
 

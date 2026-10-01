@@ -5,6 +5,7 @@ import pytest
 
 from packages.sources.adapters.rss_incident import RSSIncidentAdapter
 from packages.sources.contracts import AcquisitionTrigger, SourceState
+from packages.sources.errors import SourceAccessBlocked
 from packages.sources.registry.loader import load_source_definitions
 
 FEED = Path("tests/fixtures/incident_rss.xml").read_text()
@@ -47,3 +48,13 @@ async def test_rss_incident_discovery_extracts_verifiable_anchors() -> None:
 
         replay = await adapter.discover(SOURCE, SourceState(cursor=batch.next_cursor))
         assert replay.items == []
+
+
+@pytest.mark.asyncio
+async def test_rss_incident_classifies_http_403_as_provider_blocked() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(403, request=request)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(SourceAccessBlocked):
+            await RSSIncidentAdapter(client).discover(SOURCE, SourceState())

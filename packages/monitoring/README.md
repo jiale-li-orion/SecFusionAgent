@@ -21,6 +21,16 @@ Suite `m1-monitoring-current@19`, run `21803fd4-4aaf-42a5-992d-4364e9e31dd2`, de
 Latency is source event time → earliest Knowledge commit. `monitoring_diagnostics` keeps provider-discovery, queue-dispatch and ingestion-commit components separate; bootstrap/input/output backfill stays outside the steady-state denominator.
 
 Current diagnostic split: raw=244, eligible=12, excluded=232. Read the complete machine result in `benchmarks/m1/current.json` and reproduce the Markdown projection with `make m1-render-doc`.
+
+### Live data-plane status (generated)
+
+Public continuous-monitoring epoch: `2026-10-02T04:19:42+08:00`. Pre-epoch rows are bootstrap/corpus-prefill and stay outside public runtime throughput.
+
+Source contract: 101 catalog entries → 66 executable sources → 39 scheduled monitors; 7/8 categories are actively scheduled and `assets` remains query-time.
+
+Current health: 32 healthy / 5 degraded / 2 blocked / 0 warming. Last-hour runtime: run success 50.000%, queue p95 12.479s, execution p95 30.142s, fresh changes 0, fresh contributing sources/categories 0/0. Public-epoch Evidence integrity: 100.000%.
+
+`benchmarks/data-plane/current.json` owns 1h/6h/24h/7d rolling windows plus chart-ready hourly/category series; `make data-plane-metrics` refreshes the snapshot.
 <!-- END GENERATED MONITORING STATUS -->
 
 `packages.monitoring` is the implementation owner of M1 acquisition lifecycle and source runtime state. Technical Design 1 defines the processing paths and M1→M2 boundary; this module records how scheduling, acquisition runs, cursors, retries, and query-time acquisition are concretely executed.
@@ -35,11 +45,15 @@ An external request is not considered a completed acquisition merely because the
 
 `scheduler/service.py` selects enabled sources whose `next_due_at` has passed, skips sources in backoff or with an active run, locks source state with `SKIP LOCKED`, creates a queued acquisition run, and writes a `collection.requested` outbox event in the same transaction.
 
-The scheduling policy only has operational meaning while the control loop and collection consumer are alive. The canonical unattended path is `make data-plane-up`: Compose keeps `apps.worker.scheduler` running and gives the `collection` queue its own `worker-collection` process. Dependency and runtime containers use restart policies, while PostgreSQL/broker/task-bus/S3 data is volume-backed. This separates monitoring freshness from enrichment/projection backlog and removes terminal lifetime or Docker-daemon restart as an implicit scheduler dependency. `make data-plane-status` is the operator check; host-process `make scheduler` / `make worker-collection` remain debugging paths.
+The scheduling policy only has operational meaning while the control loop and collection consumer are alive. The canonical unattended path is `make data-plane-up`: Compose keeps `apps.worker.scheduler` running and gives the `collection` queue its own `worker-collection` process. PostgreSQL/broker/task-bus remain restartable durable services; raw Evidence artifacts use the host-backed filesystem ArtifactStore by default so container recreation cannot erase evidence bytes. This separates monitoring freshness from enrichment/projection backlog and removes terminal lifetime or Docker-daemon restart as an implicit scheduler dependency. `make data-plane-status` is the operator check; host-process `make scheduler` / `make worker-collection` remain debugging paths.
 
 The normal polling interval and catch-up cadence are separate concerns. A source may opt into `schedule_policy.catchup_interval_seconds`. When a completed adapter cursor reports `backfill_pending=true`, `complete_collection_run` shortens `SourceState.next_due_at` to the configured catch-up cadence instead of leaving the source parked until its ordinary polling interval. `oss-security` uses this path while historical catch-up remains incomplete. The adapter still selects newest unseen messages first, so catch-up work cannot sit in front of newly published disclosures. Numeric tuning remains owned by the versioned source definition.
 
 Provider quota is a third scheduling input. A `DiscoveryBatch` may return `rate_limit_state`; successful completion persists it on `SourceState`. For sources whose `rate_limit_policy.adaptive_schedule=true`, `run_service.py` derives the next due time from the provider's remaining requests/reset time and the number of requests actually consumed by that discovery pass, while preserving configured request headroom and a minimum interval. This keeps the policy provider-agnostic: GitHub parses GitHub headers in its adapter, while monitoring only reasons over the normalized budget state. When quota metadata is absent, the fixed interval chosen by the scheduler remains in force. Catch-up cadence and quota cadence compose conservatively: the later safe due time wins.
+
+Failure backoff is also a lower bound, never an accelerated retry schedule. If a daily source fails with a transient network error, `fail_acquisition_run` preserves the later of the already-scheduled next run and the calculated backoff; a single failure can no longer turn a daily source into a 5-minute retry loop. HTTP 401/403 at public adapter boundaries are classified as `provider_blocked` and receive a 24-hour cooldown, keeping long-running health honest without hammering a provider that has rejected automated access.
+
+Operational measurement lives in `benchmarks/data-plane/current.json`. It separates scheduled monitoring from query-time/investigation ingestion and exports 1h/6h/24h/7d rolling windows plus hourly/category series for fresh changes, backfill, queue delay, execution time, event→Knowledge latency, write amplification, document growth, source concentration, source health, and public-epoch Evidence integrity. Formal M1 benchmark evidence stays frozen separately under `benchmarks/m1`; current runtime health never overwrites competition benchmark history.
 
 This matters for mutable snapshot sources such as `github-target-repos`. An hourly snapshot can miss a repository revision that appears and is superseded between polls. A blindly shortened interval is also unsafe because the anonymous GitHub primary quota is shared with other GitHub reads. Adaptive scheduling uses the observed quota instead: authenticated environments naturally poll more densely when the provider grants a larger bucket, while anonymous environments reserve enough headroom for other work instead of repeatedly entering provider backoff.
 

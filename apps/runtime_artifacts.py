@@ -6,7 +6,7 @@ from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from packages.intelligence.storage.artifacts import ArtifactStore
-from packages.intelligence.storage.factory import create_s3_artifact_store
+from packages.intelligence.storage.factory import create_artifact_store
 from packages.runtime.artifacts import (
     RuntimeArtifactService,
     RuntimeBlobStore,
@@ -97,7 +97,7 @@ class RuntimeArtifactSandboxBridge:
 
 
 async def create_runtime_artifact_service(settings: Settings) -> RuntimeArtifactService:
-    store = create_s3_artifact_store(settings, bucket=settings.runtime_artifact_bucket)
+    store = create_artifact_store(settings, bucket=settings.runtime_artifact_bucket)
     await store.ensure_bucket()
     return RuntimeArtifactService(ArtifactStoreRuntimeBlobAdapter(store))
 

@@ -11,7 +11,7 @@ import httpx
 from apps.runtime_models import register_runtime_models
 from packages.intelligence.ingestion.evidence import EvidenceIngress
 from packages.intelligence.normalization.cvelist_v5_durable import CVEListV5CanonicalNormalizer
-from packages.intelligence.storage.factory import create_s3_artifact_store
+from packages.intelligence.storage.factory import create_artifact_store
 from packages.monitoring.acquisition.service import AcquisitionService
 from packages.shared.config import get_settings
 from packages.shared.db import create_engine, create_session_factory
@@ -32,7 +32,7 @@ async def _run(cves: list[str]) -> dict[str, Any]:
     definitions = load_source_definitions(Path(settings.source_registry_path))
     sources = {item.source_id: item for item in definitions}
     source = sources[SOURCE_ID]
-    store = create_s3_artifact_store(settings)
+    store = create_artifact_store(settings)
     await store.ensure_bucket()
     ingress = EvidenceIngress(store)
     acquisition = AcquisitionService(factory)

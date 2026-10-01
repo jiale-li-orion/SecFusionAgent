@@ -4,6 +4,23 @@
 
 [![CI](https://github.com/jiale-li-orion/SecFusionAgent/actions/workflows/ci.yml/badge.svg)](https://github.com/jiale-li-orion/SecFusionAgent/actions/workflows/ci.yml) [![Pages](https://github.com/jiale-li-orion/SecFusionAgent/actions/workflows/pages.yml/badge.svg)](https://github.com/jiale-li-orion/SecFusionAgent/actions/workflows/pages.yml)
 
+<!-- BEGIN GENERATED SCOREBOARD -->
+## 决赛硬指标
+
+| 指标 | 当前正式结果 |
+| --- | ---: |
+| 来源类别覆盖 | **8/8**（目标 ≥7） |
+| M1 监测时效 | **p50 357.709s (5.96min) / p95 7241.893s (2.01h) / ≤6h 100.000%（12/12）** |
+| M3 富化 Precision / Recall | **99.659% / 99.659%（TP=292, FP=1, FN=1）** |
+| Controlled fault recovery | **100.000%（2/2）** |
+| M6 QA | **待接入真实模型 provider 后正式测分** |
+
+**来源运行口径：101 个 catalog entries → 66 个 executable sources → 39 个 scheduled monitors；8 类产品覆盖，其中 7/8 类存在主动定时监测，`assets` 保持按需查询。**
+**持续监测记账起点：`2026-10-02T04:19:42+08:00`；当前 scheduled source 健康状态 32 healthy / 5 degraded / 2 blocked；epoch 内 Evidence 物理完整性 100.000%。**
+
+上表全部数字由 benchmark/source config 自动导出，不手抄；详细 run/deployment/provenance 在下方正式评测区。
+<!-- END GENERATED SCOREBOARD -->
+
 **证据优先的 AI 安全情报系统**
 **智能体驱动的 AI 安全情报融合与研判系统**
 
@@ -51,7 +68,7 @@ mypy        静态类型检查
 pytest      领域、重放、状态迁移与契约测试
 ```
 
-主仓库 CI 持续运行 `ruff`、`mypy` 与 `pytest`，PostgreSQL/Redis/S3 的 integration gate 保持独立显式执行。当前比赛指标不再手写进正文；上方 generated block 直接从 benchmark JSON 渲染，`make evidence-doc-check` 会检查 README 与结构化结果是否漂移。
+主仓库 CI 持续运行 `ruff`、`mypy` 与 `pytest`，PostgreSQL/Redis 与显式 S3 compatibility integration gate 保持独立执行。当前比赛指标不再手写进正文；上方 generated block 直接从 benchmark JSON 渲染，`make evidence-doc-check` 会检查 README 与结构化结果是否漂移。
 
 ## 系统概览
 
@@ -174,7 +191,7 @@ package 归属与依赖方向属于仓库契约，而不是目录约定。`packa
 
 - Python **3.12+**
 - [`uv`](https://docs.astral.sh/uv/)
-- 支持 Compose 的 Docker，用于本地 PostgreSQL / Redis / S3-compatible 栈
+- 支持 Compose 的 Docker，用于本地 PostgreSQL / Redis runtime 与可选 S3-compatible integration profile
 
 运行时没有云厂商依赖。容器镜像仓库 mirror、proxy 与凭据属于 host 级配置，被有意排除在仓库契约之外。
 
@@ -209,9 +226,9 @@ make migrate
 make sync-sources
 ```
 
-`make dev-up-core` 是已经验证的 PostgreSQL/pgvector + Redis 本地 core 路径。`make dev-up` 还会启动默认开发配置使用的固定版本 LocalStack Community S3-compatible backend；MinIO 仅保留为 opt-in compatibility profile。
+`make dev-up-core` 与 `make dev-up` 启动 PostgreSQL/pgvector 与 Redis failure domains。默认 ArtifactStore 改为宿主机 `.local/secfusion-artifacts` 下的 content-addressed filesystem；LocalStack 只在显式 S3 integration 路径启动。
 
-无人值守的 M1–M3 数据面使用 `make data-plane-up`。它完成依赖、迁移、source/Skill 同步，再启动 scheduler、独立 collection worker 与 enrichment/indexing worker。PostgreSQL、broker/task-bus Redis、S3-compatible storage 与 runtime process 都进入 Compose 常驻恢复契约；PostgreSQL、任务状态 Redis 与 S3 使用 named volume，hot cache 仍按设计可重建。关闭终端不会停止采集，Docker daemon 恢复后服务按 `restart: unless-stopped` 回来。`make data-plane-status` 同时查看容器状态与数据库累计量，`make data-plane-logs` 查看最近运行日志。正式 QA batch 只在冻结 Knowledge head 时短暂停 writer，并通过 `finally` 恢复它们。
+无人值守的 M1–M3 数据面使用 `make data-plane-up`。它完成依赖、迁移、source/Skill 同步，再启动 scheduler、独立 collection worker 与 enrichment/indexing worker。PostgreSQL 与 durable Redis 使用 named volume，Evidence/runtime artifact 落在宿主机 content-addressed filesystem，hot cache 仍按设计可重建。关闭终端不会停止采集，Docker daemon 恢复后服务按 `restart: unless-stopped` 回来。`make data-plane-status` 查看运行链，`make data-plane-metrics` 导出 1h/6h/24h/7d 运行指标与小时曲线，`make data-plane-logs` 查看最近日志。正式 QA batch 只在冻结 Knowledge head 时短暂停 writer，并通过 `finally` 恢复它们。
 
 模型评测使用 OpenAI-compatible 配置。正式跑分前先探测 endpoint：
 

@@ -17,7 +17,7 @@ from packages.intelligence.knowledge.identity import cve_canonical_key
 from packages.intelligence.knowledge.vocabulary import EnrichmentDimension, canonical_term
 from packages.intelligence.retrieval.validation import visible_at_knowledge_revision
 from packages.intelligence.storage.evidence_models import EvidenceArtifactModel, ObservationModel
-from packages.intelligence.storage.factory import create_s3_artifact_store
+from packages.intelligence.storage.factory import create_artifact_store
 from packages.intelligence.storage.knowledge_models import (
     EvidenceLinkModel,
     KnowledgeRevisionModel,
@@ -328,7 +328,7 @@ async def _evidence_snapshots(cves: list[str]) -> dict[str, dict[str, Any]]:
     settings = get_settings()
     engine = create_engine(settings.database_url)
     factory = create_session_factory(engine)
-    store = create_s3_artifact_store(settings)
+    store = create_artifact_store(settings)
     result: dict[str, dict[str, Any]] = {}
     try:
         async with factory() as session:

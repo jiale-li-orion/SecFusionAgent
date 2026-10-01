@@ -20,7 +20,7 @@ Every accepted claim/relation must resolve to an Observation/Artifact and locato
 
 `knowledge/` owns generic evidence-backed objects, identifiers, claims, relations, revisions, and reads.
 
-The long-lived local data plane now treats this store as an accumulating operational corpus. `make data-plane-up` keeps scheduled acquisition plus enrichment/indexing consumers alive across terminal exit and Docker restart; PostgreSQL and S3-compatible evidence bytes are volume-backed. Redis hot state remains rebuildable and is intentionally excluded from fact authority. Formal QA is the only workflow that temporarily quiesces data-plane writers so a live Product run can bind to one immutable current Knowledge head; the batch runner restores the writers in `finally`.
+The long-lived local data plane now treats this store as an accumulating operational corpus. `make data-plane-up` keeps scheduled acquisition plus enrichment/indexing consumers alive across terminal exit and Docker restart. PostgreSQL remains volume-backed; raw Evidence and runtime artifacts default to a content-addressed filesystem store mounted from the host at `.local/secfusion-artifacts`, so rebuilding an app container does not recreate the evidence namespace. Redis hot state remains rebuildable and is intentionally excluded from fact authority. Formal QA is the only workflow that temporarily quiesces data-plane writers so a live Product run can bind to one immutable current Knowledge head; the batch runner restores the writers in `finally`.
 
 `EvidenceBackedKnowledgeWriter` is the canonical write path for structured/derived knowledge. Important implementation rules:
 
@@ -111,7 +111,9 @@ HTTP vulnerability read、Runtime Workbench 与 M4 Perception 都复用 `knowled
 
 ## Artifact storage
 
-`storage/artifacts.py` defines the `ArtifactStore` boundary. The configured S3-compatible implementation uses content-addressed writes and is verified with a real S3-compatible integration test. PostgreSQL stores artifact metadata and URI, not arbitrary large body bytes. `EvidenceIngress` exact replay now also verifies that the referenced object-store blob still exists: if metadata is durable but the content-addressed blob has been lost, the replay envelope restores the exact bytes at the same storage URI after checking the content hash. A replay never rewrites the Observation/EvidenceArtifact identity or accepts mismatched bytes.
+`storage/artifacts.py` defines the `ArtifactStore` boundary. The default single-host deployment uses `FilesystemArtifactStore`; an explicit S3-compatible implementation remains available for integration/deployment environments. Both are content-addressed by SHA-256, while PostgreSQL stores artifact metadata and URI rather than arbitrary large body bytes. Filesystem writes use a temporary sibling followed by atomic replace and validate the declared content hash; URI resolution is confined to the configured bucket root. `EvidenceIngress` exact replay verifies that the referenced blob still exists and may restore exact content when the same durable backend can recover the bytes. A replay never accepts mismatched content or upgrades missing historical bytes into fabricated evidence.
+
+The public continuous-monitoring epoch is intentionally later than the bootstrap corpus. A LocalStack lifecycle audit found that pre-epoch PostgreSQL artifact metadata outlived its temporary object namespace; those rows remain an internal bootstrap diagnostic and are excluded from public runtime-integrity claims. Since the durable filesystem cutover, `data-plane-metrics` measures distinct referenced EvidenceArtifact URIs against physical objects and reports public-epoch integrity directly.
 
 ## Dependency boundary
 

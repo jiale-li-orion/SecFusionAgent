@@ -6,6 +6,7 @@ import pytest
 
 from packages.sources.adapters.github_repo import GitHubRepoAdapter
 from packages.sources.contracts import AcquisitionTrigger, SourceState
+from packages.sources.errors import SourceRateLimited
 from packages.sources.registry.loader import load_source_definitions
 
 FIXTURE = json.loads(Path("tests/fixtures/github_repo.json").read_text())
@@ -73,3 +74,31 @@ async def test_github_repo_discovery_uses_repo_revision_cursor() -> None:
     assert envelope.external_object_id == "vllm-project/vllm"
     assert envelope.json_payload["default_branch"] == "main"
     assert envelope.content_hash
+
+
+@pytest.mark.asyncio
+async def test_github_repo_rate_limit_exposes_provider_reset(monkeypatch) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            403,
+            headers={
+                "X-RateLimit-Limit": "60",
+                "X-RateLimit-Remaining": "0",
+                "X-RateLimit-Reset": "1790877600",
+            },
+            request=request,
+        )
+
+    class _FixedDateTime:
+        @classmethod
+        def now(cls, tz):
+            from datetime import datetime
+
+            return datetime.fromtimestamp(1790874000, tz=tz)
+
+    monkeypatch.setattr("packages.sources.adapters.github_repo.datetime", _FixedDateTime)
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        adapter = GitHubRepoAdapter(client)
+        with pytest.raises(SourceRateLimited) as captured:
+            await adapter.discover(SOURCE, SourceState())
+    assert captured.value.retry_after_seconds == 3600

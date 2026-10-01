@@ -24,7 +24,7 @@ from packages.intelligence.ingestion.evidence import EvidenceIngress
 from packages.intelligence.knowledge.write import EvidenceBackedKnowledgeWriter
 from packages.intelligence.normalization.factory import create_hot_bug_normalizer
 from packages.intelligence.normalization.hot_bug import HotBugIngress
-from packages.intelligence.storage.factory import create_s3_artifact_store
+from packages.intelligence.storage.factory import create_artifact_store
 from packages.intelligence.structured.github_repo import GitHubRepoMapper
 from packages.intelligence.structured.service import StructuredIndexService
 from packages.monitoring.hot_window import HotWindowCollector
@@ -80,7 +80,7 @@ async def execute_collection_run(run_id: str, settings: Settings) -> str:
                             await complete_hot_window_run(session, run_id, hot_result)
                         return "success" if hot_result.accepted else "no_change"
                     if context.source.retention_mode is RetentionMode.DURABLE_MANAGED:
-                        artifact_store = create_s3_artifact_store(settings)
+                        artifact_store = create_artifact_store(settings)
                         await artifact_store.ensure_bucket()
                         managed_service = ManagedDocumentService(
                             EvidenceIngress(artifact_store),
@@ -116,7 +116,7 @@ async def execute_collection_run(run_id: str, settings: Settings) -> str:
                             )
                         return "success" if managed_result.accepted else "no_change"
                     if context.source.retention_mode is RetentionMode.SELECTIVE_INDEX:
-                        artifact_store = create_s3_artifact_store(settings)
+                        artifact_store = create_artifact_store(settings)
                         await artifact_store.ensure_bucket()
                         structured_service = StructuredIndexService(
                             EvidenceIngress(artifact_store),
@@ -153,7 +153,7 @@ async def execute_collection_run(run_id: str, settings: Settings) -> str:
                             ),
                             create_incident_signal_extractors(),
                         )
-                        artifact_store = create_s3_artifact_store(settings)
+                        artifact_store = create_artifact_store(settings)
                         await artifact_store.ensure_bucket()
                         promotion = IncidentPromotionService(
                             incident_store,

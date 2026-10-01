@@ -18,6 +18,7 @@ from packages.monitoring.run_service import (
     classify_source_failure,
     complete_collection_run,
     complete_hot_window_run,
+    fail_acquisition_run,
     recover_stale_acquisition_runs,
     start_acquisition_run,
 )
@@ -27,6 +28,7 @@ from packages.monitoring.storage.service import ensure_source_states
 from packages.shared.db import Base
 from packages.shared.outbox.service import dispatch_pending_events
 from packages.shared.storage.models import OutboxEventModel
+from packages.sources.errors import SourceAccessBlocked, SourceFetchFailed, SourceRateLimited
 from packages.sources.registry.loader import load_source_definitions
 from packages.sources.registry.service import sync_source_definitions
 from packages.sources.storage.models import SourceModel
@@ -363,6 +365,67 @@ def test_artifact_store_outage_gets_short_dependency_backoff() -> None:
     assert failure.status == "dependency_unavailable"
     assert failure.error_code == "artifact_store_unavailable"
     assert failure.backoff_seconds == 60
+
+
+def test_access_blocked_gets_long_provider_backoff() -> None:
+    failure = classify_source_failure(SourceAccessBlocked("HTTP 403"))
+    assert failure.status == "provider_blocked"
+    assert failure.error_code == "source_access_blocked"
+    assert failure.backoff_seconds == 24 * 60 * 60
+
+
+def test_rate_limit_honors_provider_retry_after_when_longer_than_default() -> None:
+    failure = classify_source_failure(
+        SourceRateLimited("quota exhausted", retry_after_seconds=3_600)
+    )
+    assert failure.status == "rate_limited"
+    assert failure.backoff_seconds == 3_600
+
+
+@pytest.mark.asyncio
+async def test_failure_backoff_never_accelerates_normal_schedule() -> None:
+    engine, factory = await _database()
+    now = datetime(2026, 9, 25, 4, 0, tzinfo=UTC)
+    definitions = load_source_definitions(Path("config/sources"))
+    source = next(item for item in definitions if item.source_id == "cac-ai-regulations")
+    try:
+        async with factory() as session, session.begin():
+            ids = await sync_source_definitions(session, [source])
+            await ensure_source_states(session, ids, now=now)
+            state = await session.get(SourceStateModel, source.source_id)
+            assert state is not None
+            state.next_due_at = now
+
+        async with factory() as session, session.begin():
+            run_ids = await schedule_due_sources(
+                session,
+                now=now,
+                source_ids={source.source_id},
+            )
+        run_id = run_ids[0]
+
+        async with factory() as session, session.begin():
+            context = await start_acquisition_run(
+                session,
+                run_id,
+                now=now + timedelta(seconds=1),
+            )
+            assert context is not None
+            failure = classify_source_failure(SourceFetchFailed("temporary network failure"))
+            await fail_acquisition_run(
+                session,
+                run_id,
+                failure,
+                now=now + timedelta(seconds=2),
+            )
+
+        async with factory() as session:
+            state = await session.get(SourceStateModel, source.source_id)
+            assert state is not None
+            assert _as_utc(state.next_due_at) == now + timedelta(days=1)
+            assert _as_utc(state.backoff_until) == now + timedelta(minutes=5, seconds=2)
+    finally:
+        await engine.dispose()
 
 
 @pytest.mark.asyncio

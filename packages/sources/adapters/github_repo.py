@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -217,7 +217,10 @@ class GitHubRepoAdapter:
         if response.status_code == 401:
             raise SourceAuthFailed("GitHub repository API rejected credentials")
         if response.status_code in {403, 429}:
-            raise SourceRateLimited("GitHub repository API rate limit reached")
+            raise SourceRateLimited(
+                "GitHub repository API rate limit reached",
+                retry_after_seconds=_rate_limit_retry_after_seconds(response),
+            )
         if response.is_error:
             raise SourceFetchFailed(f"GitHub repository API returned HTTP {response.status_code}")
         return response.json()
@@ -242,6 +245,26 @@ class GitHubRepoAdapter:
             except ValueError:
                 continue
         self._rate_limit_state = state
+
+
+def _rate_limit_retry_after_seconds(response: httpx.Response) -> float | None:
+    retry_after = response.headers.get("retry-after")
+    if retry_after is not None:
+        try:
+            value = float(retry_after)
+        except ValueError:
+            pass
+        else:
+            return max(0.0, value)
+
+    reset = response.headers.get("x-ratelimit-reset")
+    if reset is None:
+        return None
+    try:
+        reset_epoch = float(reset)
+    except ValueError:
+        return None
+    return max(0.0, reset_epoch - datetime.now(UTC).timestamp())
 
 
 def _to_repo_ref(payload: dict[str, Any]) -> DiscoveredRef:
