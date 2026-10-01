@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import pytest
 
+from packages.intelligence.retrieval.validation import visible_at_knowledge_revision
 from scripts.evaluate_real_enrichment import (
     PROVIDER_SNAPSHOT_SCHEMA,
     _load_provider_snapshot,
     _provider_snapshot_revision,
     _snapshot_fetched_at,
     _validate_provider_snapshot,
-    _visible_at_revision,
     _write_provider_snapshot,
 )
 
@@ -68,22 +68,22 @@ def test_snapshot_fetched_at_requires_timezone() -> None:
 
 
 def test_revision_visibility_is_point_in_time() -> None:
-    assert _visible_at_revision(
+    assert visible_at_knowledge_revision(
         created_revision=10,
         superseded_revision=None,
         knowledge_revision=10,
     )
-    assert not _visible_at_revision(
+    assert not visible_at_knowledge_revision(
         created_revision=11,
         superseded_revision=None,
         knowledge_revision=10,
     )
-    assert _visible_at_revision(
+    assert visible_at_knowledge_revision(
         created_revision=8,
         superseded_revision=12,
         knowledge_revision=11,
     )
-    assert not _visible_at_revision(
+    assert not visible_at_knowledge_revision(
         created_revision=8,
         superseded_revision=12,
         knowledge_revision=12,

@@ -8,17 +8,19 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.runtime_models import register_runtime_models
 from packages.evaluation.m1_m3 import EnrichmentFactKey, EnrichmentPrediction, score_enrichment
+from packages.intelligence.knowledge.identity import cve_canonical_key
 from packages.intelligence.knowledge.vocabulary import EnrichmentDimension, canonical_term
+from packages.intelligence.retrieval.validation import visible_at_knowledge_revision
 from packages.intelligence.storage.evidence_models import EvidenceArtifactModel, ObservationModel
 from packages.intelligence.storage.factory import create_s3_artifact_store
 from packages.intelligence.storage.knowledge_models import (
     EvidenceLinkModel,
-    ExternalIdentifierModel,
+    KnowledgeRevisionModel,
     ObjectModel,
     RelationModel,
 )
@@ -243,15 +245,25 @@ def _prediction_qualifier(relation: RelationModel) -> dict[str, Any]:
     return {key: relation.qualifier[key] for key in allowed if key in relation.qualifier}
 
 
-async def _predictions_for_case(session: AsyncSession, cve_id: str) -> list[EnrichmentPrediction]:
-    object_id = await session.scalar(
-        select(ExternalIdentifierModel.object_id).where(
-            ExternalIdentifierModel.namespace == "cve",
-            ExternalIdentifierModel.value == cve_id,
+async def _predictions_for_case(
+    session: AsyncSession,
+    cve_id: str,
+    *,
+    knowledge_revision: int,
+) -> list[EnrichmentPrediction]:
+    root = await session.scalar(
+        select(ObjectModel).where(
+            ObjectModel.object_type == "Vulnerability",
+            ObjectModel.canonical_key == cve_canonical_key(cve_id),
         )
     )
-    if object_id is None:
+    if root is None or not visible_at_knowledge_revision(
+        created_revision=root.created_revision,
+        superseded_revision=root.superseded_revision,
+        knowledge_revision=knowledge_revision,
+    ):
         return []
+    object_id = root.object_id
     rows = (
         await session.execute(
             select(RelationModel, ObjectModel)
@@ -260,12 +272,22 @@ async def _predictions_for_case(session: AsyncSession, cve_id: str) -> list[Enri
                 RelationModel.source_object_id == object_id,
                 RelationModel.relation_type.in_(("applicability-status", "vendor-advisory")),
                 RelationModel.lifecycle == "accepted",
-                RelationModel.superseded_revision.is_(None),
+                RelationModel.created_revision <= knowledge_revision,
+                or_(
+                    RelationModel.superseded_revision.is_(None),
+                    RelationModel.superseded_revision > knowledge_revision,
+                ),
             )
         )
     ).all()
     result: list[EnrichmentPrediction] = []
     for relation, target in rows:
+        if not visible_at_knowledge_revision(
+            created_revision=target.created_revision,
+            superseded_revision=target.superseded_revision,
+            knowledge_revision=knowledge_revision,
+        ):
+            continue
         if relation.qualifier.get("source_id") != SOURCE_ID:
             continue
         evidence = (
@@ -328,12 +350,24 @@ async def _evidence_snapshots(cves: list[str]) -> dict[str, dict[str, Any]]:
                 if item is None:
                     raise RuntimeError(f"no persisted Red Hat CSAF VEX Evidence for {cve_id}")
                 observation, artifact = item
+                knowledge_revision = await session.scalar(
+                    select(func.max(KnowledgeRevisionModel.revision)).where(
+                        KnowledgeRevisionModel.cause_observation_id == observation.observation_id
+                    )
+                )
+                if knowledge_revision is None:
+                    raise RuntimeError(
+                        f"no Knowledge revision for persisted CSAF VEX Evidence {cve_id}"
+                    )
                 payload = json.loads(await store.get(artifact.storage_uri))
                 if not isinstance(payload, dict):
                     raise RuntimeError(f"invalid persisted CSAF VEX Evidence for {cve_id}")
                 result[cve_id] = {
                     "canonical_url": observation.canonical_url,
                     "external_revision": observation.external_revision,
+                    "observation_id": observation.observation_id,
+                    "observed_at": observation.observed_at.isoformat(),
+                    "knowledge_revision": int(knowledge_revision),
                     "payload": payload,
                 }
     finally:
@@ -352,6 +386,13 @@ async def _run(cves: list[str]) -> dict[str, Any]:
     gold = {fact for facts in case_gold.values() for fact in facts}
     if not gold:
         raise RuntimeError("Red Hat CSAF VEX benchmark has zero formal gold facts")
+    prediction_knowledge_revision = max(
+        int(snapshot["knowledge_revision"]) for snapshot in snapshots.values()
+    )
+    fetched_at = max(
+        datetime.fromisoformat(str(snapshot["observed_at"]).replace("Z", "+00:00"))
+        for snapshot in snapshots.values()
+    ).astimezone(UTC)
 
     engine = create_engine()
     factory = create_session_factory(engine)
@@ -359,7 +400,11 @@ async def _run(cves: list[str]) -> dict[str, Any]:
     try:
         async with factory() as session:
             for cve_id in cves:
-                case_predictions[cve_id] = await _predictions_for_case(session, cve_id)
+                case_predictions[cve_id] = await _predictions_for_case(
+                    session,
+                    cve_id,
+                    knowledge_revision=prediction_knowledge_revision,
+                )
     finally:
         await engine.dispose()
     predictions = [item for values in case_predictions.values() for item in values]
@@ -367,7 +412,7 @@ async def _run(cves: list[str]) -> dict[str, Any]:
     valid = {item.fact for item in predictions if item.evidence_valid}
     return {
         "profile": "redhat-csaf-vex-source-specific-v2",
-        "fetched_at": datetime.now(UTC).isoformat(),
+        "fetched_at": fetched_at.isoformat(),
         "cases": cves,
         "formal_dimensions": [
             EnrichmentDimension.VERSION_APPLICABILITY.value,
@@ -380,7 +425,19 @@ async def _run(cves: list[str]) -> dict[str, Any]:
                 for item in sorted(gold, key=lambda x: x.normalized_value_or_target_id)
             ],
         ),
-        "provider_snapshot_revision": _revision("provider-snapshot", snapshots),
+        "provider_snapshot_revision": _revision(
+            "provider-snapshot",
+            {
+                cve: {
+                    "canonical_url": snapshot["canonical_url"],
+                    "external_revision": snapshot["external_revision"],
+                    "payload": snapshot["payload"],
+                }
+                for cve, snapshot in snapshots.items()
+            },
+        ),
+        "prediction_knowledge_revision": prediction_knowledge_revision,
+        "prediction_world_ref": f"knowledge-revision:{prediction_knowledge_revision}",
         "gold_source_mode": "frozen_snapshot_replay",
         "gold_fact_count": len(gold),
         "prediction_count": len(predictions),

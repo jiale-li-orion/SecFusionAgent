@@ -25,6 +25,7 @@ from packages.intelligence.knowledge.vocabulary import EnrichmentDimension, cano
 from packages.intelligence.retrieval.validation import (
     current_knowledge_revision,
     knowledge_revision_at,
+    visible_at_knowledge_revision,
 )
 from packages.intelligence.storage.evidence_models import ObservationModel
 from packages.intelligence.storage.knowledge_models import (
@@ -939,7 +940,7 @@ async def _current_predictions(
                 ObjectModel.canonical_key == cve_canonical_key(cve_id),
             )
         )
-        if root is None or not _visible_at_revision(
+        if root is None or not visible_at_knowledge_revision(
             created_revision=root.created_revision,
             superseded_revision=root.superseded_revision,
             knowledge_revision=knowledge_revision,
@@ -1005,7 +1006,7 @@ async def _current_predictions(
             )
         ).all()
         for relation, target in relations:
-            if not _visible_at_revision(
+            if not visible_at_knowledge_revision(
                 created_revision=target.created_revision,
                 superseded_revision=target.superseded_revision,
                 knowledge_revision=knowledge_revision,
@@ -1038,17 +1039,6 @@ async def _current_predictions(
             else:
                 predictions.append(prediction)
     return predictions, out_of_scope
-
-
-def _visible_at_revision(
-    *,
-    created_revision: int,
-    superseded_revision: int | None,
-    knowledge_revision: int,
-) -> bool:
-    return created_revision <= knowledge_revision and (
-        superseded_revision is None or superseded_revision > knowledge_revision
-    )
 
 
 def _benchmark_claim_qualifier(

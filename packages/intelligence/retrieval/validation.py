@@ -47,6 +47,17 @@ async def knowledge_revision_at(session: AsyncSession, instant: datetime) -> int
     )
 
 
+def visible_at_knowledge_revision(
+    *,
+    created_revision: int,
+    superseded_revision: int | None,
+    knowledge_revision: int,
+) -> bool:
+    return created_revision <= knowledge_revision and (
+        superseded_revision is None or superseded_revision > knowledge_revision
+    )
+
+
 async def evidence_dependencies(
     session: AsyncSession,
     evidence_refs: list[str],

@@ -12,7 +12,9 @@ cannot improve an older replay retroactively. `current-structured.json` records 
 `provider_snapshot_revision` and `prediction_world_ref=knowledge-revision:<n>`.
 
 `current-csaf-vex.json` independently rebuilds Red Hat CSAF/VEX gold from persisted raw
-EvidenceArtifact bytes and filters predictions to that source-specific evidence universe.
+EvidenceArtifact bytes and filters predictions to that source-specific evidence universe. Its
+prediction world is frozen at the maximum KnowledgeRevision caused by the exact persisted Red Hat
+Observations selected for the cases, so later source refreshes cannot alter an older CSAF/VEX replay.
 
 Point-in-time providers require explicit temporal handling. FIRST EPSS claims carry `score_date` and
 are refreshed before replay when the frozen provider world advances. GitHub Advisory EPSS fields are
