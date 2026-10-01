@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 from packages.sources.contracts import RetentionMode
@@ -12,6 +13,9 @@ from packages.sources.resolver_registry import create_dynamic_source_resolvers
 def test_source_inventory_has_explicit_owner_for_every_concrete_commitment() -> None:
     inventory = load_source_inventory()
     assert len(inventory.entries) == 101
+    assert inventory.monitoring_measurement.public_epoch == datetime(
+        2026, 10, 1, 20, 35, 9, tzinfo=UTC
+    )
     keys = [(item.category, item.name) for item in inventory.entries]
     assert len(keys) == len(set(keys))
     assert {item.category for item in inventory.entries} == {
@@ -36,6 +40,49 @@ def test_source_inventory_has_explicit_owner_for_every_concrete_commitment() -> 
             assert source_id in configured, f"inventory source id is not configured: {source_id}"
             referenced.add(source_id)
     assert referenced == configured
+
+
+def test_measurement_category_is_total_and_single_valued_for_every_executable_source() -> None:
+    inventory = load_source_inventory()
+    configured = {item.source_id for item in load_source_definitions(Path("config/sources"))}
+    physical = inventory.physical_source_categories()
+
+    assert set(physical) == configured
+    multi_category = {
+        source_id: categories for source_id, categories in physical.items() if len(categories) > 1
+    }
+    assert set(inventory.measurement_category_overrides) == set(multi_category)
+    for source_id in configured:
+        category = inventory.measurement_category(source_id)
+        assert category in physical[source_id]
+
+
+def test_monitoring_measurement_contract_freezes_public_epoch_and_windows() -> None:
+    inventory = load_source_inventory()
+    contract = inventory.monitoring_measurement
+    assert contract.public_epoch.isoformat() == "2026-10-01T20:35:09+00:00"
+    assert contract.fresh_event_max_age_seconds == 6 * 60 * 60
+    assert contract.recent_event_max_age_seconds == 24 * 60 * 60
+    assert contract.rolling_windows_hours == (1, 6, 24, 168)
+
+
+def test_scheduled_monitor_set_has_one_frozen_runtime_semantics() -> None:
+    inventory = load_source_inventory()
+    definitions = load_source_definitions(Path("config/sources"))
+    scheduled = {
+        item.source_id
+        for item in definitions
+        if item.schedule_policy.get("enabled", True) is not False
+    }
+    scheduled_categories = {inventory.measurement_category(source_id) for source_id in scheduled}
+
+    assert len(definitions) == 66
+    assert len(scheduled) == 34
+    assert len(scheduled_categories) == 7
+    assert "assets" not in {item.value for item in scheduled_categories}
+
+    arxiv = next(item for item in definitions if item.source_id == "arxiv-ai-security")
+    assert arxiv.schedule_policy["interval_seconds"] == 24 * 60 * 60
 
 
 def test_every_source_definition_has_a_live_probe_owner() -> None:

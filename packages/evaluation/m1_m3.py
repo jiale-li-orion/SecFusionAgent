@@ -3,7 +3,6 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
-from enum import StrEnum
 from math import ceil
 from typing import Literal
 
@@ -15,30 +14,14 @@ from packages.intelligence.knowledge.vocabulary import (
     canonical_term,
 )
 from packages.sources.inventory import SourceInventory
-
-
-class SourcePortfolioCategory(StrEnum):
-    VULNERABILITY = "vulnerability"
-    DEVELOPMENT = "development"
-    ACADEMIC = "academic"
-    VENDOR = "vendor"
-    INDEPENDENT = "independent"
-    NORMATIVE = "normative"
-    INCIDENTS = "incidents"
-    ASSETS = "assets"
-
-
-PRODUCT_SOURCE_CATEGORY_ORDER: tuple[SourcePortfolioCategory, ...] = (
-    SourcePortfolioCategory.VULNERABILITY,
-    SourcePortfolioCategory.DEVELOPMENT,
-    SourcePortfolioCategory.ACADEMIC,
-    SourcePortfolioCategory.VENDOR,
-    SourcePortfolioCategory.INDEPENDENT,
-    SourcePortfolioCategory.NORMATIVE,
-    SourcePortfolioCategory.ASSETS,
-    SourcePortfolioCategory.INCIDENTS,
+from packages.sources.taxonomy import (
+    SOURCE_PORTFOLIO_CATEGORIES,
+    SOURCE_PORTFOLIO_CATEGORY_ORDER,
+    SourcePortfolioCategory,
 )
-PRODUCT_SOURCE_CATEGORIES = frozenset(PRODUCT_SOURCE_CATEGORY_ORDER)
+
+PRODUCT_SOURCE_CATEGORY_ORDER = SOURCE_PORTFOLIO_CATEGORY_ORDER
+PRODUCT_SOURCE_CATEGORIES = SOURCE_PORTFOLIO_CATEGORIES
 
 
 class SourceCoverageReport(BaseModel):

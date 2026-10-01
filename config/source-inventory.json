@@ -6,6 +6,17 @@
     "partial": "A repo owner exists for a bounded subset; the note states the remaining scope.",
     "dynamic": "The source is intentionally resolved at investigation time and has a named resolver owner."
   },
+  "monitoring_measurement": {
+    "public_epoch": "2026-10-01T20:35:09+00:00",
+    "fresh_event_max_age_seconds": 21600,
+    "recent_event_max_age_seconds": 86400,
+    "rolling_windows_hours": [
+      1,
+      6,
+      24,
+      168
+    ]
+  },
   "entries": [
     {
       "category": "vulnerability",
@@ -922,5 +933,12 @@
       ],
       "dynamic_owner": "github_incident_followup_resolver"
     }
-  ]
+  ],
+  "measurement_category_overrides": {
+    "github-global-advisories": "development",
+    "github-target-repos": "development",
+    "unit42-research": "independent",
+    "talos-research": "independent",
+    "certcc-vulnerability-notes": "independent"
+  }
 }

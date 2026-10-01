@@ -24,7 +24,7 @@
   },
   "retention_mode": "incident_signal",
   "schedule_policy": {
-    "enabled": true,
+    "enabled": false,
     "interval_seconds": 900
   },
   "schema_version": "1"

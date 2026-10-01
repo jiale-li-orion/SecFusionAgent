@@ -4,6 +4,7 @@ import subprocess
 from pathlib import Path
 
 from packages.evaluation.m1_m3 import PRODUCT_SOURCE_CATEGORY_ORDER
+from packages.sources.inventory import load_source_inventory
 from scripts.check_source_catalog_pair import parse_catalog
 
 
@@ -24,7 +25,8 @@ def test_localized_source_catalogs_have_structural_parity() -> None:
         text=True,
     )
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "99 entries" in result.stdout
+    expected_count = len(load_source_inventory().entries)
+    assert f"{expected_count} entries" in result.stdout
 
 
 def test_website_source_categories_match_frozen_product_taxonomy() -> None:

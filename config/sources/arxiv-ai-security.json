@@ -31,7 +31,7 @@
   "retention_mode": "durable_managed",
   "schedule_policy": {
     "enabled": true,
-    "interval_seconds": 21600
+    "interval_seconds": 86400
   },
   "schema_version": "1"
 }
