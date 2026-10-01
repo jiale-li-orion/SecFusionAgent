@@ -1,4 +1,4 @@
-.PHONY: sync lint format typecheck test check site-check site-status dev-up dev-down migrate sync-sources sync-skills worker worker-collection scheduler task-event-dispatcher task-event-scheduler probe-nvd promote-hot product-check m1-doc m1-render-doc m1-doc-check competition-report competition-render-doc competition-doc-check
+.PHONY: sync lint format typecheck test check site-check site-status dev-up dev-down migrate sync-sources sync-skills worker worker-collection scheduler task-event-dispatcher task-event-scheduler probe-nvd promote-hot product-check m1-doc m1-render-doc m1-doc-check qa-preflight qa-preflight-doc-check competition-report competition-render-doc competition-doc-check
 
 WIKI_PATH ?= ../SecFusionAgent.wiki
 SITE_STATUS_OUTPUT ?= $(WIKI_PATH)/site/project-status.json
@@ -7,6 +7,9 @@ M1_STATUS_JSON ?= benchmarks/m1/current.json
 M1_STATUS_MD ?= benchmarks/m1/current.md
 M1_STATUS_README ?= benchmarks/m1/README.md
 M1_DELIVERY_GRACE_SECONDS ?= 21600
+QA_PRODUCT_PREFLIGHT_JSON ?= benchmarks/qa/current-product-preflight.json
+QA_SESSION_PREFLIGHT_JSON ?= benchmarks/qa/current-session-preflight.json
+QA_PREFLIGHT_MD ?= benchmarks/qa/current-preflight.md
 COMPETITION_RUN_SET ?= benchmarks/competition/current-run-set.json
 COMPETITION_STATUS_JSON ?= benchmarks/competition/current.json
 COMPETITION_STATUS_MD ?= benchmarks/competition/current.md
@@ -70,6 +73,27 @@ m1-doc-check:
 	uv run python scripts/render_m1_status.py "$(M1_STATUS_JSON)" \
 		--markdown-output "$(M1_STATUS_MD)" \
 		--readme-status "$(M1_STATUS_README)" \
+		--check
+
+qa-preflight:
+	uv run python -m scripts.validate_qa_manifest \
+		benchmarks/qa/real-product-v1.candidate.json \
+		--output "$(QA_PRODUCT_PREFLIGHT_JSON)"
+	uv run python -m scripts.validate_qa_manifest \
+		benchmarks/qa/real-session-v1.candidate.json \
+		--output "$(QA_SESSION_PREFLIGHT_JSON)"
+	uv run python scripts/render_qa_preflight_status.py \
+		--product "$(QA_PRODUCT_PREFLIGHT_JSON)" \
+		--session "$(QA_SESSION_PREFLIGHT_JSON)" \
+		--markdown-output "$(QA_PREFLIGHT_MD)"
+
+qa-preflight-doc-check:
+	@test -f "$(QA_PRODUCT_PREFLIGHT_JSON)" || (echo "$(QA_PRODUCT_PREFLIGHT_JSON) does not exist" >&2; exit 2)
+	@test -f "$(QA_SESSION_PREFLIGHT_JSON)" || (echo "$(QA_SESSION_PREFLIGHT_JSON) does not exist" >&2; exit 2)
+	uv run python scripts/render_qa_preflight_status.py \
+		--product "$(QA_PRODUCT_PREFLIGHT_JSON)" \
+		--session "$(QA_SESSION_PREFLIGHT_JSON)" \
+		--markdown-output "$(QA_PREFLIGHT_MD)" \
 		--check
 
 competition-report:

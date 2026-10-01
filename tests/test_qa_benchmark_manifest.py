@@ -15,11 +15,13 @@ from apps.evaluation_runtime import (
 from apps.runtime_models import register_runtime_models
 from packages.evaluation.benchmark import BenchmarkStore, DeploymentRevision
 from packages.evaluation.qa import QAPrediction
+from packages.evaluation.qa_preflight_status import render_qa_preflight_markdown
 from packages.shared.config import Settings
 from packages.shared.db import Base
 from packages.task_runtime.contracts.models import TaskKind
 from scripts import run_qa_benchmark as qa_runner
 from scripts.run_qa_benchmark import QABenchmarkManifest, QABenchmarkManifestCase
+from scripts.validate_qa_manifest import _live_runtime_world_status, _model_provider_status
 
 
 def test_existing_smoke_manifest_remains_valid() -> None:
@@ -94,6 +96,65 @@ def test_real_session_candidate_covers_followup_and_exact_retrieval_reuse() -> N
     assert retrieval.turns[1].question.cve_id is None
     assert retrieval.turns[1].question.object_id is None
     assert retrieval.turns[1].expected_target_keys == ["cve:CVE-2026-7273"]
+
+
+def test_qa_preflight_separates_pinned_gold_from_live_world_readiness() -> None:
+    manifest = QABenchmarkManifest.model_validate_json(
+        Path("benchmarks/qa/real-product-v1.candidate.json").read_text(encoding="utf-8")
+    )
+    assert manifest.knowledge_revision == 606
+    assert _live_runtime_world_status(manifest, current_revision=606) == "ready"
+    assert (
+        _live_runtime_world_status(manifest, current_revision=1019)
+        == "stale_requires_refresh_or_rebase"
+    )
+
+
+def test_offline_qa_preflight_has_no_live_world_requirement() -> None:
+    manifest = QABenchmarkManifest.model_validate_json(
+        Path("benchmarks/qa/smoke-v1.json").read_text(encoding="utf-8")
+    )
+    assert _live_runtime_world_status(manifest, current_revision=1019) == "not_applicable"
+
+
+def test_qa_preflight_reports_model_provider_configuration_separately() -> None:
+    assert _model_provider_status(model_base_url=None, model_name=None) == "unconfigured"
+    assert (
+        _model_provider_status(
+            model_base_url="https://provider.example/v1",
+            model_name="qa-model",
+        )
+        == "configured"
+    )
+
+
+def test_qa_preflight_markdown_is_generated_from_machine_readable_results() -> None:
+    product = {
+        "case_count": 14,
+        "session_count": 0,
+        "structured_authority_case_count": 14,
+        "structured_authority_session_turn_count": 0,
+        "knowledge_revision": 606,
+        "current_knowledge_revision": 1019,
+        "gold_provenance_status": "valid",
+        "live_runtime_world_status": "stale_requires_refresh_or_rebase",
+        "model_provider_status": "unconfigured",
+    }
+    session = {
+        "case_count": 0,
+        "session_count": 2,
+        "structured_authority_case_count": 0,
+        "structured_authority_session_turn_count": 4,
+        "knowledge_revision": 606,
+        "current_knowledge_revision": 1019,
+        "gold_provenance_status": "valid",
+        "live_runtime_world_status": "stale_requires_refresh_or_rebase",
+        "model_provider_status": "unconfigured",
+    }
+    rendered = render_qa_preflight_markdown(product, session)
+    assert "| Product QA | 14 | 0 | 14 | 606 | 1019 |" in rendered
+    assert "| Session QA | 0 | 2 | 4 | 606 | 1019 |" in rendered
+    assert "`unconfigured`" in rendered
 
 
 def test_session_case_rejects_followup_that_rebinds_target() -> None:

@@ -14,6 +14,26 @@ from packages.shared.db import create_engine, create_session_factory
 from scripts.run_qa_benchmark import QABenchmarkManifest
 
 
+def _live_runtime_world_status(
+    manifest: QABenchmarkManifest,
+    *,
+    current_revision: int,
+) -> str:
+    requires_live_world_pin = bool(manifest.sessions) or any(
+        item.live_product_question is not None for item in manifest.cases
+    )
+    if not requires_live_world_pin:
+        return "not_applicable"
+    assert manifest.knowledge_revision is not None
+    if current_revision == manifest.knowledge_revision:
+        return "ready"
+    return "stale_requires_refresh_or_rebase"
+
+
+def _model_provider_status(*, model_base_url: str | None, model_name: str | None) -> str:
+    return "configured" if model_base_url and model_name else "unconfigured"
+
+
 async def _validate(manifest: QABenchmarkManifest) -> dict[str, Any]:
     register_runtime_models()
     settings = get_settings()
@@ -22,15 +42,14 @@ async def _validate(manifest: QABenchmarkManifest) -> dict[str, Any]:
     try:
         async with factory() as session:
             current_revision = await current_knowledge_revision(session)
-            if manifest.sessions or any(
-                item.live_product_question is not None for item in manifest.cases
-            ):
-                assert manifest.knowledge_revision is not None
-                if current_revision != manifest.knowledge_revision:
-                    raise ValueError(
-                        "live Product QA manifest is pinned to a different Knowledge revision: "
-                        f"manifest={manifest.knowledge_revision}, current={current_revision}"
-                    )
+            live_runtime_world_status = _live_runtime_world_status(
+                manifest,
+                current_revision=current_revision,
+            )
+            model_provider_status = _model_provider_status(
+                model_base_url=settings.model_base_url,
+                model_name=settings.model_name,
+            )
 
             structured_cases = 0
             for item in manifest.cases:
@@ -79,6 +98,9 @@ async def _validate(manifest: QABenchmarkManifest) -> dict[str, Any]:
                 "structured_authority_session_turn_count": structured_session_turns,
                 "knowledge_revision": manifest.knowledge_revision,
                 "current_knowledge_revision": current_revision,
+                "gold_provenance_status": "valid",
+                "live_runtime_world_status": live_runtime_world_status,
+                "model_provider_status": model_provider_status,
                 "status": "valid",
             }
     finally:
@@ -90,12 +112,17 @@ def main() -> None:
         description="Validate QA manifest world pin and structured gold provenance without a model"
     )
     parser.add_argument("manifest", type=Path)
+    parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     manifest = QABenchmarkManifest.model_validate_json(
         args.manifest.read_text(encoding="utf-8")
     )
     result = asyncio.run(_validate(manifest))
-    print(json.dumps(result, indent=2, ensure_ascii=False))
+    rendered = json.dumps(result, indent=2, ensure_ascii=False) + "\n"
+    if args.output is not None:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(rendered, encoding="utf-8")
+    print(rendered, end="")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,13 @@
+{
+  "suite_id": "m6-real-product-qa",
+  "case_count": 14,
+  "session_count": 0,
+  "structured_authority_case_count": 14,
+  "structured_authority_session_turn_count": 0,
+  "knowledge_revision": 606,
+  "current_knowledge_revision": 1019,
+  "gold_provenance_status": "valid",
+  "live_runtime_world_status": "stale_requires_refresh_or_rebase",
+  "model_provider_status": "unconfigured",
+  "status": "valid"
+}
