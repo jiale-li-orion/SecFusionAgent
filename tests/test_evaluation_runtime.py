@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from pydantic import JsonValue
@@ -20,7 +20,11 @@ from packages.intelligence.storage.knowledge_models import (
     RelationModel,
 )
 from packages.investigation.cases.service import CaseService
-from packages.investigation.state.contracts import InvestigationState, InvestigationStateItem
+from packages.investigation.state.contracts import (
+    DecisionCommit,
+    InvestigationState,
+    InvestigationStateItem,
+)
 from packages.investigation.state.service import InvestigationStateService
 from packages.reasoning.citation import DecisionCitation
 from packages.reasoning.decision import ConclusionType, DecisionConclusion, DecisionResult
@@ -31,15 +35,18 @@ from packages.shared.db import Base
 from packages.shared.model_provider import StructuredModelRequest
 from packages.sources.storage.models import SourceModel
 from packages.task_runtime.contracts.models import TaskKind
+from packages.task_runtime.storage.models import TaskRunModel
 
 
 class _MetricCaptureStore:
     def __init__(self) -> None:
         self.metric_names: list[str] = []
+        self.observations: list[dict[str, object]] = []
 
     async def observe_metric(self, session, **kwargs) -> None:
         del session
         self.metric_names.append(kwargs["metric_name"])
+        self.observations.append(dict(kwargs))
 
 
 def _deployment(identity: str) -> DeploymentRevision:
@@ -243,6 +250,200 @@ async def test_qa_recorder_owns_session_trace_metrics() -> None:
         "m6.session_retrieval_invocation_coverage",
         "m6.session_retrieval_reuse_rate",
     ]
+
+
+@pytest.mark.asyncio
+async def test_investigation_completion_trace_uses_m4_decision_event_time() -> None:
+    engine, factory = await _database()
+    created_at = datetime(2026, 9, 30, 10, 0, tzinfo=UTC)
+    decision_at = created_at + timedelta(minutes=5)
+    try:
+        async with factory() as session, session.begin():
+            case = await CaseService(now=lambda: created_at).create(
+                session,
+                task_signature="long-investigation-test",
+                target_object_ids=[],
+                goal="Reach a final decision",
+                initial_knowledge_revision=None,
+            )
+            state_service = InvestigationStateService(now=lambda: created_at + timedelta(minutes=1))
+            opened = await state_service.open_evidence_need(
+                session,
+                case_id=case.case_id,
+                base_case_revision=0,
+                need_id="long-investigation-need",
+                proposition_or_question="What evidence closes the case?",
+                purpose="benchmark_long_investigation",
+                target_objects=[],
+            )
+            decision = DecisionResult(
+                decision_id="decision:long-investigation",
+                case_id=case.case_id,
+                case_revision=opened.state.case_revision,
+                answer_payload={"status": "complete"},
+                stop_reason="evidence_sufficient",
+                model_prompt_revision="decision-model-test",
+            )
+            await InvestigationStateService(now=lambda: decision_at).commit_decision(
+                session,
+                DecisionCommit(
+                    decision_id=decision.decision_id,
+                    case_id=case.case_id,
+                    base_case_revision=decision.case_revision,
+                    decision=decision.model_dump(mode="json"),
+                ),
+            )
+            session.add(
+                TaskRunModel(
+                    run_id="long-investigation-run",
+                    task_contract_version_id="contract-version:test",
+                    task_contract_id="contract:test",
+                    task_contract_revision=1,
+                    context_manifest_version_id="context-version:test",
+                    context_id="context:test",
+                    context_revision=1,
+                    case_id=case.case_id,
+                    parent_run_id=None,
+                    role_id="InvestigationRole",
+                    role_version="1",
+                    status="completed",
+                    base_context_revision=1,
+                    execution_envelope_ref="execution:test",
+                    result_ref="investigation-result:test",
+                    stop_reason="evidence_sufficient",
+                    created_at=created_at + timedelta(minutes=1),
+                    updated_at=created_at + timedelta(minutes=4),
+                    finished_at=created_at + timedelta(minutes=4),
+                )
+            )
+
+        async with factory() as session:
+            trace = await evaluation_runtime.load_investigation_completion_trace(
+                session,
+                case.case_id,
+            )
+        assert trace.final_decision_present is True
+        assert trace.final_decision_ref == "decision:long-investigation"
+        assert trace.final_decision_case_revision == 1
+        assert trace.final_decision_event_revision == 2
+        assert trace.final_decision_at == decision_at
+        assert trace.time_to_final_decision_seconds == 300.0
+        assert trace.investigation_episode_count == 1
+        assert trace.terminal_episode_count == 1
+        assert trace.active_episode_count == 0
+        assert trace.open_evidence_need_count == 1
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_investigation_completion_trace_without_decision_has_no_latency() -> None:
+    engine, factory = await _database()
+    created_at = datetime(2026, 9, 30, 11, 0, tzinfo=UTC)
+    try:
+        async with factory() as session, session.begin():
+            case = await CaseService(now=lambda: created_at).create(
+                session,
+                task_signature="long-investigation-open",
+                target_object_ids=[],
+                goal="Still investigating",
+                initial_knowledge_revision=None,
+            )
+        async with factory() as session:
+            trace = await evaluation_runtime.load_investigation_completion_trace(
+                session,
+                case.case_id,
+            )
+        assert trace.final_decision_present is False
+        assert trace.final_decision_at is None
+        assert trace.time_to_final_decision_seconds is None
+        assert trace.investigation_episode_count == 0
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_investigation_recorder_separates_success_latency_and_diagnostics() -> None:
+    store = _MetricCaptureStore()
+    recorder = evaluation_runtime.InvestigationBenchmarkRecorder(store)  # type: ignore[arg-type]
+    trace = evaluation_runtime.InvestigationCompletionTrace(
+        case_id="case:long",
+        case_status="active",
+        case_revision=4,
+        case_created_at=datetime(2026, 9, 30, 10, 0, tzinfo=UTC),
+        final_decision_ref="decision:long",
+        final_decision_case_revision=3,
+        final_decision_event_revision=4,
+        final_decision_at=datetime(2026, 9, 30, 10, 2, tzinfo=UTC),
+        time_to_final_decision_seconds=120.0,
+        investigation_episode_count=2,
+        terminal_episode_count=2,
+        active_episode_count=0,
+        open_evidence_need_count=0,
+    )
+    await recorder.record_completion_trace(
+        None,  # type: ignore[arg-type]
+        case_run_id="case-run:long",
+        trace=trace,
+        subject_ref="case:long",
+    )
+    assert store.metric_names == [
+        "agent.task_success",
+        "m6.investigation_final_decision_completion",
+        "m6.investigation_role_episode_count",
+        "m6.investigation_open_need_count_at_measurement",
+        "m6.investigation_time_to_final_decision_seconds",
+    ]
+    assert store.observations[0]["value"] == 1.0
+    assert store.observations[-1]["value"] == 120.0
+
+    late_store = _MetricCaptureStore()
+    late_recorder = evaluation_runtime.InvestigationBenchmarkRecorder(
+        late_store  # type: ignore[arg-type]
+    )
+    late_trace = trace.model_copy(
+        update={
+            "final_decision_at": datetime(2026, 9, 30, 10, 4, tzinfo=UTC),
+            "time_to_final_decision_seconds": 240.0,
+        }
+    )
+    await late_recorder.record_completion_trace(
+        None,  # type: ignore[arg-type]
+        case_run_id="case-run:late",
+        trace=late_trace,
+        subject_ref="case:late",
+        decision_deadline=datetime(2026, 9, 30, 10, 3, tzinfo=UTC),
+    )
+    assert late_store.observations[0]["metric_name"] == "agent.task_success"
+    assert late_store.observations[0]["value"] == 0.0
+    assert late_store.observations[1]["metric_name"] == (
+        "m6.investigation_final_decision_completion"
+    )
+    assert late_store.observations[1]["value"] == 1.0
+    assert late_store.observations[-1]["value"] == 240.0
+
+    no_decision_store = _MetricCaptureStore()
+    no_decision_recorder = evaluation_runtime.InvestigationBenchmarkRecorder(
+        no_decision_store  # type: ignore[arg-type]
+    )
+    await no_decision_recorder.record_completion_trace(
+        None,  # type: ignore[arg-type]
+        case_run_id="case-run:open",
+        trace=trace.model_copy(
+            update={
+                "final_decision_ref": None,
+                "final_decision_case_revision": None,
+                "final_decision_event_revision": None,
+                "final_decision_at": None,
+                "time_to_final_decision_seconds": None,
+            }
+        ),
+        subject_ref="case:open",
+    )
+    assert "m6.investigation_time_to_final_decision_seconds" not in (
+        no_decision_store.metric_names
+    )
+    assert no_decision_store.observations[0]["value"] == 0.0
 
 
 @pytest.mark.asyncio

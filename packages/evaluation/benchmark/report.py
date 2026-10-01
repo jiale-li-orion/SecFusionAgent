@@ -384,6 +384,10 @@ def _unevaluated_areas(metrics: dict[str, AggregatedMetric]) -> list[str]:
         ),
         "M6 multi-hop": ("m6.multi_hop_correctness",),
         "Agent runtime": ("agent.task_success",),
+        "Long Investigation completion": (
+            "m6.investigation_final_decision_completion",
+            "m6.investigation_time_to_final_decision_seconds",
+        ),
         "Engineering fault/recovery": ("engineering.fault_recovery_success",),
     }
     return [

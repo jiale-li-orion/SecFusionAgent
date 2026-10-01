@@ -155,7 +155,7 @@ TD1 的 M1/M3 评测由 `m1_m3.py` 实现：source category、fixed-window deliv
 
 ## Current scope and competition gap
 
-Executable coverage now includes source-category coverage, source delivery/latency, evidence-aware enrichment P/R, frozen replay comparison, Skill promotion regression, an evaluation-neutral M6 QA scorer, and live Product `QASessionCase` execution. `QAGold + QAPrediction -> QAScore` separates answer accuracy from groundedness, citation correctness/completeness, multi-hop path correctness, unknown/conflict handling, allowed-assumption discipline, completion semantics and interactive latency. `apps.evaluation_runtime` supports four deliberately distinct single-turn prediction sources: inline frozen predictions; projection of an already persisted Product Case outcome; live M6 execution over a durable Case with the Case mutation rolled back; and live Product `AskQuestionUseCase` execution that keeps TaskRun / ExecutionRun / ModelRequest / DecisionResult provenance. `QASessionCase` composes the last path across ordered turns using the real Product session ID instead of a chat-only evaluator. Human adjudication history remains versioned and bound into the QA gold digest. The bundled `benchmarks/qa/smoke-v1.json` remains synthetic harness verification and is not competition evidence.
+Executable coverage now includes source-category coverage, source delivery/latency, evidence-aware enrichment P/R, frozen replay comparison, Skill promotion regression, an evaluation-neutral M6 QA scorer, live Product `QASessionCase` execution, and a durable long-Investigation completion trace. `QAGold + QAPrediction -> QAScore` separates answer accuracy from groundedness, citation correctness/completeness, multi-hop path correctness, unknown/conflict handling, allowed-assumption discipline, completion semantics and interactive latency. `apps.evaluation_runtime` supports four deliberately distinct single-turn prediction sources: inline frozen predictions; projection of an already persisted Product Case outcome; live M6 execution over a durable Case with the Case mutation rolled back; and live Product `AskQuestionUseCase` execution that keeps TaskRun / ExecutionRun / ModelRequest / DecisionResult provenance. `QASessionCase` composes the last path across ordered turns using the real Product session ID instead of a chat-only evaluator. `load_investigation_completion_trace()` separately measures a durable Case from `InvestigationCase.created_at` to the accepted M4 `DecisionCommit` event and reports InvestigationRole episode/open-need diagnostics; it never substitutes `202 Accepted` latency or `closed_at` for final-decision latency. Human adjudication history remains versioned and bound into the QA gold digest. The bundled `benchmarks/qa/smoke-v1.json` remains synthetic harness verification and is not competition evidence.
 
 `scripts/run_qa_benchmark.py` rejects mixing offline and live sources in one `BenchmarkRun`, and also keeps durable-Case live QA separate from Product Question live QA. Live durable-Case cases use execution profile `product_case_decision_live`; live Product questions use `product_question_live`. Product-question latency starts before `AskQuestionUseCase` and ends after the synchronous Product result is materialized; the resulting prediction carries the associated `product-request`, recorded `model-request`, `task-run`, `execution`, `budget`, and decision/evidence coordinates when present. Product Question manifests must pin a `knowledge_revision`; runtime execution checks both the current Knowledge revision and the actual persisted `ContextManifest.knowledge_revision`, failing closed on world drift. This is a live controlled coordinate, not a claim that historical replay is available.
 
@@ -165,7 +165,7 @@ Structured-authority QA gold now has explicit provenance (`source_ids + Evidence
 
 FACT citation support may inherit the M6 invariant because `DecisionService` only accepts an exact confirmed proposition with its supporting EvidenceRef; inference citation support still requires explicit adjudication.
 
-The remaining competition-critical M6 gap is now benchmark **content and broader session behavior**, not the live execution adapter: fixed human/adjudicated questions and frozen world/source snapshots still need to be authored and run; the first session denominator includes durable retrieval invocation coverage and exact-result reuse measurement. Online Product now supports serialized Investigation-class follow-up and read-only LOOKUP/RETRIEVE over live M4 Case state, but `QASessionCase` still lacks a frozen denominator that starts/continues an async Investigation and then scores Case-read continuity against the same Case revision. Independently durable failed retrieval-attempt provenance and long-running `time_to_final_decision` measurement also remain open. Security/adversarial and fault-injection cases are specified by Requirements/TD2/TD3 but still need frozen real suites.
+The remaining competition-critical M6 gap is now benchmark **content**, not the long-Investigation measurement substrate. Online Product supports serialized Investigation-class follow-up and read-only LOOKUP/RETRIEVE over live M4 Case state. Long-Investigation measurement has explicit metrics for final-decision completion, `time_to_final_decision`, InvestigationRole episode count and open-need count; `scripts/run_investigation_benchmark.py` prospectively freezes Case IDs before outcomes, rejects retrospective case selection, leaves unfinished pre-deadline Cases as `pending`, and records `agent.task_success` only against the frozen final-decision/deadline expectation. What remains open is the first real prospective long-Investigation manifest/result, fixed human/adjudicated QA/session content beyond the current candidate set, independently durable failed retrieval-attempt provenance, and real security/fault-injection suites.
 
 ## TD3 Benchmark Runtime
 
@@ -226,6 +226,19 @@ uv run python scripts/run_qa_benchmark.py \
 # M6 real-data candidate preflight: validates world pin + structured gold only.
 uv run python -m scripts.validate_qa_manifest \
   benchmarks/qa/real-product-v1.candidate.json
+
+# Long Investigation: first freeze a real Case denominator before outcomes are visible.
+# While Cases are still running, this only validates the prospective denominator.
+uv run python scripts/run_investigation_benchmark.py \
+  /path/to/long-investigation-manifest.json \
+  --suite-revision 1 --preflight-only
+
+# After every Case has decided or crossed its frozen measurement deadline, persist metrics.
+uv run python scripts/run_investigation_benchmark.py \
+  /path/to/long-investigation-manifest.json \
+  --suite-revision 1 \
+  --deployment-revision-id '<deployment-id>' \
+  --output /tmp/m6-long-investigation.json
 
 # Export only explicitly selected runs from one DeploymentRevision.
 uv run python scripts/export_competition_report.py \

@@ -10,7 +10,7 @@ from time import monotonic
 from typing import cast
 
 from pydantic import BaseModel, Field, JsonValue
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from apps.application.commands.ask_question import AskQuestionCommand, AskQuestionUseCase
@@ -37,8 +37,17 @@ from packages.intelligence.storage.knowledge_models import (
     RelationModel,
 )
 from packages.investigation.skills.seeds import seeded_skills
-from packages.investigation.state.contracts import EvidenceNeedStatus, InvestigationState
+from packages.investigation.state.contracts import (
+    CaseStateEventType,
+    EvidenceNeedStatus,
+    InvestigationState,
+)
 from packages.investigation.state.service import InvestigationStateService
+from packages.investigation.storage.models import (
+    CaseStateEventModel,
+    EvidenceNeedModel,
+    InvestigationCaseModel,
+)
 from packages.reasoning.citation import CitationSource
 from packages.reasoning.decision import ConclusionType, DecisionConclusion, DecisionResult
 from packages.reasoning.model import ModelDecisionPlanner
@@ -134,6 +143,199 @@ class ProductQuestionSessionTurnTrace(BaseModel):
 class ProductQuestionSessionTrace(BaseModel):
     session_id: str
     turns: list[ProductQuestionSessionTurnTrace]
+
+
+class InvestigationCompletionTrace(BaseModel):
+    case_id: str
+    case_status: str
+    case_revision: int = Field(ge=0)
+    case_created_at: datetime
+    final_decision_ref: str | None = None
+    final_decision_case_revision: int | None = Field(default=None, ge=0)
+    final_decision_event_revision: int | None = Field(default=None, ge=1)
+    final_decision_at: datetime | None = None
+    time_to_final_decision_seconds: float | None = Field(default=None, ge=0)
+    investigation_episode_count: int = Field(ge=0)
+    terminal_episode_count: int = Field(ge=0)
+    active_episode_count: int = Field(ge=0)
+    open_evidence_need_count: int = Field(ge=0)
+
+    @property
+    def final_decision_present(self) -> bool:
+        return self.final_decision_ref is not None
+
+
+class InvestigationBenchmarkRecorder:
+    """Record long-Investigation outcome/latency without changing the online Case."""
+
+    def __init__(self, store: BenchmarkStore | None = None) -> None:
+        self._store = store or BenchmarkStore()
+
+    async def record_completion_trace(
+        self,
+        session: AsyncSession,
+        *,
+        case_run_id: str,
+        trace: InvestigationCompletionTrace,
+        subject_ref: str,
+        expected_final_decision: bool = True,
+        decision_deadline: datetime | None = None,
+    ) -> None:
+        normalized_deadline = _as_utc(decision_deadline) if decision_deadline is not None else None
+        deadline_met: bool | None = None
+        if trace.final_decision_at is not None and normalized_deadline is not None:
+            deadline_met = trace.final_decision_at <= normalized_deadline
+        success = trace.final_decision_present is expected_final_decision
+        if expected_final_decision and success and deadline_met is False:
+            success = False
+        values: list[tuple[str, float, MeasurementSource]] = [
+            (
+                "agent.task_success",
+                1.0 if success else 0.0,
+                MeasurementSource.DERIVED,
+            ),
+            (
+                "m6.investigation_final_decision_completion",
+                1.0 if trace.final_decision_present else 0.0,
+                MeasurementSource.DERIVED,
+            ),
+            (
+                "m6.investigation_role_episode_count",
+                float(trace.investigation_episode_count),
+                MeasurementSource.EXACT,
+            ),
+            (
+                "m6.investigation_open_need_count_at_measurement",
+                float(trace.open_evidence_need_count),
+                MeasurementSource.EXACT,
+            ),
+        ]
+        if trace.time_to_final_decision_seconds is not None:
+            values.append(
+                (
+                    "m6.investigation_time_to_final_decision_seconds",
+                    trace.time_to_final_decision_seconds,
+                    MeasurementSource.EXACT,
+                )
+            )
+        for metric_name, value, source in values:
+            definition = metric_definition(metric_name)
+            await self._store.observe_metric(
+                session,
+                case_run_id=case_run_id,
+                metric_name=metric_name,
+                value=value,
+                direction=definition.direction,
+                measurement_source=source,
+                subject_ref=subject_ref,
+                evidence_refs=(
+                    [trace.final_decision_ref]
+                    if trace.final_decision_ref is not None
+                    else []
+                ),
+                metadata={
+                    "case_status": trace.case_status,
+                    "case_revision": trace.case_revision,
+                    "final_decision_event_revision": trace.final_decision_event_revision,
+                    "terminal_episode_count": trace.terminal_episode_count,
+                    "active_episode_count": trace.active_episode_count,
+                    "expected_final_decision": expected_final_decision,
+                    "decision_deadline": (
+                        normalized_deadline.isoformat()
+                        if normalized_deadline is not None
+                        else None
+                    ),
+                    "deadline_met": deadline_met,
+                },
+            )
+
+
+async def load_investigation_completion_trace(
+    session: AsyncSession,
+    case_id: str,
+) -> InvestigationCompletionTrace:
+    case = await session.get(InvestigationCaseModel, case_id)
+    if case is None:
+        raise LookupError(f"investigation case not found: {case_id}")
+    case_created_at = _as_utc(case.created_at)
+
+    decision_event = await session.scalar(
+        select(CaseStateEventModel)
+        .where(
+            CaseStateEventModel.case_id == case_id,
+            CaseStateEventModel.event_type == CaseStateEventType.DECISION_CHANGED.value,
+        )
+        .order_by(CaseStateEventModel.case_revision.desc())
+        .limit(1)
+    )
+    decision_ref: str | None = None
+    decision_case_revision: int | None = None
+    decision_event_revision: int | None = None
+    decision_at: datetime | None = None
+    latency_seconds: float | None = None
+    if decision_event is not None:
+        payload = decision_event.payload.get("decision")
+        if not isinstance(payload, dict):
+            raise ValueError("M4 decision event has no typed decision payload")
+        decision = DecisionResult.model_validate(payload)
+        if decision.case_id != case_id:
+            raise ValueError("M4 decision event references another investigation case")
+        if decision.case_revision != decision_event.base_case_revision:
+            raise ValueError("M4 decision event revision does not match DecisionResult")
+        decision_ref = decision.decision_id
+        decision_case_revision = decision.case_revision
+        decision_event_revision = decision_event.case_revision
+        decision_at = _as_utc(decision_event.created_at)
+        latency_seconds = (decision_at - case_created_at).total_seconds()
+        if latency_seconds < 0:
+            raise ValueError("final decision timestamp predates investigation creation")
+
+    episodes = list(
+        await session.scalars(
+            select(TaskRunModel)
+            .where(
+                TaskRunModel.case_id == case_id,
+                TaskRunModel.role_id == "InvestigationRole",
+            )
+            .order_by(TaskRunModel.created_at, TaskRunModel.run_id)
+        )
+    )
+    terminal_episode_count = sum(item.finished_at is not None for item in episodes)
+    active_episode_count = len(episodes) - terminal_episode_count
+    open_need_count = int(
+        await session.scalar(
+            select(func.count())
+            .select_from(EvidenceNeedModel)
+            .where(
+                EvidenceNeedModel.case_id == case_id,
+                EvidenceNeedModel.status.in_(
+                    [EvidenceNeedStatus.OPEN.value, EvidenceNeedStatus.BLOCKED.value]
+                ),
+            )
+        )
+        or 0
+    )
+    return InvestigationCompletionTrace(
+        case_id=case_id,
+        case_status=case.status,
+        case_revision=case.current_revision,
+        case_created_at=case_created_at,
+        final_decision_ref=decision_ref,
+        final_decision_case_revision=decision_case_revision,
+        final_decision_event_revision=decision_event_revision,
+        final_decision_at=decision_at,
+        time_to_final_decision_seconds=latency_seconds,
+        investigation_episode_count=len(episodes),
+        terminal_episode_count=terminal_episode_count,
+        active_episode_count=active_episode_count,
+        open_evidence_need_count=open_need_count,
+    )
+
+
+def _as_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 async def validate_structured_qa_gold_provenance(

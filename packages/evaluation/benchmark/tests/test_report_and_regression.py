@@ -149,6 +149,7 @@ async def test_competition_report_derives_global_m3_precision_recall_and_target_
         assert checks["enrichment_precision"].status is TargetCheckStatus.FAIL
         assert checks["qa_accuracy"].status is TargetCheckStatus.NOT_EVALUATED
         assert "M6 QA quality" in report.unevaluated_competition_areas
+        assert "Long Investigation completion" in report.unevaluated_competition_areas
     finally:
         await engine.dispose()
 
