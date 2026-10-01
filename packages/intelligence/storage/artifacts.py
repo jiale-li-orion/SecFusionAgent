@@ -4,7 +4,11 @@ import asyncio
 from dataclasses import dataclass
 from typing import Protocol
 
-from botocore.exceptions import ClientError
+from botocore.exceptions import BotoCoreError, ClientError
+
+
+class ArtifactStoreUnavailable(RuntimeError):
+    """S3-compatible artifact dependency could not be reached."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,7 +43,12 @@ class S3ArtifactStore:
             except ClientError:
                 self._client.create_bucket(Bucket=self._bucket)  # type: ignore[attr-defined]
 
-        await asyncio.to_thread(_ensure)
+        try:
+            await asyncio.to_thread(_ensure)
+        except BotoCoreError as exc:
+            raise ArtifactStoreUnavailable(
+                f"artifact store bucket check failed: {exc.__class__.__name__}"
+            ) from exc
 
     async def put(
         self,
@@ -59,7 +68,12 @@ class S3ArtifactStore:
                 Metadata={"sha256": content_hash},
             )
 
-        await asyncio.to_thread(_put)
+        try:
+            await asyncio.to_thread(_put)
+        except BotoCoreError as exc:
+            raise ArtifactStoreUnavailable(
+                f"artifact store write failed: {exc.__class__.__name__}"
+            ) from exc
         return ArtifactWriteResult(
             storage_uri=f"s3://{self._bucket}/{key}",
             size_bytes=len(body),
@@ -78,7 +92,12 @@ class S3ArtifactStore:
             )
             return response["Body"].read()
 
-        return await asyncio.to_thread(_get)
+        try:
+            return await asyncio.to_thread(_get)
+        except BotoCoreError as exc:
+            raise ArtifactStoreUnavailable(
+                f"artifact store read failed: {exc.__class__.__name__}"
+            ) from exc
 
     async def exists(self, storage_uri: str) -> bool:
         prefix = f"s3://{self._bucket}/"
@@ -98,7 +117,12 @@ class S3ArtifactStore:
                 raise
             return True
 
-        return await asyncio.to_thread(_exists)
+        try:
+            return await asyncio.to_thread(_exists)
+        except BotoCoreError as exc:
+            raise ArtifactStoreUnavailable(
+                f"artifact store existence check failed: {exc.__class__.__name__}"
+            ) from exc
 
 
 class MemoryArtifactStore:

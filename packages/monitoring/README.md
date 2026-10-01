@@ -12,6 +12,8 @@ An external request is not considered a completed acquisition merely because the
 
 `scheduler/service.py` selects enabled sources whose `next_due_at` has passed, skips sources in backoff or with an active run, locks source state with `SKIP LOCKED`, creates a queued acquisition run, and writes a `collection.requested` outbox event in the same transaction.
 
+The normal polling interval and catch-up cadence are separate concerns. A source may opt into `schedule_policy.catchup_interval_seconds`. When a completed adapter cursor reports `backfill_pending=true`, `complete_collection_run` shortens `SourceState.next_due_at` to the catch-up cadence instead of leaving the source parked until its ordinary polling interval. This is currently used by `oss-security`: live polling remains hourly, while an incomplete historical catch-up is drained at a 60-second cadence. The adapter still selects newest unseen messages first, so catch-up work cannot sit in front of newly published disclosures.
+
 `runtime.execute_collection_run` resolves the persisted source definition and dispatches by `RetentionMode`:
 
 ```text
@@ -23,6 +25,23 @@ time_bounded     -> not scheduled; query-time only
 ```
 
 The acquisition cursor advances only after the downstream owner reports accepted processing. No-change runs can complete without fabricating a change event.
+
+### Freshness decomposition
+
+M1 latency is diagnosed as three different delays instead of treating every large end-to-end number as scheduler latency:
+
+```text
+source event_time
+  -> Observation.observed_at          provider/discovery delay
+  -> KnowledgeRevision.committed_at  ingestion/commit delay
+
+AcquisitionRun.created_at
+  -> AcquisitionRun.started_at       queue/dispatch delay
+```
+
+The 2026-10-01 investigation that motivated this contract found five apparent 16–22 hour samples from one `oss-security` run. Its queue delay was about 21 ms and Observation→Knowledge commit was 12–28 ms; the large value came from messages published the previous day being discovered during a legacy-cursor catch-up. The run's output cursor explicitly reported `backfill_pending=true`. That evidence means the online runtime was fast once work existed, while the sample itself was not a steady-state monitoring event.
+
+The M1 evaluator therefore rejects a latency candidate when either the acquisition input cursor or output cursor carries `backfill_pending=true`. Checking only `cursor_in` is insufficient during a migration run: a legacy cursor can enter without the marker and discover during execution that historical work remains. This exclusion changes benchmark classification only; the production catch-up cadence above changes how quickly the runtime drains that historical work.
 
 ## Query-time acquisition
 
@@ -36,9 +55,13 @@ This service deliberately stops at `IngestEnvelope`. The caller must still send 
 
 The scheduler process also calls stale-run recovery. Recovery changes durable run/source state and emits work through the normal outbox path instead of invoking collectors inline.
 
+For a source that opts into catch-up scheduling, successful completion can move `next_due_at` earlier than the value chosen when the run was queued. This update happens in the same durable completion transaction as `cursor_out`, so a crash cannot persist “backfill pending” while losing the accelerated next-due decision.
+
 ## Outbox interaction
 
 Monitoring writes `collection.requested` and other domain events into the shared outbox inside PostgreSQL transactions. `apps.worker.scheduler` dispatches committed events to Celery. Broker delivery is at-least-once, so collection consumers and downstream writes must remain idempotent.
+
+For `durable_managed` sources the collection path also depends on the configured S3-compatible artifact store before Evidence ingress can commit. In the local stack this is the `minio` service on port 9000. `deploy/docker-compose.yml`, `config/env.example`, and `Settings` use the same development credentials; if MinIO is down, provider discovery can succeed while the acquisition run still terminates before cursor advancement. S3 transport failures are surfaced as `ArtifactStoreUnavailable`, recorded as acquisition status `dependency_unavailable`, and retried after 60 seconds. They are kept separate from provider `fetch_failed`, provider rate limiting, and generic code defects, so an internal storage outage does not impose the ordinary 15-minute internal-error backoff on monitoring recovery.
 
 ## Design → implementation map
 
@@ -56,6 +79,7 @@ Monitoring may compose M2/M3 ingestion services because it owns runtime dispatch
 
 ```bash
 uv run pytest packages/monitoring/tests -q
+uv run pytest tests/test_m1_benchmark_contract.py -q
 make integration-core
 ```
 

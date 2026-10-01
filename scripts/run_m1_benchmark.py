@@ -121,6 +121,7 @@ def _monitoring_latency_query(window_start: datetime, window_end: datetime):
             ObservationModel.updated_at,
             SourceModel.time_semantics,
             current_run.cursor_in,
+            current_run.cursor_out,
             had_prior_scheduled_success.label("had_prior_scheduled_success"),
             earliest_commit.c.committed_at,
         )
@@ -144,6 +145,7 @@ def _steady_state_monitoring_rows(rows: Sequence[Any]) -> list[Any]:
         row
         for row in rows
         if not _is_backfill_cursor(row.cursor_in)
+        and not _is_backfill_cursor(row.cursor_out)
         and (bool(row.cursor_in) or bool(row.had_prior_scheduled_success))
     ]
 
@@ -388,6 +390,7 @@ async def _run(
                         ),
                         "eligible_acquisition_trigger": AcquisitionTrigger.SCHEDULED.value,
                         "steady_state_only": True,
+                        "backfill_exclusion": "cursor_in_or_cursor_out.backfill_pending",
                         "raw_candidate_count": len(rows),
                         "excluded_nonsteady_count": len(rows) - len(steady_state_rows),
                         "sample_count": len(sample_manifest),
@@ -453,6 +456,7 @@ async def _run(
                     "excluded_nonsteady_count": len(rows) - len(steady_state_rows),
                     "steady_state_rule": (
                         "NOT cursor_in.backfill_pending AND "
+                        "NOT cursor_out.backfill_pending AND "
                         "(cursor_in_nonempty OR prior_successful_scheduled_run)"
                     ),
                     "event_time_rule": (
@@ -561,6 +565,10 @@ async def _run(
                 now=now,
             )
             if latency.total_samples:
+                if latency.evaluable_coverage is None:
+                    raise RuntimeError(
+                        "non-empty M1 latency denominator has no evaluable coverage"
+                    )
                 await store.observe_metric(
                     session,
                     case_run_id=latency_run.case_run_id,

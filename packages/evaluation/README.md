@@ -37,9 +37,13 @@ At least one revision discriminator is required. `source_delivery_coverage` sepa
 
 ## Monitoring latency
 
-`MonitoringLatencySample` measures `published_at -> M2 available_at/committed_at`. Samples without reliable publication time remain in `evaluable_coverage` but are excluded from numeric latency aggregation.
+`MonitoringLatencySample` receives the source-defined event time and earliest Knowledge commit time. The M1 runner uses `updated_at` when the Source contract declares it and the Observation carries it; otherwise it uses `published_at`. Only steady-state scheduled runs enter the numeric denominator. Bootstrap/catch-up candidates are removed when either `cursor_in.backfill_pending` or `cursor_out.backfill_pending` is true; the output-cursor check prevents a legacy cursor from being misclassified when the adapter discovers during execution that historical work remains. Samples without a reliable source event time remain visible in `evaluable_coverage` but are excluded from numeric latency aggregation.
 
 The helper reports p50, p95, max, and the rate within six hours. These are diagnostics; the competition text defines the six-hour threshold but does not define one aggregate statistic as the official gate.
+
+Large values are debugged by decomposing `event_time -> observed_at`, `AcquisitionRun.created_at -> started_at`, and `observed_at -> committed_at`. This keeps provider/discovery delay, queue/dispatch delay, and M2 ingestion delay separate. The 2026-10-01 five-sample `oss-security` result that previously produced a 16–22 hour headline was a legacy-cursor catch-up: queue delay was roughly 21 ms and Observation→Knowledge commit was 12–28 ms, while `cursor_out.backfill_pending=true`. Re-running the same fixed window with the corrected contract yields zero steady-state latency samples instead of reporting catch-up age as monitoring latency.
+
+An empty steady-state denominator is represented as `evaluable_coverage=null` and no latency metric observations are written. It is `not_evaluated`, rather than vacuous 100% coverage or a zero-latency success.
 
 ## M2 diagnostic metrics
 

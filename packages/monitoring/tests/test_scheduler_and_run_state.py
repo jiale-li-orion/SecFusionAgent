@@ -11,8 +11,11 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from packages.intelligence.hot_cache.contracts import HotNormalizationResult
+from packages.intelligence.storage.artifacts import ArtifactStoreUnavailable
 from packages.monitoring.hot_window import HotWindowCollectionResult
 from packages.monitoring.run_service import (
+    classify_source_failure,
+    complete_collection_run,
     complete_hot_window_run,
     recover_stale_acquisition_runs,
     start_acquisition_run,
@@ -115,6 +118,70 @@ async def test_scheduler_outbox_and_cursor_commit_are_transactional() -> None:
             assert state is not None
             assert state.cursor == {"last_modified": "2026-09-25T04:00:00+00:00"}
             assert _as_utc(state.last_change_at) == now + timedelta(seconds=3)
+    finally:
+        await engine.dispose()
+
+
+def test_artifact_store_outage_gets_short_dependency_backoff() -> None:
+    failure = classify_source_failure(
+        ArtifactStoreUnavailable("artifact store write failed: EndpointConnectionError"),
+        consecutive_failures=4,
+    )
+    assert failure.status == "dependency_unavailable"
+    assert failure.error_code == "artifact_store_unavailable"
+    assert failure.backoff_seconds == 60
+
+
+@pytest.mark.asyncio
+async def test_backfill_completion_shortens_next_due_at_when_source_opts_in() -> None:
+    engine, factory = await _database()
+    now = datetime(2026, 9, 25, 4, 45, tzinfo=UTC)
+    definitions = load_source_definitions(Path("config/sources"))
+    oss_security = next(item for item in definitions if item.source_id == "oss-security")
+    try:
+        async with factory() as session, session.begin():
+            ids = await sync_source_definitions(session, [oss_security])
+            await ensure_source_states(session, ids, now=now)
+            state = await session.get(SourceStateModel, oss_security.source_id)
+            assert state is not None
+            state.next_due_at = now
+
+        async with factory() as session, session.begin():
+            run_ids = await schedule_due_sources(
+                session,
+                now=now,
+                source_ids={oss_security.source_id},
+            )
+        assert len(run_ids) == 1
+        run_id = run_ids[0]
+
+        async with factory() as session, session.begin():
+            context = await start_acquisition_run(
+                session,
+                run_id,
+                now=now + timedelta(seconds=1),
+            )
+            assert context is not None
+
+        finished_at = now + timedelta(seconds=10)
+        async with factory() as session, session.begin():
+            await complete_collection_run(
+                session,
+                run_id,
+                next_cursor={
+                    "item_revisions": {"2026/09/25/1": "r1"},
+                    "bootstrap_complete": True,
+                    "backfill_pending": True,
+                },
+                accepted_count=1,
+                changed=True,
+                now=finished_at,
+            )
+
+        async with factory() as session:
+            state = await session.get(SourceStateModel, oss_security.source_id)
+            assert state is not None
+            assert _as_utc(state.next_due_at) == finished_at + timedelta(seconds=60)
     finally:
         await engine.dispose()
 

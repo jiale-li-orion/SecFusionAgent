@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from packages.intelligence.storage.artifacts import ArtifactStoreUnavailable
 from packages.monitoring.hot_window import HotWindowCollectionResult
 from packages.monitoring.storage.mapper import source_state_from_model
 from packages.monitoring.storage.models import AcquisitionRunModel, SourceStateModel
@@ -31,6 +32,7 @@ TERMINAL_STATUSES = frozenset(
         "schema_changed",
         "fetch_failed",
         "internal_error",
+        "dependency_unavailable",
     }
 )
 
@@ -140,6 +142,15 @@ async def complete_collection_run(
         state.last_change_at = instant
     state.consecutive_failures = 0
     state.backoff_until = None
+    if next_cursor.get("backfill_pending") is True:
+        source = await session.get(SourceModel, run.source_id)
+        if source is not None:
+            catchup_seconds = _backfill_catchup_seconds(source.schedule_policy)
+            if catchup_seconds is not None:
+                catchup_due_at = instant + timedelta(seconds=catchup_seconds)
+                current_due_at = _as_utc_datetime(state.next_due_at)
+                if current_due_at is None or catchup_due_at < current_due_at:
+                    state.next_due_at = catchup_due_at
 
 
 async def fail_acquisition_run(
@@ -166,6 +177,13 @@ async def fail_acquisition_run(
 
 
 def classify_source_failure(exc: Exception, *, consecutive_failures: int = 0) -> AcquisitionFailure:
+    if isinstance(exc, ArtifactStoreUnavailable):
+        return AcquisitionFailure(
+            status="dependency_unavailable",
+            error_code="artifact_store_unavailable",
+            error_detail=str(exc),
+            backoff_seconds=60,
+        )
     if isinstance(exc, SourceRateLimited):
         return AcquisitionFailure(
             status="rate_limited",
@@ -267,3 +285,22 @@ def _json_dict(value: dict[str, object]) -> dict[str, Any]:
 
 def _object_dict(value: dict[str, Any]) -> dict[str, object]:
     return dict(value)
+
+
+def _backfill_catchup_seconds(policy: dict[str, object]) -> int | None:
+    value = policy.get("catchup_interval_seconds")
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+        return None
+    try:
+        interval = int(value)
+    except ValueError:
+        return None
+    return interval if interval > 0 else None
+
+
+def _as_utc_datetime(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)

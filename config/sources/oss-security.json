@@ -18,6 +18,10 @@
   "rate_limit_policy": {"provider": "openwall"},
   "access_rights": {"classification": "public-mailing-list"},
   "retention_mode": "durable_managed",
-  "schedule_policy": {"enabled": true, "interval_seconds": 3600},
+  "schedule_policy": {
+    "enabled": true,
+    "interval_seconds": 3600,
+    "catchup_interval_seconds": 60
+  },
   "schema_version": "1"
 }

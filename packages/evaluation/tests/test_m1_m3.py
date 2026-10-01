@@ -101,6 +101,16 @@ def test_monitoring_latency_reports_evaluable_coverage_and_p95() -> None:
     assert report.within_6h_rate == pytest.approx(2 / 3)
 
 
+def test_monitoring_latency_empty_denominator_is_not_evaluated() -> None:
+    report = monitoring_latency_report([])
+
+    assert report.total_samples == 0
+    assert report.evaluable_samples == 0
+    assert report.evaluable_coverage is None
+    assert report.p50_seconds is None
+    assert report.within_6h_rate is None
+
+
 def test_enrichment_score_is_closed_set_and_dimension_aware() -> None:
     cvss = _fact(value="9.8")
     exploit = _fact(

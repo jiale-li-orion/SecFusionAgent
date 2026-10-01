@@ -41,12 +41,14 @@ def test_monitoring_latency_excludes_bootstrap_and_uses_source_event_time() -> N
             self,
             *,
             cursor_in: dict[str, object],
+            cursor_out: dict[str, object],
             had_prior_scheduled_success: bool,
             time_semantics: dict[str, object],
             published_at: datetime | None,
             updated_at: datetime | None,
         ) -> None:
             self.cursor_in = cursor_in
+            self.cursor_out = cursor_out
             self.had_prior_scheduled_success = had_prior_scheduled_success
             self.time_semantics = time_semantics
             self.published_at = published_at
@@ -56,6 +58,7 @@ def test_monitoring_latency_excludes_bootstrap_and_uses_source_event_time() -> N
     updated = datetime(2026, 10, 1, 8, tzinfo=UTC)
     bootstrap = Row(
         cursor_in={},
+        cursor_out={},
         had_prior_scheduled_success=False,
         time_semantics={"updated_at": "provider.updated_at"},
         published_at=published,
@@ -63,6 +66,7 @@ def test_monitoring_latency_excludes_bootstrap_and_uses_source_event_time() -> N
     )
     cursor_seeded = Row(
         cursor_in={"cursor": "r1"},
+        cursor_out={"cursor": "r2"},
         had_prior_scheduled_success=False,
         time_semantics={"updated_at": "provider.updated_at"},
         published_at=published,
@@ -70,6 +74,7 @@ def test_monitoring_latency_excludes_bootstrap_and_uses_source_event_time() -> N
     )
     prior_success = Row(
         cursor_in={},
+        cursor_out={},
         had_prior_scheduled_success=True,
         time_semantics={"published_at": "provider.published_at"},
         published_at=published,
@@ -77,6 +82,15 @@ def test_monitoring_latency_excludes_bootstrap_and_uses_source_event_time() -> N
     )
     backfill = Row(
         cursor_in={"cursor": "r2", "backfill_pending": True},
+        cursor_out={"cursor": "r3"},
+        had_prior_scheduled_success=True,
+        time_semantics={"published_at": "provider.published_at"},
+        published_at=published,
+        updated_at=updated,
+    )
+    discovered_backfill = Row(
+        cursor_in={"cursor": "r3"},
+        cursor_out={"cursor": "r4", "backfill_pending": True},
         had_prior_scheduled_success=True,
         time_semantics={"published_at": "provider.published_at"},
         published_at=published,
@@ -84,7 +98,7 @@ def test_monitoring_latency_excludes_bootstrap_and_uses_source_event_time() -> N
     )
 
     assert _steady_state_monitoring_rows(
-        [bootstrap, cursor_seeded, prior_success, backfill]
+        [bootstrap, cursor_seeded, prior_success, backfill, discovered_backfill]
     ) == [cursor_seeded, prior_success]
     assert _monitoring_event_time(cursor_seeded) == updated
     assert _monitoring_event_time(prior_success) == published

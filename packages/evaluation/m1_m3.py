@@ -93,7 +93,7 @@ class SourceDeliveryCoverageReport(BaseModel):
 class MonitoringLatencyReport(BaseModel):
     total_samples: int
     evaluable_samples: int
-    evaluable_coverage: float
+    evaluable_coverage: float | None
     p50_seconds: float | None
     p95_seconds: float | None
     max_seconds: float | None
@@ -246,7 +246,7 @@ def monitoring_latency_report(
         return MonitoringLatencyReport(
             total_samples=total,
             evaluable_samples=0,
-            evaluable_coverage=0.0 if total else 1.0,
+            evaluable_coverage=0.0 if total else None,
             p50_seconds=None,
             p95_seconds=None,
             max_seconds=None,
@@ -256,7 +256,7 @@ def monitoring_latency_report(
     return MonitoringLatencyReport(
         total_samples=total,
         evaluable_samples=evaluable,
-        evaluable_coverage=evaluable / total if total else 1.0,
+        evaluable_coverage=evaluable / total,
         p50_seconds=_nearest_rank(ordered, 0.50),
         p95_seconds=_nearest_rank(ordered, 0.95),
         max_seconds=ordered[-1],

@@ -10,9 +10,11 @@ Latency is measured only for durable observations created by `trigger=scheduled`
 source-defined event_time -> earliest KnowledgeRevision.committed_at
 ```
 
-Bootstrap and explicit backfill runs do not enter this denominator. A run is eligible only when it already carries source cursor state or the source has a prior successful scheduled run, and `cursor_in.backfill_pending` is not true. This prevents first-run archive ingestion or deliberate historical backfill from being reported as monitoring latency.
+Bootstrap and explicit backfill runs do not enter this denominator. A run is eligible only when it already carries source cursor state or the source has a prior successful scheduled run, and neither `cursor_in.backfill_pending` nor `cursor_out.backfill_pending` is true. The output check matters for legacy-cursor migrations: the run can enter without a backfill marker and discover only during provider enumeration that historical work remains. Such a run is catch-up, not steady-state monitoring.
 
 `event_time` follows the Source contract. When `Source.time_semantics` declares `updated_at` and the Observation has it, the evaluator uses `Observation.updated_at`; otherwise it uses `Observation.published_at`. This matters for mutable sources such as repository snapshots, where repository creation time is not a monitoring event. The fixed window is defined over Knowledge commit time. Samples with no reliable event time remain visible in `evaluable_coverage` but are excluded from numeric p50/p95/max aggregation.
+
+Large latency values should be decomposed before changing scheduler policy. `AcquisitionRun.created_at -> started_at` measures queue/dispatch delay, `event_time -> Observation.observed_at` measures provider/discovery delay, and `Observation.observed_at -> KnowledgeRevision.committed_at` measures ingestion/commit delay. On 2026-10-01, the five 16–22 hour candidates were all one `oss-security` legacy-cursor catch-up run: queue delay was about 21 ms and ingestion/commit was 12–28 ms. The corrected denominator excludes that run because its `cursor_out` has `backfill_pending=true`.
 
 ## Source delivery coverage
 
