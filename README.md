@@ -214,15 +214,13 @@ Start the scheduler:
 make scheduler
 ```
 
-The current task topology uses separate Celery queues for collection, enrichment and indexing/projection work. During full local development, run a worker subscribed to the active queues:
+The current task topology uses separate Celery queues for collection, enrichment, investigation and indexing/projection work. During full local development, use the Make target as the canonical queue subscription:
 
 ```bash
-uv run celery -A apps.worker.celery_app:celery_app worker \
-  -l INFO \
-  -Q collection,enrichment,indexing
+make worker
 ```
 
-`make worker` currently starts the collection queue only and is useful when isolating M1 collection behavior.
+`make worker` starts the repository's active collection, enrichment, investigation and indexing/projection queues. Use `make worker-collection` when isolating M1 collection behavior.
 
 ### Run focused probes
 

@@ -14,6 +14,7 @@ from packages.sources.contracts import AcquisitionTrigger
 from scripts.run_m1_benchmark import (
     M1ExpectedEventManifest,
     _accepted_delivery_keys,
+    _monitoring_diagnostics,
     _monitoring_event_time,
     _monitoring_latency_query,
     _scheduled_observation_query,
@@ -70,6 +71,110 @@ def test_m1_status_markdown_renders_not_evaluated_without_inventing_zeroes() -> 
     assert "p50: not_evaluated" in rendered
     assert "Within 6h: not_evaluated" in rendered
     assert "DO NOT EDIT BY HAND" in rendered
+
+
+def test_m1_status_markdown_renders_ratio_and_latency_decomposition() -> None:
+    rendered = render_m1_status_markdown(
+        {
+            "benchmark_run_id": "run-2",
+            "deployment_revision_id": "deployment:def",
+            "suite_ref": "m1@10",
+            "window_start": "2026-10-01T10:00:00+00:00",
+            "window_end": "2026-10-01T14:02:00+00:00",
+            "source_category_count": 8,
+            "raw_latency_candidate_count": 12,
+            "excluded_nonsteady_count": 0,
+            "latency": {
+                "total_samples": 12,
+                "evaluable_samples": 12,
+                "evaluable_coverage": 1.0,
+                "p50_seconds": 360.0,
+                "p95_seconds": 7200.0,
+                "max_seconds": 7200.0,
+                "within_6h_rate": 1.0,
+            },
+            "monitoring_diagnostics": {
+                "raw_candidate_count": 12,
+                "eligible_count": 12,
+                "excluded_count": 0,
+                "exclusion_counts": {},
+                "eligible_timing": {
+                    "provider_discovery_seconds": {
+                        "count": 12,
+                        "p50_seconds": 350.0,
+                        "p95_seconds": 7100.0,
+                        "max_seconds": 7100.0,
+                    },
+                    "queue_dispatch_seconds": {
+                        "count": 12,
+                        "p50_seconds": 0.05,
+                        "p95_seconds": 50.4,
+                        "max_seconds": 50.4,
+                    },
+                    "ingestion_commit_seconds": {
+                        "count": 12,
+                        "p50_seconds": 0.014,
+                        "p95_seconds": 0.055,
+                        "max_seconds": 0.055,
+                    },
+                },
+            },
+            "source_delivery_coverage": {
+                "expected_items": 13,
+                "accepted_expected_items": 8,
+                "missed_items": 5,
+                "unexpected_items": 236,
+                "coverage": 8 / 13,
+            },
+            "expected_event_manifest_id": "github-window-1",
+            "expected_event_manifest_digest": "manifest-digest",
+            "provider_snapshot_ref": "provider-snapshot:snapshot-digest",
+            "latency_sample_digest": "cafebabe",
+        }
+    )
+    assert "Evaluable coverage: 100.0%" in rendered
+    assert "Within 6h: 100.0%" in rendered
+    assert "Source delivery coverage: 8/13 = 61.5%; missed=5, unexpected=236" in rendered
+    assert "Expected-event manifest: `github-window-1`" in rendered
+    assert "Expected-event manifest digest: `manifest-digest`" in rendered
+    assert "Provider snapshot: `provider-snapshot:snapshot-digest`" in rendered
+    assert "Eligible latency decomposition" in rendered
+    assert "Provider/discovery: p50=5.83 min, p95=1.97 h, max=1.97 h" in rendered
+    assert "Queue/dispatch: p50=50.0 ms, p95=50.40 s, max=50.40 s" in rendered
+
+
+def test_monitoring_diagnostics_summarizes_eligible_delay_components() -> None:
+    class Row:
+        def __init__(self, suffix: str, event_offset: int, queue_seconds: int) -> None:
+            event_time = datetime(2026, 10, 1, 12, 0, event_offset, tzinfo=UTC)
+            observed_at = event_time.replace(second=event_offset + 10)
+            committed_at = observed_at.replace(microsecond=20_000)
+            self.observation_id = f"obs-{suffix}"
+            self.source_id = "source-a"
+            self.external_object_id = f"item-{suffix}"
+            self.run_id = f"run-{suffix}"
+            self.cursor_in = {"cursor": suffix}
+            self.cursor_out = {"cursor": suffix + "-next"}
+            self.had_prior_scheduled_success = True
+            self.time_semantics = {"updated_at": "provider.updated_at"}
+            self.published_at = None
+            self.updated_at = event_time
+            self.observed_at = observed_at
+            self.committed_at = committed_at
+            self.run_created_at = event_time
+            self.run_started_at = event_time.replace(second=event_offset + queue_seconds)
+            self.run_finished_at = committed_at
+
+    diagnostics = _monitoring_diagnostics([Row("a", 1, 2), Row("b", 20, 3)])
+    assert diagnostics["eligible_count"] == 2
+    timing = diagnostics["eligible_timing"]
+    assert timing["provider_discovery_seconds"] == {
+        "count": 2,
+        "p50_seconds": 10.0,
+        "p95_seconds": 10.0,
+        "max_seconds": 10.0,
+    }
+    assert timing["queue_dispatch_seconds"]["p95_seconds"] == 3.0
 
 
 def test_m1_readme_status_update_only_replaces_generated_block(tmp_path) -> None:

@@ -214,15 +214,13 @@ API 读取 canonical knowledge 与当前仓库状态，不会绕过 ingest 与�
 make scheduler
 ```
 
-当前任务拓扑为 collection、enrichment 与 indexing/projection 工作使用相互独立的 Celery 队列。完整本地开发时，启动订阅这些队列的 worker：
+当前任务拓扑为 collection、enrichment、investigation 与 indexing/projection 工作使用相互独立的 Celery 队列。完整本地开发时，以 Make target 作为队列订阅的统一入口：
 
 ```bash
-uv run celery -A apps.worker.celery_app:celery_app worker \
-  -l INFO \
-  -Q collection,enrichment,indexing
+make worker
 ```
 
-`make worker` 目前只启动 collection 队列，用于隔离 M1 采集行为。
+`make worker` 启动当前仓库使用的 collection、enrichment、investigation 与 indexing/projection 队列；隔离 M1 采集行为时使用 `make worker-collection`。
 
 ### 运行聚焦探针
 

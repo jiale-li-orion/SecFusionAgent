@@ -6,6 +6,7 @@ import json
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from hashlib import sha256
+from math import ceil
 from pathlib import Path
 from typing import Any
 
@@ -205,6 +206,23 @@ def _monitoring_row_diagnostic(row: Any) -> dict[str, Any]:
     }
 
 
+def _duration_distribution(values: Sequence[float | None]) -> dict[str, float | int | None]:
+    ordered = sorted(value for value in values if value is not None)
+    if not ordered:
+        return {"count": 0, "p50_seconds": None, "p95_seconds": None, "max_seconds": None}
+
+    def nearest_rank(percentile: float) -> float:
+        rank = max(1, ceil(percentile * len(ordered)))
+        return ordered[rank - 1]
+
+    return {
+        "count": len(ordered),
+        "p50_seconds": nearest_rank(0.50),
+        "p95_seconds": nearest_rank(0.95),
+        "max_seconds": ordered[-1],
+    }
+
+
 def _monitoring_diagnostics(rows: Sequence[Any]) -> dict[str, Any]:
     exclusion_counts: dict[str, int] = {}
     source_counts: dict[str, int] = {}
@@ -230,6 +248,20 @@ def _monitoring_diagnostics(rows: Sequence[Any]) -> dict[str, Any]:
             item["observation_id"],
         )
     )
+    eligible_timing = {
+        field: _duration_distribution(
+            [
+                item.get(field) if isinstance(item.get(field), (int, float)) else None
+                for item in eligible
+            ]
+        )
+        for field in (
+            "end_to_end_seconds",
+            "provider_discovery_seconds",
+            "queue_dispatch_seconds",
+            "ingestion_commit_seconds",
+        )
+    }
     return {
         "raw_candidate_count": len(rows),
         "eligible_count": len(eligible),
@@ -237,6 +269,7 @@ def _monitoring_diagnostics(rows: Sequence[Any]) -> dict[str, Any]:
         "exclusion_counts": dict(sorted(exclusion_counts.items())),
         "source_candidate_counts": dict(sorted(source_counts.items())),
         "eligible_source_counts": dict(sorted(eligible_source_counts.items())),
+        "eligible_timing": eligible_timing,
         "eligible_samples": eligible,
         "excluded_examples": excluded[:10],
     }
@@ -735,7 +768,17 @@ async def _run(
             "source_delivery_coverage": (
                 delivery.model_dump(mode="json") if delivery is not None else "not_evaluated"
             ),
+            "expected_event_manifest_id": (
+                expected_events_manifest.manifest_id
+                if expected_events_manifest is not None
+                else None
+            ),
             "expected_event_manifest_digest": expected_manifest_digest,
+            "provider_snapshot_ref": (
+                expected_events_manifest.provider_snapshot_ref
+                if expected_events_manifest is not None
+                else None
+            ),
         }
     finally:
         await engine.dispose()
