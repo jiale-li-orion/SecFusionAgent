@@ -7,6 +7,7 @@ from uuid import NAMESPACE_URL, uuid5
 
 from pydantic import BaseModel
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as postgresql_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.intelligence.storage.incident_models import (
@@ -122,6 +123,15 @@ class CurrentProjectionService:
         data: dict[str, object],
         upstream_revision: int,
     ) -> ProjectionWriteResult:
+        if session.get_bind().dialect.name == "postgresql":
+            return await self._upsert_postgresql(
+                session,
+                projection_type=projection_type,
+                subject_id=subject_id,
+                projection_key=projection_key,
+                data=data,
+                upstream_revision=upstream_revision,
+            )
         existing = await session.scalar(
             select(CurrentProjectionModel).where(
                 CurrentProjectionModel.projection_type == projection_type,
@@ -160,6 +170,70 @@ class CurrentProjectionService:
             subject_id=subject_id,
             upstream_revision=upstream_revision,
             changed=True,
+        )
+
+    async def _upsert_postgresql(
+        self,
+        session: AsyncSession,
+        *,
+        projection_type: str,
+        subject_id: str,
+        projection_key: str,
+        data: dict[str, object],
+        upstream_revision: int,
+    ) -> ProjectionWriteResult:
+        now = self._now()
+        statement = (
+            postgresql_insert(CurrentProjectionModel)
+            .values(
+                projection_id=_stable_id(f"projection:{projection_type}:{subject_id}"),
+                projection_type=projection_type,
+                subject_id=subject_id,
+                projection_key=projection_key,
+                data=data,
+                upstream_revision=upstream_revision,
+                updated_at=now,
+            )
+            .on_conflict_do_update(
+                constraint="uq_current_projection_type_subject",
+                set_={
+                    "projection_key": projection_key,
+                    "data": data,
+                    "upstream_revision": upstream_revision,
+                    "updated_at": now,
+                },
+                where=CurrentProjectionModel.upstream_revision < upstream_revision,
+            )
+            .returning(
+                CurrentProjectionModel.projection_id,
+                CurrentProjectionModel.upstream_revision,
+            )
+        )
+        row = (await session.execute(statement)).first()
+        if row is not None:
+            return ProjectionWriteResult(
+                projection_id=row.projection_id,
+                projection_type=projection_type,
+                subject_id=subject_id,
+                upstream_revision=row.upstream_revision,
+                changed=True,
+            )
+        existing = await session.scalar(
+            select(CurrentProjectionModel).where(
+                CurrentProjectionModel.projection_type == projection_type,
+                CurrentProjectionModel.subject_id == subject_id,
+            )
+        )
+        if existing is None:
+            raise RuntimeError(
+                "projection upsert conflict resolved without a persisted current projection"
+            )
+        return ProjectionWriteResult(
+            projection_id=existing.projection_id,
+            projection_type=projection_type,
+            subject_id=subject_id,
+            upstream_revision=existing.upstream_revision,
+            changed=False,
         )
 
 

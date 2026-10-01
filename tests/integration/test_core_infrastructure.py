@@ -17,6 +17,7 @@ from packages.intelligence.documents.service import ManagedDocumentService
 from packages.intelligence.hot_cache.contracts import HotBugRecord
 from packages.intelligence.hot_cache.redis import RedisHotBugCache
 from packages.intelligence.ingestion.evidence import EvidenceIngress
+from packages.intelligence.projections.service import CurrentProjectionService
 from packages.intelligence.retrieval.contracts import EmbeddingBatch
 from packages.intelligence.retrieval.indexing import DocumentIndexService
 from packages.intelligence.retrieval.operators import (
@@ -67,6 +68,77 @@ class FixedEmbeddingProvider:
             dimensions=3,
             vectors=[[1.0, 0.0, float(index)] for index, _ in enumerate(texts)],
         )
+
+
+@pytest.mark.asyncio
+async def test_current_projection_postgres_upsert_is_concurrency_safe_and_monotonic() -> None:
+    settings = get_settings()
+    engine = create_engine(settings.database_url)
+    factory = create_session_factory(engine)
+    object_id = str(uuid4())
+    canonical_key = f"integration/projection-race/{object_id}"
+    revision_id: int | None = None
+    try:
+        async with factory() as session, session.begin():
+            revision = KnowledgeRevisionModel(committed_at=NOW)
+            session.add(revision)
+            await session.flush()
+            revision_id = revision.revision
+            session.add(
+                ObjectModel(
+                    object_id=object_id,
+                    object_type="Repo",
+                    canonical_key=canonical_key,
+                    properties={"full_name": canonical_key},
+                    created_revision=revision.revision,
+                )
+            )
+
+        gate = asyncio.Event()
+        ready = 0
+        ready_lock = asyncio.Lock()
+
+        async def rebuild(upstream_revision: int):
+            nonlocal ready
+            async with factory() as session, session.begin():
+                async with ready_lock:
+                    ready += 1
+                    if ready == 8:
+                        gate.set()
+                await gate.wait()
+                return await CurrentProjectionService(now=lambda: NOW).rebuild_knowledge_object(
+                    session,
+                    object_id=object_id,
+                    upstream_revision=upstream_revision,
+                )
+
+        results = await asyncio.gather(*(rebuild(revision) for revision in range(1, 9)))
+        async with factory() as session:
+            projections = list(
+                await session.scalars(
+                    select(CurrentProjectionModel).where(
+                        CurrentProjectionModel.subject_id == object_id
+                    )
+                )
+            )
+        assert len(projections) == 1
+        assert projections[0].upstream_revision == 8
+        assert sum(bool(result and result.changed) for result in results) >= 1
+    finally:
+        async with factory() as session, session.begin():
+            await session.execute(
+                delete(CurrentProjectionModel).where(
+                    CurrentProjectionModel.subject_id == object_id
+                )
+            )
+            await session.execute(delete(ObjectModel).where(ObjectModel.object_id == object_id))
+            if revision_id is not None:
+                await session.execute(
+                    delete(KnowledgeRevisionModel).where(
+                        KnowledgeRevisionModel.revision == revision_id
+                    )
+                )
+        await engine.dispose()
 
 
 @pytest.mark.asyncio
