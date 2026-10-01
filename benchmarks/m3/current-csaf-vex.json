@@ -1,6 +1,6 @@
 {
   "profile": "redhat-csaf-vex-source-specific-v2",
-  "fetched_at": "2026-10-01T16:16:57.785157+00:00",
+  "fetched_at": "2026-09-28T03:04:43.712357+00:00",
   "cases": [
     "CVE-2026-67215",
     "CVE-2024-3094",
@@ -12,6 +12,8 @@
   ],
   "gold_revision": "csaf-vex:b8d7557895ad1676756180d52c605ad97ccb787c3be759ffc0e710033b6dfd5c",
   "provider_snapshot_revision": "provider-snapshot:cba7f1e65b1c5996b0137cfb9ddeb42a72876bff5a3fb38c34d9767bdaaee5bb",
+  "prediction_knowledge_revision": 596,
+  "prediction_world_ref": "knowledge-revision:596",
   "gold_source_mode": "frozen_snapshot_replay",
   "gold_fact_count": 83,
   "prediction_count": 83,
