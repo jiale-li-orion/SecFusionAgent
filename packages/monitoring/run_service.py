@@ -227,6 +227,7 @@ async def recover_stale_acquisition_runs(
     now: datetime | None = None,
     timeout_seconds: int = 15 * 60,
     limit: int = 100,
+    run_ids: set[str] | None = None,
 ) -> list[str]:
     instant = now or datetime.now(UTC)
     threshold = instant - timedelta(seconds=timeout_seconds)
@@ -241,6 +242,10 @@ async def recover_stale_acquisition_runs(
         .limit(limit)
         .with_for_update(skip_locked=True)
     )
+    if run_ids is not None:
+        if not run_ids:
+            return []
+        statement = statement.where(AcquisitionRunModel.run_id.in_(sorted(run_ids)))
     runs = list(await session.scalars(statement))
     recovered: list[str] = []
     for run in runs:

@@ -1,4 +1,4 @@
-.PHONY: sync lint format typecheck test check site-check site-status dev-up dev-down migrate sync-sources sync-skills worker worker-collection scheduler task-event-dispatcher task-event-scheduler probe-nvd promote-hot product-check m1-doc m1-render-doc m1-doc-check qa-preflight qa-preflight-doc-check investigation-readiness investigation-readiness-doc-check competition-report competition-render-doc competition-doc-check
+.PHONY: sync lint format typecheck test check site-check site-status dev-up dev-down migrate sync-sources sync-skills worker worker-collection scheduler task-event-dispatcher task-event-scheduler probe-nvd promote-hot product-check m1-doc m1-render-doc m1-doc-check qa-preflight qa-preflight-doc-check investigation-readiness investigation-readiness-doc-check fault-recovery fault-recovery-doc-check competition-report competition-render-doc competition-doc-check
 
 WIKI_PATH ?= ../SecFusionAgent.wiki
 SITE_STATUS_OUTPUT ?= $(WIKI_PATH)/site/project-status.json
@@ -12,6 +12,8 @@ QA_SESSION_PREFLIGHT_JSON ?= benchmarks/qa/current-session-preflight.json
 QA_PREFLIGHT_MD ?= benchmarks/qa/current-preflight.md
 INVESTIGATION_READINESS_JSON ?= benchmarks/investigation/current-readiness.json
 INVESTIGATION_READINESS_MD ?= benchmarks/investigation/current-readiness.md
+FAULT_RECOVERY_JSON ?= benchmarks/fault-recovery/current.json
+FAULT_RECOVERY_MD ?= benchmarks/fault-recovery/current.md
 COMPETITION_RUN_SET ?= benchmarks/competition/current-run-set.json
 COMPETITION_STATUS_JSON ?= benchmarks/competition/current.json
 COMPETITION_STATUS_MD ?= benchmarks/competition/current.md
@@ -75,6 +77,23 @@ m1-doc-check:
 	uv run python scripts/render_m1_status.py "$(M1_STATUS_JSON)" \
 		--markdown-output "$(M1_STATUS_MD)" \
 		--readme-status "$(M1_STATUS_README)" \
+		--check
+
+fault-recovery:
+	@test -n "$(FAULT_RECOVERY_SUITE_REVISION)" || (echo "FAULT_RECOVERY_SUITE_REVISION is required" >&2; exit 2)
+	uv run python scripts/run_fault_recovery_benchmark.py \
+		--suite-revision "$(FAULT_RECOVERY_SUITE_REVISION)" \
+		$(if $(FAULT_RECOVERY_DEPLOYMENT_REVISION_ID),--deployment-revision-id "$(FAULT_RECOVERY_DEPLOYMENT_REVISION_ID)") \
+		--output "$(FAULT_RECOVERY_JSON)"
+	uv run python scripts/render_fault_recovery_status.py \
+		"$(FAULT_RECOVERY_JSON)" \
+		--markdown-output "$(FAULT_RECOVERY_MD)"
+
+fault-recovery-doc-check:
+	@test -f "$(FAULT_RECOVERY_JSON)" || (echo "$(FAULT_RECOVERY_JSON) does not exist" >&2; exit 2)
+	uv run python scripts/render_fault_recovery_status.py \
+		"$(FAULT_RECOVERY_JSON)" \
+		--markdown-output "$(FAULT_RECOVERY_MD)" \
 		--check
 
 investigation-readiness:

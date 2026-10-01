@@ -17,6 +17,7 @@ async def dispatch_pending_events(
     *,
     now: datetime | None = None,
     limit: int = 100,
+    event_ids: set[str] | None = None,
 ) -> int:
     """Publish committed outbox events with at-least-once semantics.
 
@@ -36,6 +37,10 @@ async def dispatch_pending_events(
         .limit(limit)
         .with_for_update(skip_locked=True)
     )
+    if event_ids is not None:
+        if not event_ids:
+            return 0
+        statement = statement.where(OutboxEventModel.event_id.in_(sorted(event_ids)))
     events = list(await session.scalars(statement))
     delivered = 0
     for event in events:

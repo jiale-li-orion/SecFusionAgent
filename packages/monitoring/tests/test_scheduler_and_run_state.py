@@ -122,6 +122,92 @@ async def test_scheduler_outbox_and_cursor_commit_are_transactional() -> None:
         await engine.dispose()
 
 
+@pytest.mark.asyncio
+async def test_outbox_dispatch_can_be_scoped_to_explicit_event_ids() -> None:
+    engine, factory = await _database()
+    now = datetime(2026, 9, 25, 4, 0, tzinfo=UTC)
+    try:
+        async with factory() as session, session.begin():
+            for event_id in ("target-event", "unrelated-event"):
+                session.add(
+                    OutboxEventModel(
+                        event_id=event_id,
+                        topic="benchmark.test",
+                        aggregate_id=event_id,
+                        payload={"event_id": event_id},
+                        status="pending",
+                        attempts=0,
+                        available_at=now,
+                    )
+                )
+
+        published: list[str] = []
+
+        async def publisher(topic: str, payload: dict[str, object]) -> None:
+            del topic
+            published.append(str(payload["event_id"]))
+
+        async with factory() as session, session.begin():
+            delivered = await dispatch_pending_events(
+                session,
+                publisher,
+                now=now,
+                event_ids={"target-event"},
+            )
+        assert delivered == 1
+        assert published == ["target-event"]
+        async with factory() as session:
+            target = await session.get(OutboxEventModel, "target-event")
+            unrelated = await session.get(OutboxEventModel, "unrelated-event")
+            assert target is not None and target.status == "delivered"
+            assert unrelated is not None and unrelated.status == "pending"
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_stale_recovery_can_be_scoped_to_explicit_run_ids() -> None:
+    engine, factory = await _database()
+    now = datetime(2026, 9, 25, 5, 0, tzinfo=UTC)
+    definitions = load_source_definitions(Path("config/sources"))
+    try:
+        async with factory() as session, session.begin():
+            source_ids = await sync_source_definitions(session, definitions)
+            await ensure_source_states(session, source_ids)
+            for run_id in ("stale-target", "stale-unrelated"):
+                session.add(
+                    AcquisitionRunModel(
+                        run_id=run_id,
+                        source_id="nvd-cves-2",
+                        trigger="scheduled",
+                        parent_run_id=None,
+                        query_spec={},
+                        status="running",
+                        cursor_in={},
+                        cursor_out={},
+                        attempt=1,
+                        created_at=now - timedelta(minutes=30),
+                        started_at=now - timedelta(minutes=20),
+                    )
+                )
+
+        async with factory() as session, session.begin():
+            recovered = await recover_stale_acquisition_runs(
+                session,
+                now=now,
+                timeout_seconds=15 * 60,
+                run_ids={"stale-target"},
+            )
+        assert recovered == ["stale-target"]
+        async with factory() as session:
+            target = await session.get(AcquisitionRunModel, "stale-target")
+            unrelated = await session.get(AcquisitionRunModel, "stale-unrelated")
+            assert target is not None and target.status == "queued"
+            assert unrelated is not None and unrelated.status == "running"
+    finally:
+        await engine.dispose()
+
+
 def test_artifact_store_outage_gets_short_dependency_backoff() -> None:
     failure = classify_source_failure(
         ArtifactStoreUnavailable("artifact store write failed: EndpointConnectionError"),
@@ -263,6 +349,7 @@ async def test_stale_running_run_is_requeued_with_new_outbox_event() -> None:
                 session,
                 now=now,
                 timeout_seconds=15 * 60,
+                run_ids={"stale-run"},
             )
         assert recovered == ["stale-run"]
         async with factory() as session:
