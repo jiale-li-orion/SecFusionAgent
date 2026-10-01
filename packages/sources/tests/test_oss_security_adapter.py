@@ -7,7 +7,7 @@ import pytest
 
 from packages.intelligence.documents.parsers import HTMLDocumentParser
 from packages.sources.adapters.oss_security import OssSecurityAdapter
-from packages.sources.contracts import AcquisitionTrigger, SourceDefinition, SourceState
+from packages.sources.contracts import AcquisitionTrigger, QuerySpec, SourceDefinition, SourceState
 
 SOURCE = SourceDefinition.model_validate(
     {
@@ -92,3 +92,32 @@ async def test_oss_security_discovers_current_month_and_preserves_message_html()
         assert sections[0].source_locator["kind"] == "html_preformatted_document"
         assert "CVE-2026-11111" in sections[0].text
         assert "navigation noise" not in sections[0].text
+
+
+@pytest.mark.asyncio
+async def test_oss_security_retries_one_transient_transport_failure() -> None:
+    attempts = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise httpx.ReadTimeout("transient read timeout", request=request)
+        return httpx.Response(
+            200,
+            text=MESSAGE_HTML,
+            headers={"content-type": "text/html"},
+            request=request,
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        adapter = OssSecurityAdapter(client)
+        envelope = await adapter.query(
+            SOURCE,
+            QuerySpec(filters={"message_id": "2026/09/25/1"}),
+            acquisition_run_id="00000000-0000-0000-0000-000000000002",
+            trigger=AcquisitionTrigger.SCHEDULED,
+        )
+
+    assert attempts == 2
+    assert envelope[0].published_at == datetime(2026, 9, 25, 20, 17, tzinfo=UTC)

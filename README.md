@@ -148,7 +148,7 @@ These READMEs refine Technical Design 1 below the cross-module architecture boun
 
 - Python **3.12+**
 - [`uv`](https://docs.astral.sh/uv/)
-- Docker with Compose support for the local PostgreSQL / Redis / MinIO stack
+- Docker with Compose support for the local PostgreSQL / Redis / S3-compatible stack
 
 The runtime has no cloud-vendor requirement. Container registry mirrors, proxies and credentials are host-level configuration and are intentionally kept outside the repository contract.
 
@@ -183,7 +183,7 @@ make migrate
 make sync-sources
 ```
 
-`make dev-up-core` is the verified local core path for PostgreSQL/pgvector and the two Redis failure domains. `make dev-up` additionally asks for the configured MinIO deployment; that MinIO-specific image path is still tracked as an engineering blocker even though the S3-compatible ArtifactStore contract itself is verified against a pinned LocalStack Community integration provider.
+`make dev-up-core` is the verified local core path for PostgreSQL/pgvector and the Redis failure domains. `make dev-up` additionally starts the pinned LocalStack Community S3-compatible backend used by the default development configuration. MinIO remains an opt-in compatibility profile.
 
 Stop the local stack with:
 

@@ -49,6 +49,7 @@ services:
 
   minio:
     image: minio/minio:latest
+    profiles: ["minio"]
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: secfusion
@@ -61,7 +62,6 @@ services:
 
   localstack-s3:
     image: public.ecr.aws/localstack/localstack:4.14.0
-    profiles: ["integration"]
     ports:
       - "4566:4566"
     environment:

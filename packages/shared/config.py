@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     scheduler_tick_seconds: int = 5
     api_workbench_enabled: bool = True
 
-    s3_endpoint_url: str = "http://localhost:9000"
+    s3_endpoint_url: str = "http://localhost:4566"
     s3_access_key: str = "secfusion"
     s3_secret_key: str = "change-me"
     s3_bucket: str = "secfusion-evidence"

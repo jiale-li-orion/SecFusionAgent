@@ -1,7 +1,11 @@
-.PHONY: sync lint format typecheck test check site-check site-status dev-up dev-down migrate sync-sources sync-skills worker worker-collection scheduler task-event-dispatcher task-event-scheduler probe-nvd promote-hot product-check
+.PHONY: sync lint format typecheck test check site-check site-status dev-up dev-down migrate sync-sources sync-skills worker worker-collection scheduler task-event-dispatcher task-event-scheduler probe-nvd promote-hot product-check m1-doc m1-render-doc m1-doc-check
 
 WIKI_PATH ?= ../SecFusionAgent.wiki
 SITE_STATUS_OUTPUT ?= $(WIKI_PATH)/site/project-status.json
+M1_SUITE_ID ?= m1-monitoring-current
+M1_STATUS_JSON ?= benchmarks/m1/current.json
+M1_STATUS_MD ?= benchmarks/m1/current.md
+M1_STATUS_README ?= benchmarks/m1/README.md
 
 sync:
 	uv sync --dev
@@ -35,8 +39,36 @@ site-check:
 site-status:
 	python3 scripts/build_site_status.py --repo . --wiki $(WIKI_PATH) --output $(SITE_STATUS_OUTPUT)
 
+m1-doc:
+	@test -n "$(M1_WINDOW_START)" || (echo "M1_WINDOW_START is required" >&2; exit 2)
+	@test -n "$(M1_WINDOW_END)" || (echo "M1_WINDOW_END is required" >&2; exit 2)
+	@test -n "$(M1_SUITE_REVISION)" || (echo "M1_SUITE_REVISION is required" >&2; exit 2)
+	uv run python scripts/run_m1_benchmark.py \
+		--window-start "$(M1_WINDOW_START)" \
+		--window-end "$(M1_WINDOW_END)" \
+		--suite-id "$(M1_SUITE_ID)" \
+		--suite-revision "$(M1_SUITE_REVISION)" \
+		$(if $(M1_DEPLOYMENT_REVISION_ID),--deployment-revision-id "$(M1_DEPLOYMENT_REVISION_ID)") \
+		$(if $(M1_EXPECTED_EVENTS_MANIFEST),--expected-events-manifest "$(M1_EXPECTED_EVENTS_MANIFEST)") \
+		--output "$(M1_STATUS_JSON)" \
+		--markdown-output "$(M1_STATUS_MD)" \
+		--readme-status "$(M1_STATUS_README)"
+
+m1-render-doc:
+	@test -f "$(M1_STATUS_JSON)" || (echo "$(M1_STATUS_JSON) does not exist" >&2; exit 2)
+	uv run python scripts/render_m1_status.py "$(M1_STATUS_JSON)" \
+		--markdown-output "$(M1_STATUS_MD)" \
+		--readme-status "$(M1_STATUS_README)"
+
+m1-doc-check:
+	@test -f "$(M1_STATUS_JSON)" || (echo "$(M1_STATUS_JSON) does not exist" >&2; exit 2)
+	uv run python scripts/render_m1_status.py "$(M1_STATUS_JSON)" \
+		--markdown-output "$(M1_STATUS_MD)" \
+		--readme-status "$(M1_STATUS_README)" \
+		--check
+
 dev-up:
-	docker compose -f deploy/docker-compose.yml up -d postgres redis-broker redis-cache redis-task-bus minio
+	docker compose -f deploy/docker-compose.yml up -d --wait postgres redis-broker redis-cache redis-task-bus localstack-s3
 
 .PHONY: dev-up-core
 dev-up-core:
@@ -91,7 +123,7 @@ probe-live-sources:
 
 .PHONY: dev-up-s3-test
 dev-up-s3-test:
-	docker compose -f deploy/docker-compose.yml --profile integration up -d --wait localstack-s3
+	docker compose -f deploy/docker-compose.yml up -d --wait localstack-s3
 
 .PHONY: integration-object-store
 integration-object-store: dev-up-s3-test

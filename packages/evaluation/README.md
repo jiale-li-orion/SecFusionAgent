@@ -41,9 +41,15 @@ At least one revision discriminator is required. `source_delivery_coverage` sepa
 
 The helper reports p50, p95, max, and the rate within six hours. These are diagnostics; the competition text defines the six-hour threshold but does not define one aggregate statistic as the official gate.
 
-Large values are debugged by decomposing `event_time -> observed_at`, `AcquisitionRun.created_at -> started_at`, and `observed_at -> committed_at`. This keeps provider/discovery delay, queue/dispatch delay, and M2 ingestion delay separate. The 2026-10-01 five-sample `oss-security` result that previously produced a 16–22 hour headline was a legacy-cursor catch-up: queue delay was roughly 21 ms and Observation→Knowledge commit was 12–28 ms, while `cursor_out.backfill_pending=true`. Re-running the same fixed window with the corrected contract yields zero steady-state latency samples instead of reporting catch-up age as monitoring latency.
+Large values are debugged by decomposing `event_time -> observed_at`, `AcquisitionRun.created_at -> started_at`, and `observed_at -> committed_at`. This keeps provider/discovery delay, queue/dispatch delay, and M2 ingestion delay separate. The M1 runner excludes a run when either cursor boundary marks historical backfill; current counts and latency values are rendered from the benchmark result into `benchmarks/m1/current.json`, `current.md`, and the generated status block in `benchmarks/m1/README.md`.
 
 An empty steady-state denominator is represented as `evaluable_coverage=null` and no latency metric observations are written. It is `not_evaluated`, rather than vacuous 100% coverage or a zero-latency success.
+
+### Generated evidence discipline
+
+Mutable benchmark evidence is never maintained by copying numbers into hand-written documentation. Module runners own structured JSON results; renderer code derives human-readable Markdown and bounded README status blocks from that JSON. Hand-written documentation owns stable contracts, interpretation rules and reproduction commands. Historical numeric diagnostics may remain only when they explain a design decision and are explicitly frozen as historical evidence rather than presented as current status.
+
+M1 implements this contract with `scripts/run_m1_benchmark.py` and `scripts/render_m1_status.py`. The same pattern should be used when M3/M6/Agent evidence is promoted into current competition-facing status: one structured result, deterministic rendering, no second manually maintained metric copy.
 
 ## M2 diagnostic metrics
 

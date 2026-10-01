@@ -148,7 +148,7 @@ package 归属与依赖方向属于仓库契约，而不是目录约定。`packa
 
 - Python **3.12+**
 - [`uv`](https://docs.astral.sh/uv/)
-- 支持 Compose 的 Docker，用于本地 PostgreSQL / Redis / MinIO 栈
+- 支持 Compose 的 Docker，用于本地 PostgreSQL / Redis / S3-compatible 栈
 
 运行时没有云厂商依赖。容器镜像仓库 mirror、proxy 与凭据属于 host 级配置，被有意排除在仓库契约之外。
 
@@ -183,7 +183,7 @@ make migrate
 make sync-sources
 ```
 
-`make dev-up-core` 是已经验证的 PostgreSQL/pgvector + 双 Redis 本地 core 路径。`make dev-up` 还会尝试当前配置的 MinIO 部署；MinIO-specific 镜像路径仍作为工程 blocker 保留，但 S3-compatible ArtifactStore contract 已通过固定版本 LocalStack Community integration provider 的真实 round trip。
+`make dev-up-core` 是已经验证的 PostgreSQL/pgvector + Redis 本地 core 路径。`make dev-up` 还会启动默认开发配置使用的固定版本 LocalStack Community S3-compatible backend；MinIO 仅保留为 opt-in compatibility profile。
 
 停止本地栈：
 

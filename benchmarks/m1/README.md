@@ -2,6 +2,14 @@
 
 `scripts/run_m1_benchmark.py` owns the executable M1 denominator for source-category coverage, scheduled monitoring latency and source-delivery coverage.
 
+## Current generated status
+
+<!-- BEGIN GENERATED M1 STATUS -->
+
+No generated M1 status has been committed yet. Run the benchmark with `--readme-status benchmarks/m1/README.md`.
+
+<!-- END GENERATED M1 STATUS -->
+
 ## Monitoring latency
 
 Latency is measured only for durable observations created by `trigger=scheduled`, committed into Knowledge, and produced by a **steady-state** scheduled run:
@@ -14,7 +22,7 @@ Bootstrap and explicit backfill runs do not enter this denominator. A run is eli
 
 `event_time` follows the Source contract. When `Source.time_semantics` declares `updated_at` and the Observation has it, the evaluator uses `Observation.updated_at`; otherwise it uses `Observation.published_at`. This matters for mutable sources such as repository snapshots, where repository creation time is not a monitoring event. The fixed window is defined over Knowledge commit time. Samples with no reliable event time remain visible in `evaluable_coverage` but are excluded from numeric p50/p95/max aggregation.
 
-Large latency values should be decomposed before changing scheduler policy. `AcquisitionRun.created_at -> started_at` measures queue/dispatch delay, `event_time -> Observation.observed_at` measures provider/discovery delay, and `Observation.observed_at -> KnowledgeRevision.committed_at` measures ingestion/commit delay. On 2026-10-01, the five 16–22 hour candidates were all one `oss-security` legacy-cursor catch-up run: queue delay was about 21 ms and ingestion/commit was 12–28 ms. The corrected denominator excludes that run because its `cursor_out` has `backfill_pending=true`.
+Large latency values should be decomposed before changing scheduler policy. `AcquisitionRun.created_at -> started_at` measures queue/dispatch delay, `event_time -> Observation.observed_at` measures provider/discovery delay, and `Observation.observed_at -> KnowledgeRevision.committed_at` measures ingestion/commit delay. Catch-up runs whose output cursor discovers `backfill_pending=true` stay outside the steady-state denominator even when their input cursor came from an older schema without that marker.
 
 ## Source delivery coverage
 
@@ -59,7 +67,10 @@ Latency/source taxonomy only:
 uv run python scripts/run_m1_benchmark.py \
   --window-start 2026-10-01T10:00:00Z \
   --window-end 2026-10-01T11:00:00Z \
-  --suite-revision 1
+  --suite-revision 1 \
+  --output benchmarks/m1/current.json \
+  --markdown-output benchmarks/m1/current.md \
+  --readme-status benchmarks/m1/README.md
 ```
 
 With frozen delivery gold:
@@ -73,3 +84,13 @@ uv run python scripts/run_m1_benchmark.py \
 ```
 
 The runner persists the provider snapshot ref, expected-manifest digest, expected/matched/missed/unexpected counts and `m1.source_delivery_coverage` into TD3 BenchmarkCase/Suite/MetricObservation provenance.
+
+## Documentation maintenance contract
+
+`current.json` is the machine-readable checkpoint and `current.md` plus the generated block at the top of this README are renderings of the same in-memory result returned by `run_m1_benchmark.py`. Current sample counts, benchmark run IDs, windows, p50/p95/max, coverage and delivery status must come from this path; they are not manually copied into prose.
+
+`make m1-doc M1_WINDOW_START=... M1_WINDOW_END=... M1_SUITE_REVISION=...` runs the benchmark and refreshes all three artifacts. `make m1-render-doc` is render-only: it rebuilds Markdown and the README block from the already frozen `current.json` without touching the database or creating another benchmark run.
+
+Hand-written sections own stable semantics: denominator rules, event-time selection, failure classification and reproduction commands. A numeric value may remain in hand-written prose only when it is an immutable historical diagnostic needed to explain a design decision and its provenance is named. Current competition evidence belongs in generated output.
+
+The generated block is bounded by explicit markers. The runner refuses to update a README with missing, duplicated or reversed markers, so documentation automation cannot silently overwrite unrelated module documentation.

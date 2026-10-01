@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import re
 from collections.abc import Callable
@@ -30,6 +31,8 @@ class OssSecurityAdapter:
 
     DEFAULT_ROOT = "https://www.openwall.com/lists/oss-security/"
     USER_AGENT = "SecFusionAgent/0.1 oss-security-source-adapter"
+    TRANSPORT_ATTEMPTS = 2
+    RETRY_DELAY_SECONDS = 0.1
 
     def __init__(
         self,
@@ -173,16 +176,30 @@ class OssSecurityAdapter:
         ]
 
     async def _get(self, url: str) -> httpx.Response:
-        try:
-            response = await self._client.get(
-                url,
-                follow_redirects=True,
-                headers={"User-Agent": self.USER_AGENT, "Accept": "text/html,*/*;q=0.8"},
-            )
-        except httpx.HTTPError as exc:
-            raise SourceFetchFailed(
-                f"oss-security request failed: {exc.__class__.__name__}"
-            ) from exc
+        response: httpx.Response | None = None
+        for attempt in range(self.TRANSPORT_ATTEMPTS):
+            try:
+                response = await self._client.get(
+                    url,
+                    follow_redirects=True,
+                    headers={
+                        "User-Agent": self.USER_AGENT,
+                        "Accept": "text/html,*/*;q=0.8",
+                    },
+                )
+                break
+            except httpx.TransportError as exc:
+                if attempt + 1 >= self.TRANSPORT_ATTEMPTS:
+                    raise SourceFetchFailed(
+                        f"oss-security request failed: {exc.__class__.__name__}"
+                    ) from exc
+                await asyncio.sleep(self.RETRY_DELAY_SECONDS)
+            except httpx.HTTPError as exc:
+                raise SourceFetchFailed(
+                    f"oss-security request failed: {exc.__class__.__name__}"
+                ) from exc
+        if response is None:
+            raise RuntimeError("oss-security transport retry loop produced no response")
         if response.status_code == 429:
             raise SourceRateLimited("oss-security rate limit reached")
         if response.is_error:

@@ -6,6 +6,10 @@ import pytest
 from pydantic import ValidationError
 
 from packages.evaluation.m1_m3 import SourceDeliveryKey
+from packages.evaluation.m1_status import (
+    render_m1_status_markdown,
+    update_m1_readme_status,
+)
 from packages.sources.contracts import AcquisitionTrigger
 from scripts.run_m1_benchmark import (
     M1ExpectedEventManifest,
@@ -33,6 +37,54 @@ def test_monitoring_latency_query_only_accepts_scheduled_acquisition() -> None:
     assert AcquisitionTrigger.SCHEDULED.value in values
     assert AcquisitionTrigger.ON_DEMAND.value not in values
     assert AcquisitionTrigger.PROMOTION.value not in values
+
+
+def test_m1_status_markdown_renders_not_evaluated_without_inventing_zeroes() -> None:
+    rendered = render_m1_status_markdown(
+        {
+            "benchmark_run_id": "run-1",
+            "deployment_revision_id": "deployment:abc",
+            "suite_ref": "m1@7",
+            "window_start": "2026-10-01T09:00:00+00:00",
+            "window_end": "2026-10-01T12:00:00+00:00",
+            "source_category_count": 8,
+            "raw_latency_candidate_count": 195,
+            "excluded_nonsteady_count": 195,
+            "latency": {
+                "total_samples": 0,
+                "evaluable_samples": 0,
+                "evaluable_coverage": None,
+                "p50_seconds": None,
+                "p95_seconds": None,
+                "max_seconds": None,
+                "within_6h_rate": None,
+            },
+            "source_delivery_coverage": "not_evaluated",
+            "latency_sample_digest": "deadbeef",
+        }
+    )
+    assert (
+        "raw=195, steady_state=0, excluded=195, exclusions=[legacy_result], evaluable=0"
+        in rendered
+    )
+    assert "p50: not_evaluated" in rendered
+    assert "Within 6h: not_evaluated" in rendered
+    assert "DO NOT EDIT BY HAND" in rendered
+
+
+def test_m1_readme_status_update_only_replaces_generated_block(tmp_path) -> None:
+    readme = tmp_path / "README.md"
+    readme.write_text(
+        "before\n<!-- BEGIN GENERATED M1 STATUS -->\nold\n"
+        "<!-- END GENERATED M1 STATUS -->\nafter\n",
+        encoding="utf-8",
+    )
+    update_m1_readme_status(readme, "### generated\n\n- value: 1\n")
+    text = readme.read_text(encoding="utf-8")
+    assert text.startswith("before\n")
+    assert "### generated" in text
+    assert "old" not in text
+    assert text.endswith("after\n")
 
 
 def test_monitoring_latency_excludes_bootstrap_and_uses_source_event_time() -> None:

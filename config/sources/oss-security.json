@@ -10,7 +10,7 @@
   "discovery_method": {
     "root_url": "https://www.openwall.com/lists/oss-security/",
     "lookback_months": 2,
-    "max_items": 120,
+    "max_items": 20,
     "initial_limit": 5
   },
   "time_semantics": {"published_at": "message Date header", "observed_at": "collector_clock"},

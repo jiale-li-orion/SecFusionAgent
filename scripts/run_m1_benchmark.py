@@ -33,6 +33,10 @@ from packages.evaluation.m1_m3 import (
     source_coverage_report,
     source_delivery_coverage,
 )
+from packages.evaluation.m1_status import (
+    render_m1_status_markdown,
+    update_m1_readme_status,
+)
 from packages.intelligence.storage.evidence_models import ObservationModel
 from packages.intelligence.storage.knowledge_models import KnowledgeRevisionModel
 from packages.monitoring.storage.models import AcquisitionRunModel
@@ -119,7 +123,12 @@ def _monitoring_latency_query(window_start: datetime, window_end: datetime):
             ObservationModel.content_hash,
             ObservationModel.published_at,
             ObservationModel.updated_at,
+            ObservationModel.observed_at,
             SourceModel.time_semantics,
+            current_run.run_id,
+            current_run.created_at.label("run_created_at"),
+            current_run.started_at.label("run_started_at"),
+            current_run.finished_at.label("run_finished_at"),
             current_run.cursor_in,
             current_run.cursor_out,
             had_prior_scheduled_success.label("had_prior_scheduled_success"),
@@ -141,17 +150,21 @@ def _monitoring_latency_query(window_start: datetime, window_end: datetime):
 
 
 def _steady_state_monitoring_rows(rows: Sequence[Any]) -> list[Any]:
-    return [
-        row
-        for row in rows
-        if not _is_backfill_cursor(row.cursor_in)
-        and not _is_backfill_cursor(row.cursor_out)
-        and (bool(row.cursor_in) or bool(row.had_prior_scheduled_success))
-    ]
+    return [row for row in rows if _monitoring_exclusion_reason(row) is None]
 
 
 def _is_backfill_cursor(cursor: Any) -> bool:
     return isinstance(cursor, dict) and cursor.get("backfill_pending") is True
+
+
+def _monitoring_exclusion_reason(row: Any) -> str | None:
+    if _is_backfill_cursor(row.cursor_in):
+        return "input_backfill"
+    if _is_backfill_cursor(row.cursor_out):
+        return "output_backfill"
+    if not bool(row.cursor_in) and not bool(row.had_prior_scheduled_success):
+        return "bootstrap"
+    return None
 
 
 def _monitoring_event_time(row: Any) -> datetime | None:
@@ -163,6 +176,70 @@ def _monitoring_event_time(row: Any) -> datetime | None:
 
 def _isoformat_or_none(value: datetime | None) -> str | None:
     return value.isoformat() if value is not None else None
+
+
+def _seconds_between(later: datetime | None, earlier: datetime | None) -> float | None:
+    if later is None or earlier is None:
+        return None
+    return (later - earlier).total_seconds()
+
+
+def _monitoring_row_diagnostic(row: Any) -> dict[str, Any]:
+    event_time = _monitoring_event_time(row)
+    return {
+        "observation_id": row.observation_id,
+        "source_id": row.source_id,
+        "external_object_id": row.external_object_id,
+        "run_id": row.run_id,
+        "exclusion_reason": _monitoring_exclusion_reason(row),
+        "event_time": _isoformat_or_none(event_time),
+        "observed_at": row.observed_at.isoformat(),
+        "committed_at": row.committed_at.isoformat(),
+        "run_created_at": row.run_created_at.isoformat(),
+        "run_started_at": _isoformat_or_none(row.run_started_at),
+        "run_finished_at": _isoformat_or_none(row.run_finished_at),
+        "end_to_end_seconds": _seconds_between(row.committed_at, event_time),
+        "provider_discovery_seconds": _seconds_between(row.observed_at, event_time),
+        "ingestion_commit_seconds": _seconds_between(row.committed_at, row.observed_at),
+        "queue_dispatch_seconds": _seconds_between(row.run_started_at, row.run_created_at),
+    }
+
+
+def _monitoring_diagnostics(rows: Sequence[Any]) -> dict[str, Any]:
+    exclusion_counts: dict[str, int] = {}
+    source_counts: dict[str, int] = {}
+    eligible_source_counts: dict[str, int] = {}
+    excluded: list[dict[str, Any]] = []
+    eligible: list[dict[str, Any]] = []
+    for row in rows:
+        source_counts[row.source_id] = source_counts.get(row.source_id, 0) + 1
+        diagnostic = _monitoring_row_diagnostic(row)
+        reason = diagnostic["exclusion_reason"]
+        if isinstance(reason, str):
+            exclusion_counts[reason] = exclusion_counts.get(reason, 0) + 1
+            excluded.append(diagnostic)
+        else:
+            eligible_source_counts[row.source_id] = (
+                eligible_source_counts.get(row.source_id, 0) + 1
+            )
+            eligible.append(diagnostic)
+    excluded.sort(
+        key=lambda item: (
+            item["end_to_end_seconds"] is None,
+            -(item["end_to_end_seconds"] or 0.0),
+            item["observation_id"],
+        )
+    )
+    return {
+        "raw_candidate_count": len(rows),
+        "eligible_count": len(eligible),
+        "excluded_count": len(excluded),
+        "exclusion_counts": dict(sorted(exclusion_counts.items())),
+        "source_candidate_counts": dict(sorted(source_counts.items())),
+        "eligible_source_counts": dict(sorted(eligible_source_counts.items())),
+        "eligible_samples": eligible,
+        "excluded_examples": excluded[:10],
+    }
 
 
 def _scheduled_observation_query(window_start: datetime, window_end: datetime):
@@ -273,6 +350,7 @@ async def _run(
             )
 
         steady_state_rows = _steady_state_monitoring_rows(rows)
+        monitoring_diagnostics = _monitoring_diagnostics(rows)
         samples = [
             MonitoringLatencySample(
                 sample_id=row.observation_id,
@@ -651,6 +729,7 @@ async def _run(
             "latency_sample_digest": sample_digest,
             "raw_latency_candidate_count": len(rows),
             "excluded_nonsteady_count": len(rows) - len(steady_state_rows),
+            "monitoring_diagnostics": monitoring_diagnostics,
             "latency": latency.model_dump(mode="json"),
             "eligible_acquisition_trigger": AcquisitionTrigger.SCHEDULED.value,
             "source_delivery_coverage": (
@@ -671,6 +750,12 @@ def main() -> None:
     parser.add_argument("--deployment-revision-id")
     parser.add_argument("--expected-events-manifest", type=Path)
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--markdown-output", type=Path)
+    parser.add_argument(
+        "--readme-status",
+        type=Path,
+        help="replace the generated M1 status block in this README",
+    )
     args = parser.parse_args()
     expected_events_manifest = (
         M1ExpectedEventManifest.model_validate_json(
@@ -693,6 +778,12 @@ def main() -> None:
     if args.output is not None:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(rendered, encoding="utf-8")
+    status_markdown = render_m1_status_markdown(result)
+    if args.markdown_output is not None:
+        args.markdown_output.parent.mkdir(parents=True, exist_ok=True)
+        args.markdown_output.write_text(status_markdown, encoding="utf-8")
+    if args.readme_status is not None:
+        update_m1_readme_status(args.readme_status, status_markdown)
     print(rendered, end="")
 
 
