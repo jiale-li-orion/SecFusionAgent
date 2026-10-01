@@ -4,6 +4,7 @@ import hashlib
 import re
 from collections.abc import Callable
 from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from urllib.parse import urljoin
 
 import httpx
@@ -43,12 +44,17 @@ class OssSecurityAdapter:
         root = str(source.discovery_method.get("root_url") or self.DEFAULT_ROOT)
         lookback_months = _positive_int(source.discovery_method.get("lookback_months"), 2)
         max_items = _positive_int(source.discovery_method.get("max_items"), 100)
+        initial_limit = _positive_int(
+            source.discovery_method.get("initial_limit"),
+            max_items,
+        )
         months = _recent_months(self._now(), lookback_months)
 
         previous = state.cursor.get("item_revisions")
         previous_revisions = previous if isinstance(previous, dict) else {}
-        next_revisions: dict[str, JsonValue] = {}
-        items: list[DiscoveredRef] = []
+        bootstrap_complete = state.cursor.get("bootstrap_complete") is True
+        run_limit = max_items if bootstrap_complete else initial_limit
+        discovered: list[tuple[DiscoveredRef, str]] = []
 
         for year, month in months:
             month_url = urljoin(root, f"{year:04d}/{month:02d}/")
@@ -66,38 +72,45 @@ class OssSecurityAdapter:
                 canonical_url = urljoin(str(response.url), href)
                 external_id = f"{year:04d}/{month:02d}/{day}/{ordinal}"
                 revision = hashlib.sha256(title.encode()).hexdigest()
-                next_revisions[external_id] = revision
                 if previous_revisions.get(external_id) != revision:
-                    items.append(
-                        DiscoveredRef(
-                            external_object_id=external_id,
-                            canonical_url=canonical_url,
-                            external_revision=revision,
-                            locator={
-                                "month_url": str(response.url),
-                                "subject": title,
-                            },
+                    discovered.append(
+                        (
+                            DiscoveredRef(
+                                external_object_id=external_id,
+                                canonical_url=canonical_url,
+                                external_revision=revision,
+                                locator={
+                                    "month_url": str(response.url),
+                                    "subject": title,
+                                },
+                            ),
+                            revision,
                         )
                     )
-                if len(items) >= max_items:
-                    break
-            if len(items) >= max_items:
-                break
 
-        # Keep the union for the active lookback window so replay remains stable
-        # while old months naturally fall out of the cursor.
-        for external_id, previous_revision in previous_revisions.items():
+        # Openwall month indexes are oldest-first. Surface newest unseen messages first so the
+        # monitoring path does not wait for historical backfill before seeing current disclosures.
+        # Unselected revisions are deliberately absent from the cursor and remain eligible later.
+        selected = list(reversed(discovered))[:run_limit]
+        next_revisions: dict[str, JsonValue] = {
+            external_id: previous_revision
+            for external_id, previous_revision in previous_revisions.items()
             if (
                 isinstance(external_id, str)
                 and isinstance(previous_revision, str)
                 and _in_recent_months(external_id, months)
-                and external_id not in next_revisions
-            ):
-                next_revisions[external_id] = previous_revision
+            )
+        }
+        for ref, revision in selected:
+            next_revisions[ref.external_object_id] = revision
 
         return DiscoveryBatch(
-            items=items,
-            next_cursor={"item_revisions": next_revisions},
+            items=[ref for ref, _ in selected],
+            next_cursor={
+                "item_revisions": next_revisions,
+                "bootstrap_complete": True,
+                "backfill_pending": len(discovered) > len(selected),
+            },
         )
 
     async def fetch(
@@ -112,6 +125,7 @@ class OssSecurityAdapter:
             raise SourceSchemaChanged("oss-security ref has no canonical URL")
         response = await self._get(ref.canonical_url)
         content_type = response.headers.get("content-type", "text/html").split(";", 1)[0]
+        published_at = _message_published_at(response.text)
         return IngestEnvelope.for_binary_payload(
             acquisition_run_id=acquisition_run_id,
             trigger=trigger,
@@ -120,7 +134,7 @@ class OssSecurityAdapter:
             body=response.content,
             media_type=content_type or "text/html",
             canonical_url=str(response.url),
-            published_at=None,
+            published_at=published_at,
             updated_at=None,
             external_revision=response.headers.get("etag")
             or response.headers.get("last-modified")
@@ -182,6 +196,24 @@ def _positive_int(value: JsonValue | None, default: int) -> int:
     if isinstance(value, int) and value > 0:
         return value
     return default
+
+
+def _message_published_at(html: str) -> datetime | None:
+    tree = HTMLParser(html)
+    pre = tree.css_first("pre")
+    if pre is None:
+        return None
+    message = pre.text(separator="\n", strip=False)
+    match = re.search(r"(?mi)^Date:\s*(.+?)\s*$", message)
+    if match is None:
+        return None
+    try:
+        parsed = parsedate_to_datetime(match.group(1).strip())
+    except (TypeError, ValueError, OverflowError):
+        return None
+    if parsed.tzinfo is None:
+        return None
+    return parsed.astimezone(UTC)
 
 
 def _recent_months(now: datetime, count: int) -> list[tuple[int, int]]:

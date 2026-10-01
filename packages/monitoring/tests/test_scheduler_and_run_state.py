@@ -120,6 +120,51 @@ async def test_scheduler_outbox_and_cursor_commit_are_transactional() -> None:
 
 
 @pytest.mark.asyncio
+async def test_scheduler_can_select_explicit_due_source_subset() -> None:
+    engine, factory = await _database()
+    now = datetime(2026, 9, 25, 4, 30, tzinfo=UTC)
+    definitions = load_source_definitions(Path("config/sources"))
+    try:
+        async with factory() as session, session.begin():
+            source_ids = await sync_source_definitions(session, definitions)
+            await ensure_source_states(session, source_ids)
+        async with factory() as session, session.begin():
+            for source_id in ("nvd-cves-2", "github-target-repos"):
+                state = await session.get(SourceStateModel, source_id)
+                assert state is not None
+                state.next_due_at = now - timedelta(seconds=1)
+
+        async with factory() as session, session.begin():
+            run_ids = await schedule_due_sources(
+                session,
+                now=now,
+                source_ids={"github-target-repos"},
+            )
+        assert len(run_ids) == 1
+        async with factory() as session:
+            run = await session.get(AcquisitionRunModel, run_ids[0])
+            nvd_state = await session.get(SourceStateModel, "nvd-cves-2")
+            github_state = await session.get(SourceStateModel, "github-target-repos")
+            assert run is not None and run.source_id == "github-target-repos"
+            assert nvd_state is not None
+            assert _as_utc(nvd_state.next_due_at) == now - timedelta(seconds=1)
+            assert github_state is not None
+            assert _as_utc(github_state.next_due_at) == now + timedelta(seconds=3600)
+
+        async with factory() as session, session.begin():
+            assert (
+                await schedule_due_sources(
+                    session,
+                    now=now,
+                    source_ids=set(),
+                )
+                == []
+            )
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_stale_running_run_is_requeued_with_new_outbox_event() -> None:
     engine, factory = await _database()
     now = datetime(2026, 9, 25, 5, 0, tzinfo=UTC)

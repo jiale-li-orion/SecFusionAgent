@@ -19,6 +19,7 @@ async def schedule_due_sources(
     *,
     now: datetime | None = None,
     limit: int = 100,
+    source_ids: set[str] | None = None,
 ) -> list[str]:
     instant = now or datetime.now(UTC)
     active_run = exists().where(
@@ -41,6 +42,10 @@ async def schedule_due_sources(
         .limit(limit)
         .with_for_update(skip_locked=True, of=SourceStateModel)
     )
+    if source_ids is not None:
+        if not source_ids:
+            return []
+        statement = statement.where(SourceModel.source_id.in_(sorted(source_ids)))
     rows = (await session.execute(statement)).all()
     run_ids: list[str] = []
     for source, state in rows:

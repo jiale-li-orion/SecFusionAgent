@@ -23,6 +23,7 @@ SOURCE = SourceDefinition.model_validate(
             "root_url": "https://www.openwall.com/lists/oss-security/",
             "lookback_months": 1,
             "max_items": 20,
+            "initial_limit": 1,
         },
         "retention_mode": "durable_managed",
     }
@@ -53,7 +54,7 @@ async def test_oss_security_discovers_current_month_and_preserves_message_html()
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path.endswith("/2026/09/"):
             return httpx.Response(200, text=MONTH_HTML, request=request)
-        if request.url.path.endswith("/2026/09/25/1"):
+        if request.url.path.endswith(("/2026/09/25/1", "/2026/09/25/2")):
             return httpx.Response(
                 200,
                 text=MESSAGE_HTML,
@@ -68,11 +69,13 @@ async def test_oss_security_discovers_current_month_and_preserves_message_html()
             now=lambda: datetime(2026, 9, 26, tzinfo=UTC),
         )
         batch = await adapter.discover(SOURCE, SourceState())
-        assert [item.external_object_id for item in batch.items] == [
-            "2026/09/25/1",
-            "2026/09/25/2",
-        ]
-        replay = await adapter.discover(SOURCE, SourceState(cursor=batch.next_cursor))
+        assert [item.external_object_id for item in batch.items] == ["2026/09/25/2"]
+        assert batch.next_cursor["bootstrap_complete"] is True
+        assert batch.next_cursor["backfill_pending"] is True
+        followup = await adapter.discover(SOURCE, SourceState(cursor=batch.next_cursor))
+        assert [item.external_object_id for item in followup.items] == ["2026/09/25/1"]
+        assert followup.next_cursor["backfill_pending"] is False
+        replay = await adapter.discover(SOURCE, SourceState(cursor=followup.next_cursor))
         assert replay.items == []
         envelope = await adapter.fetch(
             SOURCE,
@@ -82,6 +85,7 @@ async def test_oss_security_discovers_current_month_and_preserves_message_html()
         )
         assert envelope.media_type == "text/html"
         assert b"Message-ID" in envelope.content_bytes()
+        assert envelope.published_at == datetime(2026, 9, 25, 20, 17, tzinfo=UTC)
 
         sections = HTMLDocumentParser().parse(envelope.content_bytes())
         assert len(sections) == 1
