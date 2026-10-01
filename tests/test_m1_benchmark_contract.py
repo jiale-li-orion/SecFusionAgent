@@ -10,8 +10,10 @@ from packages.sources.contracts import AcquisitionTrigger
 from scripts.run_m1_benchmark import (
     M1ExpectedEventManifest,
     _accepted_delivery_keys,
+    _monitoring_event_time,
     _monitoring_latency_query,
     _scheduled_observation_query,
+    _steady_state_monitoring_rows,
 )
 
 
@@ -21,11 +23,71 @@ def test_monitoring_latency_query_only_accepts_scheduled_acquisition() -> None:
         datetime(2026, 9, 28, tzinfo=UTC),
     )
     compiled = query.compile()
-    values = set(compiled.params.values())
+    values: set[object] = set()
+    for value in compiled.params.values():
+        if isinstance(value, (list, tuple, set, frozenset)):
+            values.update(value)
+        else:
+            values.add(value)
     assert "acquisition_trigger" in str(compiled)
     assert AcquisitionTrigger.SCHEDULED.value in values
     assert AcquisitionTrigger.ON_DEMAND.value not in values
     assert AcquisitionTrigger.PROMOTION.value not in values
+
+
+def test_monitoring_latency_excludes_bootstrap_and_uses_source_event_time() -> None:
+    class Row:
+        def __init__(
+            self,
+            *,
+            cursor_in: dict[str, object],
+            had_prior_scheduled_success: bool,
+            time_semantics: dict[str, object],
+            published_at: datetime | None,
+            updated_at: datetime | None,
+        ) -> None:
+            self.cursor_in = cursor_in
+            self.had_prior_scheduled_success = had_prior_scheduled_success
+            self.time_semantics = time_semantics
+            self.published_at = published_at
+            self.updated_at = updated_at
+
+    published = datetime(2026, 9, 30, 1, tzinfo=UTC)
+    updated = datetime(2026, 10, 1, 8, tzinfo=UTC)
+    bootstrap = Row(
+        cursor_in={},
+        had_prior_scheduled_success=False,
+        time_semantics={"updated_at": "provider.updated_at"},
+        published_at=published,
+        updated_at=updated,
+    )
+    cursor_seeded = Row(
+        cursor_in={"cursor": "r1"},
+        had_prior_scheduled_success=False,
+        time_semantics={"updated_at": "provider.updated_at"},
+        published_at=published,
+        updated_at=updated,
+    )
+    prior_success = Row(
+        cursor_in={},
+        had_prior_scheduled_success=True,
+        time_semantics={"published_at": "provider.published_at"},
+        published_at=published,
+        updated_at=updated,
+    )
+    backfill = Row(
+        cursor_in={"cursor": "r2", "backfill_pending": True},
+        had_prior_scheduled_success=True,
+        time_semantics={"published_at": "provider.published_at"},
+        published_at=published,
+        updated_at=updated,
+    )
+
+    assert _steady_state_monitoring_rows(
+        [bootstrap, cursor_seeded, prior_success, backfill]
+    ) == [cursor_seeded, prior_success]
+    assert _monitoring_event_time(cursor_seeded) == updated
+    assert _monitoring_event_time(prior_success) == published
 
 
 def test_delivery_query_only_accepts_scheduled_observations_in_window() -> None:

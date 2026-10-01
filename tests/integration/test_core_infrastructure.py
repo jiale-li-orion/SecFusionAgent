@@ -76,15 +76,16 @@ async def test_postgres_fts_pgvector_and_managed_document_roundtrip() -> None:
     factory = create_session_factory(engine)
     run_id = str(uuid4())
     external_id = f"integration-{uuid4()}"
+    source = SOURCE.model_copy(update={"source_id": f"integration-arxiv-{uuid4().hex}"})
     try:
         async with factory() as session:
             await session.begin()
             try:
-                await sync_source_definitions(session, [SOURCE])
+                await sync_source_definitions(session, [source])
                 session.add(
                     AcquisitionRunModel(
                         run_id=run_id,
-                        source_id=SOURCE.source_id,
+                        source_id=source.source_id,
                         trigger="scheduled",
                         parent_run_id=None,
                         query_spec={},
@@ -100,7 +101,7 @@ async def test_postgres_fts_pgvector_and_managed_document_roundtrip() -> None:
                 envelope = IngestEnvelope.for_binary_payload(
                     acquisition_run_id=run_id,
                     trigger=AcquisitionTrigger.SCHEDULED,
-                    source_id=SOURCE.source_id,
+                    source_id=source.source_id,
                     external_object_id=external_id,
                     body=(
                         b"Authentication bypass evidence appears in this managed document. "
@@ -118,7 +119,7 @@ async def test_postgres_fts_pgvector_and_managed_document_roundtrip() -> None:
                     EvidenceIngress(MemoryArtifactStore(), now=lambda: NOW),
                     {"text/plain": PlainTextDocumentParser()},
                     now=lambda: NOW,
-                ).ingest(session, SOURCE, envelope)
+                ).ingest(session, source, envelope)
                 indexer = DocumentIndexService()
                 lexical = await indexer.build_lexical_index(
                     session,
@@ -156,19 +157,19 @@ async def test_postgres_fts_pgvector_and_managed_document_roundtrip() -> None:
                 lexical_candidates = await LexicalRetrievalOperator().search(
                     session,
                     query="authentication",
-                    source_ids=[SOURCE.source_id],
+                    source_ids=[source.source_id],
                 )
                 assert lexical_candidates
-                assert lexical_candidates[0].source_id == SOURCE.source_id
+                assert lexical_candidates[0].source_id == source.source_id
                 assert lexical_candidates[0].score_channels["lexical"] > 0
 
                 dense_candidates = await DenseRetrievalOperator().search(
                     session,
                     query_vector=[1.0, 0.0, 0.0],
-                    source_ids=[SOURCE.source_id],
+                    source_ids=[source.source_id],
                 )
                 assert dense_candidates
-                assert dense_candidates[0].source_id == SOURCE.source_id
+                assert dense_candidates[0].source_id == source.source_id
                 assert dense_candidates[0].score_channels["dense"] == pytest.approx(1.0)
 
                 request = PerceptionRequest(
@@ -177,7 +178,7 @@ async def test_postgres_fts_pgvector_and_managed_document_roundtrip() -> None:
                     target=PerceptionTarget(
                         query_text="authentication",
                         query_vector=[1.0, 0.0, 0.0],
-                        source_ids=[SOURCE.source_id],
+                        source_ids=[source.source_id],
                     ),
                     evidence_requirement=EvidenceRequirement(
                         min_independent_sources=1,
@@ -198,7 +199,7 @@ async def test_postgres_fts_pgvector_and_managed_document_roundtrip() -> None:
                     for item in percept.candidate_evidence
                     if "lexical" in item.score_channels and "dense" in item.score_channels
                 )
-                assert merged.source_id == SOURCE.source_id
+                assert merged.source_id == source.source_id
 
                 extension = await session.scalar(
                     text("SELECT extversion FROM pg_extension WHERE extname='vector'")

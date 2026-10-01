@@ -201,8 +201,9 @@ uv run python scripts/freeze_deployment_revision.py \
   --output /tmp/deployment.json
 # Read deployment_revision_id from the JSON below as <deployment-id>.
 
-# M1: fixed-window monitoring benchmark. Only scheduled acquisition enters latency.
-# published_at -> earliest Knowledge committed_at is the measured latency.
+# M1: fixed-window monitoring benchmark. Only steady-state scheduled acquisition enters latency.
+# Source-defined event time (updated_at when declared, otherwise published_at)
+# -> earliest Knowledge committed_at is the measured latency. Bootstrap/backfill is excluded.
 uv run python scripts/run_m1_benchmark.py \
   --window-start 2026-09-27T00:00:00Z \
   --window-end 2026-09-28T00:00:00Z \

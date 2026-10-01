@@ -4,13 +4,15 @@
 
 ## Monitoring latency
 
-Latency is measured only for durable observations created by `trigger=scheduled` and committed into Knowledge:
+Latency is measured only for durable observations created by `trigger=scheduled`, committed into Knowledge, and produced by a **steady-state** scheduled run:
 
 ```text
-Observation.published_at -> earliest KnowledgeRevision.committed_at
+source-defined event_time -> earliest KnowledgeRevision.committed_at
 ```
 
-On-demand queries, manual promotion and bootstrap-only probes do not enter this denominator. The fixed window is defined over Knowledge commit time. Samples with no reliable `published_at` remain visible in `evaluable_coverage` but are excluded from numeric p50/p95/max aggregation.
+Bootstrap and explicit backfill runs do not enter this denominator. A run is eligible only when it already carries source cursor state or the source has a prior successful scheduled run, and `cursor_in.backfill_pending` is not true. This prevents first-run archive ingestion or deliberate historical backfill from being reported as monitoring latency.
+
+`event_time` follows the Source contract. When `Source.time_semantics` declares `updated_at` and the Observation has it, the evaluator uses `Observation.updated_at`; otherwise it uses `Observation.published_at`. This matters for mutable sources such as repository snapshots, where repository creation time is not a monitoring event. The fixed window is defined over Knowledge commit time. Samples with no reliable event time remain visible in `evaluable_coverage` but are excluded from numeric p50/p95/max aggregation.
 
 ## Source delivery coverage
 

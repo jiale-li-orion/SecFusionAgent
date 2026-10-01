@@ -10,7 +10,8 @@ from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator, model_validator
-from sqlalchemy import func, select
+from sqlalchemy import exists, func, select
+from sqlalchemy.orm import aliased
 
 from apps.evaluation_runtime import ensure_benchmark_deployment_revision
 from apps.runtime_models import register_runtime_models
@@ -34,10 +35,12 @@ from packages.evaluation.m1_m3 import (
 )
 from packages.intelligence.storage.evidence_models import ObservationModel
 from packages.intelligence.storage.knowledge_models import KnowledgeRevisionModel
+from packages.monitoring.storage.models import AcquisitionRunModel
 from packages.shared.config import get_settings
 from packages.shared.db import create_engine, create_session_factory
 from packages.sources.contracts import AcquisitionTrigger
 from packages.sources.inventory import load_source_inventory
+from packages.sources.storage.models import SourceModel
 
 
 class M1ExpectedEventManifest(BaseModel):
@@ -90,6 +93,14 @@ def _digest(value: object) -> str:
 
 
 def _monitoring_latency_query(window_start: datetime, window_end: datetime):
+    prior_run = aliased(AcquisitionRunModel)
+    current_run = aliased(AcquisitionRunModel)
+    had_prior_scheduled_success = exists().where(
+        prior_run.source_id == ObservationModel.source_id,
+        prior_run.trigger == AcquisitionTrigger.SCHEDULED.value,
+        prior_run.status.in_(("success", "no_change")),
+        prior_run.created_at < current_run.created_at,
+    )
     earliest_commit = (
         select(
             KnowledgeRevisionModel.cause_observation_id.label("observation_id"),
@@ -107,8 +118,14 @@ def _monitoring_latency_query(window_start: datetime, window_end: datetime):
             ObservationModel.external_revision,
             ObservationModel.content_hash,
             ObservationModel.published_at,
+            ObservationModel.updated_at,
+            SourceModel.time_semantics,
+            current_run.cursor_in,
+            had_prior_scheduled_success.label("had_prior_scheduled_success"),
             earliest_commit.c.committed_at,
         )
+        .join(current_run, current_run.run_id == ObservationModel.acquisition_run_id)
+        .join(SourceModel, SourceModel.source_id == ObservationModel.source_id)
         .join(
             earliest_commit,
             earliest_commit.c.observation_id == ObservationModel.observation_id,
@@ -120,6 +137,30 @@ def _monitoring_latency_query(window_start: datetime, window_end: datetime):
         )
         .order_by(earliest_commit.c.committed_at, ObservationModel.observation_id)
     )
+
+
+def _steady_state_monitoring_rows(rows: Sequence[Any]) -> list[Any]:
+    return [
+        row
+        for row in rows
+        if not _is_backfill_cursor(row.cursor_in)
+        and (bool(row.cursor_in) or bool(row.had_prior_scheduled_success))
+    ]
+
+
+def _is_backfill_cursor(cursor: Any) -> bool:
+    return isinstance(cursor, dict) and cursor.get("backfill_pending") is True
+
+
+def _monitoring_event_time(row: Any) -> datetime | None:
+    semantics = row.time_semantics if isinstance(row.time_semantics, dict) else {}
+    if "updated_at" in semantics and row.updated_at is not None:
+        return row.updated_at
+    return row.published_at
+
+
+def _isoformat_or_none(value: datetime | None) -> str | None:
+    return value.isoformat() if value is not None else None
 
 
 def _scheduled_observation_query(window_start: datetime, window_end: datetime):
@@ -229,13 +270,14 @@ async def _run(
                 else []
             )
 
+        steady_state_rows = _steady_state_monitoring_rows(rows)
         samples = [
             MonitoringLatencySample(
                 sample_id=row.observation_id,
-                published_at=row.published_at,
+                published_at=_monitoring_event_time(row),
                 available_at=row.committed_at,
             )
-            for row in rows
+            for row in steady_state_rows
         ]
         latency = monitoring_latency_report(samples)
         delivery = None
@@ -260,11 +302,19 @@ async def _run(
                 "external_object_id": row.external_object_id,
                 "external_revision": row.external_revision,
                 "content_hash": row.content_hash,
-                "published_at": row.published_at.isoformat() if row.published_at else None,
+                "event_time": _isoformat_or_none(_monitoring_event_time(row)),
+                "event_time_semantics": (
+                    "updated_at"
+                    if isinstance(row.time_semantics, dict)
+                    and "updated_at" in row.time_semantics
+                    and row.updated_at is not None
+                    else "published_at"
+                ),
                 "committed_at": row.committed_at.isoformat(),
                 "acquisition_trigger": AcquisitionTrigger.SCHEDULED.value,
+                "steady_state": True,
             }
-            for row in rows
+            for row in steady_state_rows
         ]
         sample_digest = _digest(sample_manifest)
         inventory_bytes = await asyncio.to_thread(Path("config/source-inventory.json").read_bytes)
@@ -333,8 +383,13 @@ async def _run(
                     execution_profile="offline_scorer",
                     target_refs=["observations", "knowledge-revisions"],
                     expected_behavior={
-                        "latency_semantics": "published_at->earliest_knowledge_committed_at",
+                        "latency_semantics": (
+                            "source_event_time->earliest_knowledge_committed_at"
+                        ),
                         "eligible_acquisition_trigger": AcquisitionTrigger.SCHEDULED.value,
+                        "steady_state_only": True,
+                        "raw_candidate_count": len(rows),
+                        "excluded_nonsteady_count": len(rows) - len(steady_state_rows),
                         "sample_count": len(sample_manifest),
                         "evaluable_sample_count": latency.evaluable_samples,
                     },
@@ -387,10 +442,23 @@ async def _run(
                 purpose="M1 source-category coverage and fixed-window monitoring latency",
                 case_refs=case_refs,
                 gold_revision=gold_revision,
-                evaluator_revision="m1-monitoring-v1",
+                evaluator_revision="m1-monitoring-v3",
                 scoring_profile={
-                    "latency_semantics": "published_at->earliest_knowledge_committed_at",
+                    "latency_semantics": (
+                        "source_event_time->earliest_knowledge_committed_at"
+                    ),
                     "eligible_acquisition_trigger": AcquisitionTrigger.SCHEDULED.value,
+                    "steady_state_only": True,
+                    "raw_candidate_count": len(rows),
+                    "excluded_nonsteady_count": len(rows) - len(steady_state_rows),
+                    "steady_state_rule": (
+                        "NOT cursor_in.backfill_pending AND "
+                        "(cursor_in_nonempty OR prior_successful_scheduled_run)"
+                    ),
+                    "event_time_rule": (
+                        "Observation.updated_at when Source.time_semantics declares updated_at; "
+                        "otherwise Observation.published_at"
+                    ),
                     "source_inventory_digest": inventory_digest,
                     "latency_sample_digest": sample_digest,
                     "window_start": window_start.isoformat(),
@@ -573,6 +641,8 @@ async def _run(
                 item.value for item in coverage.supported_source_categories
             ],
             "latency_sample_digest": sample_digest,
+            "raw_latency_candidate_count": len(rows),
+            "excluded_nonsteady_count": len(rows) - len(steady_state_rows),
             "latency": latency.model_dump(mode="json"),
             "eligible_acquisition_trigger": AcquisitionTrigger.SCHEDULED.value,
             "source_delivery_coverage": (
