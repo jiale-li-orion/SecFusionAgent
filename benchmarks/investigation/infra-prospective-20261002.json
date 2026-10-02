@@ -1,0 +1,20 @@
+{
+  "suite_id": "m6-long-investigation-infra-20261002",
+  "purpose": "Prospective infrastructure probe for the durable Long Investigation measurement path",
+  "evaluator_revision": "investigation-completion-v1",
+  "frozen_at": "2026-10-02T13:20:38.225471+00:00",
+  "cases": [
+    {
+      "case_id": "long-investigation-infra-cve-2026-48746",
+      "product_case_id": "067e14e3-4b85-404a-9baa-c4ae4da59667",
+      "expected_final_decision": true,
+      "measurement_deadline": "2026-10-02T13:25:38.225471+00:00",
+      "tags": [
+        "infra-prospective-probe",
+        "real-product",
+        "not-competition-score"
+      ],
+      "latency_class": "long_investigation_infra_probe"
+    }
+  ]
+}

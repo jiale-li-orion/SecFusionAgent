@@ -14,6 +14,11 @@ from scripts.run_investigation_benchmark import (
     InvestigationBenchmarkManifest,
     InvestigationBenchmarkManifestCase,
     _measurement_status,
+    _version_reasoning_sources_match_gold,
+)
+from scripts.run_prospective_investigation_probe import (
+    _claim_supports_expected_fixed_version,
+    _relation_supports_expected_fixed_version,
 )
 
 
@@ -219,3 +224,52 @@ def test_investigation_readiness_markdown_projects_machine_result() -> None:
     rendered = render_investigation_readiness_markdown(payload)
     assert "blocked_model_provider_unconfigured" in rendered
     assert "`freeze_lag_exceeded`" in rendered
+
+
+def test_version_reasoning_gold_requires_relation_anchor_but_allows_same_target_claim() -> None:
+    assert _version_reasoning_sources_match_gold(
+        ["relation:rel-fixed", "claim:claim-details"],
+        allowed_relation_ids={"rel-fixed"},
+        allowed_claim_ids={"claim-details"},
+    )
+    assert not _version_reasoning_sources_match_gold(
+        ["claim:claim-details"],
+        allowed_relation_ids={"rel-fixed"},
+        allowed_claim_ids={"claim-details"},
+    )
+    assert not _version_reasoning_sources_match_gold(
+        ["relation:rel-wrong", "claim:claim-details"],
+        allowed_relation_ids={"rel-fixed"},
+        allowed_claim_ids={"claim-details"},
+    )
+    assert not _version_reasoning_sources_match_gold(
+        ["relation:rel-fixed", "evidence:e-1"],
+        allowed_relation_ids={"rel-fixed"},
+        allowed_claim_ids=set(),
+    )
+
+
+def test_prospective_version_gold_miner_accepts_fixed_boundary_forms() -> None:
+    assert _relation_supports_expected_fixed_version(
+        relation_type="fixed-version",
+        target_canonical_key="software-version:pip:vllm:0.22.0",
+        qualifier={},
+        expected_fixed_version="0.22.0",
+    )
+    assert _relation_supports_expected_fixed_version(
+        relation_type="affects-package",
+        target_canonical_key="package:pip:vllm",
+        qualifier={"first_patched_version": "0.22.0"},
+        expected_fixed_version="0.22.0",
+    )
+    assert _relation_supports_expected_fixed_version(
+        relation_type="applicability-status",
+        target_canonical_key="package:pip:vllm",
+        qualifier={"state": "affected", "version_range": ">= 0.3.0, < 0.22.0"},
+        expected_fixed_version="0.22.0",
+    )
+    assert _claim_supports_expected_fixed_version(
+        predicate="osv_details",
+        value="This vulnerability is fixed in 0.22.0.",
+        expected_fixed_version="0.22.0",
+    )

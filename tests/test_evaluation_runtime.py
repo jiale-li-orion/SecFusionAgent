@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pytest
 from pydantic import JsonValue
@@ -9,7 +10,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from apps import evaluation_runtime
 from apps.runtime_models import register_runtime_models
 from packages.evaluation.benchmark import BenchmarkStore, DeploymentRevision
-from packages.evaluation.qa import QAGold
+from packages.evaluation.qa import QACitationCheck, QAGold, QAPrediction, QAScore
 from packages.intelligence.storage.evidence_models import ObservationModel
 from packages.intelligence.storage.knowledge_models import (
     ClaimModel,
@@ -41,7 +42,7 @@ from packages.task_runtime.storage.models import TaskRunModel
 class _MetricCaptureStore:
     def __init__(self) -> None:
         self.metric_names: list[str] = []
-        self.observations: list[dict[str, object]] = []
+        self.observations: list[dict[str, Any]] = []
 
     async def observe_metric(self, session, **kwargs) -> None:
         del session
@@ -253,6 +254,78 @@ async def test_qa_recorder_owns_session_trace_metrics() -> None:
 
 
 @pytest.mark.asyncio
+async def test_qa_recorder_binds_metrics_to_prediction_evidence_and_trace() -> None:
+    store = _MetricCaptureStore()
+    recorder = evaluation_runtime.QABenchmarkRecorder(store)  # type: ignore[arg-type]
+    prediction = QAPrediction(
+        case_id="qa-trace",
+        conclusion_facts=["cvss:9.8"],
+        citations=[
+            QACitationCheck(
+                conclusion_fact="cvss:9.8",
+                evidence_ref="evidence:cvss",
+                supports=True,
+            )
+        ],
+        completion_status="answered",
+        execution_refs=["task-run:task-1", "model-request:model-1"],
+    )
+    score = QAScore(
+        answer_accuracy=1.0,
+        groundedness=1.0,
+        citation_correctness=1.0,
+        citation_completeness=1.0,
+        unknown_correctness=1.0,
+        conflict_handling=1.0,
+        completion_correctness=1.0,
+    )
+    await recorder.record_case_score(
+        None,  # type: ignore[arg-type]
+        case_run_id="case-run:trace",
+        score=score,
+        subject_ref="qa-case:trace",
+        prediction=prediction,
+    )
+    assert store.observations
+    assert all(item["evidence_refs"] == ["evidence:cvss"] for item in store.observations)
+    assert all(
+        item["metadata"]["execution_refs"] == prediction.execution_refs
+        for item in store.observations
+    )
+
+
+@pytest.mark.asyncio
+async def test_qa_recorder_projects_runtime_economics() -> None:
+    store = _MetricCaptureStore()
+    recorder = evaluation_runtime.QABenchmarkRecorder(store)  # type: ignore[arg-type]
+    trace = evaluation_runtime.ExecutionMeasurementTrace(
+        model_request_refs=["model-request:model-1"],
+        model_attempt_count=1,
+        model_input_tokens=100,
+        model_output_tokens=20,
+        model_reasoning_tokens=5,
+        model_cached_input_tokens=10,
+        model_usage_source=evaluation_runtime.MeasurementSource.PROVIDER_EXACT,
+        capability_invocation_count=2,
+        retrieval_invocation_count=1,
+    )
+    await recorder.record_execution_measurements(
+        None,  # type: ignore[arg-type]
+        case_run_id="case-run:runtime",
+        trace=trace,
+        subject_ref="qa-case:runtime",
+    )
+    observed = {item["metric_name"]: item for item in store.observations}
+    assert observed["runtime.model_input_tokens"]["value"] == 100.0
+    assert (
+        observed["runtime.model_input_tokens"]["measurement_source"]
+        is evaluation_runtime.MeasurementSource.PROVIDER_EXACT
+    )
+    assert observed["runtime.capability_call_count"]["value"] == 2.0
+    assert observed["runtime.retrieval_invocation_count"]["value"] == 1.0
+
+
+@pytest.mark.asyncio
 async def test_investigation_completion_trace_uses_m4_decision_event_time() -> None:
     engine, factory = await _database()
     created_at = datetime(2026, 9, 30, 10, 0, tzinfo=UTC)
@@ -327,10 +400,18 @@ async def test_investigation_completion_trace_uses_m4_decision_event_time() -> N
         assert trace.final_decision_case_revision == 1
         assert trace.final_decision_event_revision == 2
         assert trace.final_decision_at == decision_at
+        assert trace.first_status_event_type == "evidence_need_opened"
+        assert trace.time_to_first_status_seconds == pytest.approx(60.0)
         assert trace.time_to_final_decision_seconds == 300.0
         assert trace.investigation_episode_count == 1
+        assert trace.investigation_task_run_refs == ["task-run:long-investigation-run"]
         assert trace.terminal_episode_count == 1
         assert trace.active_episode_count == 0
+        assert trace.failed_episode_count == 0
+        assert trace.timed_out_episode_count == 0
+        assert trace.completed_episode_count == 1
+        assert trace.investigation_episode_statuses == ["completed"]
+        assert trace.agent_wall_latency_seconds == pytest.approx(180.0)
         assert trace.open_evidence_need_count == 1
     finally:
         await engine.dispose()
@@ -379,6 +460,12 @@ async def test_investigation_recorder_separates_success_latency_and_diagnostics(
         investigation_episode_count=2,
         terminal_episode_count=2,
         active_episode_count=0,
+        failed_episode_count=1,
+        timed_out_episode_count=1,
+        completed_episode_count=0,
+        agent_wall_latency_seconds=90.0,
+        investigation_task_run_refs=["task-run:failed", "task-run:timed-out"],
+        investigation_episode_statuses=["failed", "timed_out"],
         open_evidence_need_count=0,
     )
     await recorder.record_completion_trace(
@@ -393,9 +480,17 @@ async def test_investigation_recorder_separates_success_latency_and_diagnostics(
         "m6.investigation_role_episode_count",
         "m6.investigation_open_need_count_at_measurement",
         "m6.investigation_time_to_final_decision_seconds",
+        "agent.wall_latency_seconds",
+        "agent.timeout_rate",
+        "agent.timeout_rate",
     ]
     assert store.observations[0]["value"] == 1.0
-    assert store.observations[-1]["value"] == 120.0
+    assert store.observations[5]["value"] == 90.0
+    assert [item["value"] for item in store.observations[-2:]] == [0.0, 1.0]
+    assert [item["subject_ref"] for item in store.observations[-2:]] == [
+        "task-run:failed",
+        "task-run:timed-out",
+    ]
 
     late_store = _MetricCaptureStore()
     late_recorder = evaluation_runtime.InvestigationBenchmarkRecorder(
@@ -420,7 +515,11 @@ async def test_investigation_recorder_separates_success_latency_and_diagnostics(
         "m6.investigation_final_decision_completion"
     )
     assert late_store.observations[1]["value"] == 1.0
-    assert late_store.observations[-1]["value"] == 240.0
+    assert any(
+        item["metric_name"] == "m6.investigation_time_to_final_decision_seconds"
+        and item["value"] == 240.0
+        for item in late_store.observations
+    )
 
     no_decision_store = _MetricCaptureStore()
     no_decision_recorder = evaluation_runtime.InvestigationBenchmarkRecorder(

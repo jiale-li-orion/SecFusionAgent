@@ -17,7 +17,7 @@ Current CompetitionReport: `9227c091-3076-4d86-8a88-bc2631b26fe2` on `deployment
 
 M1 fixed window `2026-10-01T10:00:00+00:00` → `2026-10-01T14:02:00+00:00`: 12/12 evaluable samples, p50 357.709s (5.96min), p95 7241.893s (2.01h), within 6h 100.000%; source categories=8.
 
-Selected M3 runs aggregate to TP=292, FP=1, FN=1, precision=99.659%, recall=99.659%. Controlled engineering recovery `engineering-fault-recovery@2` is 100.000% across 2 cases.
+Selected M3 runs aggregate to TP=292, FP=1, FN=1, precision=99.659%, recall=99.659%. Controlled engineering recovery `engineering-fault-recovery@3` is 100.000% across 3 cases.
 
 Unevaluated competition areas: `M6 QA quality`, `M6 multi-hop`, `Agent runtime`, `Long Investigation completion`.
 
@@ -61,10 +61,13 @@ Competition reports continue to require explicit run IDs from one deployment rev
 The reviewed current projections are split by evidence type instead of forcing unlike states into one document:
 
 - `m1/current.json|md` — formal M1 run plus steady-state latency and provisional/final delivery diagnostics;
+- `m2/current.json|md` — controlled parser/replay/entity/evidence/conflict diagnostics; it does not replace M3 competition P/R;
 - `m3/current-structured.json` and `m3/current-csaf-vex.json` — frozen-world enrichment scorer outputs used by registered M3 runs;
 - `qa/current-*-preflight.json` + `qa/current-preflight.md` — no-model gold-provenance and live-readiness evidence only;
 - `investigation/current-readiness.json|md` — prospective-denominator readiness only, never an Agent score;
 - `fault-recovery/current.json|md` — formal controlled engineering fault/recovery BenchmarkRun;
+- `retrieval/current.json|md` — diagnostic PostgreSQL lexical execution-plan/latency regression evidence; it does not replace QA relevance/accuracy;
+- `evaluation-infra/current.json|md` — metric-contract and provenance-closure readiness for the evaluation system itself, including explicit unobserved metrics;
 - `competition/current-run-set.json` + `competition/current.json|md` — explicit same-deployment aggregation of the formal selected runs.
 
 Run `make evidence-doc-check` to recompute every deterministic Markdown projection from its checked-in machine-readable source. This command does not call external providers and does not mutate benchmark state.

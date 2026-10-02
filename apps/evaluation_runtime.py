@@ -52,12 +52,13 @@ from packages.reasoning.citation import CitationSource
 from packages.reasoning.decision import ConclusionType, DecisionConclusion, DecisionResult
 from packages.reasoning.model import ModelDecisionPlanner
 from packages.reasoning.storage import DecisionResultStore
-from packages.runtime.model.storage import ModelRequestModel
+from packages.runtime.model.storage import ModelAttemptModel, ModelRequestModel
 from packages.runtime.policy.loader import load_runtime_policy
 from packages.runtime.retrieval.storage import RetrievalInvocationModel
+from packages.runtime.storage.models import CapabilityInvocationModel, ExecutionRunModel
 from packages.shared.config import Settings
 from packages.shared.model_provider import ModelProvider
-from packages.task_runtime.contracts.models import TaskKind
+from packages.task_runtime.contracts.models import TaskKind, TaskRunStatus
 from packages.task_runtime.storage.models import ContextManifestVersionModel, TaskRunModel
 
 
@@ -78,6 +79,16 @@ class M3BenchmarkRecorder:
         for metric_name, value, direction in (
             ("m3.micro_precision", score.micro_precision, MetricDirection.HIGHER_IS_BETTER),
             ("m3.micro_recall", score.micro_recall, MetricDirection.HIGHER_IS_BETTER),
+            (
+                "m3.dimension_macro_precision",
+                score.dimension_macro_precision,
+                MetricDirection.HIGHER_IS_BETTER,
+            ),
+            (
+                "m3.dimension_macro_recall",
+                score.dimension_macro_recall,
+                MetricDirection.HIGHER_IS_BETTER,
+            ),
             ("m3.true_positive", float(score.true_positive), MetricDirection.INFORMATIONAL),
             ("m3.false_positive", float(score.false_positive), MetricDirection.LOWER_IS_BETTER),
             ("m3.false_negative", float(score.false_negative), MetricDirection.LOWER_IS_BETTER),
@@ -126,6 +137,154 @@ class ProductQuestionQAExecution(BaseModel):
     turn_index: int
 
 
+class ExecutionMeasurementTrace(BaseModel):
+    model_request_refs: list[str] = Field(default_factory=list)
+    model_attempt_count: int = Field(ge=0)
+    model_input_tokens: int | None = Field(default=None, ge=0)
+    model_output_tokens: int | None = Field(default=None, ge=0)
+    model_reasoning_tokens: int | None = Field(default=None, ge=0)
+    model_cached_input_tokens: int | None = Field(default=None, ge=0)
+    model_provider_cost: float | None = Field(default=None, ge=0)
+    model_usage_source: MeasurementSource = MeasurementSource.UNAVAILABLE
+    capability_invocation_count: int = Field(ge=0)
+    retrieval_invocation_count: int = Field(ge=0)
+
+
+async def load_execution_measurement_trace(
+    session: AsyncSession,
+    execution_refs: Iterable[str],
+) -> ExecutionMeasurementTrace:
+    refs = _stable_unique(execution_refs)
+    model_request_ids = [
+        ref.removeprefix("model-request:") for ref in refs if ref.startswith("model-request:")
+    ]
+    task_run_ids = [ref.removeprefix("task-run:") for ref in refs if ref.startswith("task-run:")]
+    retrieval_invocation_ids = [
+        ref.removeprefix("retrieval-invocation:")
+        for ref in refs
+        if ref.startswith("retrieval-invocation:")
+    ]
+
+    attempts: list[ModelAttemptModel] = []
+    if model_request_ids:
+        attempts = list(
+            await session.scalars(
+                select(ModelAttemptModel).where(
+                    ModelAttemptModel.model_request_id.in_(model_request_ids)
+                )
+            )
+        )
+    capabilities: list[CapabilityInvocationModel] = []
+    if task_run_ids:
+        capabilities = list(
+            await session.scalars(
+                select(CapabilityInvocationModel).where(
+                    CapabilityInvocationModel.task_run_id.in_(task_run_ids)
+                )
+            )
+        )
+    retrievals: list[RetrievalInvocationModel] = []
+    if retrieval_invocation_ids:
+        retrievals = list(
+            await session.scalars(
+                select(RetrievalInvocationModel).where(
+                    RetrievalInvocationModel.invocation_id.in_(retrieval_invocation_ids)
+                )
+            )
+        )
+
+    usage_sources = {
+        str(attempt.usage_json.get("measurement_source"))
+        for attempt in attempts
+        if attempt.usage_json.get("measurement_source")
+    }
+    usage_source = (
+        MeasurementSource.PROVIDER_EXACT
+        if usage_sources == {MeasurementSource.PROVIDER_EXACT.value}
+        else MeasurementSource.UNAVAILABLE
+    )
+
+    def _sum_usage(key: str) -> int | None:
+        values = [attempt.usage_json.get(key) for attempt in attempts]
+        numeric = [int(value) for value in values if isinstance(value, int)]
+        return sum(numeric) if numeric else None
+
+    provider_costs = [attempt.usage_json.get("provider_cost") for attempt in attempts]
+    numeric_costs = [float(value) for value in provider_costs if isinstance(value, (int, float))]
+    provider_cost = (
+        sum(numeric_costs) if numeric_costs and len(numeric_costs) == len(provider_costs) else None
+    )
+    return ExecutionMeasurementTrace(
+        model_request_refs=[f"model-request:{item}" for item in model_request_ids],
+        model_attempt_count=len(attempts),
+        model_input_tokens=_sum_usage("input_tokens"),
+        model_output_tokens=_sum_usage("output_tokens"),
+        model_reasoning_tokens=_sum_usage("reasoning_tokens"),
+        model_cached_input_tokens=_sum_usage("cached_input_tokens"),
+        model_provider_cost=provider_cost,
+        model_usage_source=usage_source,
+        capability_invocation_count=len(capabilities),
+        retrieval_invocation_count=len(retrievals),
+    )
+
+
+async def record_execution_measurements(
+    store: BenchmarkStore,
+    session: AsyncSession,
+    *,
+    case_run_id: str,
+    trace: ExecutionMeasurementTrace,
+    subject_ref: str,
+) -> None:
+    exact_values: list[tuple[str, float, MeasurementSource]] = [
+        (
+            "runtime.model_attempt_count",
+            float(trace.model_attempt_count),
+            MeasurementSource.EXACT,
+        ),
+        (
+            "runtime.capability_call_count",
+            float(trace.capability_invocation_count),
+            MeasurementSource.EXACT,
+        ),
+        (
+            "runtime.retrieval_invocation_count",
+            float(trace.retrieval_invocation_count),
+            MeasurementSource.EXACT,
+        ),
+    ]
+    token_values = (
+        ("runtime.model_input_tokens", trace.model_input_tokens),
+        ("runtime.model_output_tokens", trace.model_output_tokens),
+        ("runtime.model_reasoning_tokens", trace.model_reasoning_tokens),
+        ("runtime.model_cached_input_tokens", trace.model_cached_input_tokens),
+    )
+    for metric_name, token_value in token_values:
+        if token_value is not None:
+            exact_values.append((metric_name, float(token_value), trace.model_usage_source))
+    if trace.model_provider_cost is not None:
+        exact_values.append(
+            (
+                "runtime.model_provider_cost",
+                trace.model_provider_cost,
+                MeasurementSource.PROVIDER_EXACT,
+            )
+        )
+    for metric_name, metric_value, source in exact_values:
+        definition = metric_definition(metric_name)
+        await store.observe_metric(
+            session,
+            case_run_id=case_run_id,
+            metric_name=metric_name,
+            value=metric_value,
+            direction=definition.direction,
+            measurement_source=source,
+            subject_ref=subject_ref,
+            evidence_refs=[],
+            metadata={"model_request_refs": cast(JsonValue, trace.model_request_refs)},
+        )
+
+
 class ProductQuestionSessionTurnTrace(BaseModel):
     turn_index: int
     request_id: str
@@ -154,11 +313,23 @@ class InvestigationCompletionTrace(BaseModel):
     final_decision_case_revision: int | None = Field(default=None, ge=0)
     final_decision_event_revision: int | None = Field(default=None, ge=1)
     final_decision_at: datetime | None = None
+    first_status_event_type: str | None = None
+    first_status_at: datetime | None = None
+    time_to_first_status_seconds: float | None = Field(default=None, ge=0)
     time_to_final_decision_seconds: float | None = Field(default=None, ge=0)
     investigation_episode_count: int = Field(ge=0)
     terminal_episode_count: int = Field(ge=0)
     active_episode_count: int = Field(ge=0)
+    failed_episode_count: int = Field(default=0, ge=0)
+    timed_out_episode_count: int = Field(default=0, ge=0)
+    completed_episode_count: int = Field(default=0, ge=0)
+    agent_wall_latency_seconds: float | None = Field(default=None, ge=0)
+    investigation_episode_statuses: list[str] = Field(default_factory=list)
     open_evidence_need_count: int = Field(ge=0)
+    investigation_task_run_refs: list[str] = Field(default_factory=list)
+    decision_task_run_refs: list[str] = Field(default_factory=list)
+    execution_refs: list[str] = Field(default_factory=list)
+    model_request_refs: list[str] = Field(default_factory=list)
 
     @property
     def final_decision_present(self) -> bool:
@@ -210,11 +381,27 @@ class InvestigationBenchmarkRecorder:
                 MeasurementSource.EXACT,
             ),
         ]
+        if trace.time_to_first_status_seconds is not None:
+            values.append(
+                (
+                    "m6.investigation_time_to_first_status_seconds",
+                    trace.time_to_first_status_seconds,
+                    MeasurementSource.EXACT,
+                )
+            )
         if trace.time_to_final_decision_seconds is not None:
             values.append(
                 (
                     "m6.investigation_time_to_final_decision_seconds",
                     trace.time_to_final_decision_seconds,
+                    MeasurementSource.EXACT,
+                )
+            )
+        if trace.agent_wall_latency_seconds is not None:
+            values.append(
+                (
+                    "agent.wall_latency_seconds",
+                    trace.agent_wall_latency_seconds,
                     MeasurementSource.EXACT,
                 )
             )
@@ -229,23 +416,54 @@ class InvestigationBenchmarkRecorder:
                 measurement_source=source,
                 subject_ref=subject_ref,
                 evidence_refs=(
-                    [trace.final_decision_ref]
-                    if trace.final_decision_ref is not None
-                    else []
+                    [trace.final_decision_ref] if trace.final_decision_ref is not None else []
                 ),
                 metadata={
                     "case_status": trace.case_status,
                     "case_revision": trace.case_revision,
+                    "first_status_event_type": trace.first_status_event_type,
+                    "first_status_at": (
+                        trace.first_status_at.isoformat()
+                        if trace.first_status_at is not None
+                        else None
+                    ),
                     "final_decision_event_revision": trace.final_decision_event_revision,
                     "terminal_episode_count": trace.terminal_episode_count,
                     "active_episode_count": trace.active_episode_count,
+                    "failed_episode_count": trace.failed_episode_count,
+                    "timed_out_episode_count": trace.timed_out_episode_count,
+                    "completed_episode_count": trace.completed_episode_count,
+                    "investigation_episode_statuses": cast(
+                        JsonValue,
+                        trace.investigation_episode_statuses,
+                    ),
                     "expected_final_decision": expected_final_decision,
                     "decision_deadline": (
-                        normalized_deadline.isoformat()
-                        if normalized_deadline is not None
-                        else None
+                        normalized_deadline.isoformat() if normalized_deadline is not None else None
                     ),
                     "deadline_met": deadline_met,
+                },
+            )
+        timeout_definition = metric_definition("agent.timeout_rate")
+        for task_ref, status in zip(
+            trace.investigation_task_run_refs,
+            trace.investigation_episode_statuses,
+            strict=True,
+        ):
+            await self._store.observe_metric(
+                session,
+                case_run_id=case_run_id,
+                metric_name="agent.timeout_rate",
+                value=1.0 if status == TaskRunStatus.TIMED_OUT.value else 0.0,
+                direction=timeout_definition.direction,
+                measurement_source=MeasurementSource.EXACT,
+                subject_ref=task_ref,
+                evidence_refs=(
+                    [trace.final_decision_ref] if trace.final_decision_ref is not None else []
+                ),
+                metadata={
+                    "case_id": trace.case_id,
+                    "episode_status": status,
                 },
             )
 
@@ -258,6 +476,22 @@ async def load_investigation_completion_trace(
     if case is None:
         raise LookupError(f"investigation case not found: {case_id}")
     case_created_at = _as_utc(case.created_at)
+
+    first_status_event = await session.scalar(
+        select(CaseStateEventModel)
+        .where(CaseStateEventModel.case_id == case_id)
+        .order_by(CaseStateEventModel.created_at, CaseStateEventModel.case_revision)
+        .limit(1)
+    )
+    first_status_event_type: str | None = None
+    first_status_at: datetime | None = None
+    first_status_latency_seconds: float | None = None
+    if first_status_event is not None:
+        first_status_event_type = first_status_event.event_type
+        first_status_at = _as_utc(first_status_event.created_at)
+        first_status_latency_seconds = (first_status_at - case_created_at).total_seconds()
+        if first_status_latency_seconds < 0:
+            raise ValueError("first status timestamp predates investigation creation")
 
     decision_event = await session.scalar(
         select(CaseStateEventModel)
@@ -302,6 +536,53 @@ async def load_investigation_completion_trace(
     )
     terminal_episode_count = sum(item.finished_at is not None for item in episodes)
     active_episode_count = len(episodes) - terminal_episode_count
+    failed_episode_count = sum(item.status == TaskRunStatus.FAILED.value for item in episodes)
+    timed_out_episode_count = sum(item.status == TaskRunStatus.TIMED_OUT.value for item in episodes)
+    completed_episode_count = sum(
+        item.status == TaskRunStatus.COMPLETED.value for item in episodes
+    )
+    episode_statuses = [item.status for item in episodes]
+    agent_wall_latency_seconds: float | None = None
+    if episodes and terminal_episode_count == len(episodes):
+        first_episode_at = _as_utc(episodes[0].created_at)
+        terminal_times = [
+            _as_utc(item.finished_at) for item in episodes if item.finished_at is not None
+        ]
+        final_episode_at = max(terminal_times)
+        agent_wall_latency_seconds = (final_episode_at - first_episode_at).total_seconds()
+        if agent_wall_latency_seconds < 0:
+            raise ValueError("InvestigationRole terminal time predates first episode creation")
+    episode_run_ids = [item.run_id for item in episodes]
+    decision_runs = list(
+        await session.scalars(
+            select(TaskRunModel)
+            .where(
+                TaskRunModel.case_id == case_id,
+                TaskRunModel.role_id == "DecisionRole",
+            )
+            .order_by(TaskRunModel.created_at, TaskRunModel.run_id)
+        )
+    )
+    decision_run_ids = [item.run_id for item in decision_runs]
+    all_role_run_ids = [*episode_run_ids, *decision_run_ids]
+    execution_rows = (
+        list(
+            await session.scalars(
+                select(ExecutionRunModel).where(
+                    ExecutionRunModel.task_run_id.in_(all_role_run_ids)
+                )
+            )
+        )
+        if all_role_run_ids
+        else []
+    )
+    model_request_rows = list(
+        await session.scalars(
+            select(ModelRequestModel)
+            .where(ModelRequestModel.case_id == case_id)
+            .order_by(ModelRequestModel.created_at, ModelRequestModel.model_request_id)
+        )
+    )
     open_need_count = int(
         await session.scalar(
             select(func.count())
@@ -324,11 +605,25 @@ async def load_investigation_completion_trace(
         final_decision_case_revision=decision_case_revision,
         final_decision_event_revision=decision_event_revision,
         final_decision_at=decision_at,
+        first_status_event_type=first_status_event_type,
+        first_status_at=first_status_at,
+        time_to_first_status_seconds=first_status_latency_seconds,
         time_to_final_decision_seconds=latency_seconds,
         investigation_episode_count=len(episodes),
         terminal_episode_count=terminal_episode_count,
         active_episode_count=active_episode_count,
+        failed_episode_count=failed_episode_count,
+        timed_out_episode_count=timed_out_episode_count,
+        completed_episode_count=completed_episode_count,
+        agent_wall_latency_seconds=agent_wall_latency_seconds,
+        investigation_episode_statuses=episode_statuses,
         open_evidence_need_count=open_need_count,
+        investigation_task_run_refs=[f"task-run:{item}" for item in episode_run_ids],
+        decision_task_run_refs=[f"task-run:{item}" for item in decision_run_ids],
+        execution_refs=[item.execution_id for item in execution_rows],
+        model_request_refs=[
+            f"model-request:{item.model_request_id}" for item in model_request_rows
+        ],
     )
 
 
@@ -397,9 +692,7 @@ async def validate_structured_qa_gold_provenance(
             relation_refs.append(f"relation:{link.target_id}")
             relation = await session.get(RelationModel, link.target_id)
             if relation is None:
-                raise ValueError(
-                    f"structured QA gold relation does not resolve: {link.target_id}"
-                )
+                raise ValueError(f"structured QA gold relation does not resolve: {link.target_id}")
             _require_visible_revision(
                 created_revision=relation.created_revision,
                 superseded_revision=relation.superseded_revision,
@@ -442,12 +735,9 @@ async def validate_structured_qa_gold_provenance(
 
     if gold.required_relation_paths:
         observed_paths = {
-            tuple(path)
-            for path in await _relation_paths_for_refs(session, relation_refs)
+            tuple(path) for path in await _relation_paths_for_refs(session, relation_refs)
         }
-        missing_paths = {
-            tuple(path) for path in gold.required_relation_paths
-        } - observed_paths
+        missing_paths = {tuple(path) for path in gold.required_relation_paths} - observed_paths
         if missing_paths:
             rendered = "; ".join(" -> ".join(path) for path in sorted(missing_paths))
             raise ValueError(
@@ -494,7 +784,14 @@ class QABenchmarkRecorder:
         case_run_id: str,
         score: QAScore,
         subject_ref: str,
+        prediction: QAPrediction | None = None,
     ) -> None:
+        evidence_refs = (
+            _stable_unique(citation.evidence_ref for citation in prediction.citations)
+            if prediction is not None
+            else []
+        )
+        execution_refs = list(prediction.execution_refs) if prediction is not None else []
         values: list[tuple[str, float]] = [
             ("m6.answer_accuracy", score.answer_accuracy),
             ("m6.groundedness", score.groundedness),
@@ -518,6 +815,8 @@ class QABenchmarkRecorder:
                 direction=definition.direction,
                 measurement_source=MeasurementSource.SCORER,
                 subject_ref=subject_ref,
+                evidence_refs=evidence_refs,
+                metadata={"execution_refs": cast(JsonValue, execution_refs)},
             )
 
     async def record_session_trace_score(
@@ -558,6 +857,22 @@ class QABenchmarkRecorder:
                 measurement_source=MeasurementSource.DERIVED,
                 subject_ref=subject_ref,
             )
+
+    async def record_execution_measurements(
+        self,
+        session: AsyncSession,
+        *,
+        case_run_id: str,
+        trace: ExecutionMeasurementTrace,
+        subject_ref: str,
+    ) -> None:
+        await record_execution_measurements(
+            self._store,
+            session,
+            case_run_id=case_run_id,
+            trace=trace,
+            subject_ref=subject_ref,
+        )
 
 
 def project_decision_to_qa_prediction(
@@ -757,9 +1072,7 @@ async def execute_product_case_qa_prediction(
         await session.rollback()
 
     if state.current_decision is not None:
-        raise ValueError(
-            "live Product QA source case must not already contain a current decision"
-        )
+        raise ValueError("live Product QA source case must not already contain a current decision")
 
     started = monotonic()
     proposal = await ModelDecisionPlanner(provider).plan(
@@ -778,9 +1091,7 @@ async def execute_product_case_qa_prediction(
             )
             projected_state = await service.get_state(session, product_case_id)
             latency = monotonic() - started
-            merged_execution_refs = _stable_unique(
-                [f"case:{product_case_id}", *execution_refs]
-            )
+            merged_execution_refs = _stable_unique([f"case:{product_case_id}", *execution_refs])
             if outcome.decision is not None:
                 prediction = project_decision_to_qa_prediction(
                     benchmark_case_id=benchmark_case_id,
@@ -796,9 +1107,7 @@ async def execute_product_case_qa_prediction(
                 prediction = project_continuation_state_to_qa_prediction(
                     benchmark_case_id=benchmark_case_id,
                     state=projected_state,
-                    evidence_need_refs=[
-                        f"evidence-need:{outcome.continuation.need.need_id}"
-                    ],
+                    evidence_need_refs=[f"evidence-need:{outcome.continuation.need.need_id}"],
                     interactive_latency_seconds=latency,
                     execution_refs=merged_execution_refs,
                 )
@@ -848,6 +1157,7 @@ async def execute_product_question_qa_execution(
             policy_path=settings.runtime_policy_path,
             task_event_stream_name=settings.task_event_stream_name,
             model_provider=provider,
+            model_payload_persistence="redacted_runtime_artifact",
         ).execute(
             session,
             AskQuestionCommand(
@@ -867,11 +1177,13 @@ async def execute_product_question_qa_execution(
     latency = monotonic() - started
 
     async with session_factory() as session:
-        runtime_refs, context_revisions, runtime_relation_paths = (
-            await _product_question_execution_refs(
+        (
+            runtime_refs,
+            context_revisions,
+            runtime_relation_paths,
+        ) = await _product_question_execution_refs(
             session,
             request_id,
-            )
         )
         if expected_knowledge_revision is not None:
             if context_revisions != {expected_knowledge_revision}:
@@ -910,9 +1222,7 @@ async def execute_product_question_qa_execution(
         assert result.investigation is not None
         investigation = result.investigation
         state = await InvestigationStateService().get_state(session, investigation.case_id)
-        need_refs = [
-            f"evidence-need:{item.need_id}" for item in investigation.open_evidence_needs
-        ]
+        need_refs = [f"evidence-need:{item.need_id}" for item in investigation.open_evidence_needs]
         if not need_refs:
             raise ValueError("accepted Product question has no durable EvidenceNeed")
         return ProductQuestionQAExecution(
@@ -1034,9 +1344,7 @@ def project_validated_decision_to_qa_prediction(
         assumptions=list(decision.assumptions),
         completion_status="answered",
         interactive_latency_seconds=interactive_latency_seconds,
-        execution_refs=_stable_unique(
-            [decision.decision_id, *reasoning_refs, *execution_refs]
-        ),
+        execution_refs=_stable_unique([decision.decision_id, *reasoning_refs, *execution_refs]),
     )
 
 
@@ -1053,9 +1361,7 @@ async def _product_question_execution_refs(
         )
     )
     matching = [
-        item
-        for item in requests
-        if item.metadata_json.get("product_request_id") == request_id
+        item for item in requests if item.metadata_json.get("product_request_id") == request_id
     ]
     refs: list[str] = []
     context_revisions: set[int] = set()
@@ -1077,6 +1383,13 @@ async def _product_question_execution_refs(
                     if isinstance(raw_relation_refs, list):
                         relation_refs.extend(
                             item for item in raw_relation_refs if isinstance(item, str)
+                        )
+                    raw_retrieval_refs = context.manifest_json.get("retrieval_invocation_refs")
+                    if isinstance(raw_retrieval_refs, list):
+                        refs.extend(
+                            item
+                            for item in raw_retrieval_refs
+                            if isinstance(item, str) and item.startswith("retrieval-invocation:")
                         )
         if item.execution_id:
             refs.append(item.execution_id)
@@ -1127,8 +1440,7 @@ async def load_product_question_session_trace(
             )
             if context is None:
                 raise LookupError(
-                    "question session turn references missing ContextManifest: "
-                    f"{turn.context_id}"
+                    f"question session turn references missing ContextManifest: {turn.context_id}"
                 )
             parent_context_id = context.parent_context_id
             raw_evidence_refs = context.manifest_json.get("evidence_refs")
@@ -1163,8 +1475,7 @@ async def load_product_question_session_trace(
             canonical_key = objects.get(object_id)
             if canonical_key is None:
                 raise LookupError(
-                    "question session turn references missing Knowledge object: "
-                    f"{object_id}"
+                    f"question session turn references missing Knowledge object: {object_id}"
                 )
             target_keys.append(canonical_key)
         trace_turns.append(
@@ -1190,9 +1501,7 @@ async def _relation_paths_for_refs(
     relation_refs: Iterable[str],
 ) -> list[list[str]]:
     relation_ids = [
-        ref.removeprefix("relation:")
-        for ref in relation_refs
-        if ref.startswith("relation:")
+        ref.removeprefix("relation:") for ref in relation_refs if ref.startswith("relation:")
     ]
     if not relation_ids:
         return []
@@ -1370,6 +1679,9 @@ async def capture_current_deployment_revision(
         "skill_registry_revision": skill_registry_revision,
         "model_provider_revision": model_provider_revision,
         "model_timeout_seconds": settings.model_timeout_seconds,
+        "model_max_tokens": settings.model_max_tokens,
+        "model_temperature": settings.model_temperature,
+        "model_reasoning_effort": settings.model_reasoning_effort,
         "model_max_attempts": settings.model_max_attempts,
         "model_retry_base_seconds": settings.model_retry_base_seconds,
         "model_retry_max_seconds": settings.model_retry_max_seconds,

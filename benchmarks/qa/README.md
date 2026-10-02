@@ -5,8 +5,8 @@
 
 | Denominator | Gold | Pinned world | Observed DB head | Gold provenance | Live-world status | Provider |
 | --- | ---: | ---: | ---: | --- | --- | --- |
-| Product QA | 14 cases | 606 | 1494 | `valid` | `stale_requires_refresh_or_rebase` | `unconfigured` |
-| Session QA | 4 turns / 2 sessions | 606 | 1494 | `valid` | `stale_requires_refresh_or_rebase` | `unconfigured` |
+| Product QA | 14 cases | 606 | 1731 | `valid` | `stale_requires_refresh_or_rebase` | `unconfigured` |
+| Session QA | 4 turns / 2 sessions | 606 | 1731 | `valid` | `stale_requires_refresh_or_rebase` | `unconfigured` |
 
 Preflight is deliberately not a QA score. `make qa-preflight` refreshes historical-pin validation; `make qa-live-preflight` rebases an in-memory copy to the current Knowledge head and proves that the reviewed gold still holds without spending model calls. With provider credentials configured, `make model-provider-probe` verifies auth + structured output; `make qa-live` then repeats current-world validation, runs product and session suites on one frozen DeploymentRevision, and restores the long-lived data plane even if the batch fails.
 <!-- END GENERATED QA STATUS -->

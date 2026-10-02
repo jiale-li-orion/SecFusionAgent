@@ -297,6 +297,8 @@ class BenchmarkStore:
         *,
         status: BenchmarkCaseRunStatus,
         failure_class: str | None = None,
+        task_run_id: str | None = None,
+        execution_id: str | None = None,
         decision_ref: str | None = None,
         replay_checkpoint_ref: str | None = None,
         artifact_refs: list[str] | None = None,
@@ -311,6 +313,10 @@ class BenchmarkStore:
             raise ValueError("benchmark case run is already terminal")
         model.status = status.value
         model.failure_class = failure_class
+        if task_run_id is not None:
+            model.task_run_id = task_run_id
+        if execution_id is not None:
+            model.execution_id = execution_id
         model.decision_ref = decision_ref
         model.replay_checkpoint_ref = replay_checkpoint_ref
         model.artifact_refs_json = list(artifact_refs or [])

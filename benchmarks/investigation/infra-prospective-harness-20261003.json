@@ -1,0 +1,21 @@
+{
+  "suite_id": "m6-long-investigation-harness-20261003",
+  "purpose": "Prospective end-to-end validation of current Long Investigation evaluation and provenance infrastructure",
+  "evaluator_revision": "investigation-completion-v4",
+  "frozen_at": "2026-10-02T16:37:46.964729Z",
+  "cases": [
+    {
+      "case_id": "long-investigation-probe-391e58e0",
+      "product_case_id": "391e58e0-6c45-4709-ba01-52bb62d07cb2",
+      "expected_final_decision": true,
+      "measurement_deadline": "2026-10-02T16:42:46.964729Z",
+      "tags": [
+        "infra-prospective-probe",
+        "current-runner-closure",
+        "real-product",
+        "not-competition-score"
+      ],
+      "latency_class": "long_investigation_prospective_probe"
+    }
+  ]
+}

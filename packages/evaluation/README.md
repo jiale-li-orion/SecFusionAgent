@@ -17,7 +17,7 @@ Current CompetitionReport: `9227c091-3076-4d86-8a88-bc2631b26fe2` on `deployment
 
 M1 fixed window `2026-10-01T10:00:00+00:00` → `2026-10-01T14:02:00+00:00`: 12/12 evaluable samples, p50 357.709s (5.96min), p95 7241.893s (2.01h), within 6h 100.000%; source categories=8.
 
-Selected M3 runs aggregate to TP=292, FP=1, FN=1, precision=99.659%, recall=99.659%. Controlled engineering recovery `engineering-fault-recovery@2` is 100.000% across 2 cases.
+Selected M3 runs aggregate to TP=292, FP=1, FN=1, precision=99.659%, recall=99.659%. Controlled engineering recovery `engineering-fault-recovery@3` is 100.000% across 3 cases.
 
 Unevaluated competition areas: `M6 QA quality`, `M6 multi-hop`, `Agent runtime`, `Long Investigation completion`.
 
@@ -27,6 +27,39 @@ Query the durable rows with `make benchmark-query METRIC=m3.micro_precision`; re
 `make qa-live` is the competition-batch entry point once a live model is configured. It deliberately freezes one clean `DeploymentRevision`, quiesces M1–M3 writers only for the measurement window, validates QA gold against the current Knowledge head, runs Product + session QA, and then reruns M1/M3/fault evidence under that same deployment before generating `CompetitionReport`. Current JSON/Markdown/README projections are written only after all durable BenchmarkRuns exist, so generated files cannot change the git coordinate halfway through a supposedly single-deployment batch. The data plane resumes through a `finally` path.
 
 `packages.evaluation` owns executable evaluation contracts across two layers: TD1's M1–M3 source/enrichment metrics, and TD2's M7 replay/regression and Skill promotion gate. Requirements define the competition-facing outcomes; TD1/TD2 define the frozen runtime semantics; this package turns both into concrete denominators, replay coordinates, pass/fail rules and durable validation results.
+
+## Evaluation contract audit
+
+`metric_contract.py` is the explicit bridge from Requirements/TD3 prose to executable metric names. It groups competition metrics, M2 diagnostics, M5 Agent failure-chain diagnostics, M6 QA/long-Investigation metrics, runtime economics, retrieval execution diagnostics, security hard gates, and engineering recovery. `validate_evaluation_metric_contract()` fails when a metric named by that audit has no registered immutable `MetricDefinition`.
+
+Registration is not evaluation. Metrics that require adjudicated Agent/tool/security gold use `NOT_EVALUATED` until a frozen denominator and runner exist. Metrics derivable exactly from durable runtime trace—model attempts/tokens/cache usage, capability/retrieval invocation counts, interactive latency, and engineering state transitions—are projected into `MetricObservation` by their benchmark runner. This distinction keeps an unimplemented benchmark visible without manufacturing a score.
+
+The infrastructure audit also distinguishes implementation maturity from observed data. `contract_only` means only the denominator/metric contract exists; `scorer_ready` means an evaluation-neutral scorer exists but still needs frozen gold/trace input; `runner_ready` means a runner can persist BenchmarkRun/CaseRun/MetricObservation rows. `m2_diagnostics.py` implements parser/replay/entity/evidence/conflict scoring without conflating those diagnostics with M3 P/R; `scripts/run_m2_diagnostics_benchmark.py` executes those checks through production ingestion/normalization/state services in an isolated fixture database while persisting the benchmark coordinates in the normal TD3 store. `agent_runtime.py` implements the TD3 failure-chain scorer across gap identification, acquisition, state integration, tool/planning, delegation and stop behavior. `security.py` keeps authority violation, secret exposure and policy conformance as separate hard-gate outputs. Security now has two frozen denominators: `security-controlled-v1` for named hard-gate regressions and `security-adversarial-v1` for the eleven TD3-v1 adversarial classes. The latter closes the frozen v1 production-boundary class profile, not arbitrary future attack variants or model red-team coverage.
+
+Observation readiness is **MetricDefinition-revision aware**. A historical `MetricObservation` satisfies the current contract only when its `metric_definition_revision` matches the currently registered definition. When denominator or scorer semantics change, the metric revision advances; older observations remain immutable audit evidence but no longer make the current evaluation group look observed. `evaluation-infra/current.json` therefore keeps current-revision counts separate from cumulative historical counts.
+
+M6 QA observations bind citation EvidenceRefs directly to the metric rows and keep the associated execution refs in metric metadata. Product QA CaseRuns also persist TaskRun / ExecutionRun / Decision identity when one synchronous execution owns the case. Model request/response payloads are durable runtime artifacts for live QA, so an audit can inspect the exact normalized model boundary rather than relying only on hashes and token counts.
+
+`make evaluation-infra-status` renders the current contract/trace readiness from durable state. `make benchmark-query RUN_ID=<id> REQUIRE_CLOSED=1` drills one BenchmarkRun through runtime records to the Evidence chain and fails closed when required provenance is unresolved. Historical runs are never rewritten when the evaluation infrastructure improves; the status view therefore separates cumulative historical closure from the latest live-runner closure.
+
+Long-Investigation prospective validation is executable through `make investigation-probe ...`.
+The harness creates a real Product Case, freezes its denominator before outcome, executes the
+production InvestigationRole and M6 Decision owners, records the long-Investigation metrics, and
+requires trace/Evidence closure before writing its reviewed output. Security uses two distinct
+denominators: `security-controlled-v1` for named hard-gate regressions and `security-adversarial-v1`
+for TD3-v1 class breadth. The adversarial suite reports both class coverage and pass rate so that a
+perfect pass rate over a partial set cannot be mistaken for complete adversarial coverage.
+
+Prospective Investigation manifests may also carry `AgentRuntimeGold`. That gold is frozen with the
+Case before InvestigationRole executes and can constrain target refs, typed version-support
+relation/claim refs,
+required/forbidden durable events, acceptable stop reasons, and whether continuation is expected.
+The runner emits only metrics whose denominator is actually present in that gold/trace. A case that
+never enters CapabilityBroker, delegation, external acquisition, conflict handling, or a budget
+boundary therefore does not manufacture those M5 scores. Gold-builder fixes never rewrite an
+already-frozen manifest; a corrected gold rule must be validated on a newly created prospective Case.
+Likewise, a metric semantics change advances `MetricDefinition.revision`; historical observations
+remain auditable but no longer satisfy current readiness by name alone.
 
 ## Competition reporting profile
 
@@ -203,7 +236,9 @@ Structured-authority QA gold now has explicit provenance (`source_ids + Evidence
 
 FACT citation support may inherit the M6 invariant because `DecisionService` only accepts an exact confirmed proposition with its supporting EvidenceRef; inference citation support still requires explicit adjudication.
 
-The remaining competition-critical M6 gap is now benchmark **content**, not the long-Investigation measurement substrate. Online Product supports serialized Investigation-class follow-up and read-only LOOKUP/RETRIEVE over live M4 Case state. Long-Investigation measurement has explicit metrics for final-decision completion, `time_to_final_decision`, InvestigationRole episode count and open-need count; `scripts/run_investigation_benchmark.py` prospectively freezes Case IDs before outcomes, requires formal v1 freeze within 300 seconds of Case creation, rejects retrospective case selection, leaves unfinished pre-deadline Cases as `pending`, and records `agent.task_success` only against the frozen final-decision/deadline expectation. What remains open is the first real prospective long-Investigation manifest/result, fixed human/adjudicated QA/session content beyond the current candidate set, independently durable failed retrieval-attempt provenance, and real security/fault-injection suites.
+The remaining competition-critical M6 gap is benchmark **content quality and scale**, not the long-Investigation measurement substrate. Online Product supports serialized Investigation-class follow-up and read-only LOOKUP/RETRIEVE over live M4 Case state. Long-Investigation measurement has explicit metrics for first durable status, final-decision completion, `time_to_final_decision`, InvestigationRole episode count, open-need count, episode-level timeout rate and Agent wall span. `scripts/run_investigation_benchmark.py` prospectively freezes Case IDs before outcomes, requires formal v1 freeze within 300 seconds of Case creation, rejects retrospective case selection, leaves unfinished pre-deadline Cases as `pending`, and records `agent.task_success` only against the frozen final-decision/deadline expectation.
+
+`benchmarks/investigation/infra-prospective-20261002.json` is the first real prospectively frozen infrastructure probe. Its frozen CVE-2026-48746 Case eventually reached a durable Evidence-backed M6 Decision, but only after three failed InvestigationRole episodes and outside the 300-second deadline, so eventual completion is `1` while `agent.task_success` is `0`. That development trace is retained as failure/recovery evidence. A later post-fix harness, `m6-long-investigation-harness-fixed-20261003@2`, prospectively froze a new real Case and completed with one InvestigationRole episode, zero failures/timeouts, first durable status in 0.009s, Agent wall span 10.949s and final Decision in 12.237s under the 300-second deadline. Its M5 planner and M6 Decision both persist request/response RuntimeArtifacts and the BenchmarkRun passes the fail-closed provenance audit. The remaining M5 gap is therefore not long-Investigation measurement plumbing; it is frozen quality gold for gap identification, acquisition, state integration, true external capability selection/arguments, delegation and stop correctness.
 
 ## TD3 Benchmark Runtime
 

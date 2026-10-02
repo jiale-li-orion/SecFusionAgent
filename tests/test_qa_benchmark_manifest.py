@@ -611,7 +611,11 @@ async def test_session_runner_reuses_product_session_and_scores_each_turn(
     monkeypatch.setattr(qa_runner, "get_settings", lambda: settings)
     monkeypatch.setattr(qa_runner, "create_engine", lambda database_url: engine)
     monkeypatch.setattr(qa_runner, "ensure_benchmark_deployment_revision", fake_ensure_deployment)
-    monkeypatch.setattr(qa_runner, "create_recorded_model_provider", lambda *args: object())
+    monkeypatch.setattr(
+        qa_runner,
+        "create_recorded_model_provider",
+        lambda *args, **kwargs: object(),
+    )
     monkeypatch.setattr(qa_runner, "execute_product_question_qa_execution", fake_execute)
     monkeypatch.setattr(qa_runner, "load_product_question_session_trace", fake_trace)
 

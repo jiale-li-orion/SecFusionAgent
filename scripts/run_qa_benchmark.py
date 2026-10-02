@@ -18,11 +18,13 @@ from apps.evaluation_runtime import (
     execute_product_case_qa_prediction,
     execute_product_question_qa_execution,
     execute_product_question_qa_prediction,
+    load_execution_measurement_trace,
     load_product_qa_prediction,
     load_product_question_session_trace,
     validate_structured_qa_gold_provenance,
 )
 from apps.model_runtime import create_recorded_model_provider
+from apps.runtime_artifacts import create_runtime_artifact_service
 from apps.runtime_models import register_runtime_models
 from packages.evaluation.benchmark import (
     BenchmarkCase,
@@ -119,18 +121,14 @@ class QASessionManifestCase(BaseModel):
         for index, turn in enumerate(self.turns, start=1):
             expected_case_id = f"{self.case_id}#turn:{turn.turn_id}"
             if turn.gold.case_id != expected_case_id:
-                raise ValueError(
-                    "QASessionCase turn gold case_id must equal " + expected_case_id
-                )
+                raise ValueError("QASessionCase turn gold case_id must equal " + expected_case_id)
             if index > 1:
                 if turn.question.cve_id is not None or turn.question.object_id is not None:
                     raise ValueError(
                         "QASessionCase follow-up turns must rely on Product session target carry"
                     )
                 if not turn.expected_target_keys:
-                    raise ValueError(
-                        "QASessionCase follow-up turns require expected_target_keys"
-                    )
+                    raise ValueError("QASessionCase follow-up turns require expected_target_keys")
             if index < len(self.turns) and turn.gold.completion_expectation != "answered":
                 raise ValueError(
                     "non-final QASessionCase turns must complete synchronously as answered"
@@ -259,11 +257,7 @@ class QABenchmarkManifest(BaseModel):
         live_count = sum(_is_live_case(item) for item in self.cases)
         if live_count not in {0, len(self.cases)}:
             raise ValueError("one BenchmarkRun cannot mix live Product QA with offline QA cases")
-        live_profiles = {
-            _execution_profile(item)
-            for item in self.cases
-            if _is_live_case(item)
-        }
+        live_profiles = {_execution_profile(item) for item in self.cases if _is_live_case(item)}
         if len(live_profiles) > 1:
             raise ValueError(
                 "one BenchmarkRun cannot mix durable-Case live QA with Product Question live QA"
@@ -271,11 +265,14 @@ class QABenchmarkManifest(BaseModel):
         if any(item.live_product_question is not None for item in self.cases):
             if self.knowledge_revision is None:
                 raise ValueError("live Product Question QA requires a pinned knowledge_revision")
-        if any(
-            item.gold_provenance is not None
-            and item.gold_provenance.mode == "structured_authority"
-            for item in self.cases
-        ) and self.knowledge_revision is None:
+        if (
+            any(
+                item.gold_provenance is not None
+                and item.gold_provenance.mode == "structured_authority"
+                for item in self.cases
+            )
+            and self.knowledge_revision is None
+        ):
             raise ValueError("structured-authority QA gold requires a pinned knowledge_revision")
         return self
 
@@ -345,9 +342,7 @@ async def _run(
                     if item.gold_provenance is not None
                     else None
                 ),
-                "adjudications": [
-                    record.model_dump(mode="json") for record in item.adjudications
-                ],
+                "adjudications": [record.model_dump(mode="json") for record in item.adjudications],
             }
             for item in manifest.cases
         ]
@@ -455,7 +450,13 @@ async def _run(
         provider = None
         if execution_mode is BenchmarkExecutionMode.LIVE_EXTERNAL:
             client = httpx.AsyncClient(timeout=settings.model_timeout_seconds)
-            provider = create_recorded_model_provider(settings, factory, client)
+            runtime_artifacts = await create_runtime_artifact_service(settings)
+            provider = create_recorded_model_provider(
+                settings,
+                factory,
+                client,
+                artifact_service=runtime_artifacts,
+            )
             if provider is None:
                 async with factory() as session, session.begin():
                     await store.finish_run(
@@ -524,16 +525,50 @@ async def _run(
                     )
                 score = score_qa(gold=item.gold, prediction=prediction)
                 async with factory() as session, session.begin():
+                    execution_trace = await load_execution_measurement_trace(
+                        session,
+                        prediction.execution_refs,
+                    )
                     await recorder.record_case_score(
                         session,
                         case_run_id=case_run.case_run_id,
                         score=score,
                         subject_ref=f"qa-case:{item.case_id}",
+                        prediction=prediction,
+                    )
+                    await recorder.record_execution_measurements(
+                        session,
+                        case_run_id=case_run.case_run_id,
+                        trace=execution_trace,
+                        subject_ref=f"qa-case:{item.case_id}",
+                    )
+                    decision_ref = next(
+                        (ref for ref in prediction.execution_refs if ref.startswith("decision:")),
+                        None,
+                    )
+                    task_run_id = next(
+                        (
+                            ref.removeprefix("task-run:")
+                            for ref in prediction.execution_refs
+                            if ref.startswith("task-run:")
+                        ),
+                        None,
+                    )
+                    execution_id = next(
+                        (
+                            ref
+                            for ref in prediction.execution_refs
+                            if ref.startswith("execution:")
+                        ),
+                        None,
                     )
                     await store.finish_case_run(
                         session,
                         case_run.case_run_id,
                         status=BenchmarkCaseRunStatus.PASSED,
+                        task_run_id=task_run_id,
+                        execution_id=execution_id,
+                        decision_ref=decision_ref,
                         artifact_refs=list(prediction.execution_refs or item.execution_refs),
                     )
                 per_case[item.case_id] = score.model_dump(mode="json")
@@ -657,9 +692,7 @@ async def _run_sessions(
                         target_refs.append(f"cve:{turn.question.cve_id.upper()}")
                     if turn.question.object_id:
                         target_refs.append(f"object:{turn.question.object_id}")
-                    target_refs.extend(
-                        f"knowledge-key:{key}" for key in turn.expected_target_keys
-                    )
+                    target_refs.extend(f"knowledge-key:{key}" for key in turn.expected_target_keys)
                 await store.register_case(
                     session,
                     BenchmarkCase(
@@ -748,7 +781,13 @@ async def _run_sessions(
             )
 
         client = httpx.AsyncClient(timeout=settings.model_timeout_seconds)
-        provider = create_recorded_model_provider(settings, factory, client)
+        runtime_artifacts = await create_runtime_artifact_service(settings)
+        provider = create_recorded_model_provider(
+            settings,
+            factory,
+            client,
+            artifact_service=runtime_artifacts,
+        )
         if provider is None:
             async with factory() as session, session.begin():
                 await store.finish_run(
@@ -816,8 +855,7 @@ async def _execute_session_cases(
             for ordinal, turn in enumerate(session_case.turns, start=1):
                 question = turn.question
                 request_id = (
-                    f"benchmark:{benchmark_run_id}:{session_case.case_id}:"
-                    f"turn:{turn.turn_id}"
+                    f"benchmark:{benchmark_run_id}:{session_case.case_id}:turn:{turn.turn_id}"
                 )
                 execution = await execute_product_question_qa_execution(
                     factory,
@@ -849,11 +887,22 @@ async def _execute_session_cases(
                     raise ValueError("Product QA session identity changed between turns")
                 score = score_qa(gold=turn.gold, prediction=execution.prediction)
                 async with factory() as session, session.begin():
+                    execution_trace = await load_execution_measurement_trace(
+                        session,
+                        execution.prediction.execution_refs,
+                    )
                     await recorder.record_case_score(
                         session,
                         case_run_id=case_run.case_run_id,
                         score=score,
                         subject_ref=f"qa-session:{session_case.case_id}#turn:{turn.turn_id}",
+                        prediction=execution.prediction,
+                    )
+                    await recorder.record_execution_measurements(
+                        session,
+                        case_run_id=case_run.case_run_id,
+                        trace=execution_trace,
+                        subject_ref=(f"qa-session:{session_case.case_id}#turn:{turn.turn_id}"),
                     )
                 execution_refs.extend(execution.prediction.execution_refs)
                 turn_scores[turn.turn_id] = score.model_dump(mode="json")
@@ -972,11 +1021,7 @@ def _session_retrieval_overlap_rate(
         start=1,
     ):
         current_refs = set(observed.retrieval_refs)
-        if (
-            index > 1
-            and expected.question.task_kind is TaskKind.RETRIEVE
-            and current_refs
-        ):
+        if index > 1 and expected.question.task_kind is TaskKind.RETRIEVE and current_refs:
             overlaps.append(len(current_refs & prior_refs) / len(current_refs))
         prior_refs.update(current_refs)
     if not overlaps:
@@ -999,9 +1044,7 @@ def _session_retrieval_invocation_metrics(
         invocation_count = len(observed.retrieval_invocation_refs)
         coverage_checks.append(1.0 if invocation_count == 1 else 0.0)
         if invocation_count == 1 and len(observed.retrieval_dispositions) == 1:
-            reuse_checks.append(
-                1.0 if observed.retrieval_dispositions[0] == "reused" else 0.0
-            )
+            reuse_checks.append(1.0 if observed.retrieval_dispositions[0] == "reused" else 0.0)
     if not coverage_checks:
         return None, None
     coverage = sum(coverage_checks) / len(coverage_checks)

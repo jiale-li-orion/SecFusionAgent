@@ -9,14 +9,22 @@ from pathlib import Path
 from typing import Any, Literal, cast
 
 from pydantic import BaseModel, Field, JsonValue, field_validator, model_validator
+from sqlalchemy import select
 
 from apps.evaluation_runtime import (
     InvestigationBenchmarkRecorder,
     InvestigationCompletionTrace,
     ensure_benchmark_deployment_revision,
+    load_execution_measurement_trace,
     load_investigation_completion_trace,
+    record_execution_measurements,
 )
 from apps.runtime_models import register_runtime_models
+from packages.evaluation.agent_runtime import (
+    AgentRuntimeGold,
+    AgentRuntimeObservation,
+    score_agent_runtime,
+)
 from packages.evaluation.benchmark import (
     BenchmarkCase,
     BenchmarkCaseRunStatus,
@@ -25,10 +33,16 @@ from packages.evaluation.benchmark import (
     BenchmarkRunStatus,
     BenchmarkStore,
     BenchmarkSuite,
+    MeasurementSource,
+    metric_definition,
 )
 from packages.evaluation.investigation_readiness import MAX_PROSPECTIVE_FREEZE_LAG_SECONDS
+from packages.intelligence.storage.knowledge_models import EvidenceLinkModel
+from packages.investigation.state.service import InvestigationStateService
+from packages.investigation.storage.models import CaseStateEventModel, EvidenceNeedModel
 from packages.shared.config import get_settings
 from packages.shared.db import create_engine, create_session_factory
+from packages.task_runtime.storage.models import TaskEventModel, TaskRunModel
 
 
 class InvestigationBenchmarkManifestCase(BaseModel):
@@ -38,6 +52,7 @@ class InvestigationBenchmarkManifestCase(BaseModel):
     measurement_deadline: datetime
     tags: list[str] = Field(default_factory=list)
     latency_class: str = "long_investigation"
+    agent_runtime_gold: AgentRuntimeGold | None = None
 
     @field_validator("measurement_deadline")
     @classmethod
@@ -73,6 +88,30 @@ class InvestigationBenchmarkManifest(BaseModel):
             if item.measurement_deadline <= self.frozen_at:
                 raise ValueError("measurement_deadline must be after manifest frozen_at")
         return self
+
+
+def _version_reasoning_sources_match_gold(
+    source_refs: list[str],
+    *,
+    allowed_relation_ids: set[str],
+    allowed_claim_ids: set[str],
+) -> bool:
+    if not source_refs:
+        return False
+    relation_ids: set[str] = set()
+    claim_ids: set[str] = set()
+    for ref in source_refs:
+        if ref.startswith("relation:"):
+            relation_ids.add(ref.removeprefix("relation:"))
+        elif ref.startswith("claim:"):
+            claim_ids.add(ref.removeprefix("claim:"))
+        else:
+            return False
+    return (
+        bool(relation_ids & allowed_relation_ids)
+        and relation_ids <= allowed_relation_ids
+        and claim_ids <= allowed_claim_ids
+    )
 
 
 class InvestigationMeasurementStatus(BaseModel):
@@ -175,6 +214,7 @@ async def _run(
     *,
     suite_revision: int,
     deployment_revision_id: str | None,
+    evaluator_revision: str | None = None,
     preflight_only: bool = False,
     measured_at: datetime | None = None,
 ) -> dict[str, Any]:
@@ -192,8 +232,7 @@ async def _run(
     pending = [item.case_id for item in statuses if item.status == "pending"]
     if pending:
         raise RuntimeError(
-            "investigation measurement window is still open for frozen cases: "
-            + ", ".join(pending)
+            "investigation measurement window is still open for frozen cases: " + ", ".join(pending)
         )
 
     register_runtime_models()
@@ -210,6 +249,11 @@ async def _run(
                 "product_case_id": item.product_case_id,
                 "expected_final_decision": item.expected_final_decision,
                 "measurement_deadline": item.measurement_deadline.isoformat(),
+                "agent_runtime_gold": (
+                    item.agent_runtime_gold.model_dump(mode="json")
+                    if item.agent_runtime_gold is not None
+                    else None
+                ),
             }
             for item in manifest.cases
         ]
@@ -245,6 +289,11 @@ async def _run(
                             {
                                 "expected_final_decision": item.expected_final_decision,
                                 "measurement_deadline": item.measurement_deadline.isoformat(),
+                                "agent_runtime_gold": (
+                                    item.agent_runtime_gold.model_dump(mode="json")
+                                    if item.agent_runtime_gold is not None
+                                    else None
+                                ),
                             },
                         ),
                         gold_ref=f"{gold_revision}#{item.case_id}",
@@ -263,19 +312,34 @@ async def _run(
                     purpose=manifest.purpose,
                     case_refs=case_refs,
                     gold_revision=gold_revision,
-                    evaluator_revision=manifest.evaluator_revision,
+                    evaluator_revision=evaluator_revision or manifest.evaluator_revision,
                     scoring_profile={
                         "manifest_digest": manifest_digest,
                         "frozen_at": manifest.frozen_at.isoformat(),
-                        "max_prospective_freeze_lag_seconds": (
-                            MAX_PROSPECTIVE_FREEZE_LAG_SECONDS
-                        ),
+                        "max_prospective_freeze_lag_seconds": (MAX_PROSPECTIVE_FREEZE_LAG_SECONDS),
                         "metrics": [
                             "agent.task_success",
                             "m6.investigation_final_decision_completion",
+                            "m6.investigation_time_to_first_status_seconds",
                             "m6.investigation_time_to_final_decision_seconds",
                             "m6.investigation_role_episode_count",
                             "m6.investigation_open_need_count_at_measurement",
+                            "agent.timeout_rate",
+                            "agent.wall_latency_seconds",
+                            "runtime.model_attempt_count",
+                            "runtime.model_input_tokens",
+                            "runtime.model_output_tokens",
+                            "runtime.model_reasoning_tokens",
+                            "runtime.model_cached_input_tokens",
+                            "runtime.model_provider_cost",
+                            "runtime.capability_call_count",
+                            "runtime.retrieval_invocation_count",
+                            "agent.trajectory_conformance",
+                            "agent.wrong_entity_attachment_rate",
+                            "agent.wrong_version_attachment_rate",
+                            "agent.invalid_evidence_ref_rate",
+                            "agent.stop_correctness",
+                            "agent.unnecessary_continuation_rate",
                         ],
                     },
                     created_at=now,
@@ -311,9 +375,43 @@ async def _run(
                     expected_final_decision=item.expected_final_decision,
                     decision_deadline=item.measurement_deadline,
                 )
+                execution_trace = await load_execution_measurement_trace(
+                    session,
+                    [
+                        *trace.investigation_task_run_refs,
+                        *trace.decision_task_run_refs,
+                        *trace.execution_refs,
+                        *trace.model_request_refs,
+                    ],
+                )
+                await record_execution_measurements(
+                    store,
+                    session,
+                    case_run_id=case_run.case_run_id,
+                    trace=execution_trace,
+                    subject_ref=f"case:{item.product_case_id}",
+                )
+                semantic_metrics: dict[str, float] = {}
+                if item.agent_runtime_gold is not None:
+                    semantic_metrics = await _record_agent_semantic_metrics(
+                        store,
+                        session,
+                        case_run_id=case_run.case_run_id,
+                        product_case_id=item.product_case_id,
+                        frozen_at=manifest.frozen_at,
+                        deadline_met=(
+                            trace.final_decision_at is not None
+                            and trace.final_decision_at <= item.measurement_deadline
+                        ),
+                        gold=item.agent_runtime_gold,
+                    )
                 artifacts = [
                     f"case:{item.product_case_id}",
                     f"case-revision:{item.product_case_id}@{trace.case_revision}",
+                    *trace.investigation_task_run_refs,
+                    *trace.decision_task_run_refs,
+                    *trace.execution_refs,
+                    *trace.model_request_refs,
                 ]
                 if trace.final_decision_ref is not None:
                     artifacts.append(trace.final_decision_ref)
@@ -335,11 +433,26 @@ async def _run(
                 "expected_final_decision": item.expected_final_decision,
                 "final_decision_present": trace.final_decision_present,
                 "final_decision_ref": trace.final_decision_ref,
+                "first_status_event_type": trace.first_status_event_type,
+                "first_status_at": (
+                    trace.first_status_at.isoformat() if trace.first_status_at is not None else None
+                ),
+                "time_to_first_status_seconds": trace.time_to_first_status_seconds,
                 "time_to_final_decision_seconds": trace.time_to_final_decision_seconds,
                 "measurement_deadline": item.measurement_deadline.isoformat(),
                 "deadline_met": deadline_met,
                 "investigation_episode_count": trace.investigation_episode_count,
+                "failed_episode_count": trace.failed_episode_count,
+                "timed_out_episode_count": trace.timed_out_episode_count,
+                "completed_episode_count": trace.completed_episode_count,
+                "agent_wall_latency_seconds": trace.agent_wall_latency_seconds,
+                "investigation_episode_statuses": trace.investigation_episode_statuses,
                 "open_evidence_need_count": trace.open_evidence_need_count,
+                "investigation_task_run_refs": trace.investigation_task_run_refs,
+                "decision_task_run_refs": trace.decision_task_run_refs,
+                "execution_refs": trace.execution_refs,
+                "model_request_refs": trace.model_request_refs,
+                "agent_semantic_metrics": semantic_metrics,
             }
 
         async with factory() as session, session.begin():
@@ -375,6 +488,7 @@ def main() -> None:
     parser.add_argument("manifest", type=Path)
     parser.add_argument("--suite-revision", type=int, required=True)
     parser.add_argument("--deployment-revision-id")
+    parser.add_argument("--evaluator-revision")
     parser.add_argument("--preflight-only", action="store_true")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
@@ -386,6 +500,7 @@ def main() -> None:
             manifest,
             suite_revision=args.suite_revision,
             deployment_revision_id=args.deployment_revision_id,
+            evaluator_revision=args.evaluator_revision,
             preflight_only=args.preflight_only,
         )
     )
@@ -394,6 +509,171 @@ def main() -> None:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(rendered, encoding="utf-8")
     print(rendered, end="")
+
+
+async def _record_agent_semantic_metrics(
+    store: BenchmarkStore,
+    session,
+    *,
+    case_run_id: str,
+    product_case_id: str,
+    frozen_at: datetime,
+    deadline_met: bool,
+    gold: AgentRuntimeGold,
+) -> dict[str, float]:
+    state = await InvestigationStateService().get_state(session, product_case_id)
+    role_runs = list(
+        await session.scalars(
+            select(TaskRunModel)
+            .where(
+                TaskRunModel.case_id == product_case_id,
+                TaskRunModel.role_id == "InvestigationRole",
+            )
+            .order_by(TaskRunModel.created_at)
+        )
+    )
+    task_events = (
+        list(
+            await session.scalars(
+                select(TaskEventModel)
+                .where(TaskEventModel.task_run_id.in_([item.run_id for item in role_runs]))
+                .order_by(TaskEventModel.emitted_at, TaskEventModel.seq)
+            )
+        )
+        if role_runs
+        else []
+    )
+    case_events = list(
+        await session.scalars(
+            select(CaseStateEventModel)
+            .where(CaseStateEventModel.case_id == product_case_id)
+            .order_by(CaseStateEventModel.case_revision)
+        )
+    )
+    needs = list(
+        await session.scalars(
+            select(EvidenceNeedModel).where(EvidenceNeedModel.case_id == product_case_id)
+        )
+    )
+
+    state_items = [
+        item
+        for bucket in (state.confirmed, state.tentative, state.conflicts, state.unknowns)
+        for item in bucket
+        if item.writer.startswith("InvestigationRole")
+    ]
+    allowed_targets = set(gold.allowed_target_refs)
+    normalized_allowed = allowed_targets | {
+        ref.removeprefix("object:") for ref in allowed_targets if ref.startswith("object:")
+    } | {
+        f"object:{ref}" for ref in allowed_targets if not ref.startswith("object:")
+    }
+    wrong_entity_count = sum(
+        item.target_ref is not None and item.target_ref not in normalized_allowed
+        for item in state_items
+    )
+    evidence_items = [item for item in state_items if item.evidence_refs]
+    evidence_refs = sorted({ref for item in evidence_items for ref in item.evidence_refs})
+    resolved_evidence_ids = set()
+    if evidence_refs:
+        evidence_ids = [ref.removeprefix("evidence:") for ref in evidence_refs]
+        resolved_evidence_ids = set(
+            await session.scalars(
+                select(EvidenceLinkModel.evidence_link_id).where(
+                    EvidenceLinkModel.evidence_link_id.in_(evidence_ids)
+                )
+            )
+        )
+    invalid_evidence_assertions = sum(
+        any(
+            ref.removeprefix("evidence:") not in resolved_evidence_ids
+            for ref in item.evidence_refs
+        )
+        for item in evidence_items
+    )
+    allowed_version_sources = set(gold.allowed_reasoning_relation_source_refs)
+    allowed_version_claims = set(gold.allowed_reasoning_claim_source_refs)
+    version_items = (
+        [item for item in state_items if item.reasoning_relation is not None]
+        if allowed_version_sources
+        else []
+    )
+    wrong_version_count = (
+        sum(
+            relation is None
+            or not _version_reasoning_sources_match_gold(
+                relation.source_refs,
+                allowed_relation_ids=allowed_version_sources,
+                allowed_claim_ids=allowed_version_claims,
+            )
+            for item in version_items
+            for relation in [item.reasoning_relation]
+        )
+        if allowed_version_sources
+        else 0
+    )
+    event_types = [
+        *(f"case:{item.event_type}" for item in case_events),
+        *(f"task:{item.event_type}" for item in task_events),
+    ]
+    final_role_run = role_runs[-1] if role_runs else None
+    continuation_requested = any(
+        item.opened_at > frozen_at for item in needs
+    )
+    observation = AgentRuntimeObservation(
+        task_success=deadline_met,
+        event_types=event_types,
+        stop_reason=final_role_run.stop_reason if final_role_run is not None else None,
+        timed_out=any(item.status == "timed_out" for item in role_runs),
+        continuation_requested=continuation_requested,
+        integrated_assertion_count=len(state_items),
+        wrong_entity_attachment_count=wrong_entity_count,
+        version_scoped_assertion_count=(len(version_items) if allowed_version_sources else 0),
+        wrong_version_attachment_count=wrong_version_count,
+        evidence_ref_assertion_count=len(evidence_items),
+        invalid_evidence_ref_count=invalid_evidence_assertions,
+    )
+    score = score_agent_runtime(gold=gold, observation=observation)
+    metric_values = {
+        "agent.trajectory_conformance": score.trajectory_conformance,
+        "agent.wrong_entity_attachment_rate": score.wrong_entity_attachment_rate,
+        "agent.wrong_version_attachment_rate": score.wrong_version_attachment_rate,
+        "agent.invalid_evidence_ref_rate": score.invalid_evidence_ref_rate,
+        "agent.stop_correctness": score.stop_correctness,
+        "agent.unnecessary_continuation_rate": score.unnecessary_continuation_rate,
+    }
+    observed: dict[str, float] = {}
+    for metric_name, value in metric_values.items():
+        if value is None:
+            continue
+        definition = metric_definition(metric_name)
+        await store.observe_metric(
+            session,
+            case_run_id=case_run_id,
+            metric_name=metric_name,
+            value=value,
+            direction=definition.direction,
+            measurement_source=MeasurementSource.SCORER,
+            subject_ref=f"case:{product_case_id}",
+            evidence_refs=evidence_refs,
+            metadata={
+                "frozen_agent_runtime_gold": gold.model_dump(mode="json"),
+                "event_types": cast(JsonValue, event_types),
+                "investigation_role_run_ids": cast(
+                    JsonValue, [item.run_id for item in role_runs]
+                ),
+                "state_item_count": len(state_items),
+                "evidence_ref_assertion_count": len(evidence_items),
+                "allowed_version_relation_ids": cast(
+                    JsonValue, sorted(allowed_version_sources)
+                ),
+                "allowed_version_claim_ids": cast(
+                    JsonValue, sorted(allowed_version_claims)
+                ),
+            },
+        )
+        observed[metric_name] = value
+    return observed
 
 
 if __name__ == "__main__":

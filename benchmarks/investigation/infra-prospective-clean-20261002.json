@@ -1,0 +1,21 @@
+{
+  "suite_id": "m6-long-investigation-clean-20261002",
+  "purpose": "Prospective clean-run validation of current Long Investigation evaluation/provenance infrastructure",
+  "evaluator_revision": "investigation-completion-v3",
+  "frozen_at": "2026-10-02T15:34:20.575913+00:00",
+  "cases": [
+    {
+      "case_id": "long-investigation-clean-cve-2026-86439",
+      "product_case_id": "eef7d853-4508-465b-a8da-aea1616e120b",
+      "expected_final_decision": true,
+      "measurement_deadline": "2026-10-02T15:39:20.575913+00:00",
+      "tags": [
+        "infra-prospective-probe",
+        "current-runner-closure",
+        "real-product",
+        "not-competition-score"
+      ],
+      "latency_class": "long_investigation_clean_probe"
+    }
+  ]
+}

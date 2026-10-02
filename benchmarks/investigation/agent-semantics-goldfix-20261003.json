@@ -1,0 +1,48 @@
+{
+  "suite_id": "m5-agent-semantics-goldfix-20261003",
+  "purpose": "Prospective end-to-end validation of current Long Investigation evaluation and provenance infrastructure",
+  "evaluator_revision": "investigation-agent-semantics-v3",
+  "frozen_at": "2026-10-02T19:28:45.693672Z",
+  "cases": [
+    {
+      "case_id": "long-investigation-probe-35cd6545",
+      "product_case_id": "35cd6545-284b-4486-9f2c-02fe6ae1eb37",
+      "expected_final_decision": true,
+      "measurement_deadline": "2026-10-02T19:33:45.693672Z",
+      "tags": [
+        "infra-prospective-probe",
+        "current-runner-closure",
+        "real-product",
+        "not-competition-score"
+      ],
+      "latency_class": "long_investigation_prospective_probe",
+      "agent_runtime_gold": {
+        "expected_task_success": true,
+        "allowed_target_refs": [
+          "17217ebc-6d3f-5b3a-b76f-b48b86a16e0a"
+        ],
+        "allowed_reasoning_relation_source_refs": [
+          "5592c6d0-bc7e-514b-805c-5ffdbc2c2ba5",
+          "5c0108d2-ea20-5f16-931c-25322ceb6d33",
+          "dc05ec79-9cf5-51cd-9083-026d652a3936"
+        ],
+        "required_capability_ids": [],
+        "allowed_capability_ids": [],
+        "expected_argument_digests": {},
+        "required_event_types": [
+          "case:fact_confirmed",
+          "case:evidence_need_resolved",
+          "task:InvestigationStateChanged",
+          "task:TaskCompleted"
+        ],
+        "forbidden_event_types": [
+          "task:TaskFailed"
+        ],
+        "acceptable_stop_reasons": [
+          "evidence_sufficient"
+        ],
+        "expected_continuation": false
+      }
+    }
+  ]
+}

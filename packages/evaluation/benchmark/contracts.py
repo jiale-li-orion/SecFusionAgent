@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field, JsonValue
 
 class BenchmarkDomain(StrEnum):
     M1_MONITORING = "m1_monitoring"
+    M2_NORMALIZATION = "m2_normalization"
     M3_ENRICHMENT = "m3_enrichment"
     M5_AGENT = "m5_agent"
     M6_QA = "m6_qa"

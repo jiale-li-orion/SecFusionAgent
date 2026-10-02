@@ -7,6 +7,7 @@ def test_fault_recovery_suite_has_stable_unique_cases() -> None:
     assert case_ids == [
         "engineering-stale-acquisition-requeue",
         "engineering-outbox-fail-once-retry",
+        "engineering-legacy-artifact-replay-recovery",
     ]
     assert len(case_ids) == len(set(case_ids))
 

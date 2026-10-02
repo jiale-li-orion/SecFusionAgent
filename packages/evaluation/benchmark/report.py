@@ -379,19 +379,60 @@ def _competition_target_checks(
 def _unevaluated_areas(metrics: dict[str, AggregatedMetric]) -> list[str]:
     required_groups = {
         "M1 monitoring latency": ("m1.monitoring.evaluable_coverage",),
+        "M2 parser/entity/evidence diagnostics": (
+            "m2.parser_field_accuracy",
+            "m2.replay_suppression_accuracy",
+            "m2.entity_resolution_precision",
+            "m2.entity_resolution_recall",
+            "m2.evidence_correctness",
+            "m2.conflict_preservation",
+        ),
         "M3 enrichment precision/recall": ("m3.micro_precision", "m3.micro_recall"),
+        "M3 dimension-macro quality": (
+            "m3.dimension_macro_precision",
+            "m3.dimension_macro_recall",
+        ),
         "M6 QA quality": (
             "m6.answer_accuracy",
             "m6.groundedness",
             "m6.citation_correctness",
+            "m6.citation_completeness",
         ),
         "M6 multi-hop": ("m6.multi_hop_correctness",),
-        "Agent runtime": ("agent.task_success",),
+        "Agent runtime": (
+            "agent.task_success",
+            "agent.capability_selection_correctness",
+            "agent.argument_correctness",
+            "agent.trajectory_conformance",
+            "agent.recovery_success_rate",
+            "agent.timeout_rate",
+            "agent.wall_latency_seconds",
+        ),
+        "Agent execution economics": (
+            "runtime.model_input_tokens",
+            "runtime.model_output_tokens",
+            "runtime.capability_call_count",
+        ),
         "Long Investigation completion": (
             "m6.investigation_final_decision_completion",
+            "m6.investigation_time_to_first_status_seconds",
             "m6.investigation_time_to_final_decision_seconds",
         ),
-        "Engineering fault/recovery": ("engineering.fault_recovery_success",),
+        "Security adversarial hard gates": (
+            "security.authority_violation_count",
+            "security.secret_exposure_count",
+            "security.policy_conformance",
+        ),
+        "Security adversarial breadth": (
+            "security.adversarial_class_coverage",
+            "security.adversarial_case_pass_rate",
+        ),
+        "Engineering fault/recovery": (
+            "engineering.fault_recovery_success",
+            "engineering.failure_isolation",
+            "engineering.retry_correctness",
+            "engineering.bounded_termination",
+        ),
     }
     return [
         label
