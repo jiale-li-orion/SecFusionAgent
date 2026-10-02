@@ -16,3 +16,8 @@ Repository rules:
 - Do not create placeholder package trees. Add a directory when the corresponding capability has executable behavior or a stable contract.
 - When the local workspace provides a private engineering-decision journal, keep it synchronized for meaningful architecture, dependency, ownership, or failure-semantics decisions. The repository must not depend on that private journal; stable design contracts still belong in the project Wiki.
 - Do not commit or push unless the user explicitly asks.
+
+Local experiment environment (not versioned):
+
+- Before running any experiment that needs an API key, read `API_KEYS.md` and activate with `. ./activate.sh` (source only; the repository `.venv` and the `SECFUSION_MODEL_*` endpoint are set there).
+- `API_KEYS.md`, `activate.sh` and `sync-keys.sh` exist only on a configured machine. If they are absent, the local experiment environment is unconfigured: run `./sync-keys.sh` to build the key store, or set `SECFUSION_MODEL_BASE_URL` / `SECFUSION_MODEL_API_KEY` / `SECFUSION_MODEL_NAME` directly.

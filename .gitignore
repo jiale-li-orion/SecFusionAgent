@@ -17,3 +17,15 @@ build/
 /artifacts/
 /.local/
 logs/
+
+# Local experiment environment (never versioned: key loading, provider endpoints,
+# balances). The key store itself lives outside the repository at
+# ~/.config/exp-env/keys.sh with mode 600; these files only load it.
+/activate.sh
+/sync-keys.sh
+/API_KEYS.md
+/keys.sh
+/.exp-env/
+
+# Local long-running execution worker pool (machine-local, never versioned)
+/worker_pool/
