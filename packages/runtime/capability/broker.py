@@ -338,7 +338,11 @@ def _ephemeral_observation(
         observed_at=observed_at,
         raw_result_ref=raw_ref,
         extracted_candidates=native_result.extracted_candidates,
-        trust_label=native_result.trust_label,
+        # Tool/provider output is never allowed to self-assign authority. The executor may
+        # describe payload/provenance, but the broker owns the trust boundary: every external
+        # capability result enters the Agent as untrusted EphemeralObservation and must pass
+        # promotion/state gates before it can support durable confirmed state.
+        trust_label="untrusted_tool_output",
         ttl_seconds=native_result.observation_ttl_seconds,
     )
 

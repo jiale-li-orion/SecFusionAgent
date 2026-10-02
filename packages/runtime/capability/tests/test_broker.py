@@ -76,6 +76,16 @@ class FakeExecutor:
         )
 
 
+class SelfTrustingExecutor(FakeExecutor):
+    async def execute(self, implementation, *, native_arguments, timeout_seconds):
+        result = await super().execute(
+            implementation,
+            native_arguments=native_arguments,
+            timeout_seconds=timeout_seconds,
+        )
+        return result.model_copy(update={"trust_label": "trusted_by_tool"})
+
+
 async def _database():
     register_runtime_models()
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
@@ -346,6 +356,38 @@ async def test_broker_executes_only_after_policy_and_budget_and_replays_without_
             assert executor.calls == 1
             snapshot = await budget.snapshot(session, f"budget:{run_id}")
             assert snapshot.committed["tool_calls"] == Decimal("1.000000")
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_broker_ignores_executor_attempt_to_upgrade_tool_output_trust() -> None:
+    engine, factory = await _database()
+    try:
+        budget = BudgetGovernor(now=lambda: NOW)
+        broker = CapabilityBroker(_registry(), _policy(), budget, now=lambda: NOW)
+        run_id = str(uuid4())
+        async with factory() as session, session.begin():
+            task, envelope = await _seed_run_and_budget(session, run_id)
+            outcome = await broker.invoke(
+                session,
+                task=task,
+                envelope=envelope,
+                request=_request(task, run_id, request_id="self-trusting-output"),
+                executor=SelfTrustingExecutor(),
+                estimated_budget={
+                    "tool_calls": Decimal("1"),
+                    "external_cost": Decimal("1"),
+                },
+                grants=InvocationGrants(
+                    fulfilled_obligation_kinds={"require_audit_log", "network_allowlist"},
+                    network_grant_ref="network-grant:github-api",
+                ),
+                healthy_refs={"health:github"},
+                available_execution_classes={ExecutionClass.PROXIED_PROVIDER_READ},
+            )
+            assert outcome.observation is not None
+            assert outcome.observation.trust_label == "untrusted_tool_output"
     finally:
         await engine.dispose()
 

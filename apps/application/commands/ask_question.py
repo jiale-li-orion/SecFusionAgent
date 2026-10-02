@@ -132,6 +132,7 @@ class AskQuestionUseCase:
         session_store: QuestionSessionStore | None = None,
         retrieval_invocations: RetrievalInvocationService | None = None,
         investigation_state_service: InvestigationStateService | None = None,
+        model_payload_persistence: str | None = None,
     ) -> None:
         self._policy_path = policy_path
         self._stream_name = task_event_stream_name
@@ -143,6 +144,7 @@ class AskQuestionUseCase:
         self._sessions = session_store or QuestionSessionStore()
         self._retrieval_invocations = retrieval_invocations or RetrievalInvocationService()
         self._investigation_state = investigation_state_service or InvestigationStateService()
+        self._model_payload_persistence = model_payload_persistence
 
     async def execute(
         self,
@@ -254,23 +256,26 @@ class AskQuestionUseCase:
         await session.commit()
 
         try:
+            runtime_metadata: dict[str, JsonValue] = {
+                "request_owner_ref": f"task-run:{run_id}",
+                "task_run_id": run_id,
+                "execution_id": execution_id,
+                "budget_ref": f"budget:{run_id}",
+                # Ordinary DIRECT/RETRIEVE questions remain lightweight. An
+                # explicit session Case-read carries the real M4 Case FK.
+                "case_id": context.state.case_id if context.case_ref else None,
+                "product_request_id": command.request_id,
+                "product_session_id": session_context.session_id,
+                "product_turn_index": next_turn_index,
+                "model_wall_seconds": command.interactive_timeout_seconds,
+            }
+            if self._model_payload_persistence is not None:
+                runtime_metadata["model_payload_persistence"] = self._model_payload_persistence
             proposal = await ModelDecisionPlanner(self._provider).plan(
                 context.state,
                 citation_sources=context.citation_sources,
                 session_context=history_payload,
-                runtime_metadata={
-                    "request_owner_ref": f"task-run:{run_id}",
-                    "task_run_id": run_id,
-                    "execution_id": execution_id,
-                    "budget_ref": f"budget:{run_id}",
-                    # Ordinary DIRECT/RETRIEVE questions remain lightweight. An
-                    # explicit session Case-read carries the real M4 Case FK.
-                    "case_id": context.state.case_id if context.case_ref else None,
-                    "product_request_id": command.request_id,
-                    "product_session_id": session_context.session_id,
-                    "product_turn_index": next_turn_index,
-                    "model_wall_seconds": command.interactive_timeout_seconds,
-                },
+                runtime_metadata=runtime_metadata,
             )
             if isinstance(proposal, DecisionDraft):
                 decision = DecisionService().decide(

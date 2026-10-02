@@ -21,6 +21,7 @@ from packages.runtime.model.contracts import (
     ModelUsage,
     ModelUsageSource,
 )
+from packages.runtime.model.prompt import PromptAssemblyRecordService
 from packages.runtime.model.storage import ModelAttemptModel, ModelRequestModel
 from packages.shared.model_provider import (
     MetadataModelProvider,
@@ -106,6 +107,12 @@ class RecordedModelProvider:
                     trust_class="execution_sensitive",
                 )
                 request_artifact_ref = artifact.artifact_ref
+                if coordinate.prompt_assembly_id is not None:
+                    await PromptAssemblyRecordService().bind_request_artifact(
+                        session,
+                        assembly_id=coordinate.prompt_assembly_id,
+                        request_artifact_ref=request_artifact_ref,
+                    )
             session.add(
                 ModelRequestModel(
                     model_request_id=model_request_id,
@@ -277,9 +284,12 @@ def _request_coordinate(request: StructuredModelRequest) -> _RequestCoordinate:
         raise ValueError("recorded model request requires request_owner_ref")
     persistence = metadata.get("model_payload_persistence")
     persist_payload_artifacts = persistence == "redacted_runtime_artifact"
-    public_metadata = {
-        key: value for key, value in metadata.items() if key not in _PRIVATE_METADATA_KEYS
-    }
+    public_metadata = cast(
+        dict[str, JsonValue],
+        _redact(
+            {key: value for key, value in metadata.items() if key not in _PRIVATE_METADATA_KEYS}
+        ),
+    )
     return _RequestCoordinate(
         purpose=purpose,
         request_owner_ref=request_owner_ref,

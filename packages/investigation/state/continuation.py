@@ -16,13 +16,13 @@ class ContinuationRequest(BaseModel):
     case_id: str
     base_case_revision: int = Field(ge=0)
     proposition_or_question: str
-    purpose: str
+    purpose: str = Field(min_length=1, max_length=128)
     target_objects: list[str] = Field(default_factory=list)
     evidence_contract: EvidenceNeedContract = Field(default_factory=EvidenceNeedContract)
     preferred_source_roles: list[str] = Field(default_factory=list)
     freshness_requirement: dict[str, JsonValue] = Field(default_factory=dict)
     priority: int = Field(default=50, ge=0, le=100)
-    reason: str
+    reason: str = Field(min_length=1)
 
     @model_validator(mode="after")
     def validate_request(self) -> ContinuationRequest:

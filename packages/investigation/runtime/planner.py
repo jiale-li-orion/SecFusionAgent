@@ -125,6 +125,7 @@ class ModelInvestigationPlanner:
                 session,
                 manifest,
             )
+            object_ref_aliases = _visible_object_ref_aliases(context_fragments)
             object_types = _object_types(context_fragments)
             role = canonical_roles()["InvestigationRole"]
             selection = await self._skill_resolver.resolve(
@@ -211,6 +212,7 @@ class ModelInvestigationPlanner:
                     "selected_need_id": (
                         frame.selected_need.need_id if frame.selected_need is not None else None
                     ),
+                    "model_payload_persistence": "redacted_runtime_artifact",
                     "model_provider": f"{self._provider.name}@{self._provider.version}",
                 }
             }
@@ -225,6 +227,7 @@ class ModelInvestigationPlanner:
             assembly_hash=assembly.assembly_hash,
             provider_ref=f"{self._provider.name}@{self._provider.version}",
             budget_ref=manifest.budget_ref,
+            object_ref_aliases=object_ref_aliases,
         )
 
 
@@ -266,6 +269,7 @@ def _normalize_action(
     assembly_hash: str,
     provider_ref: str,
     budget_ref: str,
+    object_ref_aliases: dict[str, str] | None = None,
 ) -> InvestigationAction:
     if isinstance(action, PerceptionAction):
         request_id = f"perception:{frame.task_run_id}:{frame.iteration}:{assembly_hash[:16]}"
@@ -280,11 +284,24 @@ def _normalize_action(
         return PerceptionAction(request=request)
     if isinstance(action, StatePatchAction):
         patch_id = f"patch:{frame.task_run_id}:{frame.iteration}:{assembly_hash[:16]}"
+        operations = [
+            operation.model_copy(
+                update={
+                    "target_ref": _normalize_patch_target_ref(
+                        operation.target_ref,
+                        frame=frame,
+                        object_ref_aliases=object_ref_aliases or {},
+                    )
+                }
+            )
+            for operation in action.patch.operations
+        ]
         patch = action.patch.model_copy(
             update={
                 "patch_id": patch_id,
                 "case_id": frame.state.case_id,
                 "base_case_revision": frame.state.case_revision,
+                "operations": operations,
                 "producer": f"InvestigationRole:model:{provider_ref}",
                 "model_prompt_revision": assembly_hash,
             }
@@ -302,3 +319,53 @@ def _normalize_action(
             request=action.request.model_copy(update={"delegation_id": f"delegation:{identity}"})
         )
     return action
+
+
+def _normalize_patch_target_ref(
+    target_ref: str | None,
+    *,
+    frame: InvestigationFrame,
+    object_ref_aliases: dict[str, str] | None = None,
+) -> str | None:
+    if target_ref is None:
+        return None
+    if target_ref in set(frame.state.targets):
+        return f"object:{target_ref}"
+    alias = (object_ref_aliases or {}).get(target_ref)
+    if alias is not None:
+        return alias
+    return target_ref
+
+
+def _visible_object_ref_aliases(fragments: list[MaterializedFragment]) -> dict[str, str]:
+    """Map model-visible object identities to the stable M4 target-ref form.
+
+    Knowledge-object fragments can embed relation targets as full object views. The model may
+    therefore emit a canonical key (for example ``software-version:npm:knowns:0.30.0``) even
+    though the M4 write gate intentionally accepts only stable ``object:<uuid>`` refs. Resolve
+    aliases only from the already-materialized Evidence World that was shown to the model; do not
+    perform a broader database lookup or weaken M4 validation.
+    """
+
+    aliases: dict[str, str] = {}
+    for fragment in fragments:
+        _collect_object_ref_aliases(fragment.content, aliases)
+    return aliases
+
+
+def _collect_object_ref_aliases(value: JsonValue, aliases: dict[str, str]) -> None:
+    if isinstance(value, dict):
+        object_id = value.get("object_id")
+        canonical_key = value.get("canonical_key")
+        if isinstance(object_id, str) and object_id:
+            stable_ref = f"object:{object_id}"
+            aliases.setdefault(object_id, stable_ref)
+            aliases.setdefault(stable_ref, stable_ref)
+            if isinstance(canonical_key, str) and canonical_key:
+                aliases.setdefault(canonical_key, stable_ref)
+        for child in value.values():
+            _collect_object_ref_aliases(child, aliases)
+        return
+    if isinstance(value, list):
+        for child in value:
+            _collect_object_ref_aliases(child, aliases)

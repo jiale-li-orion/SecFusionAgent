@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import cast
+from typing import Any, cast
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, literal_column, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql import Select
 
 from packages.intelligence.retrieval.contracts import CandidateKind, RetrievedCandidate
 from packages.intelligence.storage.document_models import (
@@ -140,6 +141,54 @@ class StructuredRetrievalOperator:
         ]
 
 
+def build_lexical_search_statement(
+    *,
+    query: str,
+    limit: int = 20,
+    source_ids: Sequence[str] | None = None,
+) -> Select[Any]:
+    """Build the production lexical query so diagnostics inspect the exact execution path."""
+
+    normalized = query.strip()
+    if not normalized:
+        raise ValueError("lexical search statement requires a non-empty query")
+    simple_config: Any = literal_column("'simple'")
+    tsquery = func.plainto_tsquery(simple_config, normalized)
+    # Keep this expression byte-for-byte equivalent in SQL semantics to the
+    # GIN expression index created by 20260926_0008. PostgreSQL expression
+    # indexes require the query expression to match; omitting COALESCE here
+    # silently degrades lexical retrieval to a sequential scan.
+    vector = func.to_tsvector(
+        simple_config,
+        func.coalesce(DocumentChunkModel.text, literal_column("''")),
+    )
+    rank = func.ts_rank_cd(vector, tsquery).label("lexical_score")
+    statement = (
+        select(
+            DocumentChunkModel,
+            DocumentRevisionModel,
+            DocumentModel,
+            ObservationModel,
+            SourceModel,
+            rank,
+        )
+        .join(
+            DocumentRevisionModel,
+            DocumentRevisionModel.document_revision_id == DocumentChunkModel.document_revision_id,
+        )
+        .join(DocumentModel, DocumentModel.document_id == DocumentRevisionModel.document_id)
+        .join(
+            ObservationModel,
+            ObservationModel.observation_id == DocumentRevisionModel.observation_id,
+        )
+        .join(SourceModel, SourceModel.source_id == ObservationModel.source_id)
+        .where(vector.op("@@")(tsquery))
+    )
+    if source_ids:
+        statement = statement.where(ObservationModel.source_id.in_(source_ids))
+    return statement.order_by(rank.desc(), DocumentChunkModel.chunk_id).limit(limit)
+
+
 class LexicalRetrievalOperator:
     async def search(
         self,
@@ -152,38 +201,12 @@ class LexicalRetrievalOperator:
         normalized = query.strip()
         if not normalized:
             return []
-        tsquery = func.plainto_tsquery("simple", normalized)
-        vector = func.to_tsvector("simple", DocumentChunkModel.text)
-        rank = func.ts_rank_cd(vector, tsquery).label("lexical_score")
-        statement = (
-            select(
-                DocumentChunkModel,
-                DocumentRevisionModel,
-                DocumentModel,
-                ObservationModel,
-                SourceModel,
-                rank,
-            )
-            .join(
-                DocumentRevisionModel,
-                DocumentRevisionModel.document_revision_id
-                == DocumentChunkModel.document_revision_id,
-            )
-            .join(DocumentModel, DocumentModel.document_id == DocumentRevisionModel.document_id)
-            .join(
-                ObservationModel,
-                ObservationModel.observation_id == DocumentRevisionModel.observation_id,
-            )
-            .join(SourceModel, SourceModel.source_id == ObservationModel.source_id)
-            .where(vector.op("@@")(tsquery))
+        statement = build_lexical_search_statement(
+            query=normalized,
+            limit=limit,
+            source_ids=source_ids,
         )
-        if source_ids:
-            statement = statement.where(ObservationModel.source_id.in_(source_ids))
-        rows = (
-            await session.execute(
-                statement.order_by(rank.desc(), DocumentChunkModel.chunk_id).limit(limit)
-            )
-        ).all()
+        rows = (await session.execute(statement)).all()
         candidates: list[RetrievedCandidate] = []
         for row in rows:
             chunk = cast(DocumentChunkModel, row[0])
@@ -264,11 +287,7 @@ class LexicalRetrievalOperator:
                 source,
                 score_channels={"reused": 1.0},
             )
-        return [
-            candidate
-            for key in parsed
-            if (candidate := candidates.get(key)) is not None
-        ]
+        return [candidate for key in parsed if (candidate := candidates.get(key)) is not None]
 
 
 class DenseRetrievalOperator:

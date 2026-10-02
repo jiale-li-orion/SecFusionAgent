@@ -303,6 +303,8 @@ class InvestigationStateService:
         _require_revision(case, base_case_revision)
         if not proposition_or_question.strip() or not purpose.strip():
             raise ValueError("EvidenceNeed proposition/purpose cannot be empty")
+        if len(purpose) > 256:
+            raise ValueError("EvidenceNeed purpose exceeds storage contract (256 characters)")
         await _validate_target_objects(session, target_objects)
 
         now = self._now()

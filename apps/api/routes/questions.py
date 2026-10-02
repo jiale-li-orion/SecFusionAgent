@@ -9,6 +9,7 @@ from apps.api.errors import ProblemDetail
 from apps.application.commands.ask_question import AskQuestionCommand, AskQuestionUseCase
 from apps.application.views.questions import QuestionResultView
 from apps.model_runtime import create_recorded_model_provider
+from apps.runtime_artifacts import create_runtime_artifact_service
 from packages.shared.config import get_settings
 from packages.task_runtime.contracts.models import TaskKind
 
@@ -58,10 +59,12 @@ async def ask_question(
             async with httpx.AsyncClient(
                 timeout=min(settings.model_timeout_seconds, payload.interactive_timeout_seconds)
             ) as client:
+                runtime_artifacts = await create_runtime_artifact_service(settings)
                 provider = create_recorded_model_provider(
                     settings,
                     request.app.state.session_factory,
                     client,
+                    artifact_service=runtime_artifacts,
                 )
                 result = await AskQuestionUseCase(
                     policy_path=settings.runtime_policy_path,

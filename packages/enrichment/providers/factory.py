@@ -21,4 +21,7 @@ def create_configured_ai_provider(
         embedding_model=settings.embedding_model_name,
         api_key=settings.model_api_key,
         embedding_dimensions=settings.embedding_dimensions,
+        max_tokens=settings.model_max_tokens,
+        temperature=settings.model_temperature,
+        reasoning_effort=settings.model_reasoning_effort,
     )

@@ -178,6 +178,42 @@ async def test_case_state_starts_revision_zero_and_evidence_need_is_append_only_
 
 
 @pytest.mark.asyncio
+async def test_state_patch_accepts_canonical_prefixed_evidence_ref() -> None:
+    engine, factory = await _database()
+    service = InvestigationStateService(now=lambda: NOW)
+    try:
+        async with factory() as session, session.begin():
+            case_id, object_id = await _seed_case(session)
+            evidence_id = await _seed_evidence(
+                session,
+                source_id="prefixed-evidence-primary",
+                source_role="primary",
+                source_family="vendor",
+                target_object_id=object_id,
+            )
+            result = await service.apply_patch(
+                session,
+                StatePatch(
+                    patch_id=str(uuid4()),
+                    case_id=case_id,
+                    base_case_revision=0,
+                    producer="model:test",
+                    operations=[
+                        StatePatchOperation(
+                            proposition="v0.22.0 is the first fixed release",
+                            target_ref=f"object:{object_id}",
+                            proposed_state=ProposedState.CONFIRMED,
+                            evidence_refs=[f"evidence:{evidence_id}"],
+                        )
+                    ],
+                ),
+            )
+            assert result.state.confirmed[0].evidence_refs == [f"evidence:{evidence_id}"]
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_evidence_ref_cannot_confirm_the_wrong_target_object() -> None:
     engine, factory = await _database()
     service = InvestigationStateService(now=lambda: NOW)

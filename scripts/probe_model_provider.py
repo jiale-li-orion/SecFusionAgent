@@ -70,6 +70,9 @@ async def probe_model_provider() -> dict[str, Any]:
             base_url=settings.model_base_url,
             chat_model=model_name,
             api_key=settings.model_api_key,
+            max_tokens=settings.model_max_tokens,
+            temperature=settings.model_temperature,
+            reasoning_effort=settings.model_reasoning_effort,
         )
         result = await _retry_transient(
             lambda: provider.generate_structured_result(

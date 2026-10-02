@@ -24,13 +24,15 @@ ModelAttempt #1..N
   response-format fallback metadata
 ```
 
-The logical `ModelRequest` is committed before remote dispatch. Every physical attempt is inserted before its provider call and finished in a separate short transaction. Transient transport/HTTP failures therefore remain visible as failed attempt ordinals even when a later retry succeeds; a retry never overwrites the original attempt.
+The logical `ModelRequest` is committed before remote dispatch. Every recorder-level provider attempt is inserted before its provider call and finished in a separate short transaction. Transient transport/HTTP failures therefore remain visible as failed attempt ordinals even when a later retry succeeds; a retry never overwrites the original attempt. One compatibility boundary remains explicit: response-format negotiation currently lives inside `OpenAICompatibleProvider`, so a `json_schema` rejection followed by adapter-local `json_object` fallback is one recorded `ModelAttempt` whose latency covers both HTTP exchanges and whose usage comes from the successful response. Formal physical-HTTP accounting should either freeze a known provider dialect before dispatch or promote that negotiation above the recorder; the current runtime does not pretend the fallback is two persisted attempts.
 
 `ModelRetryPolicy` is configured by `SECFUSION_MODEL_MAX_ATTEMPTS`, `SECFUSION_MODEL_RETRY_BASE_SECONDS`, and `SECFUSION_MODEL_RETRY_MAX_SECONDS`. The default policy retries only failures explicitly classified as transient: network/HTTP transport errors, 408, 429, and selected 5xx responses. `Retry-After` is honored within the configured delay ceiling. Authentication failures, malformed JSON, response-schema violations and ordinary 4xx responses are terminal because replaying the same request cannot repair them. The retry policy is part of `DeploymentRevision` configuration identity, so a latency/quality run cannot silently compare two deployments with different retry behavior.
 
 Interactive M6 adds `model_wall_seconds` to request metadata. `RecordedModelProvider` converts that value into one monotonic logical deadline shared by every physical attempt and retry sleep. An individual HTTP timeout can therefore never silently turn a five-second Product budget into several five-second retries. Deadline exhaustion is persisted as a failed attempt with `timeout_before_response`; retry scheduling is suppressed when the remaining wall budget cannot cover the next backoff. This avoids the more dangerous alternative of cancelling the provider outside the recorder and leaving an attempt permanently in `started` state.
 
-`OpenAICompatibleProvider` exposes `ProviderModelResult` metadata while preserving the legacy `generate_structured()` API. It reports provider request identity, actual model, exact token/cache fields when present, and whether `json_schema` fell back to `json_object`. Missing usage is `unavailable`, never zero. The provider probe also supports OpenAI-compatible `GET /models`: an explicit `SECFUSION_MODEL_NAME` always wins; without it, automatic selection is accepted only when discovery leaves exactly one plausible chat model. Multi-model endpoints fail closed and print candidates rather than choosing a model nondeterministically.
+`OpenAICompatibleProvider` exposes `ProviderModelResult` metadata while preserving the legacy `generate_structured()` API. It reports provider request identity, actual model, exact token/cache fields when present, and whether `json_schema` fell back to `json_object`. A 400/422 structured-output fallback does not weaken the response contract: the adapter injects the same Pydantic JSON Schema into the system instruction before retrying in `json_object` mode, and the returned object still passes local schema validation. Missing usage is `unavailable`, never zero. The provider probe also supports OpenAI-compatible `GET /models`: an explicit `SECFUSION_MODEL_NAME` always wins; without it, automatic selection is accepted only when discovery leaves exactly one plausible chat model. Multi-model endpoints fail closed and print candidates rather than choosing a model nondeterministically.
+
+Generation controls are explicit runtime configuration rather than hidden provider defaults. `SECFUSION_MODEL_MAX_TOKENS`, `SECFUSION_MODEL_TEMPERATURE`, and `SECFUSION_MODEL_REASONING_EFFORT` are forwarded to compatible chat endpoints and are part of `DeploymentRevision.configuration_digest` together with timeout/retry policy. A benchmark that changes any of these values is therefore a different deployment coordinate even when the model name is unchanged. Provider-specific semantics still apply; for example, a provider may accept a compatibility field while making it ineffective in a particular reasoning mode.
 
 `PromptAssemblyRecordService` persists M5 PromptAssembly identity and fragment manifest: source refs/revisions, trust/cache classes, content hashes, order, assembly hash and cache hints. Fragment content is deliberately not copied into SQL. `request_artifact_ref` is currently nullable; full redacted request persistence is opt-in and remains an R1 follow-up.
 
@@ -65,6 +67,10 @@ For a live provider, the minimum common configuration is:
 ```bash
 export SECFUSION_MODEL_BASE_URL='https://provider.example/v1'
 export SECFUSION_MODEL_API_KEY='...'
+export SECFUSION_MODEL_NAME='chat-model'
+export SECFUSION_MODEL_MAX_TOKENS=4096
+export SECFUSION_MODEL_REASONING_EFFORT=low
+export SECFUSION_MODEL_TEMPERATURE=0
 make model-provider-probe
 ```
 

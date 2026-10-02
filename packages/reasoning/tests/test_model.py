@@ -59,8 +59,9 @@ async def test_model_decision_planner_forces_case_identity_from_state() -> None:
     assert isinstance(result, DecisionDraft)
     assert result.case_id == "case-1"
     assert result.case_revision == 7
-    assert result.model_prompt_revision == "decision-model-v1"
+    assert result.model_prompt_revision == "decision-model-v2"
     assert provider.requests[0].metadata["case_revision"] == 7
+    assert "minimal sufficient answer" in provider.requests[0].system_instruction
 
 
 @pytest.mark.asyncio
@@ -159,4 +160,18 @@ def test_final_proposal_fact_schema_requires_evidence() -> None:
                 )
             ],
             stop_reason="evidence_sufficient",
+        )
+
+
+def test_final_proposal_stop_reason_is_bounded_to_runtime_storage_contract() -> None:
+    with pytest.raises(ValueError, match="128 characters"):
+        FinalDecisionProposal(stop_reason="x" * 129)
+
+
+def test_continuation_purpose_is_a_bounded_machine_field() -> None:
+    with pytest.raises(ValueError, match="128 characters"):
+        ContinuationProposal(
+            proposition_or_question="Need more evidence?",
+            purpose="x" * 129,
+            reason="Current state is insufficient.",
         )

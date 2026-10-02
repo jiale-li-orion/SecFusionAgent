@@ -27,6 +27,7 @@ from packages.investigation.runtime.contracts import (
 from packages.investigation.runtime.planner import (
     ModelInvestigationPlanner,
     PlannerCapabilityContext,
+    _visible_object_ref_aliases,
 )
 from packages.investigation.runtime.role import InvestigationRoleRuntime
 from packages.investigation.runtime.tasks import build_investigation_contract
@@ -59,6 +60,35 @@ from packages.task_runtime.storage.service import (
 
 NOW = datetime(2026, 9, 27, 12, 30, tzinfo=UTC)
 STREAM = "secfusion:task-events:model-planner-test"
+
+
+def test_visible_object_ref_aliases_resolve_nested_relation_target_canonical_key() -> None:
+    aliases = _visible_object_ref_aliases(
+        [
+            MaterializedFragment.build(
+                kind="knowledge_object",
+                source_ref="vulnerability-id",
+                source_revision="1",
+                trust_class=FragmentTrustClass.EVIDENCE_REFERENCE,
+                cache_class=FragmentCacheClass.STATE_DYNAMIC,
+                content={
+                    "object_id": "vulnerability-id",
+                    "canonical_key": "cve:CVE-2026-86439",
+                    "relations": [
+                        {
+                            "relation_type": "fixed-version",
+                            "target": {
+                                "object_id": "version-object-id",
+                                "canonical_key": "software-version:npm:knowns:0.30.0",
+                            },
+                        }
+                    ],
+                },
+            )
+        ]
+    )
+    assert aliases["software-version:npm:knowns:0.30.0"] == "object:version-object-id"
+    assert aliases["version-object-id"] == "object:version-object-id"
 
 
 class _CapabilityContext:
@@ -132,7 +162,7 @@ class _RoleModelProvider:
                     operations=[
                         StatePatchOperation(
                             proposition="Primary advisory establishes the fixed release.",
-                            target_ref=f"object:{self._object_id}",
+                            target_ref=self._object_id,
                             proposed_state=ProposedState.CONFIRMED,
                             evidence_refs=[self._evidence_id],
                             resolves_need_id=self._need_id,
@@ -405,8 +435,12 @@ async def test_model_planner_materializes_skill_capability_and_runtime_owned_act
         assert second.patch.base_case_revision == state.case_revision
         assert second.patch.producer == "InvestigationRole:model:planner-test@v1"
         assert second.patch.model_prompt_revision == provider.requests[1].metadata["assembly_hash"]
+        assert second.patch.operations[0].target_ref == "object:placeholder"
         assert "model-controlled" not in second.patch.patch_id
         second_request = provider.requests[1]
+        assert second_request.metadata["model_payload_persistence"] == (
+            "redacted_runtime_artifact"
+        )
         data = str(second_request.data)
         assert "percept:verify-fix-1" in data
         assert "observation:ephemeral-1" in data
@@ -459,6 +493,7 @@ async def test_model_planner_runs_full_investigation_role_loop_through_state_gat
             events = await list_task_events(session, run_id)
         assert state.case_revision == 4
         assert len(state.confirmed) == 1
+        assert state.confirmed[0].target_ref == f"object:{object_id}"
         assert state.confirmed[0].evidence_refs == [evidence_id]
         assert manifest.investigation_state_ref == f"case:{state.case_id}@4"
         assert manifest.context_revision == 4

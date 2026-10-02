@@ -211,7 +211,7 @@ class TaskRun(BaseModel):
     base_context_revision: int = Field(ge=1)
     execution_envelope_ref: str
     result_ref: str | None = None
-    stop_reason: str | None = None
+    stop_reason: str | None = Field(default=None, max_length=128)
 
 
 class RoleProfile(BaseModel):

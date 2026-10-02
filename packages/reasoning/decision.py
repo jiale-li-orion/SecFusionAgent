@@ -44,7 +44,7 @@ class DecisionDraft(BaseModel):
     unknowns: list[str] = Field(default_factory=list)
     assumptions: list[str] = Field(default_factory=list)
     answer_payload: dict[str, JsonValue] = Field(default_factory=dict)
-    stop_reason: str
+    stop_reason: str = Field(min_length=1, max_length=128)
     model_prompt_revision: str
 
     @model_validator(mode="after")
@@ -66,7 +66,7 @@ class DecisionResult(BaseModel):
     assumptions: list[str] = Field(default_factory=list)
     citations: list[DecisionCitation] = Field(default_factory=list)
     answer_payload: dict[str, JsonValue] = Field(default_factory=dict)
-    stop_reason: str
+    stop_reason: str = Field(min_length=1, max_length=128)
     model_prompt_revision: str
 
 

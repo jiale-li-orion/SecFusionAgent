@@ -14,8 +14,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from apps.api.dependencies import SessionDep
 from apps.api.dependencies import database_session as database_session
 from apps.application.commands.start_investigation import InvestigationTaskLauncher
-from apps.decision_runtime import DecisionRuntime
+from apps.decision_runtime import (
+    DecisionRuntime,
+    finish_case_decision_execution,
+    open_case_decision_execution,
+)
 from apps.model_runtime import create_recorded_model_provider
+from apps.runtime_artifacts import create_runtime_artifact_service
 from packages.evaluation.m1_m3 import SourceCoverageReport, source_coverage_report
 from packages.intelligence.knowledge.read import get_vulnerability_by_cve
 from packages.intelligence.storage.evidence_models import ObservationModel
@@ -38,9 +43,7 @@ from packages.reasoning.model import ModelDecisionPlanner
 from packages.shared.config import Settings, get_settings
 from packages.sources.inventory import load_source_inventory
 from packages.sources.storage.models import SourceModel
-from packages.task_runtime.contracts.models import (
-    TaskKind,
-)
+from packages.task_runtime.contracts.models import TaskKind, TaskRunStatus
 from packages.task_runtime.storage.models import TaskContractVersionModel, TaskRunModel
 from packages.task_runtime.storage.service import (
     get_task_context,
@@ -553,11 +556,23 @@ async def run_decision(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="case not found") from exc
     citation_sources = await _citation_sources(session, state_view)
     await session.rollback()
+    request_id = str(uuid4())
+    async with session.begin():
+        coordinate = await open_case_decision_execution(
+            session,
+            settings=settings,
+            state=state_view,
+            principal="system:workbench",
+            request_id=request_id,
+            surface="workbench-decision",
+        )
     async with httpx.AsyncClient(timeout=settings.model_timeout_seconds) as client:
+        runtime_artifacts = await create_runtime_artifact_service(settings)
         provider = create_recorded_model_provider(
             settings,
             request.app.state.session_factory,
             client,
+            artifact_service=runtime_artifacts,
         )
         if provider is None:
             raise HTTPException(
@@ -567,15 +582,53 @@ async def run_decision(
         proposal = await ModelDecisionPlanner(provider).plan(
             state_view,
             citation_sources=citation_sources,
+            runtime_metadata={
+                "request_owner_ref": f"task-run:{coordinate.task_run_id}",
+                "task_run_id": coordinate.task_run_id,
+                "execution_id": coordinate.execution_id,
+                "budget_ref": coordinate.budget_ref,
+                "case_id": case_id,
+                "model_wall_seconds": settings.model_timeout_seconds,
+                "model_payload_persistence": "redacted_runtime_artifact",
+            },
         )
-    async with session.begin():
-        outcome = await DecisionRuntime().commit_proposal(
-            session,
-            state=state_view,
-            proposal=proposal,
-            citation_sources=citation_sources,
-        )
+    try:
+        async with session.begin():
+            outcome = await DecisionRuntime().commit_proposal(
+                session,
+                state=state_view,
+                proposal=proposal,
+                citation_sources=citation_sources,
+            )
+            if outcome.decision is not None:
+                result_ref = outcome.decision.decision_id
+                stop_reason = outcome.decision.stop_reason
+            else:
+                assert outcome.continuation is not None
+                result_ref = f"evidence-need:{outcome.continuation.need.need_id}"
+                stop_reason = "continuation_requested"
+            await finish_case_decision_execution(
+                session,
+                settings=settings,
+                coordinate=coordinate,
+                result_ref=result_ref,
+                stop_reason=stop_reason,
+                surface="workbench-decision",
+            )
+    except Exception:
+        async with session.begin():
+            await finish_case_decision_execution(
+                session,
+                settings=settings,
+                coordinate=coordinate,
+                result_ref=f"task-run:{coordinate.task_run_id}",
+                stop_reason="decision_reasoning_failed",
+                status=TaskRunStatus.FAILED,
+                surface="workbench-decision",
+            )
+        raise
     return outcome.model_dump(mode="json")
+
 
 
 async def _citation_sources(session: AsyncSession, state_view) -> list[CitationSource]:

@@ -50,6 +50,9 @@ class Settings(BaseSettings):
     model_name: str | None = None
     embedding_model_name: str | None = None
     embedding_dimensions: int | None = None
+    model_max_tokens: int | None = None
+    model_temperature: float | None = 0.0
+    model_reasoning_effort: Literal["low", "high", "max"] | None = None
     model_timeout_seconds: float = 60.0
     model_max_attempts: int = 3
     model_retry_base_seconds: float = 0.5

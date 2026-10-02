@@ -331,6 +331,8 @@ async def transition_task_run(
     stop_reason: str | None = None,
     now: datetime | None = None,
 ) -> TaskRun:
+    if stop_reason is not None and len(stop_reason) > 128:
+        raise ValueError("task stop_reason exceeds storage contract (128 characters)")
     model = await session.scalar(
         select(TaskRunModel).where(TaskRunModel.run_id == run_id).with_for_update()
     )

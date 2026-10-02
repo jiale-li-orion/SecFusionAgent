@@ -13,6 +13,7 @@ from apps.model_runtime import RuntimePromptAssemblyRecorder, create_recorded_mo
 from packages.investigation.perception.runtime import PerceptionRuntime
 from packages.investigation.runtime.planner import ModelInvestigationPlanner
 from packages.investigation.runtime.role import InvestigationRoleRuntime
+from packages.runtime.artifacts import RuntimeArtifactService
 from packages.runtime.budget import BudgetGovernor
 from packages.runtime.execution.service import ExecutionRunService
 from packages.shared.config import Settings
@@ -30,12 +31,18 @@ def create_configured_investigation_runtime(
     *,
     budget_governor: BudgetGovernor | None = None,
     execution_service: ExecutionRunService | None = None,
+    artifact_service: RuntimeArtifactService | None = None,
 ) -> InvestigationRoleRuntime:
     if not settings.model_base_url or not settings.model_name:
         raise InvestigationRuntimeUnavailable(
             "InvestigationRole requires SECFUSION_MODEL_BASE_URL and SECFUSION_MODEL_NAME"
         )
-    provider = create_recorded_model_provider(settings, session_factory, client)
+    provider = create_recorded_model_provider(
+        settings,
+        session_factory,
+        client,
+        artifact_service=artifact_service,
+    )
     if provider is None:
         raise InvestigationRuntimeUnavailable("configured model provider is unavailable")
 

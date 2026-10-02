@@ -108,7 +108,7 @@ class EvidenceNeed(BaseModel):
     case_id: str
     derived_from_enrichment_requirement: str | None = None
     proposition_or_question: str
-    purpose: str
+    purpose: str = Field(min_length=1, max_length=256)
     target_objects: list[str] = Field(default_factory=list)
     evidence_contract: EvidenceNeedContract = Field(default_factory=EvidenceNeedContract)
     preferred_source_roles: list[str] = Field(default_factory=list)

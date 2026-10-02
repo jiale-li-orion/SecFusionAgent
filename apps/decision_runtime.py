@@ -1,8 +1,14 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, model_validator
+from datetime import UTC, datetime, timedelta
+from decimal import Decimal
+from typing import cast
+from uuid import uuid4
+
+from pydantic import BaseModel, JsonValue, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.task_admission import create_task_contract_service
 from packages.investigation.state.continuation import (
     ContinuationGate,
     ContinuationRequest,
@@ -17,7 +23,191 @@ from packages.reasoning.citation import CitationSource
 from packages.reasoning.decision import DecisionDraft, DecisionResult, DecisionService
 from packages.reasoning.model import ModelDecisionPlanner
 from packages.reasoning.storage import DecisionResultStore
-from packages.task_runtime.contracts.models import TaskIntent
+from packages.runtime.budget import BudgetGovernor, BudgetLimits
+from packages.runtime.execution.service import ExecutionRunService
+from packages.runtime.policy.loader import load_runtime_policy
+from packages.shared.config import Settings
+from packages.task_runtime.admission import TaskAdmissionRequest, TaskIntentParser
+from packages.task_runtime.contracts.execution import ExecutionEnvelope
+from packages.task_runtime.contracts.models import (
+    ContextManifest,
+    ExecutionProfile,
+    TaskIntent,
+    TaskKind,
+    TaskRunStatus,
+)
+from packages.task_runtime.contracts.roles import canonical_roles
+from packages.task_runtime.storage.service import create_task_run, transition_task_run
+
+
+class DecisionExecutionCoordinate(BaseModel):
+    task_run_id: str
+    execution_id: str
+    budget_ref: str
+
+
+async def open_case_decision_execution(
+    session: AsyncSession,
+    *,
+    settings: Settings,
+    state: InvestigationState,
+    principal: str,
+    request_id: str,
+    surface: str,
+    timeout_seconds: float | None = None,
+) -> DecisionExecutionCoordinate:
+    timeout = float(timeout_seconds or settings.model_timeout_seconds)
+    policy = load_runtime_policy(settings.runtime_policy_path)
+    intent = TaskIntentParser().parse(
+        raw_request=state.goal,
+        trigger_ref=f"{surface}:{request_id}",
+        candidate_task_kind=TaskKind.LOOKUP,
+        candidate_targets=list(state.targets),
+        requested_output={"result_type": "DecisionResult"},
+        requested_actions=["answer_question"],
+    )
+    admission = await create_task_contract_service(policy).admit(
+        TaskAdmissionRequest(
+            intent=intent,
+            principal=principal,
+            policy_revision=policy.policy_revision,
+            binding_context={
+                "question": state.goal,
+                "target_object_ids": cast(JsonValue, list(state.targets)),
+            },
+        )
+    )
+    run_id = str(uuid4())
+    execution_id = f"execution:{run_id}"
+    budget_ref = f"budget:{run_id}"
+    evidence_refs = sorted(
+        {
+            ref
+            for group in (
+                state.confirmed,
+                state.tentative,
+                state.conflicts,
+                state.unknowns,
+                state.hypotheses,
+            )
+            for item in group
+            for ref in item.evidence_refs
+            if ref.startswith("evidence:")
+        }
+    )
+    manifest = ContextManifest(
+        context_id=f"context:{run_id}",
+        context_revision=1,
+        task_contract_ref=(
+            f"{admission.contract.task_contract_id}@{admission.contract.contract_revision}"
+        ),
+        role_ref="DecisionRole@1",
+        case_ref=state.case_id,
+        knowledge_revision=state.last_world_revision,
+        investigation_state_ref=f"case:{state.case_id}@{state.case_revision}",
+        evidence_refs=evidence_refs,
+        object_refs=list(state.targets),
+        policy_context_ref=f"policy-context:{policy.policy_revision}",
+        capability_envelope_ref="capability:case-decision:local-read-v1",
+        budget_ref=budget_ref,
+    )
+    await create_task_run(
+        session,
+        contract=admission.contract,
+        manifest=manifest,
+        role=canonical_roles()["DecisionRole"],
+        execution_envelope_ref=execution_id,
+        stream_name=settings.task_event_stream_name,
+        case_id=state.case_id,
+        run_id=run_id,
+        producer=surface,
+    )
+    await BudgetGovernor().create_account(
+        session,
+        account_id=budget_ref,
+        task_run_id=run_id,
+        limits=BudgetLimits(
+            quantities={
+                "wall_seconds": Decimal(str(timeout)),
+                "agent_turns": Decimal(1),
+                "tool_calls": Decimal(0),
+            }
+        ),
+    )
+    await ExecutionRunService().create(
+        session,
+        ExecutionEnvelope(
+            execution_id=execution_id,
+            task_contract_id=admission.contract.task_contract_id,
+            task_run_id=run_id,
+            case_id=state.case_id,
+            role_revision="DecisionRole@1",
+            context_manifest_revision=1,
+            execution_profile=ExecutionProfile.DIRECT,
+            capability_scope=[],
+            deadline_at=datetime.now(UTC) + timedelta(seconds=timeout),
+            budget_ref=budget_ref,
+            policy_revision=policy.policy_revision,
+            identity_scope=["public"],
+            network_policy="local-only",
+            side_effect_policy="read-only",
+            sandbox_profile_revision="none@1",
+            trace_context={"request_id": request_id, "surface": surface},
+        ),
+    )
+    await transition_task_run(
+        session,
+        run_id=run_id,
+        target=TaskRunStatus.QUEUED,
+        payload_ref=f"queue:{surface}",
+        idempotency_key=f"{surface}-queued:{run_id}",
+        stream_name=settings.task_event_stream_name,
+        producer=surface,
+    )
+    await transition_task_run(
+        session,
+        run_id=run_id,
+        target=TaskRunStatus.RUNNING,
+        payload_ref="role:DecisionRole@1",
+        idempotency_key=f"{surface}-running:{run_id}",
+        stream_name=settings.task_event_stream_name,
+        producer=surface,
+    )
+    await ExecutionRunService().start(session, execution_id)
+    return DecisionExecutionCoordinate(
+        task_run_id=run_id,
+        execution_id=execution_id,
+        budget_ref=budget_ref,
+    )
+
+
+async def finish_case_decision_execution(
+    session: AsyncSession,
+    *,
+    settings: Settings,
+    coordinate: DecisionExecutionCoordinate,
+    result_ref: str,
+    stop_reason: str,
+    status: TaskRunStatus = TaskRunStatus.COMPLETED,
+    surface: str,
+) -> None:
+    await ExecutionRunService().finish(
+        session,
+        coordinate.execution_id,
+        status=("completed" if status is TaskRunStatus.COMPLETED else "failed"),
+        stop_reason=stop_reason,
+    )
+    await transition_task_run(
+        session,
+        run_id=coordinate.task_run_id,
+        target=status,
+        payload_ref=result_ref,
+        idempotency_key=f"{surface}-{status.value}:{coordinate.task_run_id}",
+        stream_name=settings.task_event_stream_name,
+        producer=surface,
+        result_ref=result_ref if status is TaskRunStatus.COMPLETED else None,
+        stop_reason=stop_reason,
+    )
 
 
 class ContinuationIntentEnvelope(BaseModel):

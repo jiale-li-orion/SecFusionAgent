@@ -12,6 +12,7 @@ from packages.runtime.model import (
     PromptAssemblyRecordService,
     PromptFragmentRecord,
 )
+from packages.runtime.model.storage import PromptAssemblyRecordModel
 from packages.runtime.storage.models import ExecutionRunModel
 from packages.shared.db import Base
 from packages.task_runtime.contracts.models import ContextManifest, TaskKind
@@ -19,6 +20,7 @@ from packages.task_runtime.contracts.roles import canonical_roles
 from packages.task_runtime.storage.service import create_task_run
 
 NOW = datetime(2026, 9, 27, 14, 0, tzinfo=UTC)
+TASK_CONTRACT_ID = "task-contract:69b747733b131324a5aed01122daf843"
 
 
 async def _database():
@@ -35,7 +37,7 @@ def _record() -> PromptAssemblyRecord:
         assembly_hash="a" * 64,
         execution_id="execution:prompt-test",
         task_run_id="run-prompt-test",
-        task_contract_id="contract-prompt-test",
+        task_contract_id=TASK_CONTRACT_ID,
         context_manifest_ref="context:prompt-test",
         context_manifest_revision=2,
         role_revision="InvestigationRole@1",
@@ -74,7 +76,7 @@ async def test_prompt_assembly_record_is_idempotent_and_metadata_only() -> None:
     try:
         async with factory() as session, session.begin():
             contract = build_investigation_contract(
-                task_contract_id="contract-prompt-test",
+                task_contract_id=TASK_CONTRACT_ID,
                 principal="user:test",
                 task_kind=TaskKind.VERIFY_VERSION_FIX,
                 case_id="case-prompt-test",
@@ -85,7 +87,7 @@ async def test_prompt_assembly_record_is_idempotent_and_metadata_only() -> None:
             manifest = ContextManifest(
                 context_id="context:prompt-test",
                 context_revision=2,
-                task_contract_ref="contract-prompt-test@1",
+                task_contract_ref=f"{TASK_CONTRACT_ID}@1",
                 role_ref="InvestigationRole@1",
                 case_ref="case-prompt-test",
                 knowledge_revision=42,
@@ -125,5 +127,28 @@ async def test_prompt_assembly_record_is_idempotent_and_metadata_only() -> None:
             assert second == first
             assert first.fragment_manifest[0].content_hash == "c" * 64
             assert "content" not in first.fragment_manifest[0].model_dump()
+            bound = await service.bind_request_artifact(
+                session,
+                assembly_id=first.assembly_id,
+                request_artifact_ref="artifact:request-1",
+            )
+            assert bound.request_artifact_ref == "artifact:request-1"
+            replay = await service.bind_request_artifact(
+                session,
+                assembly_id=first.assembly_id,
+                request_artifact_ref="artifact:request-1",
+            )
+            assert replay.request_artifact_ref == "artifact:request-1"
+            with pytest.raises(ValueError, match="binding changed"):
+                await service.bind_request_artifact(
+                    session,
+                    assembly_id=first.assembly_id,
+                    request_artifact_ref="artifact:request-2",
+                )
     finally:
         await engine.dispose()
+
+
+def test_prompt_assembly_task_contract_identity_matches_task_runtime_width() -> None:
+    column_type = PromptAssemblyRecordModel.__table__.c.task_contract_id.type
+    assert getattr(column_type, "length", None) == 128

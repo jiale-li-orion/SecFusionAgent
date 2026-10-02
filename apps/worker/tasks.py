@@ -7,6 +7,7 @@ from sqlalchemy import select
 from apps.enrichment_runtime import create_configured_enrichment_runtime
 from apps.investigation_runtime import create_configured_investigation_runtime
 from apps.model_runtime import record_model_provider
+from apps.runtime_artifacts import create_runtime_artifact_service
 from apps.task_admission import create_task_contract_service
 from apps.watch_runtime import RuntimeWatchWakeAdmission
 from apps.worker.celery_app import celery_app
@@ -71,59 +72,58 @@ def run_investigation(run_id: str) -> str:
 
 async def _run_investigation(run_id: str) -> str:
     settings = get_settings()
-    if not settings.model_base_url or not settings.model_name:
-        raise RuntimeError("InvestigationRole model provider is not configured")
     engine = create_engine(settings.database_url)
     factory = create_session_factory(engine)
     execution_service = ExecutionRunService()
     try:
-        async with httpx.AsyncClient(timeout=settings.model_timeout_seconds) as client:
-            runtime = create_configured_investigation_runtime(
-                settings,
-                factory,
-                client,
-                execution_service=execution_service,
-            )
-
-            async def execute_role(claimed_run_id: str) -> object:
+        async def execute_role(claimed_run_id: str) -> object:
+            async with factory() as session, session.begin():
+                claimed = await get_task_run(session, claimed_run_id)
+                await execution_service.start(session, claimed.execution_envelope_ref)
+            try:
+                async with httpx.AsyncClient(timeout=settings.model_timeout_seconds) as client:
+                    runtime_artifacts = await create_runtime_artifact_service(settings)
+                    runtime = create_configured_investigation_runtime(
+                        settings,
+                        factory,
+                        client,
+                        execution_service=execution_service,
+                        artifact_service=runtime_artifacts,
+                    )
+                    outcome = await runtime.run(claimed_run_id)
+            except Exception as exc:
                 async with factory() as session, session.begin():
                     claimed = await get_task_run(session, claimed_run_id)
-                    await execution_service.start(session, claimed.execution_envelope_ref)
-                try:
-                    outcome = await runtime.run(claimed_run_id)
-                except Exception as exc:
-                    async with factory() as session, session.begin():
-                        claimed = await get_task_run(session, claimed_run_id)
-                        await execution_service.finish(
-                            session,
-                            claimed.execution_envelope_ref,
-                            status="failed",
-                            stop_reason=f"investigation_runtime_error:{type(exc).__name__}",
-                        )
-                    raise
-                if outcome.run_status in {
-                    TaskRunStatus.COMPLETED,
-                    TaskRunStatus.FAILED,
-                    TaskRunStatus.CANCELLED,
-                    TaskRunStatus.TIMED_OUT,
-                    TaskRunStatus.BLOCKED,
-                }:
-                    async with factory() as session, session.begin():
-                        claimed = await get_task_run(session, claimed_run_id)
-                        await execution_service.finish(
-                            session,
-                            claimed.execution_envelope_ref,
-                            status=outcome.run_status.value,
-                            stop_reason=outcome.result.stop_reason,
-                        )
-                return outcome
+                    await execution_service.finish(
+                        session,
+                        claimed.execution_envelope_ref,
+                        status="failed",
+                        stop_reason=f"investigation_runtime_error:{type(exc).__name__}",
+                    )
+                raise
+            if outcome.run_status in {
+                TaskRunStatus.COMPLETED,
+                TaskRunStatus.FAILED,
+                TaskRunStatus.CANCELLED,
+                TaskRunStatus.TIMED_OUT,
+                TaskRunStatus.BLOCKED,
+            }:
+                async with factory() as session, session.begin():
+                    claimed = await get_task_run(session, claimed_run_id)
+                    await execution_service.finish(
+                        session,
+                        claimed.execution_envelope_ref,
+                        status=outcome.run_status.value,
+                        stop_reason=outcome.result.stop_reason,
+                    )
+            return outcome
 
-            result = await QueuedRoleExecutor(
-                factory,
-                {"InvestigationRole": execute_role},
-                stream_name=settings.task_event_stream_name,
-            ).execute(run_id)
-            return result.final_status.value
+        result = await QueuedRoleExecutor(
+            factory,
+            {"InvestigationRole": execute_role},
+            stream_name=settings.task_event_stream_name,
+        ).execute(run_id)
+        return result.final_status.value
     finally:
         await engine.dispose()
 

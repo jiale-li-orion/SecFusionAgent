@@ -44,3 +44,10 @@ Shared behavior is exercised by architecture tests and real infrastructure integ
 uv run pytest tests/test_architecture_dependencies.py tests/test_runtime_model_registry.py -q
 make integration-core
 ```
+
+The core integration suite may run while the unattended scheduler is alive. Outbox cases therefore
+own explicit `event_ids` and place their synthetic events at a deterministic future `available_at`,
+then advance only the test dispatch clock. This prevents the production scheduler from consuming a
+test event between fail-once/retry assertions and prevents integration dispatch from draining
+unrelated production outbox rows. Integration isolation follows the same scoped-ID rule as formal
+fault/recovery benchmarks.

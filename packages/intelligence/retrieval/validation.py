@@ -64,14 +64,19 @@ async def evidence_dependencies(
 ) -> list[EvidenceDependency]:
     if not evidence_refs:
         return []
+    requested_by_id: dict[str, str] = {}
+    for ref in evidence_refs:
+        requested_by_id.setdefault(_evidence_link_id(ref), ref)
     rows = list(
         await session.scalars(
-            select(EvidenceLinkModel).where(EvidenceLinkModel.evidence_link_id.in_(evidence_refs))
+            select(EvidenceLinkModel).where(
+                EvidenceLinkModel.evidence_link_id.in_(requested_by_id)
+            )
         )
     )
     return [
         EvidenceDependency(
-            evidence_ref=row.evidence_link_id,
+            evidence_ref=requested_by_id.get(row.evidence_link_id, row.evidence_link_id),
             target_kind=row.target_kind,
             target_id=row.target_id,
         )
@@ -104,6 +109,7 @@ async def evidence_support_summary(
 ) -> EvidenceSupportSummary:
     if not evidence_refs:
         return EvidenceSupportSummary()
+    evidence_link_ids = {_evidence_link_id(ref) for ref in evidence_refs}
     rows = (
         await session.execute(
             select(EvidenceLinkModel, ObservationModel, SourceModel)
@@ -112,10 +118,11 @@ async def evidence_support_summary(
                 ObservationModel.observation_id == EvidenceLinkModel.observation_id,
             )
             .join(SourceModel, SourceModel.source_id == ObservationModel.source_id)
-            .where(EvidenceLinkModel.evidence_link_id.in_(evidence_refs))
+            .where(EvidenceLinkModel.evidence_link_id.in_(evidence_link_ids))
         )
     ).all()
-    found = sorted({link.evidence_link_id for link, _, _ in rows})
+    found_ids = {link.evidence_link_id for link, _, _ in rows}
+    found = sorted({ref for ref in evidence_refs if _evidence_link_id(ref) in found_ids})
     roles = sorted({source.source_role for _, _, source in rows})
     independence = sorted(
         {
@@ -148,3 +155,8 @@ async def evidence_support_summary(
         independent_source_keys=independence,
         supported_object_ids=sorted(supported_object_ids),
     )
+
+
+def _evidence_link_id(evidence_ref: str) -> str:
+    prefix = "evidence:"
+    return evidence_ref.removeprefix(prefix) if evidence_ref.startswith(prefix) else evidence_ref

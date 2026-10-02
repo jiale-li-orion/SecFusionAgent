@@ -26,19 +26,19 @@ class FinalDecisionProposal(BaseModel):
     unknowns: list[str] = Field(default_factory=list)
     assumptions: list[str] = Field(default_factory=list)
     answer_payload: dict[str, JsonValue] = Field(default_factory=dict)
-    stop_reason: str
+    stop_reason: str = Field(min_length=1, max_length=128)
 
 
 class ContinuationProposal(BaseModel):
     kind: Literal[DecisionModelActionKind.CONTINUE] = DecisionModelActionKind.CONTINUE
     proposition_or_question: str
-    purpose: str
+    purpose: str = Field(min_length=1, max_length=128)
     target_objects: list[str] = Field(default_factory=list)
     evidence_contract: EvidenceNeedContract = Field(default_factory=EvidenceNeedContract)
     preferred_source_roles: list[str] = Field(default_factory=list)
     freshness_requirement: dict[str, JsonValue] = Field(default_factory=dict)
     priority: int = Field(default=50, ge=0, le=100)
-    reason: str
+    reason: str = Field(min_length=1)
 
 
 DecisionModelAction = Annotated[
@@ -52,7 +52,7 @@ class DecisionPlannerResponse(BaseModel):
 
 
 class ModelDecisionPlanner:
-    PROMPT_REVISION = "decision-model-v1"
+    PROMPT_REVISION = "decision-model-v2"
 
     def __init__(self, provider: ModelProvider) -> None:
         self._provider = provider
@@ -83,6 +83,10 @@ class ModelDecisionPlanner:
                 "Facts may cite only evidence_refs already present in confirmed state. "
                 "For a fact conclusion, copy the statement exactly from one confirmed "
                 "InvestigationState proposition and cite evidence_refs from that same item. "
+                "Return the minimal sufficient answer to the user's question. Do not add related "
+                "facts the user did not ask for, and do not restate an already-supported fact as "
+                "a second inference merely to explain it. answer_payload should contain only the "
+                "fields needed for the requested answer. "
                 "If you request continuation for a targetless retrieval question, select the "
                 "relevant durable target_objects only from InvestigationState.targets; do not "
                 "use chunk IDs, URLs, or invented object IDs as targets. "
@@ -92,7 +96,11 @@ class ModelDecisionPlanner:
                 "by the current InvestigationState. "
                 "Inferences must preserve "
                 "their support. If the current state cannot support a defensible answer, return a "
-                "continuation proposal describing the evidence gap instead of guessing."
+                "continuation proposal describing the evidence gap instead of guessing. "
+                "For a final answer, stop_reason is a short machine-readable lifecycle code, "
+                "prefer snake_case such as evidence_sufficient; do not put explanation text there. "
+                "For continuation, purpose is likewise a short machine-readable purpose code, "
+                "prefer snake_case such as verify_cvss_score; put the explanation in reason."
             ),
             data={
                 "investigation_state": cast(JsonValue, state.model_dump(mode="json")),

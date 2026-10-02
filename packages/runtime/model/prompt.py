@@ -19,10 +19,16 @@ class PromptAssemblyRecordService:
         existing = await session.get(PromptAssemblyRecordModel, record.assembly_id)
         if existing is not None:
             current = _view(existing)
-            if current.model_dump(mode="json", exclude={"created_at"}) != record.model_dump(
-                mode="json", exclude={"created_at"}
-            ):
+            identity_exclude = {"created_at", "request_artifact_ref"}
+            if current.model_dump(
+                mode="json", exclude=identity_exclude
+            ) != record.model_dump(mode="json", exclude=identity_exclude):
                 raise ValueError("prompt assembly replay identity changed")
+            if (
+                record.request_artifact_ref is not None
+                and current.request_artifact_ref not in {None, record.request_artifact_ref}
+            ):
+                raise ValueError("prompt assembly request artifact binding changed")
             return current
         model = PromptAssemblyRecordModel(
             assembly_id=record.assembly_id,
@@ -52,6 +58,24 @@ class PromptAssemblyRecordService:
         )
         session.add(model)
         await session.flush()
+        return _view(model)
+
+    async def bind_request_artifact(
+        self,
+        session: AsyncSession,
+        *,
+        assembly_id: str,
+        request_artifact_ref: str,
+    ) -> PromptAssemblyRecord:
+        model = await session.get(PromptAssemblyRecordModel, assembly_id)
+        if model is None:
+            raise LookupError(f"prompt assembly record not found: {assembly_id}")
+        if model.request_artifact_ref is None:
+            model.request_artifact_ref = request_artifact_ref
+            await session.flush()
+            return _view(model)
+        if model.request_artifact_ref != request_artifact_ref:
+            raise ValueError("prompt assembly request artifact binding changed")
         return _view(model)
 
     async def get(self, session: AsyncSession, assembly_id: str) -> PromptAssemblyRecord:

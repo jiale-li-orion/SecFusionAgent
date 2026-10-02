@@ -68,6 +68,8 @@ class ExecutionRunService:
     ) -> None:
         if status not in {"completed", "failed", "cancelled", "timed_out", "blocked"}:
             raise ValueError("invalid terminal execution status")
+        if len(stop_reason) > 128:
+            raise ValueError("execution stop_reason exceeds storage contract (128 characters)")
         model = await self._lock(session, execution_id)
         if model.status == status and model.finished_at is not None:
             return

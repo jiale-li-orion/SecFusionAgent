@@ -108,6 +108,9 @@ class OpenAICompatibleProvider:
         embedding_model: str | None = None,
         api_key: str | None = None,
         embedding_dimensions: int | None = None,
+        max_tokens: int | None = None,
+        temperature: float | None = 0.0,
+        reasoning_effort: str | None = None,
     ) -> None:
         self._client = client
         self._base_url = base_url.rstrip("/")
@@ -115,6 +118,9 @@ class OpenAICompatibleProvider:
         self._embedding_model = embedding_model
         self._api_key = api_key
         self._embedding_dimensions = embedding_dimensions
+        self._max_tokens = max_tokens
+        self._temperature = temperature
+        self._reasoning_effort = reasoning_effort
         self.name = chat_model or "openai-compatible"
         self.version = self.ADAPTER_VERSION
 
@@ -146,7 +152,6 @@ class OpenAICompatibleProvider:
                     ),
                 },
             ],
-            "temperature": 0,
             "response_format": {
                 "type": "json_schema",
                 "json_schema": {
@@ -156,11 +161,31 @@ class OpenAICompatibleProvider:
                 },
             },
         }
+        if self._temperature is not None:
+            payload["temperature"] = self._temperature
+        if self._max_tokens is not None:
+            payload["max_tokens"] = self._max_tokens
+        if self._reasoning_effort is not None:
+            payload["reasoning_effort"] = self._reasoning_effort
         response_format_fallback = False
         response = await self._post("/chat/completions", payload)
         if response.status_code in {400, 422}:
             response_format_fallback = True
             payload["response_format"] = {"type": "json_object"}
+            fallback_schema = json.dumps(
+                schema,
+                ensure_ascii=False,
+                separators=(",", ":"),
+            )
+            system_content = payload["messages"][0]["content"]
+            if not isinstance(system_content, str):
+                raise RuntimeError("structured model system instruction must be text")
+            payload["messages"][0]["content"] = (
+                f"{system_content}\n\n"
+                "The provider does not support strict json_schema response format for this "
+                "request. Return only one JSON object that conforms exactly to this JSON "
+                f"Schema: {fallback_schema}"
+            )
             response = await self._post("/chat/completions", payload)
         data = _response_json(response)
         try:
@@ -198,6 +223,9 @@ class OpenAICompatibleProvider:
             "response_format": "json_object" if response_format_fallback else "json_schema",
             "response_format_fallback": response_format_fallback,
             "http_status": response.status_code,
+            "max_tokens": self._max_tokens,
+            "temperature": self._temperature,
+            "reasoning_effort": self._reasoning_effort,
         }
         return ProviderModelResult(
             output=output,

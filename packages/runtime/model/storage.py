@@ -91,7 +91,7 @@ class PromptAssemblyRecordModel(Base):
     task_run_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("task_runs.run_id", ondelete="CASCADE"), index=True
     )
-    task_contract_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    task_contract_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     context_manifest_ref: Mapped[str] = mapped_column(String(256), nullable=False, index=True)
     context_manifest_revision: Mapped[int] = mapped_column(Integer, nullable=False)
     role_revision: Mapped[str] = mapped_column(String(128), nullable=False, index=True)

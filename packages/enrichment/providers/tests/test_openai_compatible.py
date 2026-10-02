@@ -27,6 +27,7 @@ async def test_structured_generation_uses_schema_and_validates_response() -> Non
         requests.append(payload)
         assert request.headers["authorization"] == "Bearer secret"
         assert payload["response_format"]["type"] == "json_schema"
+        assert payload["temperature"] == 0.0
         return httpx.Response(
             200,
             json={"choices": [{"message": {"content": '{"value":"ok"}'}}]},
@@ -49,6 +50,35 @@ async def test_structured_generation_uses_schema_and_validates_response() -> Non
 
 
 @pytest.mark.asyncio
+async def test_structured_generation_forwards_explicit_generation_controls() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        assert payload["max_tokens"] == 8192
+        assert payload["temperature"] == 0.0
+        assert payload["reasoning_effort"] == "high"
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": '{"value":"ok"}'}}]},
+            request=request,
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        provider = OpenAICompatibleProvider(
+            client,
+            base_url="https://provider.example/v1",
+            chat_model="model-a",
+            max_tokens=8192,
+            temperature=0.0,
+            reasoning_effort="high",
+        )
+        result = await provider.generate_structured(
+            StructuredModelRequest(system_instruction="extract", data={"text": "hello"}),
+            Result,
+        )
+    assert result.value == "ok"
+
+
+@pytest.mark.asyncio
 async def test_structured_generation_falls_back_to_json_object() -> None:
     attempts = 0
 
@@ -60,6 +90,9 @@ async def test_structured_generation_falls_back_to_json_object() -> None:
             assert payload["response_format"]["type"] == "json_schema"
             return httpx.Response(400, json={"error": "unsupported"}, request=request)
         assert payload["response_format"] == {"type": "json_object"}
+        system_instruction = payload["messages"][0]["content"]
+        assert "conforms exactly to this JSON Schema" in system_instruction
+        assert '"value"' in system_instruction
         return httpx.Response(
             200,
             json={"choices": [{"message": {"content": '{"value":"fallback"}'}}]},

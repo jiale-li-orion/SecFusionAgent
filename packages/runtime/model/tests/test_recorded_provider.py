@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import json
+from datetime import UTC, datetime
 
 import pytest
 from pydantic import BaseModel
@@ -8,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from apps.runtime_models import register_runtime_models
+from packages.runtime.artifacts import MemoryRuntimeBlobStore, RuntimeArtifactService
 from packages.runtime.model import (
     ModelAttemptStatus,
     ModelRetryPolicy,
@@ -15,6 +18,7 @@ from packages.runtime.model import (
     RecordedModelProvider,
 )
 from packages.runtime.model.storage import ModelAttemptModel, ModelRequestModel
+from packages.runtime.storage.models import ExecutionRunModel
 from packages.shared.db import Base
 from packages.shared.model_provider import (
     ModelProviderAuthError,
@@ -161,6 +165,65 @@ async def test_recorded_provider_persists_request_attempt_usage_and_metadata() -
             assert attempt.response_metadata_json["response_format_fallback"] is True
             assert attempt.finished_at is not None
             assert attempt.latency_ms is not None
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_recorded_provider_redacts_sensitive_request_and_public_metadata_artifact() -> None:
+    engine, factory = await _database()
+    sentinel = "test-secret-sentinel-do-not-persist"
+    execution_id = "execution:model-redaction-test"
+    blob_store = MemoryRuntimeBlobStore()
+    artifacts = RuntimeArtifactService(blob_store)
+    try:
+        async with factory() as session, session.begin():
+            session.add(
+                ExecutionRunModel(
+                    execution_id=execution_id,
+                    parent_execution_id=None,
+                    task_run_id="model-redaction-run",
+                    envelope_json={},
+                    status="created",
+                    stop_reason=None,
+                    created_at=datetime.now(UTC),
+                    started_at=None,
+                    finished_at=None,
+                )
+            )
+        request = StructuredModelRequest(
+            system_instruction="controlled redaction test",
+            data={"api_key": sentinel, "nested": {"password": sentinel}},
+            metadata={
+                "model_purpose": "security.secret_redaction",
+                "prompt_revision": "security-redaction-test-v1",
+                "request_owner_ref": "security-case:redaction-test",
+                "execution_id": execution_id,
+                "model_payload_persistence": "redacted_runtime_artifact",
+                "credential_hint": sentinel,
+                "safe_metadata": "visible",
+            },
+        )
+        provider = RecordedModelProvider(
+            factory,
+            MetadataProvider(),
+            artifact_service=artifacts,
+        )
+        await provider.generate_structured(request, Result)
+
+        async with factory() as session:
+            persisted = await session.scalar(select(ModelRequestModel))
+            assert persisted is not None
+            assert persisted.request_artifact_ref is not None
+            metadata_text = json.dumps(persisted.metadata_json, sort_keys=True)
+            artifact_text = (
+                await artifacts.read(session, persisted.request_artifact_ref)
+            ).decode("utf-8")
+            assert sentinel not in metadata_text
+            assert sentinel not in artifact_text
+            assert "[REDACTED]" in metadata_text
+            assert "[REDACTED]" in artifact_text
+            assert persisted.metadata_json["safe_metadata"] == "visible"
     finally:
         await engine.dispose()
 
