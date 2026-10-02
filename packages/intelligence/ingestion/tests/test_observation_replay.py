@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from hashlib import sha256
 from pathlib import Path
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from packages.intelligence.ingestion.evidence import EvidenceIngress
 from packages.intelligence.ingestion.replay import ObservationEnvelopeLoader
-from packages.intelligence.storage.artifacts import MemoryArtifactStore
-from packages.intelligence.storage.evidence_models import ObservationModel
+from packages.intelligence.storage.artifacts import FilesystemArtifactStore, MemoryArtifactStore
+from packages.intelligence.storage.evidence_models import EvidenceArtifactModel, ObservationModel
 from packages.monitoring.storage.models import AcquisitionRunModel
 from packages.shared.db import Base
 from packages.sources.contracts import AcquisitionTrigger, IngestEnvelope
@@ -77,6 +79,80 @@ async def test_observation_replay_preserves_binary_and_request_metadata() -> Non
         assert replay.envelope.content_bytes() == envelope.content_bytes()
         assert replay.envelope.idempotency_key == envelope.idempotency_key
         assert replay.envelope.trigger is AcquisitionTrigger.INVESTIGATION
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_observation_replay_restores_legacy_s3_locator_via_filesystem_alias(
+    tmp_path: Path,
+) -> None:
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    store = FilesystemArtifactStore(tmp_path, bucket="secfusion-evidence")
+    await store.ensure_bucket()
+    run_id = "00000000-0000-0000-0000-000000000814"
+    body = b"legacy backend replay recovery"
+    content_hash = sha256(body).hexdigest()
+    legacy_uri = f"s3://secfusion-evidence/sha256/{content_hash[:2]}/{content_hash}"
+    try:
+        async with factory() as session, session.begin():
+            await sync_source_definitions(session, [SOURCE])
+            session.add(
+                AcquisitionRunModel(
+                    run_id=run_id,
+                    source_id=SOURCE.source_id,
+                    trigger="scheduled",
+                    parent_run_id=None,
+                    query_spec={},
+                    status="success",
+                    cursor_in={},
+                    cursor_out={},
+                    attempt=1,
+                    created_at=NOW,
+                    started_at=NOW,
+                    finished_at=NOW,
+                )
+            )
+
+        envelope = IngestEnvelope.for_binary_payload(
+            acquisition_run_id=run_id,
+            trigger=AcquisitionTrigger.SCHEDULED,
+            source_id=SOURCE.source_id,
+            external_object_id="legacy-backend-recovery",
+            body=body,
+            media_type="text/plain",
+            canonical_url="https://example.invalid/legacy-backend-recovery",
+            published_at=NOW,
+            updated_at=NOW,
+            external_revision="v1",
+            observed_at=NOW,
+        )
+        async with factory() as session, session.begin():
+            first = await EvidenceIngress(store, now=lambda: NOW).accept(session, SOURCE, envelope)
+            artifact = await session.scalar(
+                select(EvidenceArtifactModel).where(
+                    EvidenceArtifactModel.artifact_id == first.artifact_id
+                )
+            )
+            assert artifact is not None
+            artifact.storage_uri = legacy_uri
+
+        path = tmp_path / "secfusion-evidence" / "sha256" / content_hash[:2] / content_hash
+        path.unlink()
+        assert not await store.exists(legacy_uri)
+
+        async with factory() as session, session.begin():
+            replay = await EvidenceIngress(store, now=lambda: NOW).accept(session, SOURCE, envelope)
+            artifact = await session.get(EvidenceArtifactModel, first.artifact_id)
+            assert artifact is not None
+            assert artifact.storage_uri == legacy_uri
+
+        assert replay.replay is True
+        assert await store.exists(legacy_uri)
+        assert await store.get(legacy_uri) == body
     finally:
         await engine.dispose()
 

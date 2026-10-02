@@ -1,13 +1,16 @@
+x-app-build: &app-build
+  context: ..
+  dockerfile: deploy/Dockerfile
+  args:
+    RUNTIME_UID: ${SECFUSION_RUNTIME_UID:-1000}
+    RUNTIME_GID: ${SECFUSION_RUNTIME_GID:-1000}
+
 x-app-runtime: &app-runtime
-  build:
-    context: ..
-    dockerfile: deploy/Dockerfile
-    args:
-      RUNTIME_UID: ${SECFUSION_RUNTIME_UID:-1000}
-      RUNTIME_GID: ${SECFUSION_RUNTIME_GID:-1000}
+  build: *app-build
   image: secfusion-app:dev
   profiles: ["runtime"]
   restart: unless-stopped
+  entrypoint: ["/app/deploy/runtime-entrypoint.sh"]
   environment: &app-runtime-environment
     SECFUSION_ENVIRONMENT: dev
     SECFUSION_DATABASE_URL: postgresql+asyncpg://secfusion:secfusion@postgres:5432/secfusion
@@ -36,10 +39,27 @@ x-app-runtime: &app-runtime
       condition: service_started
     redis-task-bus:
       condition: service_started
+    artifact-store-init:
+      condition: service_completed_successfully
   volumes:
     - ../.local/secfusion-artifacts:/var/lib/secfusion/artifacts
 
 services:
+  artifact-store-init:
+    build: *app-build
+    image: secfusion-app:dev
+    profiles: ["runtime"]
+    restart: "no"
+    user: "0:0"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        mkdir -p /var/lib/secfusion/artifacts/secfusion-evidence/sha256 &&
+        chown -R ${SECFUSION_RUNTIME_UID:-1000}:${SECFUSION_RUNTIME_GID:-1000}
+        /var/lib/secfusion/artifacts
+    volumes:
+      - ../.local/secfusion-artifacts:/var/lib/secfusion/artifacts
+
   postgres:
     build:
       context: ..
@@ -115,6 +135,14 @@ services:
   scheduler:
     <<: *app-runtime
     command: ["python", "-m", "apps.worker.scheduler"]
+
+  task-event-dispatcher:
+    <<: *app-runtime
+    command: ["python", "-m", "apps.worker.task_event_dispatcher"]
+
+  task-event-scheduler:
+    <<: *app-runtime
+    command: ["python", "-m", "apps.worker.task_event_scheduler"]
 
   worker-collection:
     <<: *app-runtime

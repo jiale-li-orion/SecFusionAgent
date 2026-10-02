@@ -337,6 +337,7 @@ async def test_real_outbox_redis_celery_projection_roundtrip_and_retry() -> None
     factory = create_session_factory(engine)
     object_id = str(uuid4())
     event_id = str(uuid4())
+    dispatch_at = datetime(2099, 1, 1, tzinfo=UTC)
     revision_id: int | None = None
 
     async def fail_publish(topic: str, payload: dict[str, object]) -> None:
@@ -381,12 +382,19 @@ async def test_real_outbox_redis_celery_projection_roundtrip_and_retry() -> None
                     },
                     status="pending",
                     attempts=0,
-                    available_at=NOW,
+                    # Keep the integration event invisible to the concurrently running
+                    # production scheduler. This test owns dispatch explicitly below.
+                    available_at=dispatch_at,
                 )
             )
 
         async with factory() as session, session.begin():
-            delivered = await dispatch_pending_events(session, fail_publish, now=NOW)
+            delivered = await dispatch_pending_events(
+                session,
+                fail_publish,
+                now=dispatch_at,
+                event_ids={event_id},
+            )
             assert delivered == 0
         async with factory() as session:
             event = await session.get(OutboxEventModel, event_id)
@@ -404,7 +412,12 @@ async def test_real_outbox_redis_celery_projection_roundtrip_and_retry() -> None
             loglevel="WARNING",
         ):
             async with factory() as session, session.begin():
-                delivered = await dispatch_pending_events(session, celery_publish, now=NOW)
+                delivered = await dispatch_pending_events(
+                    session,
+                    celery_publish,
+                    now=dispatch_at,
+                    event_ids={event_id},
+                )
                 assert delivered == 1
 
             projection = None
@@ -454,6 +467,7 @@ async def test_outbox_duplicate_delivery_is_idempotent_after_publish_commit_gap(
     factory = create_session_factory(engine)
     object_id = str(uuid4())
     event_id = str(uuid4())
+    dispatch_at = datetime(2099, 1, 1, tzinfo=UTC)
     revision_id: int | None = None
 
     async def publish_then_lose_ack(topic: str, payload: dict[str, object]) -> None:
@@ -508,7 +522,8 @@ async def test_outbox_duplicate_delivery_is_idempotent_after_publish_commit_gap(
                     },
                     status="pending",
                     attempts=0,
-                    available_at=NOW,
+                    # Isolate the integration event from the long-running scheduler.
+                    available_at=dispatch_at,
                 )
             )
 
@@ -524,7 +539,8 @@ async def test_outbox_duplicate_delivery_is_idempotent_after_publish_commit_gap(
                 delivered = await dispatch_pending_events(
                     session,
                     publish_then_lose_ack,
-                    now=NOW,
+                    now=dispatch_at,
+                    event_ids={event_id},
                 )
                 assert delivered == 0
 
@@ -552,7 +568,12 @@ async def test_outbox_duplicate_delivery_is_idempotent_after_publish_commit_gap(
                 assert event.last_error == "RuntimeError: integration crash after broker publish"
 
             async with factory() as session, session.begin():
-                delivered = await dispatch_pending_events(session, publish_normally, now=NOW)
+                delivered = await dispatch_pending_events(
+                    session,
+                    publish_normally,
+                    now=dispatch_at,
+                    event_ids={event_id},
+                )
                 assert delivered == 1
 
             for _ in range(30):

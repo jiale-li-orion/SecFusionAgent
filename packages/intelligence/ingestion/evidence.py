@@ -135,10 +135,21 @@ class EvidenceIngress:
                 body=envelope.content_bytes(),
                 media_type=artifact.media_type,
             )
-            if restored.storage_uri != artifact.storage_uri:
-                raise RuntimeError(
-                    "artifact replay recovery changed persisted storage URI"
-                )
+            # A durable backend migration may preserve the persisted Evidence URI
+            # as a compatibility locator while returning a different canonical URI
+            # for new writes (for example legacy s3:// metadata resolved by the
+            # filesystem store as artifact://). Evidence identity must not be
+            # rewritten during replay. Accept the recovery only when the exact
+            # persisted locator becomes readable again after the content-addressed
+            # write; otherwise fail closed.
+            if (
+                restored.storage_uri != artifact.storage_uri
+                and not await self._artifact_store.exists(artifact.storage_uri)
+            ):
+                raise RuntimeError("artifact replay recovery changed persisted storage URI")
+            recovered_body = await self._artifact_store.get(artifact.storage_uri)
+            if sha256(recovered_body).hexdigest() != artifact.content_hash:
+                raise RuntimeError("artifact replay recovery restored mismatched bytes")
         return ObservationAck(
             observation_id=observation.observation_id,
             artifact_id=artifact.artifact_id,
