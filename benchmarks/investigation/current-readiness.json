@@ -1,18 +1,126 @@
 {
-  "generated_at": "2026-10-01T16:10:21.554235+00:00",
+  "generated_at": "2026-10-02T20:30:01.762457+00:00",
   "model_provider_status": "unconfigured",
   "launch_readiness": "blocked_model_provider_unconfigured",
   "max_prospective_freeze_lag_seconds": 300.0,
-  "case_count": 1,
+  "case_count": 13,
   "eligible_case_count": 0,
   "cases": [
+    {
+      "case_id": "4501c838-81e0-4776-afb4-4357dd7e39ba",
+      "case_status": "active",
+      "created_at": "2026-10-02T19:41:37.540999+00:00",
+      "final_decision_at": "2026-10-02T19:41:50.146714+00:00",
+      "eligible": false,
+      "freeze_lag_seconds": 2904.221458,
+      "rejection_reason": "freeze_lag_exceeded"
+    },
+    {
+      "case_id": "039ca0ad-f200-46c0-b9da-53189c79b7bf",
+      "case_status": "active",
+      "created_at": "2026-10-02T19:38:47.183891+00:00",
+      "final_decision_at": "2026-10-02T19:38:53.542714+00:00",
+      "eligible": false,
+      "freeze_lag_seconds": 3074.578566,
+      "rejection_reason": "freeze_lag_exceeded"
+    },
+    {
+      "case_id": "4b0eeb6b-b955-4e42-becc-1f00637c750b",
+      "case_status": "active",
+      "created_at": "2026-10-02T19:34:23.732732+00:00",
+      "final_decision_at": "2026-10-02T19:34:29.658279+00:00",
+      "eligible": false,
+      "freeze_lag_seconds": 3338.029725,
+      "rejection_reason": "freeze_lag_exceeded"
+    },
+    {
+      "case_id": "35cd6545-284b-4486-9f2c-02fe6ae1eb37",
+      "case_status": "active",
+      "created_at": "2026-10-02T19:28:45.530306+00:00",
+      "final_decision_at": "2026-10-02T19:28:51.487360+00:00",
+      "eligible": false,
+      "freeze_lag_seconds": 3676.232151,
+      "rejection_reason": "freeze_lag_exceeded"
+    },
+    {
+      "case_id": "a3c962ac-3df6-426b-aa06-5ff7e646443c",
+      "case_status": "active",
+      "created_at": "2026-10-02T19:24:44.948038+00:00",
+      "final_decision_at": "2026-10-02T19:24:52.608816+00:00",
+      "eligible": false,
+      "freeze_lag_seconds": 3916.814419,
+      "rejection_reason": "freeze_lag_exceeded"
+    },
+    {
+      "case_id": "2a5c9ade-479d-4904-b0f6-fcdbcb3763a2",
+      "case_status": "active",
+      "created_at": "2026-10-02T16:46:15.969771+00:00",
+      "final_decision_at": "2026-10-02T16:46:28.207087+00:00",
+      "eligible": false,
+      "freeze_lag_seconds": 13425.792686,
+      "rejection_reason": "freeze_lag_exceeded"
+    },
+    {
+      "case_id": "391e58e0-6c45-4709-ba01-52bb62d07cb2",
+      "case_status": "active",
+      "created_at": "2026-10-02T16:37:46.806545+00:00",
+      "final_decision_at": null,
+      "eligible": false,
+      "freeze_lag_seconds": 13934.955912,
+      "rejection_reason": "freeze_lag_exceeded"
+    },
+    {
+      "case_id": "eef7d853-4508-465b-a8da-aea1616e120b",
+      "case_status": "active",
+      "created_at": "2026-10-02T15:34:20.429541+00:00",
+      "final_decision_at": "2026-10-02T16:25:38.591868+00:00",
+      "eligible": false,
+      "freeze_lag_seconds": 17741.332916,
+      "rejection_reason": "freeze_lag_exceeded"
+    },
+    {
+      "case_id": "067e14e3-4b85-404a-9baa-c4ae4da59667",
+      "case_status": "active",
+      "created_at": "2026-10-02T13:20:38.093390+00:00",
+      "final_decision_at": "2026-10-02T13:36:19.504246+00:00",
+      "eligible": false,
+      "freeze_lag_seconds": 25763.669067,
+      "rejection_reason": "freeze_lag_exceeded"
+    },
+    {
+      "case_id": "f2570841-f54b-40b9-96d0-0a9e4344595f",
+      "case_status": "active",
+      "created_at": "2026-10-02T09:51:56.635250+00:00",
+      "final_decision_at": null,
+      "eligible": false,
+      "freeze_lag_seconds": 38285.127207,
+      "rejection_reason": "freeze_lag_exceeded"
+    },
+    {
+      "case_id": "5c3927bb-6a38-469b-be14-398da28628cf",
+      "case_status": "active",
+      "created_at": "2026-10-02T09:50:26.863490+00:00",
+      "final_decision_at": null,
+      "eligible": false,
+      "freeze_lag_seconds": 38374.898967,
+      "rejection_reason": "freeze_lag_exceeded"
+    },
+    {
+      "case_id": "d4dad3ae-1f86-4fd0-9bdb-a8ef201f5fc1",
+      "case_status": "active",
+      "created_at": "2026-10-02T09:48:07.519513+00:00",
+      "final_decision_at": null,
+      "eligible": false,
+      "freeze_lag_seconds": 38514.242944,
+      "rejection_reason": "freeze_lag_exceeded"
+    },
     {
       "case_id": "bbc06533-d4f5-4ce1-8729-c41b09817615",
       "case_status": "active",
       "created_at": "2026-09-27T13:20:15.603727+00:00",
       "final_decision_at": null,
       "eligible": false,
-      "freeze_lag_seconds": 355805.950508,
+      "freeze_lag_seconds": 457786.15873,
       "rejection_reason": "freeze_lag_exceeded"
     }
   ]

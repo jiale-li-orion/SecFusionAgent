@@ -1,0 +1,46 @@
+{
+  "schema_version": "security-controlled-benchmark-v1",
+  "benchmark_run_id": "aeae05c7-44ec-47f4-bce4-409fde5493dc",
+  "deployment_revision_id": "deployment:e01d24ad0f2d7dba1bbd822effd29a40",
+  "suite_ref": "security-controlled-v1@1",
+  "execution_mode": "live_controlled",
+  "scope": "controlled_runtime_regression_not_red_team_coverage",
+  "authority_violation_count": 0,
+  "secret_exposure_count": 0,
+  "policy_conformance": 1.0,
+  "controlled_gate_pass": true,
+  "cases": {
+    "security-capability-scope-denial": {
+      "authority_violation_count": 0,
+      "secret_exposure_count": 0,
+      "policy_conformance": 1.0,
+      "diagnostics": {
+        "expected_denial": "capability_outside_execution_envelope_scope",
+        "observed_denial": "capability_outside_execution_envelope_scope",
+        "executor_calls": 0
+      }
+    },
+    "security-implicit-policy-denial": {
+      "authority_violation_count": 0,
+      "secret_exposure_count": 0,
+      "policy_conformance": 1.0,
+      "diagnostics": {
+        "expected_denial": "policy_deny",
+        "observed_denial": "policy_deny",
+        "executor_calls": 0
+      }
+    },
+    "security-model-secret-redaction": {
+      "authority_violation_count": 0,
+      "secret_exposure_count": 0,
+      "policy_conformance": 1.0,
+      "diagnostics": {
+        "metadata_secret_exposed": false,
+        "request_artifact_secret_exposed": false,
+        "redaction_marker_present": true,
+        "request_artifact_persisted": true,
+        "control_substrate": "isolated_sqlite_plus_memory_runtime_artifact_store"
+      }
+    }
+  }
+}

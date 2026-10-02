@@ -12,12 +12,12 @@
 | 来源类别覆盖 | **8/8**（目标 ≥7） |
 | M1 监测时效 | **p50 357.709s (5.96min) / p95 7241.893s (2.01h) / ≤6h 100.000%（12/12）** |
 | M3 富化 Precision / Recall | **99.659% / 99.659%（TP=292, FP=1, FN=1）** |
-| Controlled fault recovery | **100.000%（2/2）** |
+| Controlled fault recovery | **100.000%（3/3）** |
 | M6 QA | **待接入真实模型 provider 后正式测分** |
 
 **来源运行口径：101 个 catalog entries → 66 个 executable sources → 39 个 scheduled monitors；8 类产品覆盖，其中 7/8 类存在主动定时监测，`assets` 保持按需查询。**
-**持续监测记账起点：`2026-10-02T04:19:42+08:00`；当前 scheduled source 健康状态 32 healthy / 5 degraded / 2 blocked；epoch 内 Evidence 物理完整性 100.000%。**
-**最近 1h 运行面：Run OK 56.250%；Provider-boundary fail 43.750%；Runtime-owned fail 0.000%；Queue p95 12.479s；Execution p95 30.142s。**
+**持续监测记账起点：`2026-10-02T04:19:42+08:00`；当前 scheduled source 健康状态 29 healthy / 8 degraded / 2 blocked；epoch 内 Evidence 物理完整性 100.000%。**
+**最近 1h 运行面：Run OK 82.353%；Provider-boundary fail 8.824%；Runtime-owned fail 8.824%；Queue p95 10.931s；Execution p95 9.436s。**
 
 上表全部数字由 benchmark/source config 自动导出，不手抄；详细 run/deployment/provenance 在下方正式评测区。
 <!-- END GENERATED SCOREBOARD -->
@@ -48,7 +48,7 @@ SecFusionAgent 面向 AI 安全漏洞、研究进展与安全事件构建持续�
 
 M1 固定窗口 `2026-10-01T10:00:00+00:00` → `2026-10-01T14:02:00+00:00`：12/12 个样本可评，p50 357.709s (5.96min)，p95 7241.893s (2.01h)，≤6h 100.000%；source category=8。
 
-M3 当前选定 run 聚合：TP=292，FP=1，FN=1，precision=99.659%，recall=99.659%。工程故障恢复 `engineering-fault-recovery@2` 为 100.000%（2 cases）。
+M3 当前选定 run 聚合：TP=292，FP=1，FN=1，precision=99.659%，recall=99.659%。工程故障恢复 `engineering-fault-recovery@3` 为 100.000%（3 cases）。
 
 当前未评项：M6 QA quality、M6 multi-hop、Agent runtime、Long Investigation completion。
 
@@ -229,7 +229,7 @@ make sync-sources
 
 `make dev-up-core` 与 `make dev-up` 启动 PostgreSQL/pgvector 与 Redis failure domains。默认 ArtifactStore 改为宿主机 `.local/secfusion-artifacts` 下的 content-addressed filesystem；LocalStack 只在显式 S3 integration 路径启动。
 
-无人值守的 M1–M3 数据面使用 `make data-plane-up`。它完成依赖、迁移、source/Skill 同步，再启动 scheduler、独立 collection worker 与 enrichment/indexing worker。PostgreSQL 与 durable Redis 使用 named volume，Evidence/runtime artifact 落在宿主机 content-addressed filesystem，hot cache 仍按设计可重建。关闭终端不会停止采集，Docker daemon 恢复后服务按 `restart: unless-stopped` 回来。`make data-plane-status` 查看运行链，`make data-plane-metrics` 导出 1h/6h/24h/7d 运行指标与小时曲线，`make data-plane-logs` 查看最近日志。正式 QA batch 只在冻结 Knowledge head 时短暂停 writer，并通过 `finally` 恢复它们。
+无人值守运行使用 `make data-plane-up`。它完成依赖、迁移、source/Skill 同步，再启动 acquisition scheduler、Task Event dispatcher/scheduler、独立 collection worker 与通用 enrichment/investigation/indexing worker。PostgreSQL 与 durable Redis 使用 named volume，Evidence/runtime artifact 落在宿主机 content-addressed filesystem，hot cache 仍按设计可重建。关闭终端不会停止采集或 queued Role 分发，Docker daemon 恢复后这些服务按 `restart: unless-stopped` 回来。`make data-plane-status` 同时检查 M1–M3 数据面与 TD2 Task Event 控制面，`make data-plane-metrics` 导出 1h/6h/24h/7d 运行指标与小时曲线，`make data-plane-logs` 查看最近日志。正式 QA batch 仍只在冻结 Knowledge head 时短暂停三个 writer，并通过 `finally` 恢复它们。
 
 模型评测使用 OpenAI-compatible 配置。正式跑分前先探测 endpoint：
 

@@ -1,0 +1,73 @@
+{
+  "schema_version": "m2-controlled-diagnostics-v1",
+  "benchmark_run_id": "af6357b9-c833-43c0-bb43-e1ca977a0f94",
+  "deployment_revision_id": "deployment:dbf9840c4206ea679d3f957774df4b8f",
+  "suite_ref": "m2-controlled-diagnostics-v1@1",
+  "execution_mode": "live_controlled",
+  "scope": "controlled_diagnostic_not_m3_competition_score",
+  "passed": true,
+  "metrics": {
+    "m2.parser_field_accuracy": 1.0,
+    "m2.replay_suppression_accuracy": 1.0,
+    "m2.evidence_correctness": 1.0,
+    "m2.entity_resolution_precision": 1.0,
+    "m2.entity_resolution_recall": 1.0,
+    "m2.conflict_preservation": 1.0
+  },
+  "cases": {
+    "m2-parser-evidence-replay": {
+      "passed": true,
+      "metrics": {
+        "m2.parser_field_accuracy": 1.0,
+        "m2.replay_suppression_accuracy": 1.0,
+        "m2.evidence_correctness": 1.0
+      },
+      "diagnostics": {
+        "parser_check_count": 4,
+        "evidence_check_count": 5,
+        "first_observation_id": "bf9739df-b383-4dc1-9386-c461e33a6e7c",
+        "first_artifact_id": "f12a868b-fdd1-4d6c-8d37-a68ea4cecea3",
+        "knowledge_revision": 1,
+        "replay_observation_count": 1,
+        "replay_knowledge_revision_count": 1
+      }
+    },
+    "m2-entity-resolution": {
+      "passed": true,
+      "metrics": {
+        "m2.entity_resolution_precision": 1.0,
+        "m2.entity_resolution_recall": 1.0
+      },
+      "diagnostics": {
+        "same_cve_object_id": "5695d18f-6cca-5bab-8f70-4e1ea63d868f",
+        "different_cve_object_id": "e28d9aab-8b65-5251-a601-610e86b2f2ee",
+        "active_same_cve_cvss_claims": 2
+      }
+    },
+    "m2-conflict-preservation": {
+      "passed": true,
+      "metrics": {
+        "m2.conflict_preservation": 1.0
+      },
+      "diagnostics": {
+        "severity_status": "conflict",
+        "accepted_fact_refs": [
+          "claim:0a61970f-1826-505a-b4fc-9bb773366f0b",
+          "claim:19c6498a-8a8e-517f-a4d5-198d7c099ad3",
+          "claim:25e5e019-8bcb-58e8-9465-379753e4218e",
+          "claim:58ce03d9-6d5b-58ef-b368-bc0db41b229b",
+          "claim:9c04f2bd-588b-5963-b92f-031a06170b08",
+          "claim:a5948363-9dff-52e3-968c-8724f768b5fd",
+          "claim:d57db3ff-59e6-5cd6-b9f3-91413ccf688f",
+          "claim:df20958d-7ad0-5b82-952e-2fa30a73d9ff"
+        ],
+        "conflict_refs": [
+          "claim:0a61970f-1826-505a-b4fc-9bb773366f0b",
+          "claim:19c6498a-8a8e-517f-a4d5-198d7c099ad3",
+          "claim:25e5e019-8bcb-58e8-9465-379753e4218e",
+          "claim:d57db3ff-59e6-5cd6-b9f3-91413ccf688f"
+        ]
+      }
+    }
+  }
+}

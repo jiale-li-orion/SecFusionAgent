@@ -1,0 +1,48 @@
+{
+  "benchmark_run_id": "21249f0f-80e5-4d53-a191-c8ca16e1ecd4",
+  "deployment_revision_id": "deployment:6e105e5a3c4579cf528923f8645a9ea0",
+  "suite_ref": "m6-long-investigation-harness-fixed-20261003@2",
+  "manifest_digest": "824d5f833186c20b8e52b20933c2f5eb43ba3273e90000bf812a7fab2152678b",
+  "gold_revision": "investigation-expectation:bd30d6b1952980c283b8549e753c331c8e0d9467f207fc65f479ef24cb761c3e",
+  "frozen_at": "2026-10-02T16:46:16.103568+00:00",
+  "measured_at": "2026-10-02T16:48:51.167927+00:00",
+  "case_count": 1,
+  "execution_mode": "live_controlled",
+  "cases": {
+    "long-investigation-probe-2a5c9ade": {
+      "product_case_id": "2a5c9ade-479d-4904-b0f6-fcdbcb3763a2",
+      "expected_final_decision": true,
+      "final_decision_present": true,
+      "final_decision_ref": "decision:c943d235ff9d85381387be350b9f3c4a",
+      "first_status_event_type": "evidence_need_opened",
+      "first_status_at": "2026-10-02T16:46:15.978642+00:00",
+      "time_to_first_status_seconds": 0.008871,
+      "time_to_final_decision_seconds": 12.237316,
+      "measurement_deadline": "2026-10-02T16:51:16.103568+00:00",
+      "deadline_met": true,
+      "investigation_episode_count": 1,
+      "failed_episode_count": 0,
+      "timed_out_episode_count": 0,
+      "completed_episode_count": 1,
+      "agent_wall_latency_seconds": 10.948533,
+      "investigation_episode_statuses": [
+        "completed"
+      ],
+      "open_evidence_need_count": 0,
+      "investigation_task_run_refs": [
+        "task-run:362eae52-b4b7-467c-b84d-dee64529459d"
+      ],
+      "decision_task_run_refs": [
+        "task-run:185baa5f-b2cd-4c7b-b465-fbd0c37e3206"
+      ],
+      "execution_refs": [
+        "execution:185baa5f-b2cd-4c7b-b465-fbd0c37e3206",
+        "execution:362eae52-b4b7-467c-b84d-dee64529459d"
+      ],
+      "model_request_refs": [
+        "model-request:c3b394bd-c30b-4e4a-9de7-e2e5f9b8abe7",
+        "model-request:9407c0c3-6d21-4fd0-bf00-372b6c0fb12f"
+      ]
+    }
+  }
+}

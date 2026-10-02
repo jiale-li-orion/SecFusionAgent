@@ -1,0 +1,55 @@
+{
+  "benchmark_run_id": "668fbca5-4aed-4770-8aad-37fd109da943",
+  "deployment_revision_id": "deployment:29044b253a10926ba32f5c0d97229777",
+  "suite_ref": "m6-long-investigation-infra-20261002@3",
+  "manifest_digest": "cd0dd97839120ee39de574ee847ecd5e26a3f1124536d4f77d01c0596736d14d",
+  "gold_revision": "investigation-expectation:981ca32f92722e574e142ed84dd5220df3119e36196b09ca12b6307f6e159fd5",
+  "frozen_at": "2026-10-02T13:20:38.225471+00:00",
+  "measured_at": "2026-10-02T15:31:10.702602+00:00",
+  "case_count": 1,
+  "execution_mode": "live_controlled",
+  "cases": {
+    "long-investigation-infra-cve-2026-48746": {
+      "product_case_id": "067e14e3-4b85-404a-9baa-c4ae4da59667",
+      "expected_final_decision": true,
+      "final_decision_present": true,
+      "final_decision_ref": "decision:1bae6d203b8d20d8675a386d7f9f8ddc",
+      "first_status_event_type": "evidence_need_opened",
+      "first_status_at": "2026-10-02T13:20:38.104082+00:00",
+      "time_to_first_status_seconds": 0.010692,
+      "time_to_final_decision_seconds": 941.410856,
+      "measurement_deadline": "2026-10-02T13:25:38.225471+00:00",
+      "deadline_met": false,
+      "investigation_episode_count": 4,
+      "failed_episode_count": 3,
+      "timed_out_episode_count": 0,
+      "completed_episode_count": 1,
+      "agent_wall_latency_seconds": 881.554909,
+      "investigation_episode_statuses": [
+        "failed",
+        "failed",
+        "failed",
+        "completed"
+      ],
+      "open_evidence_need_count": 0,
+      "investigation_task_run_refs": [
+        "task-run:1e7d46d1-7282-4bcb-80b3-6d982fe4b8b0",
+        "task-run:9e7aaca5-01c1-45f2-ad69-95437472618d",
+        "task-run:99105f4e-38f9-4bb5-b0d8-cd91967312c3",
+        "task-run:0881d503-349c-4e7d-80c7-ee54d47dd17e"
+      ],
+      "execution_refs": [
+        "execution:1e7d46d1-7282-4bcb-80b3-6d982fe4b8b0",
+        "execution:9e7aaca5-01c1-45f2-ad69-95437472618d",
+        "execution:99105f4e-38f9-4bb5-b0d8-cd91967312c3",
+        "execution:0881d503-349c-4e7d-80c7-ee54d47dd17e"
+      ],
+      "model_request_refs": [
+        "model-request:92c1649a-75d5-4661-adc3-81e5a70f5101",
+        "model-request:a99e2d69-f29f-465f-970f-63aeab48c0b7",
+        "model-request:8842b35d-c1c6-4394-952e-8200038b4c81",
+        "model-request:4de173cf-ff92-48d3-9a3a-37237307167c"
+      ]
+    }
+  }
+}

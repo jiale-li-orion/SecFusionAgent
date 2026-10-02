@@ -7,7 +7,7 @@
   "structured_authority_case_count": 0,
   "structured_authority_session_turn_count": 4,
   "knowledge_revision": 606,
-  "current_knowledge_revision": 1494,
+  "current_knowledge_revision": 1731,
   "gold_provenance_status": "valid",
   "live_runtime_world_status": "stale_requires_refresh_or_rebase",
   "model_provider_status": "unconfigured",

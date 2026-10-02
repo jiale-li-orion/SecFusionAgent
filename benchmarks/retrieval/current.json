@@ -1,0 +1,49 @@
+{
+  "schema_version": "retrieval-lexical-benchmark-v1",
+  "generated_at": "2026-10-02T12:43:06.963269+00:00",
+  "benchmark_run_id": "8fa4d0b8-06ef-4a69-9db2-e5855c406c9f",
+  "deployment_revision_id": "deployment:e2580a560cbf864df9a9548b93d15f78",
+  "suite_ref": "retrieval-lexical-plan-v1@3",
+  "world_snapshot_ref": "knowledge-revision:1589",
+  "diagnostic_only": true,
+  "required_index": "ix_document_chunks_fts_simple",
+  "query_results": {
+    "cve-2026": {
+      "query": "CVE 2026",
+      "execution_time_ms": 77.744,
+      "index_used": true,
+      "observed_indexes": [
+        "ix_document_chunks_fts_simple",
+        "sources_pkey"
+      ]
+    },
+    "vulnerability": {
+      "query": "vulnerability",
+      "execution_time_ms": 100.376,
+      "index_used": true,
+      "observed_indexes": [
+        "ix_document_chunks_fts_simple",
+        "sources_pkey"
+      ]
+    },
+    "security": {
+      "query": "security",
+      "execution_time_ms": 313.804,
+      "index_used": true,
+      "observed_indexes": [
+        "ix_document_chunks_fts_simple"
+      ]
+    },
+    "patch": {
+      "query": "patch",
+      "execution_time_ms": 32.69,
+      "index_used": true,
+      "observed_indexes": [
+        "ix_document_chunks_fts_simple",
+        "documents_pkey",
+        "observations_pkey",
+        "sources_pkey"
+      ]
+    }
+  }
+}

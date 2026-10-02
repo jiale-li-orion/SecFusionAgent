@@ -12,12 +12,12 @@ English | [中文](README.zh.md)
 | Source category coverage | **8/8** (target ≥7) |
 | M1 monitoring latency | **p50 357.709s (5.96min) / p95 7241.893s (2.01h) / ≤6h 100.000% (12/12)** |
 | M3 enrichment Precision / Recall | **99.659% / 99.659% (TP=292, FP=1, FN=1)** |
-| Controlled fault recovery | **100.000% (2/2)** |
+| Controlled fault recovery | **100.000% (3/3)** |
 | M6 QA | **pending formal live-model run** |
 
 **Source runtime contract: 101 catalog entries → 66 executable sources → 39 scheduled monitors; 8 product categories, with active scheduled monitoring in 7/8 categories and `assets` intentionally query-time.**
-**Public continuous-monitoring epoch: `2026-10-02T04:19:42+08:00`; scheduled-source health 32 healthy / 5 degraded / 2 blocked; epoch Evidence integrity 100.000%.**
-**Last-1h operations: Run OK 56.250%; provider-boundary fail 43.750%; runtime-owned fail 0.000%; queue p95 12.479s; execution p95 30.142s.**
+**Public continuous-monitoring epoch: `2026-10-02T04:19:42+08:00`; scheduled-source health 29 healthy / 8 degraded / 2 blocked; epoch Evidence integrity 100.000%.**
+**Last-1h operations: Run OK 82.353%; provider-boundary fail 8.824%; runtime-owned fail 8.824%; queue p95 10.931s; execution p95 9.436s.**
 
 Every value above is generated from benchmark/source configuration rather than copied by hand; run/deployment/provenance details remain in the formal evidence section below.
 <!-- END GENERATED SCOREBOARD -->
@@ -48,7 +48,7 @@ Current CompetitionReport: `9227c091-3076-4d86-8a88-bc2631b26fe2` on `deployment
 
 M1 fixed window `2026-10-01T10:00:00+00:00` → `2026-10-01T14:02:00+00:00`: 12/12 evaluable samples, p50 357.709s (5.96min), p95 7241.893s (2.01h), within 6h 100.000%; source categories=8.
 
-Selected M3 runs aggregate to TP=292, FP=1, FN=1, precision=99.659%, recall=99.659%. Controlled engineering recovery `engineering-fault-recovery@2` is 100.000% across 2 cases.
+Selected M3 runs aggregate to TP=292, FP=1, FN=1, precision=99.659%, recall=99.659%. Controlled engineering recovery `engineering-fault-recovery@3` is 100.000% across 3 cases.
 
 Unevaluated competition areas: `M6 QA quality`, `M6 multi-hop`, `Agent runtime`, `Long Investigation completion`.
 
@@ -229,7 +229,7 @@ make sync-sources
 
 `make dev-up-core` and `make dev-up` start PostgreSQL/pgvector plus the Redis failure domains. The default ArtifactStore is the host-backed content-addressed filesystem under `.local/secfusion-artifacts`; LocalStack is started only by the explicit S3 integration path.
 
-For unattended M1–M3 operation, use `make data-plane-up`. It completes dependency startup, migrations and registry synchronization, then keeps PostgreSQL, Redis, the scheduler, a dedicated collection worker and the enrichment/indexing worker under Compose restart policy. PostgreSQL and durable Redis roles use named volumes; Evidence/runtime artifacts live in the host-backed content-addressed filesystem; the hot cache remains intentionally rebuildable. `make data-plane-status` checks the whole path, `make data-plane-metrics` exports rolling runtime metrics, and `make data-plane-logs` tails runtime processes. Closing the invoking shell does not stop collection, and Docker daemon restart brings these services back under `restart: unless-stopped`. A formal live QA batch briefly quiesces the three writer processes to freeze one Knowledge head, then restores them in `finally`; normal operation remains continuously collecting.
+For unattended operation, use `make data-plane-up`. It completes dependency startup, migrations and registry synchronization, then keeps PostgreSQL, Redis, the acquisition scheduler, Task Event dispatcher/scheduler, a dedicated collection worker and the general enrichment/investigation/indexing worker under Compose restart policy. PostgreSQL and durable Redis roles use named volumes; Evidence/runtime artifacts live in the host-backed content-addressed filesystem; the hot cache remains intentionally rebuildable. `make data-plane-status` checks both the M1–M3 data path and the TD2 Task Event control plane, `make data-plane-metrics` exports rolling runtime metrics, and `make data-plane-logs` tails runtime processes. Closing the invoking shell does not stop collection or queued Role dispatch, and Docker daemon restart brings these services back under `restart: unless-stopped`. A formal live QA batch briefly quiesces the three Knowledge-writer processes to freeze one Knowledge head, then restores them in `finally`; normal operation remains continuously collecting.
 
 For model-backed formal evaluation, configure an OpenAI-compatible endpoint and probe it before spending benchmark calls:
 

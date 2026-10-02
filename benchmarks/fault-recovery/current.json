@@ -1,8 +1,8 @@
 {
-  "benchmark_run_id": "e8cb92f6-42fd-4492-8284-863e9afca0b8",
-  "deployment_revision_id": "deployment:f518d9f8fd7a776996354d34afa7f299",
-  "suite_ref": "engineering-fault-recovery@2",
-  "gold_revision": "fault-recovery:5370cbef4a6051ff8e972559454f88b8b157628e20a3cc01386b98f7b9576c52",
+  "benchmark_run_id": "dffba8b5-f551-4d75-8edf-8f183da24690",
+  "deployment_revision_id": "deployment:39c12b7ec90709a90b82faacf7f64c4e",
+  "suite_ref": "engineering-fault-recovery@3",
+  "gold_revision": "fault-recovery:661bff8bec9f769cb2e7d61f6c5fc086fdf0eb919b3a0db8cd2db6872904bf99",
   "execution_mode": "live_controlled",
   "success_rate": 1.0,
   "cases": [
@@ -10,21 +10,43 @@
       "case_id": "engineering-stale-acquisition-requeue",
       "mechanism": "stale acquisition run -> queued + collection.requested outbox",
       "success": true,
+      "failure_isolation": true,
+      "retry_correctness": null,
+      "bounded_termination": true,
       "diagnostics": {
         "recovered_count": 1,
         "run_status": "queued",
-        "outbox_count": 1
+        "outbox_count": 1,
+        "control_run_status": "running",
+        "control_outbox_count": 0
       }
     },
     {
       "case_id": "engineering-outbox-fail-once-retry",
       "mechanism": "publisher failure -> pending retry -> delivered",
       "success": true,
+      "failure_isolation": true,
+      "retry_correctness": true,
+      "bounded_termination": true,
       "diagnostics": {
         "first_delivered": 0,
         "first_pending": true,
         "second_delivered": 1,
         "second_delivered_state": true
+      }
+    },
+    {
+      "case_id": "engineering-legacy-artifact-replay-recovery",
+      "mechanism": "legacy s3:// Evidence URI + missing blob -> filesystem exact replay recovery",
+      "success": true,
+      "failure_isolation": true,
+      "retry_correctness": true,
+      "bounded_termination": true,
+      "diagnostics": {
+        "missing_before_replay": true,
+        "legacy_uri_immutable": true,
+        "legacy_uri_readable": true,
+        "content_hash_exact": true
       }
     }
   ]

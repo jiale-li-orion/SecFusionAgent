@@ -1,0 +1,56 @@
+{
+  "benchmark_run_id": "676bf5c6-1770-4796-b670-c6940a67f1fd",
+  "deployment_revision_id": "deployment:9521e69dc9af5d7e7e10e7e455088096",
+  "suite_ref": "m5-agent-semantics-clean-prospective-20261003@1",
+  "manifest_digest": "7302d0cda4a77a38776727722b461fd1eb8427cf8736973d66565a5e5f9e4e2d",
+  "gold_revision": "investigation-expectation:5bb9f4b617ca8367e6e843fc5b860f8cf856bc405748d762851f52010de2e4f9",
+  "frozen_at": "2026-10-02T19:34:23.866164+00:00",
+  "measured_at": "2026-10-02T19:34:29.688786+00:00",
+  "case_count": 1,
+  "execution_mode": "live_controlled",
+  "cases": {
+    "long-investigation-probe-4b0eeb6b": {
+      "product_case_id": "4b0eeb6b-b955-4e42-becc-1f00637c750b",
+      "expected_final_decision": true,
+      "final_decision_present": true,
+      "final_decision_ref": "decision:e9a0eef72db96323e81eb6288e2c44c7",
+      "first_status_event_type": "evidence_need_opened",
+      "first_status_at": "2026-10-02T19:34:23.742540+00:00",
+      "time_to_first_status_seconds": 0.009808,
+      "time_to_final_decision_seconds": 5.925547,
+      "measurement_deadline": "2026-10-02T19:39:23.866164+00:00",
+      "deadline_met": true,
+      "investigation_episode_count": 1,
+      "failed_episode_count": 0,
+      "timed_out_episode_count": 0,
+      "completed_episode_count": 1,
+      "agent_wall_latency_seconds": 4.453404,
+      "investigation_episode_statuses": [
+        "completed"
+      ],
+      "open_evidence_need_count": 0,
+      "investigation_task_run_refs": [
+        "task-run:4b13e3d9-f35d-4dde-94ca-b732fb1fb4c4"
+      ],
+      "decision_task_run_refs": [
+        "task-run:30dd7ab6-6c39-4138-8839-c9860ebe9434"
+      ],
+      "execution_refs": [
+        "execution:4b13e3d9-f35d-4dde-94ca-b732fb1fb4c4",
+        "execution:30dd7ab6-6c39-4138-8839-c9860ebe9434"
+      ],
+      "model_request_refs": [
+        "model-request:79eead56-e7bb-4d8d-a8a0-edff52977c56",
+        "model-request:4df45078-5fff-41b4-a4f0-8a7b1b21c1cc"
+      ],
+      "agent_semantic_metrics": {
+        "agent.trajectory_conformance": 1.0,
+        "agent.wrong_entity_attachment_rate": 0.0,
+        "agent.wrong_version_attachment_rate": 1.0,
+        "agent.invalid_evidence_ref_rate": 0.0,
+        "agent.stop_correctness": 1.0,
+        "agent.unnecessary_continuation_rate": 0.0
+      }
+    }
+  }
+}
