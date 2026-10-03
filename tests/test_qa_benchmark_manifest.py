@@ -5,7 +5,8 @@ from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from apps.evaluation_runtime import (
     ProductQuestionQAExecution,
@@ -14,6 +15,7 @@ from apps.evaluation_runtime import (
 )
 from apps.runtime_models import register_runtime_models
 from packages.evaluation.benchmark import BenchmarkStore, DeploymentRevision
+from packages.evaluation.benchmark.storage import BenchmarkCaseRunModel, BenchmarkRunModel
 from packages.evaluation.qa import QAPrediction
 from packages.evaluation.qa_preflight_status import render_qa_preflight_markdown
 from packages.shared.config import Settings
@@ -530,6 +532,146 @@ async def test_offline_runner_persists_staged_benchmark_run(
 
 
 @pytest.mark.asyncio
+async def test_live_product_timeout_is_scored_as_failed_case_without_aborting_suite(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    register_runtime_models()
+    database_url = f"sqlite+aiosqlite:///{tmp_path / 'qa-timeout.sqlite'}"
+    engine = create_async_engine(database_url)
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    settings = Settings(
+        database_url=database_url,
+        environment="test",
+        model_base_url="http://127.0.0.1:9",
+        model_name="fixture-timeout-model",
+    )
+
+    async def fake_ensure_deployment(session, settings, **kwargs):
+        del settings, kwargs
+        deployment = DeploymentRevision(
+            deployment_revision_id="deployment:qa-timeout-test",
+            git_commit="test",
+            schema_revision="test",
+            source_inventory_hash="a" * 64,
+            vocabulary_revision="enrichment-v1",
+            policy_revision="policy-test",
+            capability_registry_revision="unbound",
+            skill_registry_revision="seed-skills:test",
+            model_provider_revision="fixture-timeout-model",
+            configuration_digest="d" * 64,
+            created_at=datetime(2026, 10, 3, tzinfo=UTC),
+        )
+        await BenchmarkStore().register_deployment(session, deployment)
+        return deployment.deployment_revision_id
+
+    calls: list[str] = []
+
+    async def fake_execute(factory, **kwargs):
+        del factory
+        case_id = kwargs["benchmark_case_id"]
+        calls.append(case_id)
+        if case_id == "qa-timeout":
+            raise TimeoutError
+        return QAPrediction(
+            case_id=case_id,
+            conclusion_facts=["fact:ok"],
+            completion_status="answered",
+        )
+
+    async def fake_timeout_prediction(factory, **kwargs):
+        del factory, kwargs
+        return QAPrediction(
+            case_id="qa-timeout",
+            completion_status="execution_failed",
+            interactive_latency_seconds=5.01,
+        )
+
+    monkeypatch.setattr(qa_runner, "get_settings", lambda: settings)
+    monkeypatch.setattr(qa_runner, "create_engine", lambda database_url: engine)
+    monkeypatch.setattr(qa_runner, "ensure_benchmark_deployment_revision", fake_ensure_deployment)
+    monkeypatch.setattr(
+        qa_runner,
+        "create_recorded_model_provider",
+        lambda *args, **kwargs: object(),
+    )
+    monkeypatch.setattr(qa_runner, "execute_product_question_qa_prediction", fake_execute)
+    monkeypatch.setattr(
+        qa_runner,
+        "load_product_question_timeout_qa_prediction",
+        fake_timeout_prediction,
+    )
+
+    manifest = QABenchmarkManifest.model_validate(
+        {
+            "suite_id": "m6-qa-timeout-test",
+            "knowledge_revision": 606,
+            "cases": [
+                {
+                    "case_id": "qa-timeout",
+                    "live_product_question": {
+                        "question": "What is the timeout fact?",
+                        "cve_id": "CVE-2026-7273",
+                        "task_kind": "lookup",
+                    },
+                    "gold": {
+                        "case_id": "qa-timeout",
+                        "required_facts": ["fact:timeout"],
+                        "required_citation_facts": ["fact:timeout"],
+                        "completion_expectation": "answered",
+                    },
+                },
+                {
+                    "case_id": "qa-after-timeout",
+                    "live_product_question": {
+                        "question": "What is the next fact?",
+                        "cve_id": "CVE-2026-7273",
+                        "task_kind": "lookup",
+                    },
+                    "gold": {
+                        "case_id": "qa-after-timeout",
+                        "required_facts": ["fact:ok"],
+                        "completion_expectation": "answered",
+                    },
+                },
+            ],
+        }
+    )
+    result = await qa_runner._run(
+        manifest,
+        suite_revision=1,
+        deployment_revision_id=None,
+    )
+
+    timeout_score = result["case_scores"]["qa-timeout"]
+    assert timeout_score["answer_accuracy"] == 0.0
+    assert timeout_score["completion_correctness"] == 0.0
+    assert timeout_score["citation_completeness"] == 0.0
+    assert timeout_score["interactive_latency_seconds"] == 5.01
+    assert timeout_score["benchmark_case_status"] == "failed"
+    assert timeout_score["failure_class"] == "TimeoutError"
+    assert result["case_scores"]["qa-after-timeout"]["answer_accuracy"] == 1.0
+    assert calls == ["qa-timeout", "qa-after-timeout"]
+
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with factory() as session:
+        run = await session.get(BenchmarkRunModel, result["benchmark_run_id"])
+        assert run is not None and run.status == "completed"
+        case_runs = list(
+            await session.scalars(
+                select(BenchmarkCaseRunModel)
+                .where(BenchmarkCaseRunModel.benchmark_run_id == result["benchmark_run_id"])
+                .order_by(BenchmarkCaseRunModel.started_at)
+            )
+        )
+        assert [(item.status, item.failure_class) for item in case_runs] == [
+            ("failed", "TimeoutError"),
+            ("passed", None),
+        ]
+
+
+@pytest.mark.asyncio
 async def test_session_runner_reuses_product_session_and_scores_each_turn(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -674,6 +816,195 @@ async def test_session_runner_reuses_product_session_and_scores_each_turn(
         ("qa-session-test#turn:one", None),
         ("qa-session-test#turn:two", "question-session:test"),
     ]
+
+
+@pytest.mark.asyncio
+async def test_session_timeout_fails_only_that_session_and_continues_suite(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    register_runtime_models()
+    database_url = f"sqlite+aiosqlite:///{tmp_path / 'qa-session-timeout.sqlite'}"
+    engine = create_async_engine(database_url)
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    settings = Settings(
+        database_url=database_url,
+        environment="test",
+        model_base_url="http://127.0.0.1:9",
+        model_name="fixture-session-timeout-model",
+    )
+
+    async def fake_ensure_deployment(session, settings, **kwargs):
+        del settings, kwargs
+        deployment = DeploymentRevision(
+            deployment_revision_id="deployment:qa-session-timeout-test",
+            git_commit="test",
+            schema_revision="test",
+            source_inventory_hash="a" * 64,
+            vocabulary_revision="enrichment-v1",
+            policy_revision="policy-test",
+            capability_registry_revision="unbound",
+            skill_registry_revision="seed-skills:test",
+            model_provider_revision="fixture-session-timeout-model",
+            configuration_digest="e" * 64,
+            created_at=datetime(2026, 10, 3, tzinfo=UTC),
+        )
+        await BenchmarkStore().register_deployment(session, deployment)
+        return deployment.deployment_revision_id
+
+    calls: list[tuple[str, str | None]] = []
+
+    async def fake_execute(factory, **kwargs):
+        del factory
+        case_id = kwargs["benchmark_case_id"]
+        incoming_session = kwargs["session_id"]
+        calls.append((case_id, incoming_session))
+        if case_id == "qa-session-timeout#turn:one":
+            raise TimeoutError
+        turn_index = 1 if case_id.endswith("#turn:one") else 2
+        fact = "fact:one" if turn_index == 1 else "fact:two"
+        return ProductQuestionQAExecution(
+            prediction=QAPrediction(
+                case_id=case_id,
+                conclusion_facts=[fact],
+                completion_status="answered",
+                execution_refs=[f"execution:after-timeout-{turn_index}"],
+            ),
+            session_id="question-session:after-timeout",
+            turn_index=turn_index,
+        )
+
+    async def fake_timeout_prediction(factory, **kwargs):
+        del factory
+        return QAPrediction(
+            case_id=kwargs["benchmark_case_id"],
+            completion_status="execution_failed",
+            interactive_latency_seconds=5.02,
+        )
+
+    async def fake_trace(session, session_id):
+        del session
+        assert session_id == "question-session:after-timeout"
+        return ProductQuestionSessionTrace(
+            session_id=session_id,
+            turns=[
+                ProductQuestionSessionTurnTrace(
+                    turn_index=1,
+                    request_id="request-after-1",
+                    target_keys=["cve:CVE-2026-7273"],
+                    knowledge_revision=606,
+                    context_id="context:after-1",
+                    decision_ref="decision:after-1",
+                ),
+                ProductQuestionSessionTurnTrace(
+                    turn_index=2,
+                    request_id="request-after-2",
+                    target_keys=["cve:CVE-2026-7273"],
+                    knowledge_revision=606,
+                    context_id="context:after-2",
+                    parent_context_id="context:after-1",
+                    decision_ref="decision:after-2",
+                ),
+            ],
+        )
+
+    monkeypatch.setattr(qa_runner, "get_settings", lambda: settings)
+    monkeypatch.setattr(qa_runner, "create_engine", lambda database_url: engine)
+    monkeypatch.setattr(qa_runner, "ensure_benchmark_deployment_revision", fake_ensure_deployment)
+    monkeypatch.setattr(
+        qa_runner,
+        "create_recorded_model_provider",
+        lambda *args, **kwargs: object(),
+    )
+    monkeypatch.setattr(qa_runner, "execute_product_question_qa_execution", fake_execute)
+    monkeypatch.setattr(
+        qa_runner,
+        "load_product_question_timeout_qa_prediction",
+        fake_timeout_prediction,
+    )
+    monkeypatch.setattr(qa_runner, "load_product_question_session_trace", fake_trace)
+
+    def session_case(case_id: str) -> dict[str, object]:
+        return {
+            "case_id": case_id,
+            "turns": [
+                {
+                    "turn_id": "one",
+                    "question": {
+                        "question": "What is fact one?",
+                        "cve_id": "CVE-2026-7273",
+                        "task_kind": "lookup",
+                    },
+                    "expected_target_keys": ["cve:CVE-2026-7273"],
+                    "gold": {
+                        "case_id": f"{case_id}#turn:one",
+                        "required_facts": ["fact:one"],
+                        "completion_expectation": "answered",
+                    },
+                },
+                {
+                    "turn_id": "two",
+                    "question": {
+                        "question": "What about fact two?",
+                        "task_kind": "lookup",
+                    },
+                    "expected_target_keys": ["cve:CVE-2026-7273"],
+                    "gold": {
+                        "case_id": f"{case_id}#turn:two",
+                        "required_facts": ["fact:two"],
+                        "completion_expectation": "answered",
+                    },
+                },
+            ],
+        }
+
+    manifest = QABenchmarkManifest.model_validate(
+        {
+            "suite_id": "m6-qa-session-timeout-test",
+            "knowledge_revision": 606,
+            "sessions": [
+                session_case("qa-session-timeout"),
+                session_case("qa-session-after-timeout"),
+            ],
+        }
+    )
+    result = await qa_runner._run(
+        manifest,
+        suite_revision=1,
+        deployment_revision_id=None,
+    )
+
+    timed_out = result["session_scores"]["qa-session-timeout"]
+    assert timed_out["benchmark_case_status"] == "failed"
+    assert timed_out["failure_class"] == "TimeoutError"
+    assert timed_out["turn_scores"]["one"]["answer_accuracy"] == 0.0
+    assert timed_out["turn_scores"]["one"]["completion_correctness"] == 0.0
+    assert "two" not in timed_out["turn_scores"]
+    completed = result["session_scores"]["qa-session-after-timeout"]
+    assert completed["context_chain_correctness"] == 1.0
+    assert completed["target_carry_correctness"] == 1.0
+    assert calls == [
+        ("qa-session-timeout#turn:one", None),
+        ("qa-session-after-timeout#turn:one", None),
+        ("qa-session-after-timeout#turn:two", "question-session:after-timeout"),
+    ]
+
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with factory() as session:
+        run = await session.get(BenchmarkRunModel, result["benchmark_run_id"])
+        assert run is not None and run.status == "completed"
+        case_runs = list(
+            await session.scalars(
+                select(BenchmarkCaseRunModel)
+                .where(BenchmarkCaseRunModel.benchmark_run_id == result["benchmark_run_id"])
+                .order_by(BenchmarkCaseRunModel.started_at)
+            )
+        )
+        assert [(item.status, item.failure_class) for item in case_runs] == [
+            ("failed", "TimeoutError"),
+            ("passed", None),
+        ]
 
 
 def test_manifest_rejects_mixed_live_and_offline_execution_modes() -> None:

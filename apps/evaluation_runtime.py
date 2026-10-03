@@ -1321,6 +1321,69 @@ async def execute_product_question_qa_prediction(
     return execution.prediction
 
 
+async def load_product_question_timeout_qa_prediction(
+    session_factory: async_sessionmaker[AsyncSession],
+    *,
+    benchmark_case_id: str,
+    request_id: str,
+    interactive_latency_seconds: float,
+    expected_knowledge_revision: int | None = None,
+    execution_refs: Iterable[str] = (),
+) -> QAPrediction:
+    """Project one persisted Product model deadline miss into the neutral QA contract.
+
+    Only a recorder-owned ``timeout_before_response`` attempt is eligible.  This keeps unrelated
+    evaluator/database ``TimeoutError`` exceptions fail-closed instead of silently turning them into
+    model-quality observations.
+    """
+
+    async with session_factory() as session:
+        runtime_refs, context_revisions, _ = await _product_question_execution_refs(
+            session,
+            request_id,
+        )
+        model_request_ids = [
+            ref.removeprefix("model-request:")
+            for ref in runtime_refs
+            if ref.startswith("model-request:")
+        ]
+        if not model_request_ids:
+            raise LookupError("Product QA timeout has no persisted ModelRequest")
+        attempts = list(
+            await session.scalars(
+                select(ModelAttemptModel).where(
+                    ModelAttemptModel.model_request_id.in_(model_request_ids)
+                )
+            )
+        )
+        if not any(item.failure_class == "timeout_before_response" for item in attempts):
+            raise ValueError(
+                "Product QA TimeoutError is not backed by a recorded "
+                "timeout_before_response attempt"
+            )
+        if expected_knowledge_revision is not None:
+            if context_revisions != {expected_knowledge_revision}:
+                raise ValueError(
+                    "timed-out Product QA ContextManifest knowledge revision does not match pin: "
+                    f"expected={expected_knowledge_revision}, observed={sorted(context_revisions)}"
+                )
+            current_revision = await current_knowledge_revision(session)
+            if current_revision != expected_knowledge_revision:
+                raise ValueError(
+                    "timed-out Product QA knowledge revision drifted during execution: "
+                    f"expected={expected_knowledge_revision}, current={current_revision}"
+                )
+
+    return QAPrediction(
+        case_id=benchmark_case_id,
+        completion_status="execution_failed",
+        interactive_latency_seconds=interactive_latency_seconds,
+        execution_refs=_stable_unique(
+            [f"product-request:{request_id}", *runtime_refs, *execution_refs]
+        ),
+    )
+
+
 def project_validated_decision_to_qa_prediction(
     *,
     benchmark_case_id: str,

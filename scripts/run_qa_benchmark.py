@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from hashlib import sha256
 from itertools import pairwise
 from pathlib import Path
+from time import monotonic
 from typing import Any, Literal, cast
 
 import httpx
@@ -21,6 +22,7 @@ from apps.evaluation_runtime import (
     load_execution_measurement_trace,
     load_product_qa_prediction,
     load_product_question_session_trace,
+    load_product_question_timeout_qa_prediction,
     validate_structured_qa_gold_provenance,
 )
 from apps.model_runtime import create_recorded_model_provider
@@ -475,6 +477,8 @@ async def _run(
                     case_ref=f"{item.case_id}@{suite_revision}",
                 )
             try:
+                case_status = BenchmarkCaseRunStatus.PASSED
+                failure_class: str | None = None
                 if item.prediction is not None:
                     prediction = item.prediction
                 elif item.product_case_id is not None:
@@ -504,25 +508,39 @@ async def _run(
                     assert item.live_product_question is not None
                     assert provider is not None
                     question = item.live_product_question
-                    prediction = await execute_product_question_qa_prediction(
-                        factory,
-                        settings=settings,
-                        benchmark_case_id=item.case_id,
-                        request_id=f"benchmark:{run.benchmark_run_id}:{item.case_id}",
-                        provider=provider,
-                        question=question.question,
-                        cve_id=question.cve_id,
-                        object_id=question.object_id,
-                        task_kind=question.task_kind,
-                        required_source_roles=question.required_source_roles,
-                        priority=question.priority,
-                        interactive_timeout_seconds=question.interactive_timeout_seconds,
-                        retrieval_limit=question.retrieval_limit,
-                        principal=question.principal,
-                        citation_support=_citation_support(item.citation_support),
-                        execution_refs=item.execution_refs,
-                        expected_knowledge_revision=manifest.knowledge_revision,
-                    )
+                    request_id = f"benchmark:{run.benchmark_run_id}:{item.case_id}"
+                    started = monotonic()
+                    try:
+                        prediction = await execute_product_question_qa_prediction(
+                            factory,
+                            settings=settings,
+                            benchmark_case_id=item.case_id,
+                            request_id=request_id,
+                            provider=provider,
+                            question=question.question,
+                            cve_id=question.cve_id,
+                            object_id=question.object_id,
+                            task_kind=question.task_kind,
+                            required_source_roles=question.required_source_roles,
+                            priority=question.priority,
+                            interactive_timeout_seconds=question.interactive_timeout_seconds,
+                            retrieval_limit=question.retrieval_limit,
+                            principal=question.principal,
+                            citation_support=_citation_support(item.citation_support),
+                            execution_refs=item.execution_refs,
+                            expected_knowledge_revision=manifest.knowledge_revision,
+                        )
+                    except TimeoutError:
+                        prediction = await load_product_question_timeout_qa_prediction(
+                            factory,
+                            benchmark_case_id=item.case_id,
+                            request_id=request_id,
+                            interactive_latency_seconds=monotonic() - started,
+                            expected_knowledge_revision=manifest.knowledge_revision,
+                            execution_refs=item.execution_refs,
+                        )
+                        case_status = BenchmarkCaseRunStatus.FAILED
+                        failure_class = "TimeoutError"
                 score = score_qa(gold=item.gold, prediction=prediction)
                 async with factory() as session, session.begin():
                     execution_trace = await load_execution_measurement_trace(
@@ -566,13 +584,22 @@ async def _run(
                     await store.finish_case_run(
                         session,
                         case_run.case_run_id,
-                        status=BenchmarkCaseRunStatus.PASSED,
+                        status=case_status,
+                        failure_class=failure_class,
                         task_run_id=task_run_id,
                         execution_id=execution_id,
                         decision_ref=decision_ref,
                         artifact_refs=list(prediction.execution_refs or item.execution_refs),
                     )
-                per_case[item.case_id] = score.model_dump(mode="json")
+                case_score = score.model_dump(mode="json")
+                if failure_class is not None:
+                    case_score.update(
+                        {
+                            "benchmark_case_status": "failed",
+                            "failure_class": failure_class,
+                        }
+                    )
+                per_case[item.case_id] = case_score
             except Exception as exc:
                 async with factory() as session, session.begin():
                     await store.finish_case_run(
@@ -853,30 +880,76 @@ async def _execute_session_cases(
         execution_refs: list[str] = []
         turn_scores: dict[str, object] = {}
         try:
+            session_failure_class: str | None = None
             for ordinal, turn in enumerate(session_case.turns, start=1):
                 question = turn.question
                 request_id = (
                     f"benchmark:{benchmark_run_id}:{session_case.case_id}:turn:{turn.turn_id}"
                 )
-                execution = await execute_product_question_qa_execution(
-                    factory,
-                    settings=get_settings(),
-                    benchmark_case_id=turn.gold.case_id,
-                    request_id=request_id,
-                    provider=provider,
-                    question=question.question,
-                    cve_id=question.cve_id,
-                    object_id=question.object_id,
-                    task_kind=question.task_kind,
-                    required_source_roles=question.required_source_roles,
-                    priority=question.priority,
-                    interactive_timeout_seconds=question.interactive_timeout_seconds,
-                    retrieval_limit=question.retrieval_limit,
-                    principal=session_case.principal,
-                    session_id=product_session_id,
-                    citation_support=_citation_support(turn.citation_support),
-                    expected_knowledge_revision=manifest.knowledge_revision,
-                )
+                started = monotonic()
+                try:
+                    execution = await execute_product_question_qa_execution(
+                        factory,
+                        settings=get_settings(),
+                        benchmark_case_id=turn.gold.case_id,
+                        request_id=request_id,
+                        provider=provider,
+                        question=question.question,
+                        cve_id=question.cve_id,
+                        object_id=question.object_id,
+                        task_kind=question.task_kind,
+                        required_source_roles=question.required_source_roles,
+                        priority=question.priority,
+                        interactive_timeout_seconds=question.interactive_timeout_seconds,
+                        retrieval_limit=question.retrieval_limit,
+                        principal=session_case.principal,
+                        session_id=product_session_id,
+                        citation_support=_citation_support(turn.citation_support),
+                        expected_knowledge_revision=manifest.knowledge_revision,
+                    )
+                except TimeoutError:
+                    timeout_prediction = await load_product_question_timeout_qa_prediction(
+                        factory,
+                        benchmark_case_id=turn.gold.case_id,
+                        request_id=request_id,
+                        interactive_latency_seconds=monotonic() - started,
+                        expected_knowledge_revision=manifest.knowledge_revision,
+                    )
+                    score = score_qa(gold=turn.gold, prediction=timeout_prediction)
+                    async with factory() as session, session.begin():
+                        execution_trace = await load_execution_measurement_trace(
+                            session,
+                            timeout_prediction.execution_refs,
+                        )
+                        await recorder.record_case_score(
+                            session,
+                            case_run_id=case_run.case_run_id,
+                            score=score,
+                            subject_ref=(
+                                f"qa-session:{session_case.case_id}#turn:{turn.turn_id}"
+                            ),
+                            prediction=timeout_prediction,
+                            gold=turn.gold,
+                        )
+                        await recorder.record_execution_measurements(
+                            session,
+                            case_run_id=case_run.case_run_id,
+                            trace=execution_trace,
+                            subject_ref=(
+                                f"qa-session:{session_case.case_id}#turn:{turn.turn_id}"
+                            ),
+                        )
+                    execution_refs.extend(timeout_prediction.execution_refs)
+                    timeout_score = score.model_dump(mode="json")
+                    timeout_score.update(
+                        {
+                            "benchmark_turn_status": "failed",
+                            "failure_class": "TimeoutError",
+                        }
+                    )
+                    turn_scores[turn.turn_id] = timeout_score
+                    session_failure_class = "TimeoutError"
+                    break
                 if execution.turn_index != ordinal:
                     raise ValueError(
                         "Product QA session turn index drifted: "
@@ -908,6 +981,23 @@ async def _execute_session_cases(
                     )
                 execution_refs.extend(execution.prediction.execution_refs)
                 turn_scores[turn.turn_id] = score.model_dump(mode="json")
+
+            if session_failure_class is not None:
+                async with factory() as session, session.begin():
+                    await store.finish_case_run(
+                        session,
+                        case_run.case_run_id,
+                        status=BenchmarkCaseRunStatus.FAILED,
+                        failure_class=session_failure_class,
+                        artifact_refs=list(dict.fromkeys(execution_refs)),
+                    )
+                per_session[session_case.case_id] = {
+                    "session_id": product_session_id,
+                    "turn_scores": turn_scores,
+                    "benchmark_case_status": "failed",
+                    "failure_class": session_failure_class,
+                }
+                continue
 
             assert product_session_id is not None
             async with factory() as session:
