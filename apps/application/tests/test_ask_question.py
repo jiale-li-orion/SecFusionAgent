@@ -12,6 +12,7 @@ from apps.application.errors import LifecycleConflictError, PermissionDeniedErro
 from apps.application.queries.decisions import DecisionQueries
 from apps.application.question_facts import render_relation_fact
 from apps.application.question_sessions import QuestionSessionModel, QuestionSessionTurnModel
+from apps.evaluation_runtime import load_product_question_session_trace
 from apps.runtime_models import register_runtime_models
 from packages.intelligence.retrieval.contracts import CandidateKind, RetrievedCandidate
 from packages.intelligence.retrieval.operators import LexicalRetrievalOperator
@@ -910,6 +911,9 @@ async def test_identical_retrieve_followup_reuses_prior_chunk_results() -> None:
             assert contexts[1].manifest_json["retrieval_invocation_refs"] == [
                 f"retrieval-invocation:{invocations[1].invocation_id}"
             ]
+            trace = await load_product_question_session_trace(session, first.session_id)
+            assert trace.turns[0].retrieval_refs == invocations[0].result_refs
+            assert trace.turns[1].retrieval_refs == invocations[1].result_refs
     finally:
         await engine.dispose()
 

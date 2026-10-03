@@ -13,7 +13,9 @@ from scripts.run_investigation_benchmark import (
     MAX_PROSPECTIVE_FREEZE_LAG_SECONDS,
     InvestigationBenchmarkManifest,
     InvestigationBenchmarkManifestCase,
+    _is_version_scoped_assertion,
     _measurement_status,
+    _proposition_matches_expected_fixed_version,
     _version_reasoning_sources_match_gold,
 )
 from scripts.run_prospective_investigation_probe import (
@@ -247,6 +249,25 @@ def test_version_reasoning_gold_requires_relation_anchor_but_allows_same_target_
         allowed_relation_ids={"rel-fixed"},
         allowed_claim_ids=set(),
     )
+
+
+def test_version_attachment_scoring_uses_assertion_semantics() -> None:
+    assert _is_version_scoped_assertion(
+        "The first fixed version for CVE-2026-48746 is 0.22.0."
+    )
+    assert _proposition_matches_expected_fixed_version(
+        "The first fixed version for CVE-2026-48746 is 0.22.0.",
+        "0.22.0",
+    )
+    assert _proposition_matches_expected_fixed_version(
+        "The fixed release is v0.22.0.",
+        "0.22.0",
+    )
+    assert not _proposition_matches_expected_fixed_version(
+        "The first fixed version for CVE-2026-48746 is 0.21.0.",
+        "0.22.0",
+    )
+    assert not _is_version_scoped_assertion("The vulnerability affects vLLM.")
 
 
 def test_prospective_version_gold_miner_accepts_fixed_boundary_forms() -> None:

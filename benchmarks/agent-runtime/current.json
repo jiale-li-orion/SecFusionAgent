@@ -1,0 +1,197 @@
+{
+  "schema_version": "agent-runtime-controlled-benchmark-v1",
+  "benchmark_run_id": "f92f0f4c-3296-42c7-ad9b-7e14284ef968",
+  "deployment_revision_id": "deployment:99a6169e04f3143e323baca720e0146e",
+  "suite_ref": "m5-agent-runtime-controlled-v1@6",
+  "execution_mode": "live_controlled",
+  "scope": "controlled_runtime_regression_not_live_external_agent_score",
+  "cases": {
+    "agent-perception-capability": {
+      "metrics": {
+        "agent.useful_acquisition_precision": 1.0,
+        "agent.redundant_acquisition_rate": 0.0,
+        "agent.source_role_satisfaction": 1.0,
+        "agent.freshness_satisfaction": 1.0,
+        "agent.capability_selection_correctness": 1.0,
+        "agent.argument_correctness": 1.0,
+        "agent.unnecessary_denied_request_rate": 0.0,
+        "agent.capability_invocation_count": 1.0
+      },
+      "diagnostics": {
+        "subsystem": "InvestigationRole->Perception->CapabilityBroker->EvidenceIngress->StatePatch",
+        "task_run_status": "completed",
+        "resolved_need_ids": [
+          "90d37e10-e740-4142-a0a6-07b3d7c77445"
+        ],
+        "capability_invocation_ids": [
+          "ceda5fb6-d667-55b6-920a-b569cbe370e5"
+        ],
+        "perception_event_ids": [
+          "693f243e-303d-4914-a370-31ca94b09030"
+        ],
+        "evidence_refs": [
+          "82e25411-1d79-56f0-84f6-048e4fb3899c"
+        ],
+        "observation_ids": [
+          "0cce3d4a-d357-4301-bd5e-c7f0ce15b73a"
+        ],
+        "task_event_types": [
+          "TaskCreated",
+          "TaskPatched",
+          "TaskStarted",
+          "ContextUpdated",
+          "EvidenceFound",
+          "ContextUpdated",
+          "InvestigationStateChanged",
+          "ContextUpdated",
+          "TaskCompleted"
+        ],
+        "context_revision": 4,
+        "planner_request_count": 2,
+        "expected_arguments_digest": "5b05a6e749c83d55d3f0fc61e2c4f36e366fcc8c0522c8ab6cd67c225ed13d46",
+        "observed_arguments_digest": "5b05a6e749c83d55d3f0fc61e2c4f36e366fcc8c0522c8ab6cd67c225ed13d46",
+        "source_role": "primary",
+        "freshness_max_age_seconds": 3600
+      }
+    },
+    "agent-delegated-enrichment-resume": {
+      "metrics": {
+        "agent.delegation_precision": 1.0,
+        "agent.child_task_usefulness": 1.0,
+        "agent.parent_child_budget_adherence": 1.0,
+        "agent.stale_child_result_rate": 0.0
+      },
+      "diagnostics": {
+        "subsystem": "InvestigationRole->EnrichmentRole->TaskEvent->DependencyWake->Perception->StatePatch",
+        "parent_run_id": "6fe0a8d9-051f-4e9b-928c-d16c183f68f6",
+        "child_run_id": "bf9d3af9-1e18-5d9b-b618-f1589965e365",
+        "child_status": "completed",
+        "parent_status": "completed",
+        "child_budget_parent": "budget:6fe0a8d9-051f-4e9b-928c-d16c183f68f6",
+        "child_budget_limits": {
+          "agent_turns": "1",
+          "tool_calls": "2"
+        },
+        "fixed_relation_id": "d659473f-9e5a-592b-a7a4-ffacbc42b0ed",
+        "fixed_relation_revision": 2,
+        "parent_context_knowledge_revision": 2,
+        "relation_evidence_refs": [
+          "ad4b827f-2afa-5094-9de0-68bf7d6f2a87"
+        ],
+        "parent_task_event_types": [
+          "TaskCreated",
+          "TaskPatched",
+          "TaskStarted",
+          "ContextUpdated",
+          "Progress",
+          "NeedContext",
+          "TaskPatched",
+          "TaskStarted",
+          "ContextUpdated",
+          "EvidenceFound",
+          "ContextUpdated",
+          "InvestigationStateChanged",
+          "ContextUpdated",
+          "TaskCompleted"
+        ],
+        "child_task_event_types": [
+          "TaskCreated",
+          "TaskPatched",
+          "TaskStarted",
+          "Progress",
+          "Progress",
+          "EnrichmentStateChanged",
+          "TaskCompleted"
+        ],
+        "planner_request_count": 3,
+        "enrichment_operator_calls": [
+          "provider.github_advisory",
+          "provider.osv"
+        ],
+        "wake_source_event_id": "6e61e5c5-c732-4b97-86fc-2843171bba46"
+      }
+    },
+    "agent-health-ranked-fallback": {
+      "metrics": {
+        "agent.fallback_success_rate": 1.0
+      },
+      "diagnostics": {
+        "subsystem": "CapabilityRegistry->CapabilityBroker",
+        "fallback_semantics": "preferred binding filtered by health before invocation",
+        "preferred_binding_id": "fixture-release-binding-preferred",
+        "fallback_binding_id": "fixture-release-binding-fallback",
+        "selected_binding_id": "fixture-release-binding-fallback",
+        "healthy_refs": [
+          "health:fixture-fallback"
+        ],
+        "executor_calls": [
+          "fixture-release-reader-fallback"
+        ],
+        "result_status": "succeeded"
+      }
+    },
+    "agent-conflict-preservation": {
+      "metrics": {
+        "agent.conflict_collapse_rate": 0.0
+      },
+      "diagnostics": {
+        "subsystem": "InvestigationStateService->StatePatch",
+        "conflict_group_count": 1,
+        "conflict_bucket_size": 1,
+        "confirmed_bucket_size": 0,
+        "tentative_bucket_size": 0,
+        "evidence_refs": [
+          "bd6640ea-f2cb-4559-b044-7b8b12b89bf8",
+          "d1315538-e77b-4610-a494-0627b23deaa3"
+        ],
+        "source_roles": [
+          "primary",
+          "reference"
+        ]
+      }
+    },
+    "agent-episode-recovery": {
+      "metrics": {
+        "agent.recovery_success_rate": 1.0
+      },
+      "diagnostics": {
+        "subsystem": "TaskRun failure->same Case/EvidenceNeed->new InvestigationRole episode",
+        "case_id": "ccee6562-10b7-4e94-85bd-1e9c1123cb99",
+        "need_id": "035a4454-a79e-49a7-a243-df6f64c96204",
+        "failed_run_id": "17af3e50-dd16-4d0f-a150-23d36c1a11cc",
+        "failed_run_status": "failed",
+        "failed_stop_reason": "unexpected_runtime_error:RuntimeError",
+        "recovery_run_id": "88572a43-2704-499a-83d1-d0b7d457235a",
+        "recovery_run_status": "completed",
+        "recovery_stop_reason": "evidence_sufficient",
+        "same_case": true,
+        "recovery_planner_calls": 1
+      }
+    },
+    "agent-no-progress-stop": {
+      "metrics": {
+        "agent.no_progress_iteration_rate": 0.6666666666666666
+      },
+      "diagnostics": {
+        "stop_reason": "no_progress",
+        "iterations": 3,
+        "planner_calls": 3,
+        "no_progress_limit": 2,
+        "expected_stop_reason": "no_progress",
+        "bounded_stop_correct": true
+      }
+    },
+    "agent-deadline-stop": {
+      "metrics": {
+        "agent.budget_deadline_stop_correctness": 1.0
+      },
+      "diagnostics": {
+        "stop_reason": "deadline_reached",
+        "planner_calls": 0,
+        "frozen_deadline_relation": "deadline_at < now before first planning turn",
+        "expected_stop_reason": "deadline_reached",
+        "expected_planner_calls": 0
+      }
+    }
+  }
+}

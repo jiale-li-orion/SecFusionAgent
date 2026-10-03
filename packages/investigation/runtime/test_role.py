@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import uuid4
 
@@ -204,6 +204,7 @@ async def _create_run(
     object_id: str,
     need_id: str,
     task_kind: TaskKind = TaskKind.VERIFY_VERSION_FIX,
+    deadline_at: datetime | None = None,
 ) -> str:
     run_id = str(uuid4())
     contract = build_investigation_contract(
@@ -265,7 +266,7 @@ async def _create_run(
                 else ExecutionProfile.VERIFY
             ),
             capability_scope=[],
-            deadline_at=NOW.replace(hour=5),
+            deadline_at=deadline_at or NOW.replace(hour=5),
             budget_ref=manifest.budget_ref,
             policy_revision=contract.policy_revision,
             identity_scope=["public"],
@@ -326,6 +327,50 @@ class _PrematureSuccessPlanner:
     async def next_action(self, frame: InvestigationFrame):
         del frame
         return StopAction(reason="evidence_sufficient")
+
+
+class _DeadlineSentinelPlanner:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def next_action(self, frame: InvestigationFrame):
+        del frame
+        self.calls += 1
+        return StopAction(reason="planner_should_not_run_after_deadline")
+
+
+class _DeadlineBoundary:
+    async def blocking_reason(self, task_run_id: str) -> str | None:
+        del task_run_id
+        return "deadline_reached"
+
+
+@pytest.mark.asyncio
+async def test_investigation_role_enforces_execution_deadline_before_planning() -> None:
+    engine, factory = await _database()
+    try:
+        async with factory() as session, session.begin():
+            case_id, object_id, need_id, _ = await _seed_case_need_and_evidence(session)
+            run_id = await _create_run(
+                session,
+                case_id=case_id,
+                object_id=object_id,
+                need_id=need_id,
+                deadline_at=NOW - timedelta(seconds=1),
+            )
+        planner = _DeadlineSentinelPlanner()
+        outcome = await InvestigationRoleRuntime(
+            factory,
+            planner,
+            execution_boundary=_DeadlineBoundary(),
+            stream_name=STREAM,
+            now=lambda: NOW,
+        ).run(run_id)
+        assert outcome.run_status is TaskRunStatus.BLOCKED
+        assert outcome.result.stop_reason == "deadline_reached"
+        assert planner.calls == 0
+    finally:
+        await engine.dispose()
 
 
 class _DelegatePlanner:

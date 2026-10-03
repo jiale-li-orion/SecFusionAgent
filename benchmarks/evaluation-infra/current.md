@@ -1,6 +1,6 @@
 # Evaluation infrastructure status
 
-Snapshot `2026-10-02T20:29:31.736620+00:00`. This is an infrastructure/readiness projection, not a competition score.
+Snapshot `2026-10-03T05:21:56.810717+00:00`. This is an infrastructure/readiness projection, not a competition score.
 Observation readiness is evaluated against the current MetricDefinition revision. Older observations remain historical evidence but do not satisfy a revised contract.
 
 ## Metric contract coverage
@@ -8,17 +8,17 @@ Observation readiness is evaluated against the current MetricDefinition revision
 | Group | Owner | Implementation | Observation status | Observed / Contract | Open metrics |
 | --- | --- | --- | --- | ---: | --- |
 | `m1.competition` | M1 + M7 | `runner_ready` | **observed** | 7/7 | — |
-| `m6.session` | M6 + M7 | `runner_ready` | **partial** | 4/5 | `m6.session_retrieval_overlap_rate` |
+| `m6.session` | M6 + M7 | `runner_ready` | **observed** | 5/5 | — |
 | `m2.diagnostics` | M2 + M7 | `runner_ready` | **observed** | 6/6 | — |
 | `m3.competition` | M3 + M7 | `runner_ready` | **observed** | 7/7 | — |
 | `m6.qa` | M6 + M7 | `runner_ready` | **observed** | 9/9 | — |
 | `m6.long_investigation` | M5/M6 + M7 | `runner_ready` | **observed** | 6/6 | — |
-| `m5.requirements_runtime` | M5 + M7 | `runner_ready` | **partial** | 5/9 | `agent.capability_selection_correctness`, `agent.argument_correctness`, `agent.recovery_success_rate`, `runtime.model_provider_cost` |
-| `m5.gap_acquisition` | M5 + M7 | `scorer_ready` | **contract_ready** | 0/6 | `agent.critical_evidence_need_recall`, `agent.false_gap_rate`, `agent.useful_acquisition_precision`, `agent.redundant_acquisition_rate`, `agent.source_role_satisfaction`, `agent.freshness_satisfaction` |
-| `m5.state_integration` | M4/M5 + M7 | `runner_ready` | **partial** | 2/4 | `agent.wrong_version_attachment_rate`, `agent.conflict_collapse_rate` |
-| `m5.planning_tool` | M5 + M7 | `scorer_ready` | **contract_ready** | 0/5 | `agent.capability_selection_correctness`, `agent.argument_correctness`, `agent.unnecessary_denied_request_rate`, `agent.fallback_success_rate`, `agent.capability_invocation_count` |
-| `m5.delegation` | M5 + M7 | `scorer_ready` | **contract_ready** | 0/4 | `agent.delegation_precision`, `agent.child_task_usefulness`, `agent.parent_child_budget_adherence`, `agent.stale_child_result_rate` |
-| `m5.stop` | M5/M6 + M7 | `runner_ready` | **partial** | 2/4 | `agent.no_progress_iteration_rate`, `agent.budget_deadline_stop_correctness` |
+| `m5.requirements_runtime` | M5 + M7 | `runner_ready` | **partial** | 8/9 | `runtime.model_provider_cost` |
+| `m5.gap_acquisition` | M5 + M7 | `runner_ready` | **observed** | 6/6 | — |
+| `m5.state_integration` | M4/M5 + M7 | `runner_ready` | **observed** | 4/4 | — |
+| `m5.planning_tool` | M5 + M7 | `runner_ready` | **observed** | 5/5 | — |
+| `m5.delegation` | M5 + M7 | `runner_ready` | **observed** | 4/4 | — |
+| `m5.stop` | M5/M6 + M7 | `runner_ready` | **observed** | 4/4 | — |
 | `runtime.economics` | TD3 measurement | `runner_ready` | **partial** | 7/9 | `runtime.model_provider_cost`, `runtime.capability_external_cost` |
 | `retrieval.execution` | Retrieval + M7 | `runner_ready` | **observed** | 2/2 | — |
 | `security.hard_gates` | M7 security | `runner_ready` | **observed** | 3/3 | — |
@@ -40,33 +40,33 @@ Observation readiness is evaluated against the current MetricDefinition revision
 
 | Owner record | Rows |
 | --- | ---: |
-| `benchmark_runs` | 100 |
-| `benchmark_case_runs` | 390 |
-| `metric_observations` | 5898 |
-| `task_runs` | 134 |
-| `task_events` | 787 |
-| `execution_runs` | 61 |
+| `benchmark_runs` | 113 |
+| `benchmark_case_runs` | 427 |
+| `metric_observations` | 6156 |
+| `task_runs` | 142 |
+| `task_events` | 819 |
+| `execution_runs` | 69 |
 | `trajectory_events` | 0 |
 | `capability_invocations` | 0 |
-| `retrieval_invocations` | 2 |
-| `model_requests` | 58 |
-| `model_attempts` | 58 |
+| `retrieval_invocations` | 6 |
+| `model_requests` | 65 |
+| `model_attempts` | 65 |
 | `prompt_assembly_records` | 11 |
-| `decision_results` | 40 |
-| `evidence_links` | 4401 |
-| `observations` | 1110 |
-| `evidence_artifacts` | 1110 |
+| `decision_results` | 46 |
+| `evidence_links` | 4710 |
+| `observations` | 1309 |
+| `evidence_artifacts` | 1309 |
 
 ## Provenance closure
 
 | Check | Coverage |
 | --- | ---: |
-| CaseRun has artifact refs | 25.6% |
-| CaseRun can reach TaskRun | 11.5% |
-| CaseRun can reach Execution | 11.5% |
-| CaseRun can reach Decision | 11.0% |
-| All MetricObservation rows carrying EvidenceRefs | 4.6% |
-| Citation/groundedness metrics carrying EvidenceRefs | 4.4% |
+| CaseRun has artifact refs | 24.8% |
+| CaseRun can reach TaskRun | 11.9% |
+| CaseRun can reach Execution | 11.9% |
+| CaseRun can reach Decision | 11.2% |
+| All MetricObservation rows carrying EvidenceRefs | 5.7% |
+| Citation/groundedness metrics carrying EvidenceRefs | 15.3% |
 
 A low global metric→Evidence rate is not automatically a defect: latency/count/runtime metrics do not require EvidenceRefs. Citation/groundedness metrics do, so that row is the stronger evidence-chain readiness check.
 
@@ -74,22 +74,22 @@ A low global metric→Evidence rate is not automatically a defect: latency/count
 
 | Artifact boundary | Coverage |
 | --- | ---: |
-| ModelRequest request artifact | 31.0% |
-| ModelAttempt response artifact | 31.0% |
+| ModelRequest request artifact | 38.5% |
+| ModelAttempt response artifact | 38.5% |
 | PromptAssembly request artifact | 72.7% |
 
 These three rows expose the R1 replay gap directly. Hashes/metadata alone support audit identity, but exact frozen model-input replay requires durable normalized request/response artifacts.
 
 ## Latest live QA provenance closure
 
-BenchmarkRun `6cf10dd4-37f0-4131-ae32-367389437472` / `m6-eval-infra-trace-20261002@9`.
+BenchmarkRun `a395c200-7eb1-439d-99b9-532f5e748377` / `m6-eval-infra-session-overlap-nonempty-20261003@1`.
 
 | Check | Coverage |
 | --- | ---: |
 | Citation/groundedness metrics → EvidenceRefs | 100.0% |
 | ModelRequest → durable request artifact | 100.0% |
 | Successful ModelAttempt → durable response artifact | 100.0% |
-| Runtime MetricObservation rows | 7 |
+| Runtime MetricObservation rows | 14 |
 
 This scope is intentionally separate from the historical cumulative rows above: old BenchmarkRuns remain immutable evidence of earlier infrastructure gaps, while the latest live run shows whether the current runner contract is closed.
 

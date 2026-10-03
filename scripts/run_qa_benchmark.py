@@ -535,6 +535,7 @@ async def _run(
                         score=score,
                         subject_ref=f"qa-case:{item.case_id}",
                         prediction=prediction,
+                        gold=item.gold,
                     )
                     await recorder.record_execution_measurements(
                         session,
@@ -897,6 +898,7 @@ async def _execute_session_cases(
                         score=score,
                         subject_ref=f"qa-session:{session_case.case_id}#turn:{turn.turn_id}",
                         prediction=execution.prediction,
+                        gold=turn.gold,
                     )
                     await recorder.record_execution_measurements(
                         session,

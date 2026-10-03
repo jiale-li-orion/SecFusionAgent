@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import re
 from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
@@ -112,6 +113,24 @@ def _version_reasoning_sources_match_gold(
         and relation_ids <= allowed_relation_ids
         and claim_ids <= allowed_claim_ids
     )
+
+
+def _is_version_scoped_assertion(proposition: str) -> bool:
+    normalized = proposition.lower()
+    return any(
+        token in normalized
+        for token in ("fixed version", "fixed release", "patched version", "patched release")
+    )
+
+
+def _proposition_matches_expected_fixed_version(
+    proposition: str,
+    expected_fixed_version: str,
+) -> bool:
+    if not _is_version_scoped_assertion(proposition):
+        return False
+    escaped = re.escape(expected_fixed_version)
+    return re.search(rf"(?<![0-9A-Za-z])v?{escaped}(?![0-9A-Za-z])", proposition) is not None
 
 
 class InvestigationMeasurementStatus(BaseModel):
@@ -594,23 +613,30 @@ async def _record_agent_semantic_metrics(
     allowed_version_sources = set(gold.allowed_reasoning_relation_source_refs)
     allowed_version_claims = set(gold.allowed_reasoning_claim_source_refs)
     version_items = (
-        [item for item in state_items if item.reasoning_relation is not None]
-        if allowed_version_sources
+        [item for item in state_items if _is_version_scoped_assertion(item.proposition)]
+        if gold.expected_fixed_version is not None
         else []
     )
     wrong_version_count = (
         sum(
-            relation is None
-            or not _version_reasoning_sources_match_gold(
-                relation.source_refs,
-                allowed_relation_ids=allowed_version_sources,
-                allowed_claim_ids=allowed_version_claims,
+            not _proposition_matches_expected_fixed_version(
+                item.proposition,
+                gold.expected_fixed_version,
             )
             for item in version_items
-            for relation in [item.reasoning_relation]
         )
-        if allowed_version_sources
+        if gold.expected_fixed_version is not None
         else 0
+    )
+    reasoning_source_match_count = sum(
+        item.reasoning_relation is not None
+        and _version_reasoning_sources_match_gold(
+            item.reasoning_relation.source_refs,
+            allowed_relation_ids=allowed_version_sources,
+            allowed_claim_ids=allowed_version_claims,
+        )
+        for item in version_items
+        if item.reasoning_relation is not None
     )
     event_types = [
         *(f"case:{item.event_type}" for item in case_events),
@@ -628,7 +654,7 @@ async def _record_agent_semantic_metrics(
         continuation_requested=continuation_requested,
         integrated_assertion_count=len(state_items),
         wrong_entity_attachment_count=wrong_entity_count,
-        version_scoped_assertion_count=(len(version_items) if allowed_version_sources else 0),
+        version_scoped_assertion_count=len(version_items),
         wrong_version_attachment_count=wrong_version_count,
         evidence_ref_assertion_count=len(evidence_items),
         invalid_evidence_ref_count=invalid_evidence_assertions,
@@ -670,6 +696,8 @@ async def _record_agent_semantic_metrics(
                 "allowed_version_claim_ids": cast(
                     JsonValue, sorted(allowed_version_claims)
                 ),
+                "version_scoped_assertion_count": len(version_items),
+                "reasoning_source_match_count": reasoning_source_match_count,
             },
         )
         observed[metric_name] = value

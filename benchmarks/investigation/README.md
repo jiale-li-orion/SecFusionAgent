@@ -154,17 +154,20 @@ Before the model runs, it resolves the current Knowledge world into a **typed ve
 - active same-target Claims that explicitly state the vulnerability is fixed/patched in the expected
   version.
 
-The frozen relation and claim refs become the admissible support set for M5 state-integration
-scoring. At measurement time the evaluator consumes only that frozen set; it never expands gold from
-the Agent's eventual reasoning output or from a newer Knowledge world. A version-scoped assertion is
-evaluable only when the Agent actually emits a reasoning relation. If it writes a direct
-Evidence-backed fact with `reasoning_relation=null`, `agent.wrong_version_attachment_rate` remains
-`NOT_EVALUATED` rather than being recorded as a vacuous zero.
+The frozen relation and claim refs remain an audit diagnostic for reasoning provenance. At
+measurement time the evaluator never expands that frozen support from the Agent's eventual output or
+from a newer Knowledge world. Version-attachment correctness itself is proposition-level: every
+Agent-integrated assertion that claims a fixed/patched version enters the denominator and is compared
+with the prospectively frozen expected fixed version. Direct Evidence-backed facts with
+`reasoning_relation=null` therefore remain evaluable instead of disappearing from the denominator.
 
-`agent.wrong_version_attachment_rate` is currently MetricDefinition revision 2 because the earlier
-relation-only denominator was proven incomplete by real prospective runs. Historical revision-1
-observations remain immutable evaluator-evolution evidence; they do not satisfy current-revision
-readiness. The files named `agent-semantics-*` preserve those prospective evaluator experiments and
-must not be cherry-picked into competition scoring. `current-harness-fixed-prospective.json` remains
-the clean Long-Investigation infrastructure baseline; the semantic probes are tagged
-`not-competition-score` and exist to validate the measurement contract itself.
+`agent.wrong_version_attachment_rate` is MetricDefinition revision 3. Revision 2 required
+reasoning-relation support for denominator eligibility; prospective runs showed that this made a
+semantically explicit version claim disappear whenever the model integrated it directly from
+EvidenceRefs. Revision 3 measures the attachment claim itself, while frozen typed relation/claim
+support is retained in metric metadata for provenance audit. Historical revision-1/2 observations
+remain immutable evaluator-evolution evidence and do not satisfy current-revision readiness. The
+files named `agent-semantics-*` preserve those prospective evaluator experiments and must not be
+cherry-picked into competition scoring. `current-harness-fixed-prospective.json` remains the clean
+Long-Investigation infrastructure baseline; the semantic probes are tagged `not-competition-score`
+and exist to validate the measurement contract itself.

@@ -785,6 +785,7 @@ class QABenchmarkRecorder:
         score: QAScore,
         subject_ref: str,
         prediction: QAPrediction | None = None,
+        gold: QAGold | None = None,
     ) -> None:
         evidence_refs = (
             _stable_unique(citation.evidence_ref for citation in prediction.citations)
@@ -818,6 +819,44 @@ class QABenchmarkRecorder:
                 evidence_refs=evidence_refs,
                 metadata={"execution_refs": cast(JsonValue, execution_refs)},
             )
+
+        if prediction is not None and gold is not None:
+            expects_gap = gold.completion_expectation == "continuation_requested"
+            opened_gap = prediction.completion_status == "continuation_requested"
+            if expects_gap:
+                definition = metric_definition("agent.critical_evidence_need_recall")
+                await self._store.observe_metric(
+                    session,
+                    case_run_id=case_run_id,
+                    metric_name="agent.critical_evidence_need_recall",
+                    value=1.0 if opened_gap else 0.0,
+                    direction=definition.direction,
+                    measurement_source=MeasurementSource.SCORER,
+                    subject_ref=subject_ref,
+                    metadata={
+                        "owner": "M6 Continuation -> M4 EvidenceNeed",
+                        "expected_completion": gold.completion_expectation,
+                        "observed_completion": prediction.completion_status,
+                        "execution_refs": cast(JsonValue, execution_refs),
+                    },
+                )
+            if opened_gap:
+                definition = metric_definition("agent.false_gap_rate")
+                await self._store.observe_metric(
+                    session,
+                    case_run_id=case_run_id,
+                    metric_name="agent.false_gap_rate",
+                    value=0.0 if expects_gap else 1.0,
+                    direction=definition.direction,
+                    measurement_source=MeasurementSource.SCORER,
+                    subject_ref=subject_ref,
+                    metadata={
+                        "owner": "M6 Continuation -> M4 EvidenceNeed",
+                        "expected_completion": gold.completion_expectation,
+                        "observed_completion": prediction.completion_status,
+                        "execution_refs": cast(JsonValue, execution_refs),
+                    },
+                )
 
     async def record_session_trace_score(
         self,
@@ -1469,6 +1508,11 @@ async def load_product_question_session_trace(
                     raise ValueError("retrieval invocation belongs to another Product session")
                 if invocation.product_turn_index != turn.turn_index:
                     raise ValueError("retrieval invocation Product turn index does not match")
+                retrieval_refs.extend(
+                    ref
+                    for ref in invocation.result_refs
+                    if isinstance(ref, str) and ref.startswith("document-chunk:")
+                )
                 retrieval_dispositions.append(invocation.disposition)
         target_keys: list[str] = []
         for object_id in turn.target_object_ids:

@@ -1,4 +1,4 @@
-.PHONY: sync lint format typecheck test check site-check site-status dev-up dev-runtime-up dev-runtime-down runtime-status runtime-config-check data-plane-up data-plane-down data-plane-status data-plane-logs data-plane-metrics data-plane-metrics-render data-plane-metrics-check data-plane-site data-plane-site-check dev-down migrate sync-sources sync-skills worker worker-collection scheduler task-event-dispatcher task-event-scheduler probe-nvd promote-hot product-check model-provider-probe qa-live qa-live-preflight benchmark-query m1-doc m1-render-doc m1-doc-check m2-diagnostics m2-diagnostics-render m2-diagnostics-check qa-preflight qa-preflight-doc-check investigation-readiness investigation-readiness-doc-check investigation-probe evaluation-infra-status evaluation-infra-render evaluation-infra-check retrieval-benchmark retrieval-benchmark-render retrieval-benchmark-check security-benchmark security-benchmark-render security-benchmark-check security-adversarial-benchmark security-adversarial-render security-adversarial-check fault-recovery fault-recovery-doc-check competition-report competition-render-doc competition-doc-check readme-evidence readme-evidence-check evidence-doc evidence-doc-check
+.PHONY: sync lint format typecheck test check site-check site-status dev-up dev-runtime-up dev-runtime-down runtime-status runtime-config-check data-plane-up data-plane-down data-plane-status data-plane-logs data-plane-metrics data-plane-metrics-render data-plane-metrics-check data-plane-site data-plane-site-check dev-down migrate sync-sources sync-skills worker worker-collection scheduler task-event-dispatcher task-event-scheduler probe-nvd promote-hot product-check model-provider-probe qa-live qa-live-preflight benchmark-query m1-doc m1-render-doc m1-doc-check m2-diagnostics m2-diagnostics-render m2-diagnostics-check qa-preflight qa-preflight-doc-check investigation-readiness investigation-readiness-doc-check investigation-probe evaluation-infra-status evaluation-infra-render evaluation-infra-check retrieval-benchmark retrieval-benchmark-render retrieval-benchmark-check agent-runtime-benchmark agent-runtime-render agent-runtime-check security-benchmark security-benchmark-render security-benchmark-check security-adversarial-benchmark security-adversarial-render security-adversarial-check fault-recovery fault-recovery-doc-check competition-report competition-render-doc competition-doc-check readme-evidence readme-evidence-check evidence-doc evidence-doc-check
 
 WIKI_PATH ?= ../SecFusionAgent.wiki
 SITE_STATUS_OUTPUT ?= $(WIKI_PATH)/site/project-status.json
@@ -21,6 +21,8 @@ EVALUATION_INFRA_JSON ?= benchmarks/evaluation-infra/current.json
 EVALUATION_INFRA_MD ?= benchmarks/evaluation-infra/current.md
 RETRIEVAL_BENCHMARK_JSON ?= benchmarks/retrieval/current.json
 RETRIEVAL_BENCHMARK_MD ?= benchmarks/retrieval/current.md
+AGENT_RUNTIME_JSON ?= benchmarks/agent-runtime/current.json
+AGENT_RUNTIME_MD ?= benchmarks/agent-runtime/current.md
 SECURITY_BENCHMARK_JSON ?= benchmarks/security/current.json
 SECURITY_BENCHMARK_MD ?= benchmarks/security/current.md
 SECURITY_ADVERSARIAL_JSON ?= benchmarks/security/adversarial-current.json
@@ -155,6 +157,26 @@ retrieval-benchmark-render:
 retrieval-benchmark-check:
 	@test -f "$(RETRIEVAL_BENCHMARK_JSON)" || (echo "$(RETRIEVAL_BENCHMARK_JSON) does not exist" >&2; exit 2)
 	uv run python scripts/render_retrieval_benchmark.py "$(RETRIEVAL_BENCHMARK_JSON)" --output "$(RETRIEVAL_BENCHMARK_MD)" --check
+
+agent-runtime-benchmark:
+	@test -n "$(AGENT_RUNTIME_SUITE_REVISION)" || (echo "AGENT_RUNTIME_SUITE_REVISION is required" >&2; exit 2)
+	uv run python scripts/run_agent_runtime_controlled_benchmark.py \
+		--suite-revision "$(AGENT_RUNTIME_SUITE_REVISION)" \
+		$(if $(AGENT_RUNTIME_DEPLOYMENT_REVISION_ID),--deployment-revision-id "$(AGENT_RUNTIME_DEPLOYMENT_REVISION_ID)") \
+		--output "$(AGENT_RUNTIME_JSON)"
+	uv run python scripts/render_agent_runtime_controlled_benchmark.py \
+		"$(AGENT_RUNTIME_JSON)" --output "$(AGENT_RUNTIME_MD)"
+
+agent-runtime-render:
+	@test -f "$(AGENT_RUNTIME_JSON)" || (echo "$(AGENT_RUNTIME_JSON) does not exist" >&2; exit 2)
+	uv run python scripts/render_agent_runtime_controlled_benchmark.py \
+		"$(AGENT_RUNTIME_JSON)" --output "$(AGENT_RUNTIME_MD)"
+
+agent-runtime-check:
+	@test -f "$(AGENT_RUNTIME_JSON)" || (echo "$(AGENT_RUNTIME_JSON) does not exist" >&2; exit 2)
+	@test -f "$(AGENT_RUNTIME_MD)" || (echo "$(AGENT_RUNTIME_MD) does not exist" >&2; exit 2)
+	uv run python scripts/render_agent_runtime_controlled_benchmark.py \
+		"$(AGENT_RUNTIME_JSON)" --output "$(AGENT_RUNTIME_MD)" --check
 
 security-benchmark:
 	@test -n "$(SECURITY_SUITE_REVISION)" || (echo "SECURITY_SUITE_REVISION is required" >&2; exit 2)

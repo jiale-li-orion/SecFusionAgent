@@ -514,11 +514,10 @@ CORE_METRICS: dict[str, MetricDefinition] = {
         ),
         MetricDefinition(
             name="agent.wrong_version_attachment_rate",
-            revision="2",
+            revision="3",
             denominator=(
-                "Agent-integrated version-scoped assertions whose reasoning support is checked "
-                "against prospectively frozen typed relation/claim support for the adjudicated "
-                "version boundary"
+                "Agent-integrated version-scoped assertions compared with the prospectively "
+                "frozen expected fixed version for the adjudicated version boundary"
             ),
             aggregation=MetricAggregation.MEAN,
             missing_value_policy=MissingValuePolicy.NOT_EVALUATED,

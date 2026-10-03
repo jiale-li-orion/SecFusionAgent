@@ -48,6 +48,7 @@ from packages.task_runtime.events.redis_stream import dispatch_pending_task_even
 from packages.task_runtime.storage.models import (
     ContextManifestVersionModel,
     TaskContractVersionModel,
+    TaskEventDeliveryModel,
     TaskEventModel,
     TaskRunModel,
 )
@@ -252,12 +253,23 @@ async def test_real_pg_investigation_role_state_gate_and_task_event_roundtrip() 
         assert outcome.result.final_case_revision == 4
 
         async with factory() as session, session.begin():
-            delivered = await dispatch_pending_task_events(
+            await dispatch_pending_task_events(
                 session,
                 redis,
                 now=now + timedelta(minutes=1),
             )
-            assert delivered >= 8
+            delivery_statuses = list(
+                await session.scalars(
+                    select(TaskEventDeliveryModel.status)
+                    .join(
+                        TaskEventModel,
+                        TaskEventModel.event_id == TaskEventDeliveryModel.event_id,
+                    )
+                    .where(TaskEventModel.task_run_id == run_id)
+                    .order_by(TaskEventModel.seq)
+                )
+            )
+            assert delivery_statuses == ["delivered"] * 8
 
         messages = [
             fields for _, fields in await redis.xrange(stream) if fields["task_run_id"] == run_id

@@ -67,6 +67,7 @@ The reviewed current projections are split by evidence type instead of forcing u
 - `investigation/current-readiness.json|md` — prospective-denominator readiness only, never an Agent score;
 - `fault-recovery/current.json|md` — formal controlled engineering fault/recovery BenchmarkRun;
 - `retrieval/current.json|md` — diagnostic PostgreSQL lexical execution-plan/latency regression evidence; it does not replace QA relevance/accuracy;
+- `agent-runtime/current.json|md` — controlled M5 runtime regression over acquisition, capability, delegation, fallback, conflict preservation, recovery and bounded-stop owners; it is not a live-external Agent score;
 - `evaluation-infra/current.json|md` — metric-contract and provenance-closure readiness for the evaluation system itself, including explicit unobserved metrics;
 - `competition/current-run-set.json` + `competition/current.json|md` — explicit same-deployment aggregation of the formal selected runs.
 

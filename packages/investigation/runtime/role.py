@@ -17,6 +17,7 @@ from packages.investigation.runtime.contracts import (
     DelegationAction,
     InvestigationActionKind,
     InvestigationDelegationPort,
+    InvestigationExecutionBoundary,
     InvestigationFrame,
     InvestigationPlanner,
     PerceptionAction,
@@ -71,6 +72,7 @@ class InvestigationRoleRuntime:
         perception_audit: PerceptionAuditService | None = None,
         delegation_port: InvestigationDelegationPort | None = None,
         case_service: CaseService | None = None,
+        execution_boundary: InvestigationExecutionBoundary | None = None,
         stream_name: str = "secfusion:task-events",
         max_iterations: int = 8,
         no_progress_limit: int = 2,
@@ -88,6 +90,7 @@ class InvestigationRoleRuntime:
         )
         self._delegation_port = delegation_port
         self._case_service = case_service or CaseService(now=now)
+        self._execution_boundary_port = execution_boundary
         self._stream_name = stream_name
         self._max_iterations = max_iterations
         self._no_progress_limit = no_progress_limit
@@ -112,6 +115,9 @@ class InvestigationRoleRuntime:
             completion = await self._completion(run_id, frame)
             if completion is not None:
                 return completion
+            boundary = await self._execution_boundary(run_id, frame, iteration)
+            if boundary is not None:
+                return boundary
 
             before_revision = frame.state.case_revision
             action = await self._planner.next_action(frame)
@@ -180,6 +186,25 @@ class InvestigationRoleRuntime:
             "budget_exhausted",
             self._max_iterations,
         )
+
+    async def _execution_boundary(
+        self,
+        run_id: str,
+        frame: InvestigationFrame,
+        iteration: int,
+    ) -> InvestigationRoleOutcome | None:
+        if self._execution_boundary_port is None:
+            return None
+        reason = await self._execution_boundary_port.blocking_reason(run_id)
+        if reason is not None:
+            return await self._finish(
+                run_id,
+                frame,
+                TaskRunStatus.BLOCKED,
+                reason,
+                iteration,
+            )
+        return None
 
     async def _ensure_running(self, run_id: str) -> None:
         async with self._session_factory() as session, session.begin():

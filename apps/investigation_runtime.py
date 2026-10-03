@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import httpx
@@ -11,6 +12,7 @@ from apps.investigation_delegation import (
 )
 from apps.model_runtime import RuntimePromptAssemblyRecorder, create_recorded_model_provider
 from packages.investigation.perception.runtime import PerceptionRuntime
+from packages.investigation.runtime.contracts import InvestigationExecutionBoundary
 from packages.investigation.runtime.planner import ModelInvestigationPlanner
 from packages.investigation.runtime.role import InvestigationRoleRuntime
 from packages.runtime.artifacts import RuntimeArtifactService
@@ -18,10 +20,29 @@ from packages.runtime.budget import BudgetGovernor
 from packages.runtime.execution.service import ExecutionRunService
 from packages.shared.config import Settings
 from packages.task_runtime.context.materializer import ContextMaterializer
+from packages.task_runtime.storage.service import get_task_run
 
 
 class InvestigationRuntimeUnavailable(RuntimeError):
     pass
+
+
+class RuntimeInvestigationExecutionBoundary(InvestigationExecutionBoundary):
+    def __init__(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+        execution_service: ExecutionRunService,
+    ) -> None:
+        self._session_factory = session_factory
+        self._execution = execution_service
+
+    async def blocking_reason(self, task_run_id: str) -> str | None:
+        async with self._session_factory() as session:
+            run = await get_task_run(session, task_run_id)
+            envelope = await self._execution.get(session, run.execution_envelope_ref)
+        if datetime.now(UTC) >= envelope.deadline_at:
+            return "deadline_reached"
+        return None
 
 
 def create_configured_investigation_runtime(
@@ -82,5 +103,6 @@ def create_configured_investigation_runtime(
         planner,
         perception_runtime=PerceptionRuntime(),
         delegation_port=delegation,
+        execution_boundary=RuntimeInvestigationExecutionBoundary(session_factory, execution),
         stream_name=settings.task_event_stream_name,
     )

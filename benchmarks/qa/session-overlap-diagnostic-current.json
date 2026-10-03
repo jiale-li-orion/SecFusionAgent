@@ -1,0 +1,44 @@
+{
+  "benchmark_run_id": "a395c200-7eb1-439d-99b9-532f5e748377",
+  "deployment_revision_id": "deployment:fa9c7e214bc8bf92b0667154c2bd8972",
+  "suite_ref": "m6-eval-infra-session-overlap-nonempty-20261003@1",
+  "manifest_digest": "20ae46901c7b80a0ab8c9a112699760cb1a7e140fbfb18c9b9b26dfb12bb7680",
+  "gold_revision": "qa-session-gold:ff932cc77dc51c12fa87ccd3dc94593510b0dd4b5fdf99a24bf88d248a6b7359",
+  "session_count": 1,
+  "execution_mode": "live_external",
+  "world_snapshot_ref": "knowledge-revision:1731",
+  "session_scores": {
+    "qa-session-real-7273-retrieve-overlap-nonempty": {
+      "session_id": "81ab9c32-ea48-481f-9c03-205d5acd52be",
+      "turn_scores": {
+        "retrieve-initial": {
+          "answer_accuracy": 1.0,
+          "groundedness": 1.0,
+          "citation_correctness": 1.0,
+          "citation_completeness": 1.0,
+          "multi_hop_correctness": null,
+          "unknown_correctness": 1.0,
+          "conflict_handling": 1.0,
+          "completion_correctness": 1.0,
+          "interactive_latency_seconds": 1.8204437590029556
+        },
+        "retrieve-repeat": {
+          "answer_accuracy": 1.0,
+          "groundedness": 1.0,
+          "citation_correctness": 1.0,
+          "citation_completeness": 1.0,
+          "multi_hop_correctness": null,
+          "unknown_correctness": 1.0,
+          "conflict_handling": 1.0,
+          "completion_correctness": 1.0,
+          "interactive_latency_seconds": 1.3529432630020892
+        }
+      },
+      "context_chain_correctness": 1.0,
+      "target_carry_correctness": 1.0,
+      "retrieval_overlap_rate": 1.0,
+      "retrieval_invocation_coverage": 1.0,
+      "retrieval_reuse_rate": 1.0
+    }
+  }
+}

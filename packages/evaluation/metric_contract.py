@@ -153,7 +153,7 @@ EVALUATION_METRIC_GROUPS: tuple[EvaluationMetricGroup, ...] = (
             "agent.source_role_satisfaction",
             "agent.freshness_satisfaction",
         ),
-        implementation="scorer_ready",
+        implementation="runner_ready",
         next_denominator=(
             "Frozen cases where the Agent itself must identify/open a critical EvidenceNeed and "
             "perform an acquisition under pre-frozen source-role and freshness constraints."
@@ -188,7 +188,7 @@ EVALUATION_METRIC_GROUPS: tuple[EvaluationMetricGroup, ...] = (
             "agent.fallback_success_rate",
             "agent.capability_invocation_count",
         ),
-        implementation="scorer_ready",
+        implementation="runner_ready",
         next_denominator=(
             "External-capability Agent cases with pre-frozen acceptable capability ids, canonical "
             "argument digests, policy-denial expectations and primary/fallback binding outcomes."
@@ -205,7 +205,7 @@ EVALUATION_METRIC_GROUPS: tuple[EvaluationMetricGroup, ...] = (
             "agent.parent_child_budget_adherence",
             "agent.stale_child_result_rate",
         ),
-        implementation="scorer_ready",
+        implementation="runner_ready",
         next_denominator=(
             "Cases where missing evidence legitimately requires child-task delegation; freeze "
             "child usefulness, parent budget ceiling and context-staleness expectations before "

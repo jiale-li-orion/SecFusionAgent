@@ -295,6 +295,68 @@ async def test_qa_recorder_binds_metrics_to_prediction_evidence_and_trace() -> N
 
 
 @pytest.mark.asyncio
+async def test_qa_recorder_scores_continuation_as_gap_identification() -> None:
+    store = _MetricCaptureStore()
+    recorder = evaluation_runtime.QABenchmarkRecorder(store)  # type: ignore[arg-type]
+    prediction = QAPrediction(
+        case_id="qa-gap",
+        completion_status="continuation_requested",
+        execution_refs=["evidence-need:need-1", "model-request:model-gap"],
+    )
+    score = QAScore(
+        answer_accuracy=1.0,
+        groundedness=1.0,
+        citation_correctness=1.0,
+        citation_completeness=1.0,
+        unknown_correctness=1.0,
+        conflict_handling=1.0,
+        completion_correctness=1.0,
+    )
+    await recorder.record_case_score(
+        None,  # type: ignore[arg-type]
+        case_run_id="case-run:gap",
+        score=score,
+        subject_ref="qa-case:gap",
+        prediction=prediction,
+        gold=QAGold(case_id="qa-gap", completion_expectation="continuation_requested"),
+    )
+    observed = {item["metric_name"]: item for item in store.observations}
+    assert observed["agent.critical_evidence_need_recall"]["value"] == 1.0
+    assert observed["agent.false_gap_rate"]["value"] == 0.0
+
+
+@pytest.mark.asyncio
+async def test_qa_recorder_marks_unnecessary_continuation_as_false_gap() -> None:
+    store = _MetricCaptureStore()
+    recorder = evaluation_runtime.QABenchmarkRecorder(store)  # type: ignore[arg-type]
+    prediction = QAPrediction(
+        case_id="qa-false-gap",
+        completion_status="continuation_requested",
+        execution_refs=["evidence-need:need-2"],
+    )
+    score = QAScore(
+        answer_accuracy=0.0,
+        groundedness=1.0,
+        citation_correctness=1.0,
+        citation_completeness=1.0,
+        unknown_correctness=1.0,
+        conflict_handling=1.0,
+        completion_correctness=0.0,
+    )
+    await recorder.record_case_score(
+        None,  # type: ignore[arg-type]
+        case_run_id="case-run:false-gap",
+        score=score,
+        subject_ref="qa-case:false-gap",
+        prediction=prediction,
+        gold=QAGold(case_id="qa-false-gap", completion_expectation="answered"),
+    )
+    observed = {item["metric_name"]: item for item in store.observations}
+    assert "agent.critical_evidence_need_recall" not in observed
+    assert observed["agent.false_gap_rate"]["value"] == 1.0
+
+
+@pytest.mark.asyncio
 async def test_qa_recorder_projects_runtime_economics() -> None:
     store = _MetricCaptureStore()
     recorder = evaluation_runtime.QABenchmarkRecorder(store)  # type: ignore[arg-type]

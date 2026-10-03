@@ -51,6 +51,10 @@ class InvestigationDelegationPort(Protocol):
     ) -> DelegationResult: ...
 
 
+class InvestigationExecutionBoundary(Protocol):
+    async def blocking_reason(self, task_run_id: str) -> str | None: ...
+
+
 class StatePatchAction(BaseModel):
     kind: Literal[InvestigationActionKind.PATCH] = InvestigationActionKind.PATCH
     patch: StatePatch

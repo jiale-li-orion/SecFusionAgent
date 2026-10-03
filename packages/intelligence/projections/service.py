@@ -195,7 +195,7 @@ class CurrentProjectionService:
                 updated_at=now,
             )
             .on_conflict_do_update(
-                constraint="uq_current_projection_type_subject",
+                index_elements=[CurrentProjectionModel.projection_id],
                 set_={
                     "projection_key": projection_key,
                     "data": data,
