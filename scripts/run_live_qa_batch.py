@@ -10,11 +10,12 @@ from pathlib import Path
 from typing import Any
 
 from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.evaluation_runtime import ensure_benchmark_deployment_revision
 from apps.runtime_models import register_runtime_models
 from packages.evaluation.benchmark import CompetitionReport
-from packages.evaluation.benchmark.storage import BenchmarkSuiteModel
+from packages.evaluation.benchmark.storage import BenchmarkCaseModel, BenchmarkSuiteModel
 from packages.evaluation.competition_status import render_competition_report_markdown
 from packages.evaluation.fault_recovery_status import render_fault_recovery_markdown
 from packages.evaluation.m1_status import (
@@ -85,6 +86,8 @@ async def _resolve_model() -> dict[str, Any]:
 
 async def _world_and_next_revisions(
     suite_ids: list[str],
+    *,
+    case_ids_by_suite: dict[str, list[str]] | None = None,
 ) -> tuple[int, dict[str, int], str]:
     register_runtime_models()
     settings = get_settings()
@@ -95,12 +98,11 @@ async def _world_and_next_revisions(
             world_revision = await current_knowledge_revision(session)
             next_revisions: dict[str, int] = {}
             for suite_id in suite_ids:
-                current_max = await session.scalar(
-                    select(func.max(BenchmarkSuiteModel.suite_revision)).where(
-                        BenchmarkSuiteModel.suite_id == suite_id
-                    )
+                next_revisions[suite_id] = await _next_suite_revision(
+                    session,
+                    suite_id,
+                    (case_ids_by_suite or {}).get(suite_id, []),
                 )
-                next_revisions[suite_id] = int(current_max or 0) + 1
             deployment_revision_id = await ensure_benchmark_deployment_revision(
                 session,
                 settings,
@@ -109,6 +111,26 @@ async def _world_and_next_revisions(
         return world_revision, next_revisions, deployment_revision_id
     finally:
         await engine.dispose()
+
+
+async def _next_suite_revision(
+    session: AsyncSession,
+    suite_id: str,
+    case_ids: list[str],
+) -> int:
+    current_suite_max = await session.scalar(
+        select(func.max(BenchmarkSuiteModel.suite_revision)).where(
+            BenchmarkSuiteModel.suite_id == suite_id
+        )
+    )
+    current_case_max = None
+    if case_ids:
+        current_case_max = await session.scalar(
+            select(func.max(BenchmarkCaseModel.case_revision)).where(
+                BenchmarkCaseModel.case_id.in_(case_ids)
+            )
+        )
+    return max(int(current_suite_max or 0), int(current_case_max or 0)) + 1
 
 
 async def run_live_qa_batch(
@@ -177,7 +199,11 @@ async def run_live_qa_batch(
         quiesced = True
 
         world_revision, revisions, deployment_revision_id = await _world_and_next_revisions(
-            suite_ids
+            suite_ids,
+            case_ids_by_suite={
+                product.suite_id: [item.case_id for item in product.cases],
+                session.suite_id: [item.case_id for item in session.sessions],
+            },
         )
         product = product.model_copy(update={"knowledge_revision": world_revision})
         session = session.model_copy(update={"knowledge_revision": world_revision})
