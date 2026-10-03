@@ -101,7 +101,7 @@ Document indexing produces lexical state first. Dense embedding and semantic ext
 
 ## Current projections
 
-`projections/CurrentProjectionService` owns rebuildable read models including current vulnerability, affected versions, fix status, repository security state, and incident state. Projection rows carry upstream revision information. PostgreSQL writes use an atomic conflict update on the `(projection_type, subject_id)` identity and only advance when the incoming `upstream_revision` is newer; concurrent redelivery therefore cannot race through a read-then-insert path or regress a current projection. SQLite keeps the simpler deterministic path for fast tests. Projections remain caches/read models, not evidence authority.
+`projections/CurrentProjectionService` owns rebuildable read models including current vulnerability, affected versions, fix status, repository security state, and incident state. Projection rows carry upstream revision information. PostgreSQL serializes writes for the same deterministic projection identity with a transaction-scoped advisory lock, then performs the monotonic atomic upsert and advances only when the incoming `upstream_revision` is newer. This preserves both the deterministic primary key and the `(projection_type, subject_id)` database uniqueness invariant without allowing concurrent redelivery to deadlock, race through read-then-insert, or regress a current projection; unrelated projection identities remain independently writable. SQLite keeps the simpler deterministic path for fast tests. Projections remain caches/read models, not evidence authority.
 
 ## Design → implementation map
 

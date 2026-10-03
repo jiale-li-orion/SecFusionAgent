@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from uuid import NAMESPACE_URL, uuid5
 
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.dialects.postgresql import insert as postgresql_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -183,10 +183,17 @@ class CurrentProjectionService:
         upstream_revision: int,
     ) -> ProjectionWriteResult:
         now = self._now()
+        projection_id = _stable_id(f"projection:{projection_type}:{subject_id}")
+        # The row has both a deterministic PK and a logical-identity UNIQUE index.
+        # Serialize one identity so concurrent speculative inserts cannot deadlock across them.
+        await session.execute(
+            text("SELECT pg_advisory_xact_lock(:lock_key)"),
+            {"lock_key": _advisory_lock_key(projection_id)},
+        )
         statement = (
             postgresql_insert(CurrentProjectionModel)
             .values(
-                projection_id=_stable_id(f"projection:{projection_type}:{subject_id}"),
+                projection_id=projection_id,
                 projection_type=projection_type,
                 subject_id=subject_id,
                 projection_key=projection_key,
@@ -609,3 +616,8 @@ def _json_fingerprint(value: object) -> str:
 
 def _stable_id(value: str) -> str:
     return str(uuid5(NAMESPACE_URL, f"secfusion:{value}"))
+
+
+def _advisory_lock_key(stable_id: str) -> int:
+    value = int(stable_id.replace("-", ""), 16) & ((1 << 64) - 1)
+    return value if value < (1 << 63) else value - (1 << 64)
