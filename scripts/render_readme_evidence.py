@@ -82,7 +82,14 @@ def _evaluation_block(*, chinese: bool = False) -> str:
     report = _load("benchmarks/competition/current.json")
     m1 = _load("benchmarks/m1/current.json")
     fault = _load("benchmarks/fault-recovery/current.json")
+    evaluation_infra = _load("benchmarks/evaluation-infra/current.json")
     metrics = _metric_map(report)
+    group_counts: dict[str, int] = {}
+    unobserved_metrics: set[str] = set()
+    for group in evaluation_infra["metric_groups"]:
+        status = str(group["status"])
+        group_counts[status] = group_counts.get(status, 0) + 1
+        unobserved_metrics.update(str(name) for name in group["unobserved_metrics"])
     title = (
         "## 当前正式评测证据（自动生成）"
         if chinese
@@ -113,7 +120,15 @@ def _evaluation_block(*, chinese: bool = False) -> str:
                 f"recall={_pct(metrics['m3.micro_recall']['value'])}。"
                 f"工程故障恢复 `{fault['suite_ref']}` 为 {_pct(fault['success_rate'])}（{len(fault['cases'])} cases）。",
                 "",
-                "当前未评项：" + "、".join(report["unevaluated_competition_areas"]) + "。",
+                "当前 CompetitionReport 未纳入的评测域："
+                + "、".join(report["unevaluated_competition_areas"])
+                + "。这些域的独立 controlled/diagnostic evidence 不会被混入本报告的 6-run 正式口径。",
+                "",
+                f"全评测基础设施按当前 MetricDefinition 统计为 {evaluation_infra['observed_metric_name_count']}/{evaluation_infra['registered_core_metric_count']} 个核心指标已有 durable observation；"
+                f"{group_counts.get('observed', 0)} 个 metric groups observed / {group_counts.get('partial', 0)} 个 partial。"
+                "当前唯一未观测核心指标为 "
+                + "、".join(f"`{name}`" for name in sorted(unobserved_metrics))
+                + "；它们都是 provider/executor 未返回的精确货币成本，不从 token 或公开价目表推算。",
                 "",
                 "复现入口：`make benchmark-query METRIC=m3.micro_precision` 直接回查 PostgreSQL 的 BenchmarkRun/MetricObservation；`make competition-render-doc` 重新渲染报告；`make evidence-doc` 更新全部证据投影；`make evidence-doc-check` 做无写入一致性检查。",
             ]
@@ -138,9 +153,15 @@ def _evaluation_block(*, chinese: bool = False) -> str:
                 f"Controlled engineering recovery `{fault['suite_ref']}` is {_pct(fault['success_rate'])} "
                 f"across {len(fault['cases'])} cases.",
                 "",
-                "Unevaluated competition areas: "
+                "Evaluation areas not selected into the current CompetitionReport: "
                 + ", ".join(f"`{item}`" for item in report["unevaluated_competition_areas"])
-                + ".",
+                + ". Their separate controlled/diagnostic evidence is not mixed into the report's six-run formal profile.",
+                "",
+                f"Across the evaluation infrastructure, {evaluation_infra['observed_metric_name_count']}/{evaluation_infra['registered_core_metric_count']} core metrics have durable observations at the current MetricDefinition revision; "
+                f"{group_counts.get('observed', 0)} metric groups are observed and {group_counts.get('partial', 0)} are partial. "
+                "The only unobserved core metrics are "
+                + ", ".join(f"`{name}`" for name in sorted(unobserved_metrics))
+                + "; both are exact monetary costs that remain absent when the provider/executor does not report them and are never inferred from token counts or public price tables.",
                 "",
                 "Query the durable rows with `make benchmark-query METRIC=m3.micro_precision`; reproduce the report projection with `make competition-render-doc`; refresh every maintained evidence projection with `make evidence-doc`; verify without writes with `make evidence-doc-check`.",
             ]
@@ -227,7 +248,7 @@ def _scoreboard_block(*, chinese: bool = False) -> str:
             f"| M1 监测时效 | **p50 {_duration(m1['latency']['p50_seconds'])} / p95 {_duration(m1['latency']['p95_seconds'])} / ≤6h {_pct(m1['latency']['within_6h_rate'])}（{m1['latency']['evaluable_samples']}/{m1['latency']['total_samples']}）** |",
             f"| M3 富化 Precision / Recall | **{_pct(metrics['m3.micro_precision']['value'])} / {_pct(metrics['m3.micro_recall']['value'])}（TP={_number(metrics['m3.true_positive']['value'])}, FP={_number(metrics['m3.false_positive']['value'])}, FN={_number(metrics['m3.false_negative']['value'])}）** |",
             f"| Controlled fault recovery | **{_pct(fault['success_rate'])}（{len(fault['cases'])}/{len(fault['cases'])}）** |",
-            "| M6 QA | **待接入真实模型 provider 后正式测分** |",
+            f"| M6 QA | **Accuracy {_pct(metrics['m6.answer_accuracy']['value'])} / interactive max {_duration(metrics['m6.interactive_latency_seconds']['value'])}** |",
             "",
             f"**来源运行口径：{len(inventory['entries'])} 个 catalog entries → {len(source_files)} 个 executable sources → {scheduled_sources} 个 scheduled monitors；8 类产品覆盖，其中 {len(scheduled_categories)}/8 类存在主动定时监测，`assets` 保持按需查询。**",
             *([runtime_line_zh] if runtime_line_zh is not None else []),
@@ -245,7 +266,7 @@ def _scoreboard_block(*, chinese: bool = False) -> str:
             f"| M1 monitoring latency | **p50 {_duration(m1['latency']['p50_seconds'])} / p95 {_duration(m1['latency']['p95_seconds'])} / ≤6h {_pct(m1['latency']['within_6h_rate'])} ({m1['latency']['evaluable_samples']}/{m1['latency']['total_samples']})** |",
             f"| M3 enrichment Precision / Recall | **{_pct(metrics['m3.micro_precision']['value'])} / {_pct(metrics['m3.micro_recall']['value'])} (TP={_number(metrics['m3.true_positive']['value'])}, FP={_number(metrics['m3.false_positive']['value'])}, FN={_number(metrics['m3.false_negative']['value'])})** |",
             f"| Controlled fault recovery | **{_pct(fault['success_rate'])} ({len(fault['cases'])}/{len(fault['cases'])})** |",
-            "| M6 QA | **pending formal live-model run** |",
+            f"| M6 QA | **Accuracy {_pct(metrics['m6.answer_accuracy']['value'])} / interactive max {_duration(metrics['m6.interactive_latency_seconds']['value'])}** |",
             "",
             f"**Source runtime contract: {len(inventory['entries'])} catalog entries → {len(source_files)} executable sources → {scheduled_sources} scheduled monitors; 8 product categories, with active scheduled monitoring in {len(scheduled_categories)}/8 categories and `assets` intentionally query-time.**",
             *([runtime_line_en] if runtime_line_en is not None else []),

@@ -18,4 +18,4 @@ When evidence is insufficient, M6 emits `ContinuationRequest`. The request contr
 
 TD2 的 M6 pipeline 已经落成 `ModelDecisionPlanner → DecisionDraft | ContinuationRequest → DecisionService → M4-owned gate`。`decision.py` 持有 conclusion typing 与 evidence/reasoning validation；`citation.py` 只把既有 EvidenceRef 绑定到显式 source/locator；`model.py` 只是 structured proposal generator；`storage.py` 只持久化已经验证的 immutable DecisionResult。`apps.decision_runtime` 是最终 composition boundary：final 走 `DecisionCommit` 并登记 M6 result，continuation 走 M4 `ContinuationGate`。
 
-Runtime Workbench 与 Product AskQuestion 都调用这条 M6 runtime/invariant。当前剩余比赛层工作是 human-adjudicated real QA content、session/follow-up binding 与 live Product benchmark closure，而不是另一套 chat-only reasoning engine。
+Runtime Workbench 与 Product AskQuestion 都调用这条 M6 runtime/invariant。正式 Product QA 与 session/follow-up live benchmark 已经沿同一条 production path 闭环；后续 M6 工作集中在扩大 frozen denominator、回归新的模型/策略版本与补充更难的 Case-read/long-Investigation 内容，而不是再造一套 chat-only reasoning engine。

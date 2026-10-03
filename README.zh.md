@@ -13,7 +13,7 @@
 | M1 监测时效 | **p50 357.709s (5.96min) / p95 7241.893s (2.01h) / ≤6h 100.000%（12/12）** |
 | M3 富化 Precision / Recall | **99.659% / 99.659%（TP=292, FP=1, FN=1）** |
 | Controlled fault recovery | **100.000%（3/3）** |
-| M6 QA | **待接入真实模型 provider 后正式测分** |
+| M6 QA | **Accuracy 100.000% / interactive max 4.032s** |
 
 **来源运行口径：101 个 catalog entries → 66 个 executable sources → 39 个 scheduled monitors；8 类产品覆盖，其中 7/8 类存在主动定时监测，`assets` 保持按需查询。**
 **持续监测记账起点：`2026-10-02T04:19:42+08:00`；当前 scheduled source 健康状态 29 healthy / 8 degraded / 2 blocked；epoch 内 Evidence 物理完整性 100.000%。**
@@ -50,7 +50,9 @@ M1 固定窗口 `2026-10-01T10:00:00+00:00` → `2026-10-01T14:02:00+00:00`：12
 
 M3 当前选定 run 聚合：TP=292，FP=1，FN=1，precision=99.659%，recall=99.659%。工程故障恢复 `engineering-fault-recovery@4` 为 100.000%（3 cases）。
 
-当前未评项：M2 parser/entity/evidence diagnostics、Agent runtime、Long Investigation completion、Security adversarial hard gates、Security adversarial breadth。
+当前 CompetitionReport 未纳入的评测域：M2 parser/entity/evidence diagnostics、Agent runtime、Long Investigation completion、Security adversarial hard gates、Security adversarial breadth。这些域的独立 controlled/diagnostic evidence 不会被混入本报告的 6-run 正式口径。
+
+全评测基础设施按当前 MetricDefinition 统计为 85/87 个核心指标已有 durable observation；15 个 metric groups observed / 2 个 partial。当前唯一未观测核心指标为 `runtime.capability_external_cost`、`runtime.model_provider_cost`；它们都是 provider/executor 未返回的精确货币成本，不从 token 或公开价目表推算。
 
 复现入口：`make benchmark-query METRIC=m3.micro_precision` 直接回查 PostgreSQL 的 BenchmarkRun/MetricObservation；`make competition-render-doc` 重新渲染报告；`make evidence-doc` 更新全部证据投影；`make evidence-doc-check` 做无写入一致性检查。
 <!-- END GENERATED EVALUATION STATUS -->
@@ -59,7 +61,7 @@ M3 当前选定 run 聚合：TP=292，FP=1，FN=1，precision=99.659%，recall=9
 
 SecFusionAgent 当前已经形成 **M1–M3 常态数据面 + 可执行的 Agent / QA / Evaluation 控制面**。scheduled acquisition、Evidence/Knowledge ingestion、enrichment、projection 与 indexing 可以长期运行并持续积累真实 corpus；其上已经落地 durable Task Runtime/TaskEvent、M4 Investigation State 与 Perception、有界 InvestigationRole episode、Context/Skill/Capability/Policy/Budget/Execution 控制面、WATCH wake/resume、M6 typed Decision/Product Question、多轮 Product session、Case-read/continuation、durable RetrievalInvocation provenance、M7 replay/regression/Experience→Skill promotion gate，以及 TD3 DeploymentRevision/BenchmarkSuite/Run/MetricObservation/CompetitionReport 证据链。
 
-当前比赛侧剩余工作已经高度收敛：M1/M3 与 controlled fault recovery 已有正式证据；M6 reviewed gold、current-world rebase 和 live runner 已就绪，正式 QA 分数等待真实模型 endpoint。production external Capability binding、prospective long-Investigation evidence、OpenShell/Firecracker substrate 验收与最终现场 demo 继续保持显式边界。historical replay 在旧 M1–M3 Knowledge world 无法精确读取时仍 fail closed，不会拿 latest projection 冒充历史世界。
+当前正式 same-deployment batch 已覆盖 M1、structured M3、CSAF/VEX、controlled recovery、Product QA 与 session QA，并发布一份 CompetitionReport；所选 case 的 runtime/Evidence provenance 也已经闭环。M2、M5 runtime、long-Investigation、retrieval、security 与 evaluation-infrastructure 由各自 controlled/diagnostic suite 持有，不会为了填满比赛报告而被静默混进这 6-run 正式口径。production external Capability binding、OpenShell/Firecracker substrate 验收、更宽的 live denominator 与最终现场 demo 继续保持显式边界。historical replay 在旧 M1–M3 Knowledge world 无法精确读取时仍 fail closed，不会拿 latest projection 冒充历史世界。
 
 仓库质量门：
 
@@ -146,6 +148,7 @@ Experience 保存适用范围、触发条件、推荐动作、证据预期、失
 SecFusionAgent/
 ├── apps/
 │   ├── api/                 # FastAPI 应用与 HTTP 路由
+│   ├── application/         # Product use case 与稳定 application DTO
 │   └── worker/              # Celery 任务、调度器与 outbox 消费者
 │
 ├── packages/
@@ -153,8 +156,11 @@ SecFusionAgent/
 │   ├── monitoring/          # 采集生命周期与 retention-mode 采集器
 │   ├── intelligence/        # 证据、canonical knowledge、incident 与投影
 │   ├── enrichment/          # provider-backed 漏洞富化
-│   ├── evaluation/          # 可执行 M1-M3 评测与 benchmark contract
-│   ├── investigation/       # Case、Trajectory 与 Experience persistence seam
+│   ├── task_runtime/        # Task/Context/Event/delegation 执行协议
+│   ├── runtime/             # Capability/Policy/Budget/Execution/Sandbox 控制面
+│   ├── investigation/       # M4 state、Perception、InvestigationRole、Skill/Experience
+│   ├── reasoning/           # typed M6 Decision/QA contract 与校验
+│   ├── evaluation/          # M1-M7/TD3 benchmark、replay 与证据契约
 │   └── shared/              # 配置、数据库与通用 outbox 原语
 │
 ├── config/
@@ -179,12 +185,17 @@ package 归属与依赖方向属于仓库契约，而不是目录约定。`packa
 - [`packages/monitoring/README.md`](packages/monitoring/README.md)：scheduler、AcquisitionRun、cursor、retry/recovery 语义；
 - [`packages/intelligence/README.md`](packages/intelligence/README.md)：Evidence/Knowledge 持久化、document、incident、projection、artifact storage；
 - [`packages/enrichment/README.md`](packages/enrichment/README.md)：deterministic/semantic M3 processing、provider query composition、processor 扩展约束；
-- [`packages/evaluation/README.md`](packages/evaluation/README.md)：M1–M3 denominator、gold identity、evidence-aware scorer；
+- [`packages/task_runtime/README.md`](packages/task_runtime/README.md)：durable Task/Context/Event 协议、delegation 与 queued-role execution；
+- [`packages/runtime/README.md`](packages/runtime/README.md)：Capability/Policy/Budget/Execution/Sandbox enforcement 与 runtime provenance；
+- [`packages/investigation/README.md`](packages/investigation/README.md)：M4 state/Perception、有界 InvestigationRole、Skill/Experience 与 replay coordinate；
+- [`packages/reasoning/README.md`](packages/reasoning/README.md)：typed M6 Decision/Continuation contract 与 evidence/citation validation；
+- [`packages/evaluation/README.md`](packages/evaluation/README.md)：M1–M7/TD3 denominator、frozen world、runtime metric、replay 与 report provenance；
 - [`packages/shared/README.md`](packages/shared/README.md)：共享基础设施、配置、outbox、model protocol；
+- [`apps/application/README.md`](apps/application/README.md)：Product use-case composition 与稳定 application boundary；
 - [`apps/api/README.md`](apps/api/README.md)：HTTP bootstrap 与 transport boundary；
 - [`apps/worker/README.md`](apps/worker/README.md)：后台进程、outbox topic 与 Celery task composition。
 
-这些 README 承接 Technical Design 1 以下的实现级设计。package 内部实现变化更新 owner README；一旦变化触及跨模块 ownership、evidence authority、processing path、持久化语义、安全边界或 evaluation protocol，仍需在同一轮更新 Wiki Technical Design / Requirements。M4 runtime 尚未冻结，因此本轮不提前建立对应模块 README。
+这些 README 承接 Technical Design 1/2/3 以下的实现级设计。package 内部实现变化更新 owner README；一旦变化触及跨模块 ownership、evidence authority、processing path、持久化语义、安全边界或 evaluation protocol，仍需在同一轮更新 Wiki Technical Design / Requirements。
 
 ## 开发
 
@@ -375,7 +386,7 @@ GitHub Pages、Archify、双语展示与 CI/CD 发布规则见 [`WEB-PRESENTATIO
 - 完成 Sandbox v1 的真实 substrate 验收，覆盖 filesystem/network/credential isolation、OpenShell container 与 Firecracker microVM；
 - 跑 TD2 `reference vs summary` Context 对照，测 token cost、critical-context retention 与 stale-context failure rate；
 - 增加 M1–M3 versioned historical read path，并把 M7 replay executor 接到真实 Agent re-execution，而不是在历史 world 不可用时读取 latest projection；
-- 用户提供模型端点/凭据后跑一次真实 semantic+dense provider E2E，并在合适 target-repo OSV `GIT fixed` 样本上验证 deterministic fix-boundary promotion；
-- 继续显式维护 provider blocker，并补充 poisoned source、indirect prompt injection、malicious tool output 与 privilege boundary 安全回归。
+- 在冻结 deployment 配置下跑一次真实 semantic+dense provider E2E，并在合适 target-repo OSV `GIT fixed` 样本上验证 deterministic fix-boundary promotion；
+- 继续显式维护 provider blocker，并在现有 frozen v1 production-boundary security suite 之上增加更强攻击变体与 model red-team case。
 
 Requirements-SPEC 仍是产品范围的权威；路线图排序依据依赖与集成风险，而不是 UI 完成度。

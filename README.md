@@ -13,7 +13,7 @@ English | [中文](README.zh.md)
 | M1 monitoring latency | **p50 357.709s (5.96min) / p95 7241.893s (2.01h) / ≤6h 100.000% (12/12)** |
 | M3 enrichment Precision / Recall | **99.659% / 99.659% (TP=292, FP=1, FN=1)** |
 | Controlled fault recovery | **100.000% (3/3)** |
-| M6 QA | **pending formal live-model run** |
+| M6 QA | **Accuracy 100.000% / interactive max 4.032s** |
 
 **Source runtime contract: 101 catalog entries → 66 executable sources → 39 scheduled monitors; 8 product categories, with active scheduled monitoring in 7/8 categories and `assets` intentionally query-time.**
 **Public continuous-monitoring epoch: `2026-10-02T04:19:42+08:00`; scheduled-source health 29 healthy / 8 degraded / 2 blocked; epoch Evidence integrity 100.000%.**
@@ -50,7 +50,9 @@ M1 fixed window `2026-10-01T10:00:00+00:00` → `2026-10-01T14:02:00+00:00`: 12/
 
 Selected M3 runs aggregate to TP=292, FP=1, FN=1, precision=99.659%, recall=99.659%. Controlled engineering recovery `engineering-fault-recovery@4` is 100.000% across 3 cases.
 
-Unevaluated competition areas: `M2 parser/entity/evidence diagnostics`, `Agent runtime`, `Long Investigation completion`, `Security adversarial hard gates`, `Security adversarial breadth`.
+Evaluation areas not selected into the current CompetitionReport: `M2 parser/entity/evidence diagnostics`, `Agent runtime`, `Long Investigation completion`, `Security adversarial hard gates`, `Security adversarial breadth`. Their separate controlled/diagnostic evidence is not mixed into the report's six-run formal profile.
+
+Across the evaluation infrastructure, 85/87 core metrics have durable observations at the current MetricDefinition revision; 15 metric groups are observed and 2 are partial. The only unobserved core metrics are `runtime.capability_external_cost`, `runtime.model_provider_cost`; both are exact monetary costs that remain absent when the provider/executor does not report them and are never inferred from token counts or public price tables.
 
 Query the durable rows with `make benchmark-query METRIC=m3.micro_precision`; reproduce the report projection with `make competition-render-doc`; refresh every maintained evidence projection with `make evidence-doc`; verify without writes with `make evidence-doc-check`.
 <!-- END GENERATED EVALUATION STATUS -->
@@ -59,7 +61,7 @@ Query the durable rows with `make benchmark-query METRIC=m3.micro_precision`; re
 
 SecFusionAgent now has a long-lived **M1–M3 data plane plus executable Agent / QA / evaluation control plane**. Scheduled acquisition, Evidence/Knowledge ingestion, enrichment, projection and indexing can run continuously and accumulate an operational corpus. Above that data plane, the repository contains durable Task Runtime/TaskEvent, M4 Investigation State and Perception, bounded InvestigationRole episodes, Context/Skill/Capability/Policy/Budget/Execution control planes, WATCH wake/resume, typed M6 Decision/Product Question execution, multi-turn Product sessions, Case-read/continuation, durable retrieval-invocation provenance, M7 replay/regression/Experience→Skill promotion gates, and TD3 DeploymentRevision/BenchmarkSuite/Run/MetricObservation/CompetitionReport evidence.
 
-The current competition-facing gap is concentrated rather than architectural: M1/M3 and controlled recovery already have formal evidence; reviewed M6 gold and the live runner are ready, while the formal QA score waits for a real model endpoint. Production external Capability bindings, prospective long-Investigation evidence, OpenShell/Firecracker substrate acceptance and the final live demo remain explicit follow-up boundaries. Historical replay still fails closed when an exact old M1–M3 Knowledge world cannot be read; the runtime never substitutes the latest projection for a pinned historical world.
+The current formal same-deployment batch now includes M1, structured M3, CSAF/VEX, controlled recovery, Product QA and session QA, with one published CompetitionReport and closed runtime/Evidence provenance for the selected cases. Separate controlled/diagnostic suites cover M2, M5 runtime behavior, long-Investigation measurement, retrieval, security and evaluation-infrastructure closure without being silently mixed into that six-run competition profile. Production external Capability bindings, OpenShell/Firecracker substrate acceptance, broader live denominators and the final live demo remain explicit follow-up boundaries. Historical replay still fails closed when an exact old M1–M3 Knowledge world cannot be read; the runtime never substitutes the latest projection for a pinned historical world.
 
 The repository quality gate:
 
@@ -146,6 +148,7 @@ Experience stores scope, triggers, recommended actions, evidence expectations, f
 SecFusionAgent/
 ├── apps/
 │   ├── api/                 # FastAPI application and HTTP routes
+│   ├── application/         # Product use cases and stable application DTOs
 │   └── worker/              # Celery tasks, scheduler and outbox consumers
 │
 ├── packages/
@@ -153,8 +156,11 @@ SecFusionAgent/
 │   ├── monitoring/          # acquisition lifecycle and retention-mode collectors
 │   ├── intelligence/        # evidence, canonical knowledge, incident and projections
 │   ├── enrichment/          # provider-backed vulnerability enrichment
-│   ├── evaluation/          # executable M1-M3 metric and benchmark contracts
-│   ├── investigation/       # Case, Trajectory and Experience persistence seam
+│   ├── task_runtime/        # Task/Context/Event/delegation execution protocol
+│   ├── runtime/             # Capability/Policy/Budget/Execution/Sandbox controls
+│   ├── investigation/       # M4 state, Perception, InvestigationRole, Skill/Experience
+│   ├── reasoning/           # typed M6 Decision/QA contracts and validation
+│   ├── evaluation/          # M1-M7/TD3 benchmark, replay and evidence contracts
 │   └── shared/              # configuration, database and generic outbox primitives
 │
 ├── config/
@@ -179,12 +185,17 @@ Module-level implementation design lives with the code it governs:
 - [`packages/monitoring/README.md`](packages/monitoring/README.md) — scheduling, acquisition-run state, cursor/retry/recovery semantics;
 - [`packages/intelligence/README.md`](packages/intelligence/README.md) — Evidence/Knowledge persistence, documents, incidents, projections, artifact storage;
 - [`packages/enrichment/README.md`](packages/enrichment/README.md) — deterministic/semantic M3 processing, provider query composition, processor extension rules;
-- [`packages/evaluation/README.md`](packages/evaluation/README.md) — concrete M1–M3 denominators, gold identity, evidence-aware scoring;
+- [`packages/task_runtime/README.md`](packages/task_runtime/README.md) — durable Task/Context/Event protocol, delegation and queued-role execution;
+- [`packages/runtime/README.md`](packages/runtime/README.md) — Capability/Policy/Budget/Execution/Sandbox enforcement and runtime provenance;
+- [`packages/investigation/README.md`](packages/investigation/README.md) — M4 state/Perception, bounded InvestigationRole, Skill/Experience and replay coordinates;
+- [`packages/reasoning/README.md`](packages/reasoning/README.md) — typed M6 Decision/Continuation contracts and evidence/citation validation;
+- [`packages/evaluation/README.md`](packages/evaluation/README.md) — M1–M7/TD3 denominators, frozen worlds, runtime metrics, replay and report provenance;
 - [`packages/shared/README.md`](packages/shared/README.md) — common infrastructure contracts, configuration, outbox, model protocol;
+- [`apps/application/README.md`](apps/application/README.md) — Product use-case composition and stable application boundary;
 - [`apps/api/README.md`](apps/api/README.md) — HTTP bootstrap and transport boundary;
 - [`apps/worker/README.md`](apps/worker/README.md) — background-process, outbox-topic, Celery-task composition.
 
-These READMEs refine Technical Design 1 below the cross-module architecture boundary. Internal implementation changes update the owning module README; changes to cross-module ownership, evidence authority, processing paths, persistence semantics, security boundaries, or evaluation protocol still require the Wiki Technical Design/Requirements to change in the same cycle. M4 runtime modules are intentionally not documented here until their design is frozen.
+These READMEs refine Technical Design 1/2/3 below the cross-module architecture boundary. Internal implementation changes update the owning module README; changes to cross-module ownership, evidence authority, processing paths, persistence semantics, security boundaries, or evaluation protocol still require the Wiki Technical Design/Requirements to change in the same cycle.
 
 ## Development
 
@@ -374,7 +385,7 @@ The next engineering boundary starts after the canonical VERIFY closure rather t
 - complete real Sandbox v1 substrate acceptance for filesystem/network/credential isolation, OpenShell containers and Firecracker microVMs;
 - run the TD2 `reference vs summary` context evaluation for token cost, critical-context retention and stale-context failure rate;
 - add a versioned M1–M3 historical read path and connect the M7 replay executor to real Agent re-execution rather than current-projection-only admission;
-- run one live semantic+dense provider E2E once model credentials/endpoint are supplied and validate deterministic fix-boundary promotion on a real target-repo OSV `GIT fixed` sample;
-- keep provider-access blockers explicit and extend security regression for poisoned sources, indirect prompt injection, malicious tool output and privilege boundaries.
+- run a frozen live semantic+dense provider E2E and validate deterministic fix-boundary promotion on a real target-repo OSV `GIT fixed` sample;
+- keep provider-access blockers explicit and broaden the existing security regression beyond the frozen v1 production-boundary classes with stronger attack variants and model red-team cases.
 
 Requirements remain the authority for product scope; roadmap ordering follows dependency and integration risk rather than UI completeness.
