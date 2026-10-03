@@ -1,0 +1,166 @@
+{
+  "benchmark_run_id": "82a5e288-6d09-40f1-bd80-d4171fc9b629",
+  "deployment_revision_id": "deployment:0e16e1b574d5b6383434e7fc80f64cc4",
+  "suite_ref": "m6-real-product-qa@12",
+  "manifest_digest": "7ab5867b414dcc4eab5436009e7fd50696b25b4a3aff05115ab4d42f2740ac12",
+  "gold_revision": "qa-gold:6d19118cd9f7c6774d4a1dd61593b9f6be784913dfe90cdd0645df026f144b67",
+  "case_count": 14,
+  "execution_mode": "live_external",
+  "world_snapshot_ref": "knowledge-revision:2053",
+  "case_scores": {
+    "qa-real-7273-cvss-score": {
+      "answer_accuracy": 1.0,
+      "groundedness": 1.0,
+      "citation_correctness": 1.0,
+      "citation_completeness": 1.0,
+      "multi_hop_correctness": null,
+      "unknown_correctness": 1.0,
+      "conflict_handling": 1.0,
+      "completion_correctness": 1.0,
+      "interactive_latency_seconds": 2.136125088999961
+    },
+    "qa-real-7273-known-exploited": {
+      "answer_accuracy": 1.0,
+      "groundedness": 1.0,
+      "citation_correctness": 1.0,
+      "citation_completeness": 1.0,
+      "multi_hop_correctness": null,
+      "unknown_correctness": 1.0,
+      "conflict_handling": 1.0,
+      "completion_correctness": 1.0,
+      "interactive_latency_seconds": 1.9737246479999158
+    },
+    "qa-real-7273-cross-source-risk": {
+      "answer_accuracy": 1.0,
+      "groundedness": 1.0,
+      "citation_correctness": 1.0,
+      "citation_completeness": 1.0,
+      "multi_hop_correctness": null,
+      "unknown_correctness": 1.0,
+      "conflict_handling": 1.0,
+      "completion_correctness": 1.0,
+      "interactive_latency_seconds": 2.625291561999802
+    },
+    "qa-real-67279-cvss-score": {
+      "answer_accuracy": 1.0,
+      "groundedness": 1.0,
+      "citation_correctness": 1.0,
+      "citation_completeness": 1.0,
+      "multi_hop_correctness": null,
+      "unknown_correctness": 1.0,
+      "conflict_handling": 1.0,
+      "completion_correctness": 1.0,
+      "interactive_latency_seconds": 1.9968353310000566
+    },
+    "qa-real-67279-cross-source-risk": {
+      "answer_accuracy": 1.0,
+      "groundedness": 1.0,
+      "citation_correctness": 1.0,
+      "citation_completeness": 1.0,
+      "multi_hop_correctness": null,
+      "unknown_correctness": 1.0,
+      "conflict_handling": 1.0,
+      "completion_correctness": 1.0,
+      "interactive_latency_seconds": 1.7568333700000949
+    },
+    "qa-real-67279-cvss-version": {
+      "answer_accuracy": 1.0,
+      "groundedness": 1.0,
+      "citation_correctness": 1.0,
+      "citation_completeness": 1.0,
+      "multi_hop_correctness": null,
+      "unknown_correctness": 1.0,
+      "conflict_handling": 1.0,
+      "completion_correctness": 1.0,
+      "interactive_latency_seconds": 1.826816597999823
+    },
+    "qa-real-48746-cvss-severity": {
+      "answer_accuracy": 1.0,
+      "groundedness": 1.0,
+      "citation_correctness": 1.0,
+      "citation_completeness": 1.0,
+      "multi_hop_correctness": null,
+      "unknown_correctness": 1.0,
+      "conflict_handling": 1.0,
+      "completion_correctness": 1.0,
+      "interactive_latency_seconds": 2.1691594069998246
+    },
+    "qa-real-47828-cvss-score": {
+      "answer_accuracy": 1.0,
+      "groundedness": 1.0,
+      "citation_correctness": 1.0,
+      "citation_completeness": 1.0,
+      "multi_hop_correctness": null,
+      "unknown_correctness": 1.0,
+      "conflict_handling": 1.0,
+      "completion_correctness": 1.0,
+      "interactive_latency_seconds": 1.3695187270000133
+    },
+    "qa-real-67215-cve5-version-affected": {
+      "answer_accuracy": 1.0,
+      "groundedness": 1.0,
+      "citation_correctness": 1.0,
+      "citation_completeness": 1.0,
+      "multi_hop_correctness": null,
+      "unknown_correctness": 1.0,
+      "conflict_handling": 1.0,
+      "completion_correctness": 1.0,
+      "interactive_latency_seconds": 3.9201787760002844
+    },
+    "qa-real-67215-redhat-not-affected": {
+      "answer_accuracy": 1.0,
+      "groundedness": 1.0,
+      "citation_correctness": 1.0,
+      "citation_completeness": 1.0,
+      "multi_hop_correctness": null,
+      "unknown_correctness": 1.0,
+      "conflict_handling": 1.0,
+      "completion_correctness": 1.0,
+      "interactive_latency_seconds": 4.031751627999711
+    },
+    "qa-real-32463-redhat-fixed": {
+      "answer_accuracy": 1.0,
+      "groundedness": 1.0,
+      "citation_correctness": 1.0,
+      "citation_completeness": 1.0,
+      "multi_hop_correctness": null,
+      "unknown_correctness": 1.0,
+      "conflict_handling": 1.0,
+      "completion_correctness": 1.0,
+      "interactive_latency_seconds": 3.850827133999701
+    },
+    "qa-real-7273-first-epss-probability": {
+      "answer_accuracy": 1.0,
+      "groundedness": 1.0,
+      "citation_correctness": 1.0,
+      "citation_completeness": 1.0,
+      "multi_hop_correctness": null,
+      "unknown_correctness": 1.0,
+      "conflict_handling": 1.0,
+      "completion_correctness": 1.0,
+      "interactive_latency_seconds": 2.1002039730001343
+    },
+    "qa-real-3094-missing-cvss-continuation": {
+      "answer_accuracy": 1.0,
+      "groundedness": 1.0,
+      "citation_correctness": 1.0,
+      "citation_completeness": 1.0,
+      "multi_hop_correctness": null,
+      "unknown_correctness": 1.0,
+      "conflict_handling": 1.0,
+      "completion_correctness": 1.0,
+      "interactive_latency_seconds": 3.064841328000057
+    },
+    "qa-real-48746-pr-merge-commit-multihop": {
+      "answer_accuracy": 1.0,
+      "groundedness": 1.0,
+      "citation_correctness": 1.0,
+      "citation_completeness": 1.0,
+      "multi_hop_correctness": 1.0,
+      "unknown_correctness": 1.0,
+      "conflict_handling": 1.0,
+      "completion_correctness": 1.0,
+      "interactive_latency_seconds": 2.4225226720000137
+    }
+  }
+}

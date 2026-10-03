@@ -1,0 +1,76 @@
+{
+  "benchmark_run_id": "99da1f9b-441b-465c-a962-76549a7741c7",
+  "deployment_revision_id": "deployment:0e16e1b574d5b6383434e7fc80f64cc4",
+  "suite_ref": "m6-real-product-qa-session@10",
+  "manifest_digest": "000a4922ba16212a21ccaeed8790f288eefe7df2e91c1dad7a2e07bbb9663a03",
+  "gold_revision": "qa-session-gold:8009c0a2345b8f11a2616c708fdf5b84ae93cea7436cbc1406d63d93f0722b06",
+  "session_count": 2,
+  "execution_mode": "live_external",
+  "world_snapshot_ref": "knowledge-revision:2053",
+  "session_scores": {
+    "qa-session-real-7273-followup": {
+      "session_id": "1f1ffd20-6a5e-40f5-843a-976ef6a9f2f1",
+      "turn_scores": {
+        "cvss": {
+          "answer_accuracy": 1.0,
+          "groundedness": 1.0,
+          "citation_correctness": 1.0,
+          "citation_completeness": 1.0,
+          "multi_hop_correctness": null,
+          "unknown_correctness": 1.0,
+          "conflict_handling": 1.0,
+          "completion_correctness": 1.0,
+          "interactive_latency_seconds": 2.1842006550000406
+        },
+        "epss-followup": {
+          "answer_accuracy": 1.0,
+          "groundedness": 1.0,
+          "citation_correctness": 1.0,
+          "citation_completeness": 1.0,
+          "multi_hop_correctness": null,
+          "unknown_correctness": 1.0,
+          "conflict_handling": 1.0,
+          "completion_correctness": 1.0,
+          "interactive_latency_seconds": 3.338795927999854
+        }
+      },
+      "context_chain_correctness": 1.0,
+      "target_carry_correctness": 1.0,
+      "retrieval_overlap_rate": null,
+      "retrieval_invocation_coverage": null,
+      "retrieval_reuse_rate": null
+    },
+    "qa-session-real-7273-retrieve-reuse": {
+      "session_id": "43226f9b-85e1-41de-b414-9ecb30caf7e3",
+      "turn_scores": {
+        "retrieve-initial": {
+          "answer_accuracy": 1.0,
+          "groundedness": 1.0,
+          "citation_correctness": 1.0,
+          "citation_completeness": 1.0,
+          "multi_hop_correctness": null,
+          "unknown_correctness": 1.0,
+          "conflict_handling": 1.0,
+          "completion_correctness": 1.0,
+          "interactive_latency_seconds": 1.6709760429998823
+        },
+        "retrieve-repeat": {
+          "answer_accuracy": 1.0,
+          "groundedness": 1.0,
+          "citation_correctness": 1.0,
+          "citation_completeness": 1.0,
+          "multi_hop_correctness": null,
+          "unknown_correctness": 1.0,
+          "conflict_handling": 1.0,
+          "completion_correctness": 1.0,
+          "interactive_latency_seconds": 1.3129799859998457
+        }
+      },
+      "context_chain_correctness": 1.0,
+      "target_carry_correctness": 1.0,
+      "retrieval_overlap_rate": null,
+      "retrieval_invocation_coverage": 1.0,
+      "retrieval_reuse_rate": 1.0
+    }
+  }
+}

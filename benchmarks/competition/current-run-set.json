@@ -1,17 +1,20 @@
 {
   "schema_version": "competition-run-set-v1",
-  "deployment_revision_id": "deployment:f518d9f8fd7a776996354d34afa7f299",
+  "deployment_revision_id": "deployment:0e16e1b574d5b6383434e7fc80f64cc4",
   "benchmark_run_ids": [
-    "21803fd4-4aaf-42a5-992d-4364e9e31dd2",
-    "216b901f-12b7-4c4d-8c0f-4a41da0a7108",
-    "44915032-a39c-46f3-ad83-36e7cc96f89e",
-    "e8cb92f6-42fd-4492-8284-863e9afca0b8"
+    "651b4167-a2a2-4af3-a74a-0630d5ac1916",
+    "ea3e6082-ef63-4836-82b3-dc6448d1a917",
+    "66a86f1e-e0aa-49bc-b931-51808f623836",
+    "dcdd9e23-3fc8-407d-af39-8b5ef93ff62d",
+    "82a5e288-6d09-40f1-bd80-d4171fc9b629",
+    "99da1f9b-441b-465c-a962-76549a7741c7"
   ],
   "artifact_refs": [
     "provider-snapshot:6f23e9a0efccc6b88a9a2da60a8cfa43fa153f90da84123d5b1d1c1762cc1b1c",
     "provider-snapshot:2c7c06aa468439a08675cab1551ede352234656ff08a6b0ea00e04ceddf97a27",
     "provider-snapshot:cba7f1e65b1c5996b0137cfb9ddeb42a72876bff5a3fb38c34d9767bdaaee5bb",
     "knowledge-revision:1019",
-    "knowledge-revision:596"
+    "knowledge-revision:596",
+    "knowledge-revision:2053"
   ]
 }

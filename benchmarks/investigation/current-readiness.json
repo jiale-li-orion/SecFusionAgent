@@ -1,18 +1,54 @@
 {
-  "generated_at": "2026-10-02T20:30:01.762457+00:00",
-  "model_provider_status": "unconfigured",
-  "launch_readiness": "blocked_model_provider_unconfigured",
+  "generated_at": "2026-10-03T11:20:42.787934+00:00",
+  "model_provider_status": "configured",
+  "launch_readiness": "ready_to_launch_real_case",
   "max_prospective_freeze_lag_seconds": 300.0,
-  "case_count": 13,
-  "eligible_case_count": 0,
+  "case_count": 17,
+  "eligible_case_count": 1,
   "cases": [
+    {
+      "case_id": "7218d9af-6670-48d4-b116-0b2a8f42635a",
+      "case_status": "active",
+      "created_at": "2026-10-03T11:16:31.554790+00:00",
+      "final_decision_at": null,
+      "eligible": true,
+      "freeze_lag_seconds": 251.233144,
+      "rejection_reason": null
+    },
+    {
+      "case_id": "dfe53ce6-09e7-4ad0-a1b7-b49cb8c28275",
+      "case_status": "active",
+      "created_at": "2026-10-03T10:42:58.863241+00:00",
+      "final_decision_at": null,
+      "eligible": false,
+      "freeze_lag_seconds": 2263.924693,
+      "rejection_reason": "freeze_lag_exceeded"
+    },
+    {
+      "case_id": "3e1d85ec-ee78-498b-9b43-1c24c7e17c98",
+      "case_status": "active",
+      "created_at": "2026-10-03T05:41:39.188532+00:00",
+      "final_decision_at": null,
+      "eligible": false,
+      "freeze_lag_seconds": 20343.599402,
+      "rejection_reason": "freeze_lag_exceeded"
+    },
+    {
+      "case_id": "86566084-7ecd-4175-a1d3-7405e494ad3b",
+      "case_status": "active",
+      "created_at": "2026-10-02T21:54:14.932553+00:00",
+      "final_decision_at": null,
+      "eligible": false,
+      "freeze_lag_seconds": 48387.855381,
+      "rejection_reason": "freeze_lag_exceeded"
+    },
     {
       "case_id": "4501c838-81e0-4776-afb4-4357dd7e39ba",
       "case_status": "active",
       "created_at": "2026-10-02T19:41:37.540999+00:00",
       "final_decision_at": "2026-10-02T19:41:50.146714+00:00",
       "eligible": false,
-      "freeze_lag_seconds": 2904.221458,
+      "freeze_lag_seconds": 56345.246935,
       "rejection_reason": "freeze_lag_exceeded"
     },
     {
@@ -21,7 +57,7 @@
       "created_at": "2026-10-02T19:38:47.183891+00:00",
       "final_decision_at": "2026-10-02T19:38:53.542714+00:00",
       "eligible": false,
-      "freeze_lag_seconds": 3074.578566,
+      "freeze_lag_seconds": 56515.604043,
       "rejection_reason": "freeze_lag_exceeded"
     },
     {
@@ -30,7 +66,7 @@
       "created_at": "2026-10-02T19:34:23.732732+00:00",
       "final_decision_at": "2026-10-02T19:34:29.658279+00:00",
       "eligible": false,
-      "freeze_lag_seconds": 3338.029725,
+      "freeze_lag_seconds": 56779.055202,
       "rejection_reason": "freeze_lag_exceeded"
     },
     {
@@ -39,7 +75,7 @@
       "created_at": "2026-10-02T19:28:45.530306+00:00",
       "final_decision_at": "2026-10-02T19:28:51.487360+00:00",
       "eligible": false,
-      "freeze_lag_seconds": 3676.232151,
+      "freeze_lag_seconds": 57117.257628,
       "rejection_reason": "freeze_lag_exceeded"
     },
     {
@@ -48,7 +84,7 @@
       "created_at": "2026-10-02T19:24:44.948038+00:00",
       "final_decision_at": "2026-10-02T19:24:52.608816+00:00",
       "eligible": false,
-      "freeze_lag_seconds": 3916.814419,
+      "freeze_lag_seconds": 57357.839896,
       "rejection_reason": "freeze_lag_exceeded"
     },
     {
@@ -57,7 +93,7 @@
       "created_at": "2026-10-02T16:46:15.969771+00:00",
       "final_decision_at": "2026-10-02T16:46:28.207087+00:00",
       "eligible": false,
-      "freeze_lag_seconds": 13425.792686,
+      "freeze_lag_seconds": 66866.818163,
       "rejection_reason": "freeze_lag_exceeded"
     },
     {
@@ -66,7 +102,7 @@
       "created_at": "2026-10-02T16:37:46.806545+00:00",
       "final_decision_at": null,
       "eligible": false,
-      "freeze_lag_seconds": 13934.955912,
+      "freeze_lag_seconds": 67375.981389,
       "rejection_reason": "freeze_lag_exceeded"
     },
     {
@@ -75,7 +111,7 @@
       "created_at": "2026-10-02T15:34:20.429541+00:00",
       "final_decision_at": "2026-10-02T16:25:38.591868+00:00",
       "eligible": false,
-      "freeze_lag_seconds": 17741.332916,
+      "freeze_lag_seconds": 71182.358393,
       "rejection_reason": "freeze_lag_exceeded"
     },
     {
@@ -84,7 +120,7 @@
       "created_at": "2026-10-02T13:20:38.093390+00:00",
       "final_decision_at": "2026-10-02T13:36:19.504246+00:00",
       "eligible": false,
-      "freeze_lag_seconds": 25763.669067,
+      "freeze_lag_seconds": 79204.694544,
       "rejection_reason": "freeze_lag_exceeded"
     },
     {
@@ -93,7 +129,7 @@
       "created_at": "2026-10-02T09:51:56.635250+00:00",
       "final_decision_at": null,
       "eligible": false,
-      "freeze_lag_seconds": 38285.127207,
+      "freeze_lag_seconds": 91726.152684,
       "rejection_reason": "freeze_lag_exceeded"
     },
     {
@@ -102,7 +138,7 @@
       "created_at": "2026-10-02T09:50:26.863490+00:00",
       "final_decision_at": null,
       "eligible": false,
-      "freeze_lag_seconds": 38374.898967,
+      "freeze_lag_seconds": 91815.924444,
       "rejection_reason": "freeze_lag_exceeded"
     },
     {
@@ -111,7 +147,7 @@
       "created_at": "2026-10-02T09:48:07.519513+00:00",
       "final_decision_at": null,
       "eligible": false,
-      "freeze_lag_seconds": 38514.242944,
+      "freeze_lag_seconds": 91955.268421,
       "rejection_reason": "freeze_lag_exceeded"
     },
     {
@@ -120,7 +156,7 @@
       "created_at": "2026-09-27T13:20:15.603727+00:00",
       "final_decision_at": null,
       "eligible": false,
-      "freeze_lag_seconds": 457786.15873,
+      "freeze_lag_seconds": 511227.184207,
       "rejection_reason": "freeze_lag_exceeded"
     }
   ]

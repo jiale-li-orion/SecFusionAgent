@@ -41,16 +41,16 @@ SecFusionAgent 面向 AI 安全漏洞、研究进展与安全事件构建持续�
 | `source_category_coverage` | `m1.source_category_count` | 8 | >= 7 | **pass** |
 | `enrichment_precision` | `m3.micro_precision` | 99.659% | >= 95.000% | **pass** |
 | `enrichment_recall` | `m3.micro_recall` | 99.659% | >= 95.000% | **pass** |
-| `qa_accuracy` | `m6.answer_accuracy` | — | >= 95.000% | **not_evaluated** |
-| `qa_interactive_latency` | `m6.interactive_latency_seconds` | — | <= 5.000s | **not_evaluated** |
+| `qa_accuracy` | `m6.answer_accuracy` | 100.000% | >= 95.000% | **pass** |
+| `qa_interactive_latency` | `m6.interactive_latency_seconds` | 4.032s | <= 5.000s | **pass** |
 
-当前 CompetitionReport：`9227c091-3076-4d86-8a88-bc2631b26fe2`；Deployment：`deployment:f518d9f8fd7a776996354d34afa7f299`。
+当前 CompetitionReport：`2735331f-1f7d-419c-80d2-72c4ce157b5f`；Deployment：`deployment:0e16e1b574d5b6383434e7fc80f64cc4`。
 
 M1 固定窗口 `2026-10-01T10:00:00+00:00` → `2026-10-01T14:02:00+00:00`：12/12 个样本可评，p50 357.709s (5.96min)，p95 7241.893s (2.01h)，≤6h 100.000%；source category=8。
 
-M3 当前选定 run 聚合：TP=292，FP=1，FN=1，precision=99.659%，recall=99.659%。工程故障恢复 `engineering-fault-recovery@3` 为 100.000%（3 cases）。
+M3 当前选定 run 聚合：TP=292，FP=1，FN=1，precision=99.659%，recall=99.659%。工程故障恢复 `engineering-fault-recovery@4` 为 100.000%（3 cases）。
 
-当前未评项：M6 QA quality、M6 multi-hop、Agent runtime、Long Investigation completion。
+当前未评项：M2 parser/entity/evidence diagnostics、Agent runtime、Long Investigation completion、Security adversarial hard gates、Security adversarial breadth。
 
 复现入口：`make benchmark-query METRIC=m3.micro_precision` 直接回查 PostgreSQL 的 BenchmarkRun/MetricObservation；`make competition-render-doc` 重新渲染报告；`make evidence-doc` 更新全部证据投影；`make evidence-doc-check` 做无写入一致性检查。
 <!-- END GENERATED EVALUATION STATUS -->

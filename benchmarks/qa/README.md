@@ -1,14 +1,19 @@
 # M6 QA benchmark assets
 
 <!-- BEGIN GENERATED QA STATUS -->
-## Current M6 readiness (generated)
+## Current M6 formal evidence (generated)
 
-| Denominator | Gold | Pinned world | Observed DB head | Gold provenance | Live-world status | Provider |
-| --- | ---: | ---: | ---: | --- | --- | --- |
-| Product QA | 14 cases | 606 | 1731 | `valid` | `stale_requires_refresh_or_rebase` | `unconfigured` |
-| Session QA | 4 turns / 2 sessions | 606 | 1731 | `valid` | `stale_requires_refresh_or_rebase` | `unconfigured` |
+Deployment `deployment:0e16e1b574d5b6383434e7fc80f64cc4`, Knowledge head `knowledge-revision:2053`, resolved model `deepseek-flash`.
 
-Preflight is deliberately not a QA score. `make qa-preflight` refreshes historical-pin validation; `make qa-live-preflight` rebases an in-memory copy to the current Knowledge head and proves that the reviewed gold still holds without spending model calls. With provider credentials configured, `make model-provider-probe` verifies auth + structured output; `make qa-live` then repeats current-world validation, runs product and session suites on one frozen DeploymentRevision, and restores the long-lived data plane even if the batch fails.
+| Metric | Current result |
+| --- | ---: |
+| Answer accuracy | 100.000% |
+| Groundedness | 100.000% |
+| Citation correctness | 100.000% |
+| Multi-hop correctness | 100.000% |
+| Interactive latency | 4.032s |
+
+Product run `82a5e288-6d09-40f1-bd80-d4171fc9b629` / `m6-real-product-qa@12`; session run `99da1f9b-441b-465c-a962-76549a7741c7` / `m6-real-product-qa-session@10`. `make benchmark-query METRIC=m6.answer_accuracy` drills into durable per-case observations.
 <!-- END GENERATED QA STATUS -->
 
 `current-product-preflight.json` and `current-session-preflight.json` are machine-readable no-model preflight results. `current-preflight.md` is generated from those JSON files; run `make qa-preflight` to refresh all three and `make qa-preflight-doc-check` to verify the Markdown projection without model calls. These artifacts report gold-provenance validity, pinned/current Knowledge coordinates, live-world readiness and model-provider configuration. They are preflight evidence only and never substitute for M6 accuracy/latency metrics in CompetitionReport.

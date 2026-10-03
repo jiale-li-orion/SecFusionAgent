@@ -1,7 +1,7 @@
 {
-  "benchmark_run_id": "dffba8b5-f551-4d75-8edf-8f183da24690",
-  "deployment_revision_id": "deployment:39c12b7ec90709a90b82faacf7f64c4e",
-  "suite_ref": "engineering-fault-recovery@3",
+  "benchmark_run_id": "dcdd9e23-3fc8-407d-af39-8b5ef93ff62d",
+  "deployment_revision_id": "deployment:0e16e1b574d5b6383434e7fc80f64cc4",
+  "suite_ref": "engineering-fault-recovery@4",
   "gold_revision": "fault-recovery:661bff8bec9f769cb2e7d61f6c5fc086fdf0eb919b3a0db8cd2db6872904bf99",
   "execution_mode": "live_controlled",
   "success_rate": 1.0,

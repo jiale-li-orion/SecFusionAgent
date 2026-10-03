@@ -41,16 +41,16 @@ This block is rendered from `benchmarks/**/current*.json`. Run `make evidence-do
 | `source_category_coverage` | `m1.source_category_count` | 8 | >= 7 | **pass** |
 | `enrichment_precision` | `m3.micro_precision` | 99.659% | >= 95.000% | **pass** |
 | `enrichment_recall` | `m3.micro_recall` | 99.659% | >= 95.000% | **pass** |
-| `qa_accuracy` | `m6.answer_accuracy` | — | >= 95.000% | **not_evaluated** |
-| `qa_interactive_latency` | `m6.interactive_latency_seconds` | — | <= 5.000s | **not_evaluated** |
+| `qa_accuracy` | `m6.answer_accuracy` | 100.000% | >= 95.000% | **pass** |
+| `qa_interactive_latency` | `m6.interactive_latency_seconds` | 4.032s | <= 5.000s | **pass** |
 
-Current CompetitionReport: `9227c091-3076-4d86-8a88-bc2631b26fe2` on `deployment:f518d9f8fd7a776996354d34afa7f299`.
+Current CompetitionReport: `2735331f-1f7d-419c-80d2-72c4ce157b5f` on `deployment:0e16e1b574d5b6383434e7fc80f64cc4`.
 
 M1 fixed window `2026-10-01T10:00:00+00:00` → `2026-10-01T14:02:00+00:00`: 12/12 evaluable samples, p50 357.709s (5.96min), p95 7241.893s (2.01h), within 6h 100.000%; source categories=8.
 
-Selected M3 runs aggregate to TP=292, FP=1, FN=1, precision=99.659%, recall=99.659%. Controlled engineering recovery `engineering-fault-recovery@3` is 100.000% across 3 cases.
+Selected M3 runs aggregate to TP=292, FP=1, FN=1, precision=99.659%, recall=99.659%. Controlled engineering recovery `engineering-fault-recovery@4` is 100.000% across 3 cases.
 
-Unevaluated competition areas: `M6 QA quality`, `M6 multi-hop`, `Agent runtime`, `Long Investigation completion`.
+Unevaluated competition areas: `M2 parser/entity/evidence diagnostics`, `Agent runtime`, `Long Investigation completion`, `Security adversarial hard gates`, `Security adversarial breadth`.
 
 Query the durable rows with `make benchmark-query METRIC=m3.micro_precision`; reproduce the report projection with `make competition-render-doc`; refresh every maintained evidence projection with `make evidence-doc`; verify without writes with `make evidence-doc-check`.
 <!-- END GENERATED EVALUATION STATUS -->

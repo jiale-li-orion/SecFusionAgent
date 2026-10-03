@@ -1,6 +1,6 @@
 # Evaluation infrastructure status
 
-Snapshot `2026-10-03T05:21:56.810717+00:00`. This is an infrastructure/readiness projection, not a competition score.
+Snapshot `2026-10-03T11:20:37.946350+00:00`. This is an infrastructure/readiness projection, not a competition score.
 Observation readiness is evaluated against the current MetricDefinition revision. Older observations remain historical evidence but do not satisfy a revised contract.
 
 ## Metric contract coverage
@@ -40,33 +40,33 @@ Observation readiness is evaluated against the current MetricDefinition revision
 
 | Owner record | Rows |
 | --- | ---: |
-| `benchmark_runs` | 113 |
-| `benchmark_case_runs` | 427 |
-| `metric_observations` | 6156 |
-| `task_runs` | 142 |
-| `task_events` | 819 |
-| `execution_runs` | 69 |
+| `benchmark_runs` | 124 |
+| `benchmark_case_runs` | 509 |
+| `metric_observations` | 7935 |
+| `task_runs` | 195 |
+| `task_events` | 1035 |
+| `execution_runs` | 122 |
 | `trajectory_events` | 0 |
 | `capability_invocations` | 0 |
-| `retrieval_invocations` | 6 |
-| `model_requests` | 65 |
-| `model_attempts` | 65 |
-| `prompt_assembly_records` | 11 |
-| `decision_results` | 46 |
-| `evidence_links` | 4710 |
-| `observations` | 1309 |
-| `evidence_artifacts` | 1309 |
+| `retrieval_invocations` | 10 |
+| `model_requests` | 121 |
+| `model_attempts` | 121 |
+| `prompt_assembly_records` | 16 |
+| `decision_results` | 92 |
+| `evidence_links` | 5131 |
+| `observations` | 1349 |
+| `evidence_artifacts` | 1349 |
 
 ## Provenance closure
 
 | Check | Coverage |
 | --- | ---: |
-| CaseRun has artifact refs | 24.8% |
-| CaseRun can reach TaskRun | 11.9% |
-| CaseRun can reach Execution | 11.9% |
-| CaseRun can reach Decision | 11.2% |
-| All MetricObservation rows carrying EvidenceRefs | 5.7% |
-| Citation/groundedness metrics carrying EvidenceRefs | 15.3% |
+| CaseRun has artifact refs | 30.5% |
+| CaseRun can reach TaskRun | 18.9% |
+| CaseRun can reach Execution | 18.9% |
+| CaseRun can reach Decision | 17.7% |
+| All MetricObservation rows carrying EvidenceRefs | 9.2% |
+| Citation/groundedness metrics carrying EvidenceRefs | 53.6% |
 
 A low global metric→Evidence rate is not automatically a defect: latency/count/runtime metrics do not require EvidenceRefs. Citation/groundedness metrics do, so that row is the stronger evidence-chain readiness check.
 
@@ -74,22 +74,22 @@ A low global metric→Evidence rate is not automatically a defect: latency/count
 
 | Artifact boundary | Coverage |
 | --- | ---: |
-| ModelRequest request artifact | 38.5% |
-| ModelAttempt response artifact | 38.5% |
-| PromptAssembly request artifact | 72.7% |
+| ModelRequest request artifact | 66.1% |
+| ModelAttempt response artifact | 65.3% |
+| PromptAssembly request artifact | 81.2% |
 
 These three rows expose the R1 replay gap directly. Hashes/metadata alone support audit identity, but exact frozen model-input replay requires durable normalized request/response artifacts.
 
 ## Latest live QA provenance closure
 
-BenchmarkRun `a395c200-7eb1-439d-99b9-532f5e748377` / `m6-eval-infra-session-overlap-nonempty-20261003@1`.
+BenchmarkRun `99da1f9b-441b-465c-a962-76549a7741c7` / `m6-real-product-qa-session@10`.
 
 | Check | Coverage |
 | --- | ---: |
 | Citation/groundedness metrics → EvidenceRefs | 100.0% |
 | ModelRequest → durable request artifact | 100.0% |
 | Successful ModelAttempt → durable response artifact | 100.0% |
-| Runtime MetricObservation rows | 14 |
+| Runtime MetricObservation rows | 28 |
 
 This scope is intentionally separate from the historical cumulative rows above: old BenchmarkRuns remain immutable evidence of earlier infrastructure gaps, while the latest live run shows whether the current runner contract is closed.
 

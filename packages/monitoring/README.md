@@ -3,7 +3,7 @@
 <!-- BEGIN GENERATED MONITORING STATUS -->
 ## Current M1 evidence (generated)
 
-Suite `m1-monitoring-current@19`, run `21803fd4-4aaf-42a5-992d-4364e9e31dd2`, deployment `deployment:f518d9f8fd7a776996354d34afa7f299`.
+Suite `m1-monitoring-current@21`, run `651b4167-a2a2-4af3-a74a-0630d5ac1916`, deployment `deployment:0e16e1b574d5b6383434e7fc80f64cc4`.
 
 | Measurement | Current result |
 | --- | ---: |
@@ -15,7 +15,7 @@ Suite `m1-monitoring-current@19`, run `21803fd4-4aaf-42a5-992d-4364e9e31dd2`, de
 | End-to-end p95 | 7241.893s (2.01h) |
 | End-to-end max | 7241.893s (2.01h) |
 | Within 6h | 100.000% |
-| Delivery status | `awaiting_delivery_grace` |
+| Delivery status | `evaluated_deadline` |
 | Provisional independent-provider delivery | 8/13 (61.538%) |
 
 Latency is source event time → earliest Knowledge commit. `monitoring_diagnostics` keeps provider-discovery, queue-dispatch and ingestion-commit components separate; bootstrap/input/output backfill stays outside the steady-state denominator.

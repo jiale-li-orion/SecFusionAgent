@@ -1,7 +1,7 @@
 {
-  "benchmark_run_id": "21803fd4-4aaf-42a5-992d-4364e9e31dd2",
-  "deployment_revision_id": "deployment:f518d9f8fd7a776996354d34afa7f299",
-  "suite_ref": "m1-monitoring-current@19",
+  "benchmark_run_id": "651b4167-a2a2-4af3-a74a-0630d5ac1916",
+  "deployment_revision_id": "deployment:0e16e1b574d5b6383434e7fc80f64cc4",
+  "suite_ref": "m1-monitoring-current@21",
   "window_start": "2026-10-01T10:00:00+00:00",
   "window_end": "2026-10-01T14:02:00+00:00",
   "source_category_count": 8,
@@ -448,18 +448,24 @@
     "within_6h_rate": 1.0
   },
   "eligible_acquisition_trigger": "scheduled",
-  "source_delivery_coverage": "not_evaluated",
-  "source_delivery_status": "awaiting_delivery_grace",
+  "source_delivery_coverage": {
+    "expected_items": 13,
+    "accepted_expected_items": 8,
+    "missed_items": 5,
+    "unexpected_items": 64,
+    "coverage": 0.6153846153846154
+  },
+  "source_delivery_status": "evaluated_deadline",
   "source_delivery_provisional": {
     "expected_items": 13,
     "accepted_expected_items": 8,
     "missed_items": 5,
-    "unexpected_items": 39,
+    "unexpected_items": 64,
     "coverage": 0.6153846153846154
   },
   "delivery_grace_seconds": 21600,
   "delivery_deadline": "2026-10-01T20:02:00+00:00",
-  "delivery_observation_end": "2026-10-01T17:47:08.528457+00:00",
+  "delivery_observation_end": "2026-10-01T20:02:00+00:00",
   "expected_event_manifest_id": "github-target-repos-20261001T1000Z-1402Z",
   "expected_event_manifest_digest": "d1e7624bd35f66ab422c6dc9a93ac5394c3e44e84bf297560a3b98577d23dd54",
   "provider_snapshot_ref": "provider-snapshot:6f23e9a0efccc6b88a9a2da60a8cfa43fa153f90da84123d5b1d1c1762cc1b1c"
