@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import './styles.css'
+import './cinematic.css'
 
 const productBase = import.meta.env.BASE_URL.replace(/\/$/, '') || '/'
 

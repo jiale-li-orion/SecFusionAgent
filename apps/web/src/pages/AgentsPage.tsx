@@ -40,65 +40,69 @@ export function AgentsPage() {
   const skillFamilies = useMemo(() => groupSkillFamilies(learning?.skills ?? []), [learning?.skills])
   const [selectedSkillFamily, setSelectedSkillFamily] = useState<string | null>(null)
   const selectedSkill = skillFamilies.find((item) => item.key === (selectedSkillFamily ?? skillFamilies[0]?.key)) ?? null
+  const activeCount = runtime?.roles.reduce((sum, role) => sum + role.active_tasks, 0) ?? 0
+  const totalRuns = runtime?.roles.reduce((sum, role) => sum + role.total_tasks, 0) ?? 0
 
   return (
-    <section className="page agents-page">
-      <div className="page-heading agent-heading">
+    <section className="agents-space-v3">
+      <header className="agents-hero-v3">
         <div>
-          <p className="eyebrow">ROLE · TASK · DELEGATION · RECOVERY · CAPABILITY</p>
-          <h1>AGENT OPERATIONS</h1>
-          <p className="lede">三个 canonical Role 的 durable runtime。活跃任务才被标记为 LIVE，终态任务作为最近执行历史保留。</p>
+          <p>CANONICAL ROLE RUNTIME / M5</p>
+          <h1>AGENT <span>MACHINE</span></h1>
+          <small>Role · Task · Delegation · Capability · Skill · Experience · Recovery</small>
         </div>
-        <div className="agent-runtime-stamp">
-          <span className="live-dot" /> RUNTIME
-          <strong>{runtime ? runtime.roles.reduce((sum, role) => sum + role.active_tasks, 0) : '—'}</strong>
-          <small>ACTIVE TASKS</small>
+        <div className="agent-runtime-readout-v3">
+          <span className={activeCount > 0 ? 'live' : ''} />
+          <div><small>ACTIVE TASKS</small><strong>{runtime ? activeCount : '—'}</strong></div>
+          <div><small>DURABLE RUNS</small><strong>{runtime ? totalRuns : '—'}</strong></div>
+          <div><small>CAPABILITY INVOCATIONS</small><strong>{runtime?.recent_capabilities.length ?? '—'}</strong></div>
         </div>
-      </div>
+      </header>
 
-      <div className="role-constellation">
+      <div className="role-theater-v3">
+        <div className="role-axis-v3" />
         {(runtime?.roles ?? []).map((role, index) => <RoleCard key={role.role_id} role={role} index={index} />)}
-        {runtimeQuery.isLoading && [0,1,2].map((item) => <div key={item} className="role-card role-loading panel-glass" />)}
+        {runtimeQuery.isLoading && <div className="role-loading-v3">RESOLVING CANONICAL ROLES…</div>}
       </div>
 
-      <div className="agent-workspace">
-        <section className="task-field panel-glass">
-          <div className="section-title-row">
-            <div><small>DURABLE TASK FIELD</small><strong>LIVE + RECENT EXECUTION</strong></div>
-            <span>{runtime?.recent_tasks.length ?? 0} loaded · {runtime?.recent_capabilities.length ?? 0} capability invocations</span>
+      <div className="agent-runtime-grid-v3">
+        <section className="task-field-v3">
+          <div className="instrument-section-head-v3">
+            <div><small>DURABLE TASK FIELD</small><strong>EXECUTION / DELEGATION TOPOLOGY</strong></div>
+            <span>{runtime?.recent_tasks.length ?? 0} loaded · real parent/child edges only</span>
           </div>
 
           <TaskTopology tasks={runtime?.recent_tasks ?? []} selectedTask={selectedTask} onSelect={setSelectedTaskOverride} />
 
-          <div className="task-lanes">
-            <div className="task-lane live-lane">
-              <div className="task-lane-title"><CircleDot size={13} /><strong>LIVE</strong><span>{activeTasks.length}</span></div>
-              <div className="task-stack">
+          <div className="task-ledger-v3">
+            <div className="task-ledger-column-v3 live">
+              <div className="task-ledger-title-v3"><CircleDot size={12} /><strong>LIVE EXECUTION</strong><span>{activeTasks.length}</span></div>
+              <div>
                 {activeTasks.map((task) => <TaskCard key={task.run_id} task={task} selected={task.run_id === selectedTask} onSelect={setSelectedTaskOverride} />)}
-                {runtime && activeTasks.length === 0 && <div className="task-empty">No active durable tasks.</div>}
+                {runtime && activeTasks.length === 0 && <div className="task-ledger-empty-v3">No active durable tasks.</div>}
               </div>
             </div>
-            <div className="task-lane history-lane">
-              <div className="task-lane-title"><TimerReset size={13} /><strong>RECENT HISTORY</strong><span>{recentTasks.length}</span></div>
-              <div className="task-stack history-stack">
+            <div className="task-ledger-column-v3 history">
+              <div className="task-ledger-title-v3"><TimerReset size={12} /><strong>RECENT TERMINAL HISTORY</strong><span>{recentTasks.length}</span></div>
+              <div>
                 {recentTasks.map((task) => <TaskCard key={task.run_id} task={task} selected={task.run_id === selectedTask} onSelect={setSelectedTaskOverride} />)}
               </div>
             </div>
           </div>
         </section>
 
-        <aside className="task-dossier panel-glass">
-          <div className="inspector-head">
+        <aside className="task-runtime-lens-v3">
+          <div className="task-lens-head-v3">
             <div><small>SELECTED TASK</small><strong>{detailQuery.data?.task.task_kind ?? 'Select a task'}</strong></div>
             {detailQuery.data && <span className={`task-state state-${detailQuery.data.task.status}`}>{detailQuery.data.task.status}</span>}
           </div>
-          {detailQuery.data ? <TaskDossier detail={detailQuery.data} /> : <div className="inspector-empty"><Waypoints size={36} /><strong>Task runtime dossier</strong><p>选择一个 Task，查看 canonical Role、parent linkage、事件序列和 Capability activity。</p></div>}
+          {detailQuery.data ? <TaskDossier detail={detailQuery.data} /> : <div className="task-lens-empty-v3"><Waypoints size={32} /><strong>Task runtime lens</strong><p>选择一个 Task，查看 canonical Role、parent linkage、事件序列与真实 CapabilityInvocation。</p></div>}
         </aside>
       </div>
 
-      <div className="agent-learning-grid">
-        <section className="skill-codex panel-glass">
-          <div className="section-title-row"><div><small>SKILL CODEX</small><strong>DURABLE PROCEDURAL MEMORY</strong></div><span>{learning?.skills.length ?? 0} records · {skillFamilies.length} families</span></div>
+      <div className="agent-memory-complex-v3">
+        <section className="skill-codex-v3">
+          <div className="instrument-section-head-v3"><div><small>SKILL CODEX</small><strong>DURABLE PROCEDURAL MEMORY</strong></div><span>{learning?.skills.length ?? 0} records · {skillFamilies.length} families</span></div>
           <div className="skill-codex-body">
             <div className="skill-family-list">
               {skillFamilies.map((family) => <button key={family.key} className={family.key === selectedSkill?.key ? 'selected' : ''} onClick={() => setSelectedSkillFamily(family.key)}><span className="skill-glyph"><BookOpenCheck size={15} /></span><span><small>{family.records.map((item) => item.status).join(' · ')}</small><strong>{family.label}</strong><em>{family.records.length} durable records</em></span><ChevronRight size={14} /></button>)}
@@ -109,8 +113,8 @@ export function AgentsPage() {
           </div>
         </section>
 
-        <section className="experience-memory panel-glass">
-          <div className="section-title-row"><div><small>EXPERIENCE MEMORY</small><strong>TRAJECTORY → EXPERIENCE → SKILL</strong></div><span>{learning?.experiences.length ?? 0} durable experiences</span></div>
+        <section className="experience-memory-v3">
+          <div className="instrument-section-head-v3"><div><small>EXPERIENCE MEMORY</small><strong>TRAJECTORY → EXPERIENCE → SKILL</strong></div><span>{learning?.experiences.length ?? 0} durable experiences</span></div>
           <ExperienceMemory learning={learning ?? null} />
         </section>
       </div>
@@ -124,16 +128,20 @@ function RoleCard({ role, index }: { role: AgentRoleRuntime; index: number }) {
   const failed = role.status_counts.failed ?? 0
   const blocked = role.status_counts.blocked ?? 0
   return (
-    <motion.article className={`role-card panel-glass tone-${presentation.tone} ${live ? 'role-live' : ''}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * .08 }}>
+    <motion.article className={`role-entity-v3 role-${role.role_id.toLowerCase()} tone-${presentation.tone} ${live ? 'role-live' : ''}`} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * .08 }}>
       <RoleSigil role={role.role_id} live={live} />
-      <div className="role-name"><small>{presentation.cn}</small><strong>{presentation.alias}</strong><span className="mono">{role.role_id}@{role.version}</span></div>
-      <p>{presentation.copy}</p>
-      <div className="role-runtime-line">
-        <span className={live ? 'role-live-label' : ''}>{live ? `${role.active_tasks} LIVE` : 'IDLE'}</span>
-        <span>{role.total_tasks} durable runs</span>
-        {(failed > 0 || blocked > 0) && <span>{failed} failed · {blocked} blocked</span>}
+      <div className="role-entity-copy-v3">
+        <small>{presentation.cn} / {role.role_id}@{role.version}</small>
+        <strong>{presentation.alias}</strong>
+        <p>{presentation.copy}</p>
+        <div className="role-coordinates-v3"><span>{role.planner_profile}</span><span>{role.state_model}</span><span>{role.default_execution_profile}</span></div>
       </div>
-      <div className="role-coordinates"><span>{role.planner_profile}</span><span>{role.state_model}</span><span>{role.default_execution_profile}</span></div>
+      <div className="role-entity-runtime-v3">
+        <b>{role.active_tasks}</b>
+        <small>{live ? 'ACTIVE TASKS' : 'IDLE'}</small>
+        <span>{role.total_tasks} durable runs</span>
+        {(failed > 0 || blocked > 0) && <em>{failed} failed · {blocked} blocked</em>}
+      </div>
     </motion.article>
   )
 }
@@ -236,7 +244,7 @@ function shortTaskKind(value: string) {
 function TaskCard({ task, selected, onSelect }: { task: AgentTaskSummary; selected: boolean; onSelect: (runId: string) => void }) {
   const child = Boolean(task.parent_run_id)
   return (
-    <button className={`task-card ${selected ? 'selected' : ''} state-${task.status}`} onClick={() => onSelect(task.run_id)}>
+    <button className={`task-ledger-row-v3 ${selected ? 'selected' : ''} state-${task.status}`} onClick={() => onSelect(task.run_id)}>
       <span className="task-role-mark">{rolePresentation[task.role_id]?.alias.slice(0, 2) ?? 'RT'}</span>
       <span className="task-main"><small>{task.role_id} · {child ? 'CHILD' : 'ROOT'}</small><strong>{humanize(task.task_kind)}</strong><em>{task.last_event_type ?? 'no event'} · {task.event_count} events</em></span>
       <span className="task-tail"><b>{task.status}</b>{child ? <GitFork size={12} /> : <ArrowDownRight size={12} />}</span>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import {
@@ -44,33 +44,32 @@ export function InvestigationsPage() {
   const selectedCase = preferredCase ?? fallbackCase
   const detailQuery = useQuery({ queryKey: ['investigation', selectedCase], queryFn: () => getInvestigation(selectedCase!), enabled: Boolean(selectedCase), refetchInterval: selectedCase ? 15_000 : false })
   const activityQuery = useQuery({ queryKey: ['investigation-activity', selectedCase], queryFn: () => getInvestigationActivity(selectedCase!), enabled: Boolean(selectedCase) })
-  const [events, setEvents] = useState<ProductRuntimeEvent[]>([])
-  const [streamState, setStreamState] = useState<'idle' | 'connecting' | 'live' | 'retrying'>('idle')
+  const [streamEvents, setStreamEvents] = useState<Record<string, ProductRuntimeEvent[]>>({})
+  const [streamConnection, setStreamConnection] = useState<{ caseId: string; state: 'live' | 'retrying' } | null>(null)
   const [selectedEvidence, setSelectedEvidence] = useState<string | null>(null)
-  const eventIds = useRef(new Set<string>())
+  const events = useMemo(
+    () => mergeRuntimeEvents(activityQuery.data?.events ?? [], selectedCase ? streamEvents[selectedCase] ?? [] : []),
+    [activityQuery.data?.events, selectedCase, streamEvents],
+  )
+  const streamState: 'idle' | 'connecting' | 'live' | 'retrying' = !selectedCase
+    ? 'idle'
+    : streamConnection?.caseId === selectedCase
+      ? streamConnection.state
+      : 'connecting'
 
   useEffect(() => {
-    const initial = activityQuery.data?.events ?? []
-    eventIds.current = new Set(initial.map((item) => item.event_id))
-    setEvents(initial)
-  }, [activityQuery.data, selectedCase])
-
-  useEffect(() => {
-    if (!selectedCase) {
-      setStreamState('idle')
-      return
-    }
-    setStreamState('connecting')
+    if (!selectedCase) return
     const source = new EventSource(`/api/v1/investigations/${encodeURIComponent(selectedCase)}/events`)
-    source.onopen = () => setStreamState('live')
+    source.onopen = () => setStreamConnection({ caseId: selectedCase, state: 'live' })
     const eventNames = ['started', 'status_changed', 'progress', 'finding_added', 'finding_changed', 'conflict_changed', 'unknown_changed', 'evidence_need_changed', 'decision_ready', 'waiting', 'completed', 'failed', 'canceled']
     const onEvent = (message: MessageEvent<string>) => {
       try {
         const item = JSON.parse(message.data) as ProductRuntimeEvent
-        if (!eventIds.current.has(item.event_id)) {
-          eventIds.current.add(item.event_id)
-          setEvents((current) => [...current, item].sort((a, b) => a.occurred_at.localeCompare(b.occurred_at)))
-        }
+        setStreamEvents((current) => {
+          const caseEvents = current[selectedCase] ?? []
+          if (caseEvents.some((event) => event.event_id === item.event_id)) return current
+          return { ...current, [selectedCase]: [...caseEvents, item] }
+        })
         void queryClient.invalidateQueries({ queryKey: ['investigation', selectedCase] })
         void queryClient.invalidateQueries({ queryKey: ['investigations'] })
       } catch {
@@ -78,7 +77,7 @@ export function InvestigationsPage() {
       }
     }
     eventNames.forEach((name) => source.addEventListener(name, onEvent as EventListener))
-    source.onerror = () => setStreamState('retrying')
+    source.onerror = () => setStreamConnection({ caseId: selectedCase, state: 'retrying' })
     return () => {
       eventNames.forEach((name) => source.removeEventListener(name, onEvent as EventListener))
       source.close()
@@ -95,22 +94,22 @@ export function InvestigationsPage() {
   }
 
   return (
-    <section className="page investigations-page">
-      <div className="page-heading investigation-heading">
+    <section className="investigations-space-v3 investigations-page">
+      <header className="investigation-hero-v3 investigation-heading">
         <div>
-          <p className="eyebrow">DURABLE CASE · PRODUCT EVENT · EVIDENCE GAP · DECISION</p>
-          <h1>INVESTIGATIONS</h1>
-          <p className="lede">持续调查不是一串聊天记录。Case State、EvidenceNeed、Task Runtime 与 Decision 在同一个 durable workspace 里演化。</p>
+          <p>DURABLE CASE / PRODUCT EVENT / EVIDENCE GAP / DECISION</p>
+          <h1>INVESTIGATION <span>FIELD</span></h1>
+          <small>Case State、EvidenceNeed、Task Runtime 与 Decision 在同一个 durable workspace 演化；SSE 事件只来自真实 ProductEvent。</small>
         </div>
         <div className="investigation-stats">
           <span><CircleDot size={12} /> LIVE <strong>{liveCount}</strong></span>
           <span>CASES <strong>{cases.length}</strong></span>
           <span className={`stream-state stream-${streamState}`}><RadioState state={streamState} /> {streamState.toUpperCase()}</span>
         </div>
-      </div>
+      </header>
 
       <div className="investigation-layout">
-        <aside className="case-rail panel-glass">
+        <aside className="case-rail">
           <div className="case-rail-head"><SearchCheck size={15} /><strong>CASE FILES</strong><span>{cases.length}</span></div>
           <div className="case-list">
             {cases.map((item) => (
@@ -126,10 +125,10 @@ export function InvestigationsPage() {
         </aside>
 
         <main className="case-workspace">
-          {selected ? <CaseWorkspace investigation={selected} events={events} onEvidence={setSelectedEvidence} sessionId={sessionId} onFollowUpComplete={() => { void queryClient.invalidateQueries({ queryKey: ['investigation', selectedCase] }); void queryClient.invalidateQueries({ queryKey: ['investigations'] }) }} /> : <div className="case-empty panel-glass"><Orbit size={46} /><strong>Select a durable case</strong><p>启动 VERIFY / INVESTIGATE / WATCH 后，调查会在这里持续演化。</p></div>}
+          {selected ? <CaseWorkspace investigation={selected} events={events} onEvidence={setSelectedEvidence} sessionId={sessionId} onFollowUpComplete={() => { void queryClient.invalidateQueries({ queryKey: ['investigation', selectedCase] }); void queryClient.invalidateQueries({ queryKey: ['investigations'] }) }} /> : <div className="case-empty"><Orbit size={46} /><strong>Select a durable case</strong><p>启动 VERIFY / INVESTIGATE / WATCH 后，调查会在这里持续演化。</p></div>}
         </main>
 
-        <aside className="activity-rail panel-glass">
+        <aside className="activity-rail">
           <div className="activity-head"><div><small>PRODUCT EVENT STREAM</small><strong>LIVE ACTIVITY</strong></div><span className={`stream-beacon stream-${streamState}`} /></div>
           <RuntimeEventRail events={events} />
         </aside>
@@ -179,7 +178,7 @@ function CaseWorkspace({ investigation, events, onEvidence, sessionId, onFollowU
 
   return (
     <div className="case-workspace-stack">
-      <article className="case-hero panel-glass">
+      <article className="case-hero">
         <div className="case-hero-main">
           <span className="case-hero-sigil"><Radar size={25} /></span>
           <div><small>CASE / {investigation.execution_profile ?? 'RUNTIME'}</small><strong>{investigation.goal}</strong><span className="mono">{investigation.case_id}</span></div>
@@ -196,7 +195,7 @@ function CaseWorkspace({ investigation, events, onEvidence, sessionId, onFollowU
 
       <DecisionPanel investigation={investigation} onEvidence={onEvidence} />
 
-      <section className="conversation-shell panel-glass">
+      <section className="conversation-shell">
         <div className="conversation-title"><MessageSquareText size={15} /><div><small>CONTINUOUS INTERACTION</small><strong>CASE SESSION</strong></div><span>{sessionId ? 'BOUND TO CURRENT CASE' : 'OPEN FROM START TO BIND SESSION'}</span></div>
         <div className="conversation-preview">
           <div className="system-message"><Sparkles size={14} /><ProgressiveReveal text={latestNarrative(events, investigation)} /></div>
@@ -213,7 +212,7 @@ function CaseWorkspace({ investigation, events, onEvidence, sessionId, onFollowU
 
 function StateColumn({ title, tone, icon: Icon, items, onEvidence }: { title: string; tone: string; icon: typeof BadgeCheck; items: InvestigationFinding[]; onEvidence: (ref: string) => void }) {
   return (
-    <section className={`state-column panel-glass tone-${tone}`}>
+    <section className={`state-column tone-${tone}`}>
       <div className="state-column-head"><Icon size={14} /><strong>{title}</strong><span>{items.length}</span></div>
       <div className="state-items">
         {items.slice(0, 8).map((item, index) => (
@@ -231,7 +230,7 @@ function StateColumn({ title, tone, icon: Icon, items, onEvidence }: { title: st
 
 function EvidenceNeeds({ investigation }: { investigation: InvestigationView }) {
   return (
-    <section className="state-column panel-glass tone-cyan">
+    <section className="state-column tone-cyan">
       <div className="state-column-head"><SearchCheck size={14} /><strong>EVIDENCE NEEDS</strong><span>{investigation.open_evidence_needs.length}</span></div>
       <div className="state-items">
         {investigation.open_evidence_needs.slice(0, 8).map((need) => (
@@ -249,7 +248,7 @@ function EvidenceNeeds({ investigation }: { investigation: InvestigationView }) 
 function DecisionPanel({ investigation, onEvidence }: { investigation: InvestigationView; onEvidence: (ref: string) => void }) {
   const decision = investigation.latest_decision
   return (
-    <section className={`decision-panel panel-glass ${decision ? 'ready' : ''}`}>
+    <section className={`decision-panel ${decision ? 'ready' : ''}`}>
       <div className="decision-oracle"><div className="oracle-mini"><div /><div /><Sparkles size={19} /></div><div><small>ORACLE / DECISION</small><strong>{decision ? 'DECISION READY' : 'WAITING FOR EVIDENCE'}</strong></div></div>
       {decision ? (
         <div className="decision-content">
@@ -276,7 +275,7 @@ function EvidenceButtons({ refs, onEvidence }: { refs: string[]; onEvidence: (re
 function EvidenceOverlay({ evidenceRef, onClose }: { evidenceRef: string; onClose: () => void }) {
   const query = useQuery({ queryKey: ['evidence-overlay', evidenceRef], queryFn: () => getEvidence(evidenceRef) })
   const item = query.data
-  return <motion.div className="evidence-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}><motion.div className="evidence-overlay-card panel-glass" initial={{ x: 40, scale: .98 }} animate={{ x: 0, scale: 1 }} exit={{ x: 40, scale: .98 }} onClick={(event) => event.stopPropagation()}><div className="overlay-head"><div><small>EVIDENCE TRACE</small><strong>{item?.source.source_id ?? 'Resolving…'}</strong></div><button onClick={onClose}>CLOSE</button></div>{item ? <EvidenceTrace item={item} /> : <div className="inspector-empty"><Orbit size={30} />{query.isError ? String(query.error.message) : 'resolving evidence…'}</div>}</motion.div></motion.div>
+  return <motion.div className="evidence-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}><motion.div className="evidence-overlay-card" initial={{ x: 40, scale: .98 }} animate={{ x: 0, scale: 1 }} exit={{ x: 40, scale: .98 }} onClick={(event) => event.stopPropagation()}><div className="overlay-head"><div><small>EVIDENCE TRACE</small><strong>{item?.source.source_id ?? 'Resolving…'}</strong></div><button onClick={onClose}>CLOSE</button></div>{item ? <EvidenceTrace item={item} /> : <div className="inspector-empty"><Orbit size={30} />{query.isError ? String(query.error.message) : 'resolving evidence…'}</div>}</motion.div></motion.div>
 }
 
 function EvidenceTrace({ item }: { item: EvidenceDetail }) {
@@ -289,31 +288,24 @@ function RadioState({ state }: { state: string }) { return state === 'live' ? <C
 function latestNarrative(events: ProductRuntimeEvent[], investigation: InvestigationView) { const latest = events[events.length - 1]; return latest?.summary ?? `${investigation.current_activity.actor_role ?? 'Runtime'} is ${investigation.current_activity.phase}.` }
 
 function ProgressiveReveal({ text }: { text: string }) {
-  const [visible, setVisible] = useState(text)
-  const [revealing, setRevealing] = useState(false)
+  return (
+    <motion.p
+      key={text}
+      className="progressive-narrative"
+      initial={{ opacity: .25, clipPath: 'inset(0 100% 0 0)' }}
+      animate={{ opacity: 1, clipPath: 'inset(0 0% 0 0)' }}
+      transition={{ duration: .46, ease: [0.22, 1, 0.36, 1] }}
+    >
+      {text}
+    </motion.p>
+  )
+}
 
-  useEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      setVisible(text)
-      setRevealing(false)
-      return
-    }
-    let index = Math.min(8, text.length)
-    setVisible(text.slice(0, index))
-    setRevealing(index < text.length)
-    const step = Math.max(1, Math.ceil(text.length / 28))
-    const timer = window.setInterval(() => {
-      index = Math.min(text.length, index + step)
-      setVisible(text.slice(0, index))
-      if (index >= text.length) {
-        setRevealing(false)
-        window.clearInterval(timer)
-      }
-    }, 18)
-    return () => window.clearInterval(timer)
-  }, [text])
-
-  return <p className="progressive-narrative">{visible}{revealing && <span className="reveal-caret" aria-hidden="true" />}</p>
+function mergeRuntimeEvents(initial: ProductRuntimeEvent[], streamed: ProductRuntimeEvent[]) {
+  const byId = new Map<string, ProductRuntimeEvent>()
+  for (const event of initial) byId.set(event.event_id, event)
+  for (const event of streamed) byId.set(event.event_id, event)
+  return [...byId.values()].sort((a, b) => a.occurred_at.localeCompare(b.occurred_at))
 }
 
 function continuationTaskKind(value: string | null): TaskKind {

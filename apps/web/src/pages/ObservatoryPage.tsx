@@ -35,19 +35,19 @@ export function ObservatoryPage() {
   const proofQuery = useQuery({ queryKey: ['competition-proof'], queryFn: getCompetitionProof, staleTime: 60_000 })
 
   return (
-    <section className={`page observatory-page observatory-${mode}`}>
-      <div className="page-heading observatory-heading">
+    <section className={`observatory-space-v3 observatory-page observatory-${mode}`}>
+      <header className="observatory-hero-v3 observatory-heading">
         <div>
-          <p className="eyebrow">OPERATIONAL TRUTH · FROZEN EVIDENCE · NO KPI THEATER</p>
-          <h1>OBSERVATORY</h1>
-          <p className="lede">LIVE 证明系统正在运行；PROOF 证明我们已经测过它。两套事实严格分开。</p>
+          <p>OPERATIONAL TRUTH / FROZEN EVIDENCE / NO KPI THEATER</p>
+          <h1>OBSERVATORY <span>CORE</span></h1>
+          <small>LIVE 展示当前运行事实；PROOF 展示冻结测量证据。切换时语义边界保持严格分离。</small>
         </div>
         <div className="observatory-mode-switch" role="tablist" aria-label="Observatory mode">
           <button className={mode === 'live' ? 'active' : ''} onClick={() => setMode('live')}><Activity size={14} /> LIVE</button>
           <button className={mode === 'proof' ? 'active' : ''} onClick={() => setMode('proof')}><Archive size={14} /> PROOF</button>
           <motion.span className="mode-cursor" animate={{ x: mode === 'live' ? 0 : '100%' }} transition={{ type: 'spring', stiffness: 320, damping: 28 }} />
         </div>
-      </div>
+      </header>
 
       <AnimatePresence mode="wait">
         {mode === 'live' ? (
@@ -87,7 +87,7 @@ function LiveObservatory({ world, agents, windowKey, setWindowKey }: { world: Wo
       </div>
 
       <div className="observatory-live-grid">
-        <section className="telemetry-panel telemetry-wide panel-glass">
+        <section className="telemetry-panel telemetry-wide">
           <PanelHead eyebrow="DATA PLANE" title="WORLD ACTIVITY" meta={`${series.length} hourly samples`} icon={ScanLine} />
           <div className="telemetry-charts">
             <TelemetryChart title="FRESH / BACKFILL" series={series} lines={[{ key: 'fresh_external_changes', label: 'fresh', tone: 'cyan' }, { key: 'backfill_observations', label: 'backfill', tone: 'violet' }]} />
@@ -96,7 +96,7 @@ function LiveObservatory({ world, agents, windowKey, setWindowKey }: { world: Wo
           </div>
         </section>
 
-        <section className="telemetry-panel source-spectrum panel-glass">
+        <section className="telemetry-panel source-spectrum">
           <PanelHead eyebrow="SOURCE CONSTELLATION" title="HEALTH SPECTRUM" meta="8 product categories" icon={RadioTower} />
           <div className="spectrum-list">
             {(world?.categories ?? []).map((category, index) => {
@@ -114,7 +114,7 @@ function LiveObservatory({ world, agents, windowKey, setWindowKey }: { world: Wo
           </div>
         </section>
 
-        <section className="telemetry-panel agent-spectrum panel-glass">
+        <section className="telemetry-panel agent-spectrum">
           <PanelHead eyebrow="AGENT RUNTIME" title="ROLE ACTIVITY" meta="live + durable history" icon={Sparkles} />
           <div className="agent-spectrum-list">
             {(agents?.roles ?? []).map((role) => {
@@ -129,7 +129,7 @@ function LiveObservatory({ world, agents, windowKey, setWindowKey }: { world: Wo
           <div className="capability-activity-summary"><Binary size={13} /><span>Persisted CapabilityInvocation</span><strong>{agents?.recent_capabilities.length ?? 0}</strong></div>
         </section>
 
-        <section className="telemetry-panel system-status-panel panel-glass">
+        <section className="telemetry-panel system-status-panel">
           <PanelHead eyebrow="SYSTEM" title="PIPELINE INTEGRITY" meta="measured facts only" icon={ServerCog} />
           <div className="system-status-grid">
             <SystemFact icon={Boxes} label="OUTBOX DELIVERED" value={world ? compactNumber(world.outbox_delivered) : '—'} />
@@ -147,7 +147,7 @@ function ProofObservatory({ proof, loading }: { proof: CompetitionProof | null; 
   const metric = (name: string) => proof?.headline_metrics.find((item) => item.metric_name === name)
   return (
     <>
-      <section className="proof-seal panel-glass">
+      <section className="proof-seal">
         <div className="proof-seal-mark"><Archive size={30} /><div className="seal-ring" /></div>
         <div className="proof-seal-copy"><small>FROZEN COMPETITION EVIDENCE</small><strong>{proof?.report_id ?? (loading ? 'RESOLVING REPORT…' : 'UNAVAILABLE')}</strong><span className="mono">{proof?.deployment_revision_id ?? 'deployment revision'}</span></div>
         <div className="proof-seal-stats">
@@ -182,11 +182,11 @@ function ProofObservatory({ proof, loading }: { proof: CompetitionProof | null; 
       </div>
 
       <div className="proof-lower-grid">
-        <section className="proof-targets panel-glass">
+        <section className="proof-targets">
           <PanelHead eyebrow="COMPETITION TARGETS" title="TARGET CHECKS" meta={`${proof?.target_checks.length ?? 0} checks`} icon={ShieldCheck} />
           <div className="target-check-list">{(proof?.target_checks ?? []).map((item) => <div key={item.target_name} className={`target-check ${item.status}`}><span className="target-icon"><BadgeCheck size={15} /></span><div><small>{item.target_name}</small><strong>{item.requirement}</strong><span>{item.metric_name} · observed {formatNumber(item.observed_value)} {item.comparator} {formatNumber(item.threshold)}</span></div><b>{item.status}</b></div>)}</div>
         </section>
-        <section className="proof-boundary panel-glass">
+        <section className="proof-boundary">
           <PanelHead eyebrow="MEASUREMENT BOUNDARY" title="WHAT WE REFUSE TO FAKE" meta={`${proof?.partial_metric_groups ?? 0} partial groups`} icon={TriangleAlert} />
           <div className="core-metric-ring"><span>{proof ? Math.round(proof.observed_core_metrics / proof.registered_core_metrics * 100) : 0}%</span><small>CORE METRICS OBSERVED</small></div>
           <div className="unevaluated-list">{(proof?.unevaluated_core_metrics ?? []).map((name) => <div key={name}><span className="unevaluated-dot" /><strong>{name}</strong><small>exact monetary cost · not inferred</small></div>)}</div>
@@ -210,7 +210,7 @@ function LiveMetric({ icon: Icon, label, value, detail, tone }: { icon: typeof A
 function PanelHead({ eyebrow, title, meta, icon: Icon }: { eyebrow: string; title: string; meta: string; icon: typeof Activity }) { return <div className="panel-head"><span className="panel-head-icon"><Icon size={15} /></span><div><small>{eyebrow}</small><strong>{title}</strong></div><span>{meta}</span></div> }
 function SystemFact({ icon: Icon, label, value }: { icon: typeof Boxes; label: string; value: string }) { return <div className="system-fact"><Icon size={16} /><small>{label}</small><strong>{value}</strong></div> }
 function RoleBars({ counts }: { counts: Record<string, number> }) { const total = Object.values(counts).reduce((sum, value) => sum + value, 0) || 1; return <div className="role-bars"><span className="done" style={{ width: `${((counts.completed ?? 0) / total) * 100}%` }} /><span className="live" style={{ width: `${(((counts.running ?? 0) + (counts.queued ?? 0)) / total) * 100}%` }} /><span className="fail" style={{ width: `${(((counts.failed ?? 0) + (counts.blocked ?? 0)) / total) * 100}%` }} /></div> }
-function ProofBlock({ title, eyebrow, tone, icon: Icon, children }: { title: string; eyebrow: string; tone: string; icon: typeof Activity; children: React.ReactNode }) { return <motion.section className={`proof-block panel-glass tone-${tone}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}><div className="proof-block-head"><span><Icon size={16} /></span><div><small>{eyebrow}</small><strong>{title}</strong></div></div><div className="proof-block-body">{children}</div></motion.section> }
+function ProofBlock({ title, eyebrow, tone, icon: Icon, children }: { title: string; eyebrow: string; tone: string; icon: typeof Activity; children: React.ReactNode }) { return <motion.section className={`proof-block tone-${tone}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}><div className="proof-block-head"><span><Icon size={16} /></span><div><small>{eyebrow}</small><strong>{title}</strong></div></div><div className="proof-block-body">{children}</div></motion.section> }
 function ProofNumber({ label, value, warning = false }: { label: string; value: string; warning?: boolean }) { return <div className={`proof-number ${warning ? 'warning' : ''}`}><small>{label}</small><strong>{value}</strong></div> }
 function ProofSealStat({ value, label }: { value: string; label: string }) { return <div><strong>{value}</strong><small>{label}</small></div> }
 

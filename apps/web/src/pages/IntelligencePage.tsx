@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import {
-  ArrowUpRight,
   BadgeCheck,
   Binary,
   Braces,
@@ -30,16 +29,13 @@ import {
 export function IntelligencePage() {
   const [params, setParams] = useSearchParams()
   const paramCve = params.get('cve') ?? ''
-  const [input, setInput] = useState(paramCve)
+  const [inputOverride, setInputOverride] = useState<string | null>(null)
+  const input = inputOverride ?? paramCve
   const [evidenceRef, setEvidenceRef] = useState<string | null>(null)
   const hotQuery = useQuery({ queryKey: ['world-hot-intelligence'], queryFn: () => getHotWorld(64), refetchInterval: 20_000 })
   const fallbackCve = hotQuery.data?.items[0]?.cve_id ?? ''
   const selectedCve = paramCve || fallbackCve
   const hotMatch = hotQuery.data?.items.find((item) => (item.cve_id ?? item.external_object_id).toUpperCase() === selectedCve.toUpperCase()) ?? null
-
-  useEffect(() => {
-    if (paramCve) setInput(paramCve)
-  }, [paramCve])
 
   const knowledgeQuery = useQuery({
     queryKey: ['vulnerability', selectedCve],
@@ -54,29 +50,30 @@ export function IntelligencePage() {
     const value = input.trim().toUpperCase()
     if (!value) return
     setEvidenceRef(null)
+    setInputOverride(value)
     setParams({ cve: value })
   }
 
   const groupedClaims = useMemo(() => groupClaims(obj?.claims ?? []), [obj?.claims])
 
   return (
-    <section className="page intelligence-page">
-      <div className="page-heading intel-heading">
+    <section className="intelligence-space-v3 intelligence-page">
+      <header className="intelligence-hero-v3 intel-heading">
         <div>
-          <p className="eyebrow">CANONICAL KNOWLEDGE · EVIDENCE ADJACENT · BOUNDED GRAPH</p>
-          <h1>INTELLIGENCE DOSSIER</h1>
-          <p className="lede">事实、关系和来源在同一观察面里展开；任何 Evidence capsule 都可以回到真实 Observation。</p>
+          <p>CANONICAL KNOWLEDGE / EVIDENCE-ADJACENT / BOUNDED GRAPH</p>
+          <h1>INTELLIGENCE <span>DOSSIER</span></h1>
+          <small>事实、关系、富化维度和来源在同一观察面展开；任何 Evidence capsule 都能回到真实 Observation。</small>
         </div>
         <form className="intel-search" onSubmit={submitSearch}>
           <Search size={15} />
-          <input value={input} onChange={(event) => setInput(event.target.value)} placeholder="CVE-2026-…" />
+          <input value={input} onChange={(event) => setInputOverride(event.target.value)} placeholder="CVE-2026-…" />
           <button type="submit">INSPECT</button>
         </form>
-      </div>
+      </header>
 
       <div className="intel-layout">
         <div className="intel-main">
-          <article className="dossier-hero panel-glass">
+          <article className="dossier-hero dossier-hero-v3">
             <div className="dossier-id">
               <span className="dossier-sigil"><Fingerprint size={30} /></span>
               <div>
@@ -93,11 +90,12 @@ export function IntelligencePage() {
           </article>
 
           {knowledgeQuery.isError && !hotMatch && <div className="intel-state error-block">{String(knowledgeQuery.error.message)}</div>}
-          {!selectedCve && <div className="intel-state panel-glass">从 WORLD 选择 Hot CVE，或输入 CVE ID。</div>}
+          {!selectedCve && <div className="intel-state">从 WORLD 选择 Hot CVE，或输入 CVE ID。</div>}
           {!obj && hotMatch && <HotWorkingSetPanel item={hotMatch} />}
 
           {obj && (
             <>
+              <EnrichmentConstellation claims={obj.claims} cveId={selectedCve} />
               <div className="intel-section-grid">
                 {groupedClaims.map((group) => (
                   <ClaimGroup key={group.title} title={group.title} claims={group.claims} onEvidence={setEvidenceRef} />
@@ -119,7 +117,7 @@ export function IntelligencePage() {
 
 function HotWorkingSetPanel({ item }: { item: HotBug }) {
   return (
-    <section className="hot-dossier panel-glass">
+    <section className="hot-dossier">
       <div className="hot-dossier-head">
         <div>
           <small>HOT WORKING SET · NOT YET PROMOTED</small>
@@ -150,9 +148,80 @@ function HotFact({ label, value, mono = false }: { label: string; value: string;
   return <div className="hot-fact"><small>{label}</small><strong className={mono ? 'mono' : ''}>{value}</strong></div>
 }
 
+const enrichmentDimensions = [
+  { key: 'identity', label: 'IDENTITY', test: /title|description|status|assigner|identifier|cve/i },
+  { key: 'severity', label: 'SEVERITY', test: /cvss|severity|score/i },
+  { key: 'weakness', label: 'WEAKNESS', test: /weakness|cwe/i },
+  { key: 'product', label: 'PRODUCT / PACKAGE', test: /product|package|vendor|component/i },
+  { key: 'version', label: 'VERSION APPLICABILITY', test: /version|affected|not_affected|fixed|under_investigation|applicab/i },
+  { key: 'fix', label: 'FIX / REMEDIATION', test: /fix|remediation|patch|upgrade|commit/i },
+  { key: 'exploit', label: 'EXPLOIT STATE', test: /exploit|kev|poc|weapon/i },
+  { key: 'likelihood', label: 'EXPLOIT LIKELIHOOD', test: /epss|likelihood|probab/i },
+  { key: 'advisory', label: 'ADVISORY / REFERENCE', test: /advisory|reference|url|bulletin/i },
+  { key: 'assets', label: 'ASSET EXPOSURE', test: /asset|exposure|internet|deployment/i },
+  { key: 'research', label: 'RESEARCH / PAPER', test: /research|paper|academic|publication/i },
+  { key: 'incident', label: 'INCIDENT CONTEXT', test: /incident|campaign|attack|observed_in_the_wild/i },
+] as const
+
+function EnrichmentConstellation({ claims, cveId }: { claims: KnowledgeClaim[]; cveId: string }) {
+  const dimensions = enrichmentDimensions.map((dimension, index) => {
+    const count = claims.filter((claim) => dimension.test.test(claim.predicate)).length
+    const angle = -Math.PI / 2 + (index / enrichmentDimensions.length) * Math.PI * 2
+    return {
+      ...dimension,
+      count,
+      x: 50 + Math.cos(angle) * 40,
+      y: 50 + Math.sin(angle) * 37,
+    }
+  })
+  const known = dimensions.filter((item) => item.count > 0).length
+
+  return (
+    <section className="enrichment-constellation-v3">
+      <div className="enrichment-head-v3">
+        <div><small>ENRICHMENT-V1</small><strong>12-DIMENSION EVIDENCE CONSTELLATION</strong></div>
+        <span>{known}/12 dimensions populated by current canonical claims</span>
+      </div>
+      <div className="enrichment-orbit-v3">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          {dimensions.map((item) => (
+            <line
+              key={item.key}
+              className={item.count > 0 ? 'known' : 'unknown'}
+              x1="50"
+              y1="50"
+              x2={item.x}
+              y2={item.y}
+            />
+          ))}
+        </svg>
+        <div className="enrichment-core-v3">
+          <small>CANONICAL</small>
+          <strong>{cveId}</strong>
+          <span>{claims.length} claims</span>
+        </div>
+        {dimensions.map((item, index) => (
+          <motion.div
+            key={item.key}
+            className={`enrichment-dimension-v3 ${item.count > 0 ? 'known' : 'unknown'}`}
+            style={{ left: `${item.x}%`, top: `${item.y}%` }}
+            initial={{ opacity: 0, scale: .82 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: index * .025 }}
+          >
+            <span>{String(index + 1).padStart(2, '0')}</span>
+            <strong>{item.label}</strong>
+            <small>{item.count > 0 ? `${item.count} claims` : 'unknown'}</small>
+          </motion.div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 function ClaimGroup({ title, claims, onEvidence }: { title: string; claims: KnowledgeClaim[]; onEvidence: (ref: string) => void }) {
   return (
-    <article className="claim-group panel-glass">
+    <article className="claim-group">
       <div className="claim-group-title"><span>{title}</span><b>{claims.length}</b></div>
       <div className="claim-list">
         {claims.map((claim) => (
@@ -175,14 +244,11 @@ function FocusedKnowledgeGraph({ relations, selectedCve, onEvidence }: { relatio
   const [layer, setLayer] = useState('ALL')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const visible = relations.filter((item) => layer === 'ALL' || item.target.object_type === layer).slice(0, 10)
-  const selected = relations.find((item) => item.relation_id === selectedId) ?? null
-
-  useEffect(() => {
-    if (selected && layer !== 'ALL' && selected.target.object_type !== layer) setSelectedId(null)
-  }, [layer, selected])
+  const selectedCandidate = relations.find((item) => item.relation_id === selectedId) ?? null
+  const selected = selectedCandidate && (layer === 'ALL' || selectedCandidate.target.object_type === layer) ? selectedCandidate : null
 
   return (
-    <section className={`relation-section graph-mode panel-glass ${selected ? 'graph-focused' : ''}`}>
+    <section className={`relation-section graph-mode ${selected ? 'graph-focused' : ''}`}>
       <div className="section-title-row">
         <div><small>FOCUSED KNOWLEDGE GRAPH</small><strong>RELATION NEIGHBORHOOD</strong></div>
         <span>{relations.length} canonical edges · {visible.length} visible</span>
@@ -280,7 +346,7 @@ function EvidenceInspector({ evidenceRef, onClose }: { evidenceRef: string | nul
   const query = useQuery({ queryKey: ['evidence', evidenceRef], queryFn: () => getEvidence(evidenceRef!), enabled: Boolean(evidenceRef) })
   const item = query.data
   return (
-    <div className={`evidence-inspector panel-glass ${evidenceRef ? 'active' : ''}`}>
+    <div className={`evidence-inspector ${evidenceRef ? 'active' : ''}`}>
       <div className="inspector-head">
         <div><small>EVIDENCE INSPECTOR</small><strong>{item?.source.source_id ?? 'Select evidence'}</strong></div>
         {evidenceRef && <button onClick={onClose} aria-label="Close evidence inspector"><X size={16} /></button>}

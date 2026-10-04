@@ -55,14 +55,15 @@ async def ask_question(
     settings = get_settings()
     provider = None
     if payload.task_kind in {TaskKind.LOOKUP, TaskKind.RETRIEVE}:
-        if settings.model_base_url and settings.model_name:
+        session_factory = getattr(request.app.state, "session_factory", None)
+        if settings.model_base_url and settings.model_name and session_factory is not None:
             async with httpx.AsyncClient(
                 timeout=min(settings.model_timeout_seconds, payload.interactive_timeout_seconds)
             ) as client:
                 runtime_artifacts = await create_runtime_artifact_service(settings)
                 provider = create_recorded_model_provider(
                     settings,
-                    request.app.state.session_factory,
+                    session_factory,
                     client,
                     artifact_service=runtime_artifacts,
                 )
