@@ -107,7 +107,7 @@ Document indexing produces lexical state first. Dense embedding and semantic ext
 
 TD1 的 M2/M3 information plane 在实现里保持四层分离：`Observation/EvidenceArtifact` 记录“外部实际观察到了什么”；canonical object/claim/relation 记录经 gate 接受的结构化 Knowledge；document/incident/asset 等 workload-specific state 保留各自生命周期；current projection 只负责加速读取。下游 M4/M6 使用的 `evidence:<link_id>` 由 `EvidenceAttachmentService` 绑定到 Observation/Artifact/locator，前端和 Agent 都不能靠一段自然语言把结果升级成事实。
 
-HTTP vulnerability read、Runtime Workbench 与 M4 Perception 都复用 `knowledge.read` / retrieval seam，而不是各自直查表。这保证用户看到的 current view 与 Agent 看到的 accepted/superseded/evidence 语义一致。当前唯一刻意未补齐的是 historical Knowledge read：M7 replay 在 pinned revision 不可精确读取时 fail closed，直到 M1–M3 提供 versioned historical reader。
+HTTP vulnerability read、Product Intelligence 与 M4 Perception 都复用 `knowledge.read` / retrieval seam，而不是各自直查表。这保证用户看到的 current view 与 Agent 看到的 accepted/superseded/evidence 语义一致。当前唯一刻意未补齐的是 historical Knowledge read：M7 replay 在 pinned revision 不可精确读取时 fail closed，直到 M1–M3 提供 versioned historical reader。
 
 ## Artifact storage
 

@@ -385,3 +385,101 @@ export async function getInvestigationActivity(caseId: string): Promise<{ case_i
   if (!response.ok) throw new Error(`Runtime activity unavailable (${response.status})`)
   return response.json()
 }
+
+export type CompetitionProof = {
+  report_id: string
+  report_digest: string
+  deployment_revision_id: string
+  generated_at: string
+  benchmark_runs_completed: number
+  case_runs_passed: number
+  registered_core_metrics: number
+  observed_core_metrics: number
+  metric_groups: number
+  observed_metric_groups: number
+  partial_metric_groups: number
+  unevaluated_core_metrics: string[]
+  headline_metrics: Array<{
+    metric_name: string
+    value: number
+    unit: string | null
+    direction: string
+  }>
+  target_checks: Array<{
+    target_name: string
+    requirement: string
+    metric_name: string
+    observed_value: number
+    threshold: number
+    comparator: string
+    status: string
+  }>
+}
+
+export async function getCompetitionProof(): Promise<CompetitionProof> {
+  const response = await fetch('/api/v1/observatory/proof')
+  if (!response.ok) throw new Error(`Competition proof unavailable (${response.status})`)
+  return response.json() as Promise<CompetitionProof>
+}
+
+export type ProductSkill = {
+  skill_ref: string
+  skill_id: string
+  version: number
+  status: string
+  source_type: string
+  task_patterns: string[]
+  evidence_need_patterns: string[]
+  applicable_object_types: string[]
+  applicability_conditions: string[]
+  required_capability_classes: string[]
+  optional_capability_classes: string[]
+  expected_outcomes: string[]
+  risk_hint: string | null
+  cost_hint: string | null
+  validation_ref: string | null
+  supersedes: string | null
+  steps: Array<Record<string, unknown>>
+  evidence_expectations: string[]
+  failure_guards: string[]
+  fallbacks: string[]
+  stop_conditions: string[]
+  provenance_origin: string
+  supporting_trajectory_refs: string[]
+  supporting_experience_pattern_refs: string[]
+  validation_case_refs: string[]
+  promotion_history: string[]
+}
+
+export type ProductExperience = {
+  experience_id: string
+  experience_version_id: string
+  version: number
+  name: string
+  task_signature: string
+  status: string
+  trigger_signals: string[]
+  applicable_conditions: string[]
+  recommended_actions: string[]
+  evidence_expectation: string[]
+  failure_modes: string[]
+  stop_conditions: string[]
+  fallback_actions: string[]
+  success_count: number
+  failure_count: number
+  partial_count: number
+}
+
+export type AgentLearningOverview = {
+  skills: ProductSkill[]
+  experiences: ProductExperience[]
+  experience_candidate_count: number
+  trajectory_count: number
+  completed_trajectory_count: number
+}
+
+export async function getAgentLearning(): Promise<AgentLearningOverview> {
+  const response = await fetch('/api/v1/agents/learning')
+  if (!response.ok) throw new Error(`Agent learning unavailable (${response.status})`)
+  return response.json() as Promise<AgentLearningOverview>
+}

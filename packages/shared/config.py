@@ -24,7 +24,6 @@ class Settings(BaseSettings):
     runtime_policy_path: Path = Path("config/runtime-policy.json")
     collection_run_timeout_seconds: int = 15 * 60
     scheduler_tick_seconds: int = 5
-    api_workbench_enabled: bool = True
 
     artifact_store_backend: Literal["filesystem", "s3"] = "filesystem"
     artifact_root: Path = Path(".local/secfusion-artifacts")

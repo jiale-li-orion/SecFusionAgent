@@ -14,8 +14,8 @@ from apps.api.routes.evidence import router as evidence_router
 from apps.api.routes.health import router as health_router
 from apps.api.routes.investigations import router as investigations_router
 from apps.api.routes.knowledge import router as knowledge_router
+from apps.api.routes.observatory import router as observatory_router
 from apps.api.routes.questions import router as questions_router
-from apps.api.routes.workbench import router as workbench_router
 from apps.api.routes.world import router as world_router
 from apps.runtime_models import register_runtime_models
 from packages.shared.config import get_settings
@@ -40,6 +40,7 @@ def create_app() -> FastAPI:
         openapi_tags=[
             {"name": "agents", "description": "Product-safe Agent runtime and Task reads."},
             {"name": "knowledge", "description": "Stable current-world intelligence reads."},
+            {"name": "observatory", "description": "Live operational and frozen evaluation proof reads."},
             {"name": "evidence", "description": "Product-safe Evidence traceability reads."},
             {
                 "name": "investigations",
@@ -51,7 +52,6 @@ def create_app() -> FastAPI:
             },
             {"name": "health", "description": "Process and dependency health."},
             {"name": "a2a", "description": "A2A interoperability adapter."},
-            {"name": "workbench", "description": "Internal dev/test runtime diagnostics."},
         ],
     )
 
@@ -74,15 +74,8 @@ def create_app() -> FastAPI:
     app.include_router(questions_router)
     app.include_router(knowledge_router)
     app.include_router(world_router)
-    app.include_router(workbench_router)
-    web_root = Path("apps/web/legacy")
+    app.include_router(observatory_router)
     product_web_root = Path("apps/web/dist")
-    if (
-        settings.api_workbench_enabled
-        and settings.environment in {"dev", "test"}
-        and web_root.is_dir()
-    ):
-        app.mount("/app", StaticFiles(directory=web_root, html=True), name="web")
     if product_web_root.is_dir():
         app.mount(
             "/product",

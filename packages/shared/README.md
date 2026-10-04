@@ -12,7 +12,7 @@
 - S3-compatible evidence storage;
 - provider credentials;
 - OpenAI-compatible model/embedding endpoint configuration;
-- local Runtime Workbench enablement.
+- API/runtime environment configuration.
 
 Adding a deployment-varying value requires a typed setting. Security or protocol invariants that should not vary by deployment stay in their owner module instead of becoming environment variables.
 

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import {
+  askQuestion,
   getEvidence,
   getInvestigation,
   getInvestigationActivity,
@@ -25,6 +26,8 @@ import {
   type InvestigationFinding,
   type InvestigationView,
   type ProductRuntimeEvent,
+  type QuestionResult,
+  type TaskKind,
 } from '../lib/api'
 
 const liveStatuses = new Set(['active', 'waiting'])
@@ -34,6 +37,7 @@ export function InvestigationsPage() {
   const queryClient = useQueryClient()
   const listQuery = useQuery({ queryKey: ['investigations'], queryFn: () => listInvestigations(48), refetchInterval: 20_000 })
   const preferredCase = params.get('case')
+  const sessionId = params.get('session')
   const fallbackCase = listQuery.data?.items.find((item) => liveStatuses.has(item.status))?.case_id ?? listQuery.data?.items[0]?.case_id ?? null
   const selectedCase = preferredCase ?? fallbackCase
   const detailQuery = useQuery({ queryKey: ['investigation', selectedCase], queryFn: () => getInvestigation(selectedCase!), enabled: Boolean(selectedCase), refetchInterval: selectedCase ? 15_000 : false })
@@ -120,7 +124,7 @@ export function InvestigationsPage() {
         </aside>
 
         <main className="case-workspace">
-          {selected ? <CaseWorkspace investigation={selected} events={events} onEvidence={setSelectedEvidence} /> : <div className="case-empty panel-glass"><Orbit size={46} /><strong>Select a durable case</strong><p>启动 VERIFY / INVESTIGATE / WATCH 后，调查会在这里持续演化。</p></div>}
+          {selected ? <CaseWorkspace investigation={selected} events={events} onEvidence={setSelectedEvidence} sessionId={sessionId} onFollowUpComplete={() => { void queryClient.invalidateQueries({ queryKey: ['investigation', selectedCase] }); void queryClient.invalidateQueries({ queryKey: ['investigations'] }) }} /> : <div className="case-empty panel-glass"><Orbit size={46} /><strong>Select a durable case</strong><p>启动 VERIFY / INVESTIGATE / WATCH 后，调查会在这里持续演化。</p></div>}
         </main>
 
         <aside className="activity-rail panel-glass">
@@ -134,7 +138,27 @@ export function InvestigationsPage() {
   )
 }
 
-function CaseWorkspace({ investigation, events, onEvidence }: { investigation: InvestigationView; events: ProductRuntimeEvent[]; onEvidence: (ref: string) => void }) {
+function CaseWorkspace({ investigation, events, onEvidence, sessionId, onFollowUpComplete }: { investigation: InvestigationView; events: ProductRuntimeEvent[]; onEvidence: (ref: string) => void; sessionId: string | null; onFollowUpComplete: () => void }) {
+  const [followUp, setFollowUp] = useState('')
+  const [followUpBusy, setFollowUpBusy] = useState(false)
+  const [sessionTurns, setSessionTurns] = useState<Array<{ kind: 'user' | 'system'; text: string }>>([])
+
+  async function sendFollowUp() {
+    const question = followUp.trim()
+    if (!question || !sessionId || followUpBusy) return
+    setFollowUpBusy(true)
+    setSessionTurns((current) => [...current, { kind: 'user', text: question }])
+    setFollowUp('')
+    try {
+      const result = await askQuestion({ question, sessionId, taskKind: continuationTaskKind(investigation.current_activity.task_kind) })
+      setSessionTurns((current) => [...current, { kind: 'system', text: followUpNarrative(result) }])
+      onFollowUpComplete()
+    } catch (error) {
+      setSessionTurns((current) => [...current, { kind: 'system', text: error instanceof Error ? error.message : 'Follow-up failed' }])
+    } finally {
+      setFollowUpBusy(false)
+    }
+  }
   return (
     <div className="case-workspace-stack">
       <article className="case-hero panel-glass">
@@ -155,10 +179,14 @@ function CaseWorkspace({ investigation, events, onEvidence }: { investigation: I
       <DecisionPanel investigation={investigation} onEvidence={onEvidence} />
 
       <section className="conversation-shell panel-glass">
-        <div className="conversation-title"><MessageSquareText size={15} /><div><small>CONTINUOUS INTERACTION</small><strong>CASE SESSION</strong></div><span>session seam next</span></div>
+        <div className="conversation-title"><MessageSquareText size={15} /><div><small>CONTINUOUS INTERACTION</small><strong>CASE SESSION</strong></div><span>{sessionId ? 'BOUND TO CURRENT CASE' : 'OPEN FROM START TO BIND SESSION'}</span></div>
         <div className="conversation-preview">
           <div className="system-message"><Sparkles size={14} /><p>{latestNarrative(events, investigation)}</p></div>
-          <div className="composer-disabled"><input disabled placeholder="持续追问会复用当前 Case；session binding 正在接入…" /><button disabled>SEND</button></div>
+          {sessionTurns.map((turn, index) => <motion.div key={`${turn.kind}:${index}`} className={`session-turn turn-${turn.kind}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}><small>{turn.kind === 'user' ? 'YOU' : 'SECFUSION'}</small><p>{turn.text}</p></motion.div>)}
+          <div className={`case-session-composer ${sessionId ? 'enabled' : 'disabled'}`}>
+            <input value={followUp} onChange={(event) => setFollowUp(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void sendFollowUp() } }} disabled={!sessionId || followUpBusy} placeholder={sessionId ? '继续当前调查…' : '从 START 进入调查后即可持续追问'} />
+            <button onClick={() => void sendFollowUp()} disabled={!sessionId || !followUp.trim() || followUpBusy}>{followUpBusy ? 'SENDING…' : 'SEND'}</button>
+          </div>
         </div>
       </section>
     </div>
@@ -241,3 +269,14 @@ function TraceRow({ label, value }: { label: string; value: string }) { return <
 function EventIcon({ type }: { type: string }) { if (type === 'failed') return <CircleAlert size={13} />; if (type === 'decision_ready') return <Sparkles size={13} />; if (type === 'finding_added') return <BadgeCheck size={13} />; if (type === 'evidence_need_changed') return <SearchCheck size={13} />; if (type === 'waiting') return <Orbit size={13} />; return <TerminalSquare size={13} /> }
 function RadioState({ state }: { state: string }) { return state === 'live' ? <CircleDot size={11} /> : <Activity size={11} /> }
 function latestNarrative(events: ProductRuntimeEvent[], investigation: InvestigationView) { const latest = events[events.length - 1]; return latest?.summary ?? `${investigation.current_activity.actor_role ?? 'Runtime'} is ${investigation.current_activity.phase}.` }
+
+function continuationTaskKind(value: string | null): TaskKind {
+  if (value === 'verify_version_fix' || value === 'investigate_incident' || value === 'watch_incident') return value
+  return 'investigate_incident'
+}
+
+function followUpNarrative(result: QuestionResult) {
+  if (result.mode === 'accepted') return `继续当前调查 · ${result.execution_profile} · Case ${result.investigation?.case_id ?? ''}`
+  const answer = result.decision?.answer ?? result.decision?.recommendation
+  return typeof answer === 'string' && answer.trim() ? answer : `Decision ${result.decision?.decision_id ?? ''} ready.`
+}

@@ -3,6 +3,9 @@ import { useQuery } from '@tanstack/react-query'
 import { motion } from 'motion/react'
 import {
   Activity,
+  BookOpenCheck,
+  BrainCircuit,
+  ChevronRight,
   ArrowDownRight,
   CircleDot,
   GitFork,
@@ -12,9 +15,8 @@ import {
   TerminalSquare,
   TimerReset,
   Waypoints,
-  XCircle,
 } from 'lucide-react'
-import { getAgentRuntime, getAgentTask, type AgentRoleRuntime, type AgentTaskSummary } from '../lib/api'
+import { getAgentLearning, getAgentRuntime, getAgentTask, type AgentRoleRuntime, type AgentTaskSummary, type ProductSkill } from '../lib/api'
 
 const rolePresentation: Record<string, { alias: string; cn: string; tone: string; copy: string }> = {
   DecisionRole: { alias: 'ORACLE', cn: '判谕者', tone: 'cyan', copy: '把已验证 Context 收束为 Evidence-bounded Decision。' },
@@ -27,12 +29,17 @@ const activeStatuses = new Set(['submitted', 'queued', 'running', 'waiting_input
 export function AgentsPage() {
   const runtimeQuery = useQuery({ queryKey: ['agent-runtime'], queryFn: getAgentRuntime, refetchInterval: 12_000 })
   const runtime = runtimeQuery.data
+  const learningQuery = useQuery({ queryKey: ['agent-learning'], queryFn: getAgentLearning, refetchInterval: 30_000 })
+  const learning = learningQuery.data
   const initialTask = runtime?.recent_tasks.find((task) => activeStatuses.has(task.status))?.run_id ?? runtime?.recent_tasks[0]?.run_id ?? null
   const [selectedTaskOverride, setSelectedTaskOverride] = useState<string | null>(null)
   const selectedTask = selectedTaskOverride ?? initialTask
   const detailQuery = useQuery({ queryKey: ['agent-task', selectedTask], queryFn: () => getAgentTask(selectedTask!), enabled: Boolean(selectedTask), refetchInterval: selectedTask ? 10_000 : false })
   const activeTasks = useMemo(() => runtime?.recent_tasks.filter((task) => activeStatuses.has(task.status)) ?? [], [runtime?.recent_tasks])
   const recentTasks = useMemo(() => runtime?.recent_tasks.filter((task) => !activeStatuses.has(task.status)).slice(0, 22) ?? [], [runtime?.recent_tasks])
+  const skillFamilies = useMemo(() => groupSkillFamilies(learning?.skills ?? []), [learning?.skills])
+  const [selectedSkillFamily, setSelectedSkillFamily] = useState<string | null>(null)
+  const selectedSkill = skillFamilies.find((item) => item.key === (selectedSkillFamily ?? skillFamilies[0]?.key)) ?? null
 
   return (
     <section className="page agents-page">
@@ -85,6 +92,25 @@ export function AgentsPage() {
           </div>
           {detailQuery.data ? <TaskDossier detail={detailQuery.data} /> : <div className="inspector-empty"><Waypoints size={36} /><strong>Task runtime dossier</strong><p>选择一个 Task，查看 canonical Role、parent linkage、事件序列和 Capability activity。</p></div>}
         </aside>
+      </div>
+
+      <div className="agent-learning-grid">
+        <section className="skill-codex panel-glass">
+          <div className="section-title-row"><div><small>SKILL CODEX</small><strong>DURABLE PROCEDURAL MEMORY</strong></div><span>{learning?.skills.length ?? 0} records · {skillFamilies.length} families</span></div>
+          <div className="skill-codex-body">
+            <div className="skill-family-list">
+              {skillFamilies.map((family) => <button key={family.key} className={family.key === selectedSkill?.key ? 'selected' : ''} onClick={() => setSelectedSkillFamily(family.key)}><span className="skill-glyph"><BookOpenCheck size={15} /></span><span><small>{family.records.map((item) => item.status).join(' · ')}</small><strong>{family.label}</strong><em>{family.records.length} durable records</em></span><ChevronRight size={14} /></button>)}
+            </div>
+            <div className="skill-detail">
+              {selectedSkill ? <SkillFamilyDetail family={selectedSkill} /> : <div className="skill-empty">No durable Skills.</div>}
+            </div>
+          </div>
+        </section>
+
+        <section className="experience-memory panel-glass">
+          <div className="section-title-row"><div><small>EXPERIENCE MEMORY</small><strong>TRAJECTORY → EXPERIENCE → SKILL</strong></div><span>{learning?.experiences.length ?? 0} durable experiences</span></div>
+          <ExperienceMemory learning={learning ?? null} />
+        </section>
       </div>
     </section>
   )
@@ -164,3 +190,48 @@ function TaskFact({ label, value, mono = false }: { label: string; value: string
 }
 
 function humanize(value: string) { return value.replaceAll('_', ' ').toUpperCase() }
+
+
+type SkillFamily = { key: string; label: string; records: ProductSkill[] }
+
+function groupSkillFamilies(skills: ProductSkill[]): SkillFamily[] {
+  const groups = new Map<string, ProductSkill[]>()
+  for (const skill of skills) {
+    const tail = skill.skill_id.split('.').at(-1) ?? skill.skill_id
+    const key = tail.replaceAll('_', '').toLowerCase()
+    groups.set(key, [...(groups.get(key) ?? []), skill])
+  }
+  return [...groups.entries()].map(([key, records]) => ({
+    key,
+    label: preferredSkillLabel(records),
+    records: [...records].sort((a, b) => statusRank(b.status) - statusRank(a.status)),
+  })).sort((a, b) => a.label.localeCompare(b.label))
+}
+
+function preferredSkillLabel(records: ProductSkill[]) {
+  const canonical = records.find((item) => /[A-Z]/.test(item.skill_id.split('.').at(-1) ?? '')) ?? records[0]
+  return canonical?.skill_id.split('.').at(-1) ?? 'Skill'
+}
+
+function statusRank(status: string) { return ({ active: 5, validated: 4, candidate: 3, superseded: 2, deprecated: 1 } as Record<string, number>)[status] ?? 0 }
+
+function SkillFamilyDetail({ family }: { family: SkillFamily }) {
+  const primary = family.records[0]
+  return <div className="skill-detail-stack">
+    <div className="skill-detail-head"><div><small>SKILL FAMILY</small><strong>{family.label}</strong><span className="mono">{primary.skill_ref}</span></div><div className="skill-status-stack">{family.records.map((item) => <span key={item.skill_ref} className={`skill-status status-${item.status}`}>{item.status}</span>)}</div></div>
+    <div className="skill-record-stack">{family.records.map((item) => <article key={item.skill_ref} className="skill-record"><div className="skill-record-title"><span>{item.source_type}</span><strong>{item.skill_id}@{item.version}</strong><b>{item.status}</b></div><div className="skill-chips">{item.task_patterns.map((value) => <span key={value}>{value}</span>)}{item.required_capability_classes.map((value) => <span key={value}>{value}</span>)}</div><div className="skill-procedure">{item.steps.map((step, index) => <div key={String(step.step_id ?? index)}><span>{String(index + 1).padStart(2,'0')}</span><p>{String(step.semantic_instruction ?? step.step_id ?? 'procedure step')}</p></div>)}</div>{item.failure_guards.length > 0 && <div className="skill-guards"><small>FAILURE GUARDS</small><p>{item.failure_guards.join(' · ')}</p></div>}{item.stop_conditions.length > 0 && <div className="skill-guards"><small>STOP CONDITIONS</small><p>{item.stop_conditions.join(' · ')}</p></div>}<div className="skill-provenance"><span>{item.provenance_origin}</span><span>{item.validation_ref ?? 'no validation ref'}</span></div></article>)}</div>
+  </div>
+}
+
+function ExperienceMemory({ learning }: { learning: Awaited<ReturnType<typeof getAgentLearning>> | null }) {
+  const stages = [
+    ['Trajectory', learning?.trajectory_count ?? 0],
+    ['Candidate', learning?.experience_candidate_count ?? 0],
+    ['Experience', learning?.experiences.length ?? 0],
+    ['Skill Patch', learning?.skills.filter((item) => item.source_type === 'experience_derived').length ?? 0],
+  ] as const
+  return <div className="experience-body">
+    <div className="experience-pipeline">{stages.map(([label, count], index) => <div key={label} className="experience-stage"><span className="experience-stage-icon"><BrainCircuit size={16} /></span><div><small>STAGE {String(index + 1).padStart(2,'0')}</small><strong>{label}</strong><b>{count}</b></div>{index < stages.length - 1 && <ChevronRight size={14} className="experience-arrow" />}</div>)}</div>
+    {(learning?.experiences.length ?? 0) === 0 ? <div className="experience-empty"><Orbit size={30} /><div><strong>NO DURABLE EXPERIENCE YET</strong><p>Experience pipeline 已实现，但当前数据库还没有 Trajectory / Experience record。这里明确保持空态，不用 demo memory 冒充学习结果。</p></div></div> : <div className="experience-list">{learning!.experiences.map((item) => <article key={item.experience_version_id}><small>{item.status}</small><strong>{item.name}</strong><span>{item.task_signature}</span><p>{item.recommended_actions.join(' · ')}</p></article>)}</div>}
+  </div>
+}

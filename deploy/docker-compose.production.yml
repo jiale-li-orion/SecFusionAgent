@@ -1,0 +1,188 @@
+x-app-build: &app-build
+  context: ..
+  dockerfile: deploy/Dockerfile
+  args:
+    RUNTIME_UID: ${SECFUSION_RUNTIME_UID:-1000}
+    RUNTIME_GID: ${SECFUSION_RUNTIME_GID:-1000}
+
+x-app-env: &app-env
+  SECFUSION_ENVIRONMENT: production
+  SECFUSION_LOG_LEVEL: ${SECFUSION_LOG_LEVEL:-INFO}
+  SECFUSION_DATABASE_URL: postgresql+asyncpg://secfusion:${SECFUSION_POSTGRES_PASSWORD}@postgres:5432/secfusion
+  SECFUSION_REDIS_BROKER_URL: redis://redis-broker:6379/0
+  SECFUSION_REDIS_HOT_CACHE_URL: redis://redis-cache:6379/0
+  SECFUSION_REDIS_TASK_BUS_URL: redis://redis-task-bus:6379/0
+  SECFUSION_ARTIFACT_STORE_BACKEND: filesystem
+  SECFUSION_ARTIFACT_ROOT: /var/lib/secfusion/artifacts
+  SECFUSION_NVD_API_KEY: ${SECFUSION_NVD_API_KEY:-}
+  SECFUSION_GITHUB_TOKEN: ${SECFUSION_GITHUB_TOKEN:-}
+  SECFUSION_SHODAN_API_KEY: ${SECFUSION_SHODAN_API_KEY:-}
+  SECFUSION_X_BEARER_TOKEN: ${SECFUSION_X_BEARER_TOKEN:-}
+  SECFUSION_CENSYS_PAT: ${SECFUSION_CENSYS_PAT:-}
+  SECFUSION_CENSYS_ORGANIZATION_ID: ${SECFUSION_CENSYS_ORGANIZATION_ID:-}
+  SECFUSION_FOFA_API_KEY: ${SECFUSION_FOFA_API_KEY:-}
+  SECFUSION_ZOOMEYE_API_KEY: ${SECFUSION_ZOOMEYE_API_KEY:-}
+  SECFUSION_SEMANTIC_SCHOLAR_API_KEY: ${SECFUSION_SEMANTIC_SCHOLAR_API_KEY:-}
+  SECFUSION_MODEL_BASE_URL: ${SECFUSION_MODEL_BASE_URL:-}
+  SECFUSION_MODEL_API_KEY: ${SECFUSION_MODEL_API_KEY:-}
+  SECFUSION_MODEL_NAME: ${SECFUSION_MODEL_NAME:-}
+
+x-app-runtime: &app-runtime
+  build: *app-build
+  image: secfusion-app:production
+  entrypoint: ["/app/deploy/runtime-entrypoint.sh"]
+  environment: *app-env
+  volumes:
+    - secfusion-artifacts:/var/lib/secfusion/artifacts
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis-broker:
+      condition: service_healthy
+    redis-cache:
+      condition: service_healthy
+    redis-task-bus:
+      condition: service_healthy
+
+services:
+  postgres:
+    build:
+      context: ..
+      dockerfile: deploy/postgres/Dockerfile
+    image: secfusion-postgres:pg16-pgvector
+    environment:
+      POSTGRES_DB: secfusion
+      POSTGRES_USER: secfusion
+      POSTGRES_PASSWORD: ${SECFUSION_POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U secfusion -d secfusion"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    volumes:
+      - secfusion-postgres:/var/lib/postgresql/data
+
+  redis-broker:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    healthcheck: &redis-health
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - secfusion-redis-broker:/data
+
+  redis-cache:
+    image: redis:7-alpine
+    command: ["redis-server", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lfu"]
+    healthcheck: *redis-health
+
+  redis-task-bus:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    healthcheck: *redis-health
+    volumes:
+      - secfusion-redis-task-bus:/data
+
+  artifact-store-init:
+    build: *app-build
+    image: secfusion-app:production
+    user: "0:0"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        mkdir -p /var/lib/secfusion/artifacts/secfusion-evidence/sha256 &&
+        chown -R ${SECFUSION_RUNTIME_UID:-1000}:${SECFUSION_RUNTIME_GID:-1000}
+        /var/lib/secfusion/artifacts
+    volumes:
+      - secfusion-artifacts:/var/lib/secfusion/artifacts
+
+  migrate:
+    <<: *app-runtime
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      artifact-store-init:
+        condition: service_completed_successfully
+
+  api:
+    <<: *app-runtime
+    command: ["uvicorn", "apps.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis-cache:
+        condition: service_healthy
+      redis-task-bus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+
+  scheduler:
+    <<: *app-runtime
+    command: ["python", "-m", "apps.worker.scheduler"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis-broker:
+        condition: service_healthy
+
+  task-event-dispatcher:
+    <<: *app-runtime
+    command: ["python", "-m", "apps.worker.task_event_dispatcher"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis-task-bus:
+        condition: service_healthy
+
+  task-event-scheduler:
+    <<: *app-runtime
+    command: ["python", "-m", "apps.worker.task_event_scheduler"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis-task-bus:
+        condition: service_healthy
+
+  worker-collection:
+    <<: *app-runtime
+    command: ["celery", "-A", "apps.worker.celery_app:celery_app", "worker", "-l", "INFO", "-Q", "collection", "--concurrency=4"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis-broker:
+        condition: service_healthy
+
+  worker:
+    <<: *app-runtime
+    command: ["celery", "-A", "apps.worker.celery_app:celery_app", "worker", "-l", "INFO", "-Q", "enrichment,investigation,indexing"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis-broker:
+        condition: service_healthy
+
+  product-web:
+    build:
+      context: ..
+      dockerfile: deploy/product-web/Dockerfile
+      args:
+        PRODUCT_BASE: /
+    image: secfusion-product-web:production
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${SECFUSION_HTTP_PORT:-80}:80"
+
+volumes:
+  secfusion-artifacts:
+  secfusion-postgres:
+  secfusion-redis-broker:
+  secfusion-redis-task-bus:

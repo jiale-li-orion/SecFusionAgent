@@ -4,7 +4,7 @@ import { resolve } from 'node:path'
 
 export default defineConfig({
   plugins: [react()],
-  base: '/product/',
+  base: process.env.PRODUCT_BASE ?? '/product/',
   build: {
     rollupOptions: {
       input: resolve(__dirname, 'index.html'),

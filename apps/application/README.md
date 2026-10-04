@@ -18,7 +18,7 @@ HTTP Product Route
 → InvestigationView
 ```
 
-`commands/start_investigation.py` owns the product workflow order. `InvestigationTaskLauncher` is the reusable seam for creating a policy-admitted InvestigationRole Task on an existing Case; the Runtime Workbench now reuses this launcher instead of maintaining a parallel copy of admission/budget/execution wiring. `ContinueInvestigationUseCase` composes the same owners for Product session follow-up: it reuses an existing `active/waiting` Case, opens a new EvidenceNeed at the current Case revision, launches a fresh InvestigationRole episode and keeps the Case identity stable.
+`commands/start_investigation.py` owns the product workflow order. `InvestigationTaskLauncher` is the reusable seam for creating a policy-admitted InvestigationRole Task on an existing Case; Product and internal callers reuse this launcher instead of maintaining parallel admission/budget/execution wiring. `ContinueInvestigationUseCase` composes the same owners for Product session follow-up: it reuses an existing `active/waiting` Case, opens a new EvidenceNeed at the current Case revision, launches a fresh InvestigationRole episode and keeps the Case identity stable.
 
 `queries/investigations.py` owns the Product read projection. It reads M4 state plus the latest Task/Execution coordinate and maps them into `InvestigationView`; Product clients do not receive `TaskContract`, `ContextManifest`, `PolicyDecision`, `BudgetAccount`, or raw TaskEvent schema. List queries use an opaque cursor and bounded page size.
 

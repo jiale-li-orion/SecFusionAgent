@@ -55,7 +55,7 @@ Unknown topics fail explicitly instead of being dropped.
 
 Task Event scheduling and Role execution remain separate boundaries: Redis delivery only chooses the coarse Role task; the Celery handler constructs the domain runtime and the Task Runtime executor performs the durable claim. The current Investigation production factory is intentionally local-Perception-first. It does not advertise or invoke external/sandbox capabilities until a production Capability catalog/binding/executor is configured, so missing execution-control composition fails as unavailable capability rather than bypassing Policy.
 
-Background vulnerability enrichment no longer constructs executable contracts locally. `_enrich_vulnerability` passes the trigger provenance to `ensure_background_vulnerability_enrichment_run`, which enters the same `TaskIntent → task_admission → TaskContract` path used by other executable work. The workbench API may enqueue this Celery task, but it cannot bypass worker-side admission or the M3 Evidence/Knowledge write path.
+Background vulnerability enrichment no longer constructs executable contracts locally. `_enrich_vulnerability` passes the trigger provenance to `ensure_background_vulnerability_enrichment_run`, which enters the same `TaskIntent → task_admission → TaskContract` path used by other executable work. Any caller that enqueues this Celery task cannot bypass worker-side admission or the M3 Evidence/Knowledge write path.
 
 Celery uses late acknowledgement, reject-on-worker-loss, prefetch 1, and at-least-once delivery semantics. Task handlers therefore rely on run ids, EvidenceIngress idempotency, Knowledge processing-run identity, and revision-aware projection rebuilds rather than assuming exactly-once broker delivery.
 

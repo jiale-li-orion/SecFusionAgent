@@ -51,7 +51,7 @@ Budget settlement is not yet complete. Exact provider usage is now available as 
 - M5 Investigation planner: `m5.investigation_plan`
 - M6 Decision planner: `m6.decision`
 
-M5 additionally persists `PromptAssemblyRecord`. M6 Workbench execution now uses staged read → remote model → guarded M4 write, so the remote call does not keep its read transaction open.
+M5 additionally persists `PromptAssemblyRecord`. M6 Product/formal execution uses staged read → remote model → guarded M4 write, so the remote call does not keep its read transaction open.
 
 ## Verification
 

@@ -2,8 +2,8 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { Shell } from './components/Shell'
 import { AgentsPage } from './pages/AgentsPage'
 import { IntelligencePage } from './pages/IntelligencePage'
+import { ObservatoryPage } from './pages/ObservatoryPage'
 import { InvestigationsPage } from './pages/InvestigationsPage'
-import { PlaceholderPage } from './pages/PlaceholderPage'
 import { StartPage } from './pages/StartPage'
 import { WorldPage } from './pages/WorldPage'
 
@@ -16,7 +16,7 @@ export default function App() {
         <Route path="/intelligence" element={<IntelligencePage />} />
         <Route path="/investigations" element={<InvestigationsPage />} />
         <Route path="/agents" element={<AgentsPage />} />
-        <Route path="/observatory" element={<PlaceholderPage eyebrow="LIVE RUNTIME · FROZEN PROOF" title="OBSERVATORY" description="Data Plane 曲线、source health、Agent runtime 与正式 benchmark proof。" items={['LIVE DATA PLANE', 'SOURCE HEALTH', 'AGENT RUNTIME', 'FORMAL PROOF']} />} />
+        <Route path="/observatory" element={<ObservatoryPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Shell>

@@ -69,3 +69,59 @@ class AgentTaskDetailView(BaseModel):
     task: AgentTaskSummaryView
     events: list[AgentTaskEventView] = Field(default_factory=list)
     capabilities: list[AgentCapabilityActivityView] = Field(default_factory=list)
+
+
+class ProductSkillView(BaseModel):
+    skill_ref: str
+    skill_id: str
+    version: int
+    status: str
+    source_type: str
+    task_patterns: list[str] = Field(default_factory=list)
+    evidence_need_patterns: list[str] = Field(default_factory=list)
+    applicable_object_types: list[str] = Field(default_factory=list)
+    applicability_conditions: list[str] = Field(default_factory=list)
+    required_capability_classes: list[str] = Field(default_factory=list)
+    optional_capability_classes: list[str] = Field(default_factory=list)
+    expected_outcomes: list[str] = Field(default_factory=list)
+    risk_hint: str | None = None
+    cost_hint: str | None = None
+    validation_ref: str | None = None
+    supersedes: str | None = None
+    steps: list[dict[str, object]] = Field(default_factory=list)
+    evidence_expectations: list[str] = Field(default_factory=list)
+    failure_guards: list[str] = Field(default_factory=list)
+    fallbacks: list[str] = Field(default_factory=list)
+    stop_conditions: list[str] = Field(default_factory=list)
+    provenance_origin: str
+    supporting_trajectory_refs: list[str] = Field(default_factory=list)
+    supporting_experience_pattern_refs: list[str] = Field(default_factory=list)
+    validation_case_refs: list[str] = Field(default_factory=list)
+    promotion_history: list[str] = Field(default_factory=list)
+
+
+class ProductExperienceView(BaseModel):
+    experience_id: str
+    experience_version_id: str
+    version: int
+    name: str
+    task_signature: str
+    status: str
+    trigger_signals: list[str] = Field(default_factory=list)
+    applicable_conditions: list[str] = Field(default_factory=list)
+    recommended_actions: list[str] = Field(default_factory=list)
+    evidence_expectation: list[str] = Field(default_factory=list)
+    failure_modes: list[str] = Field(default_factory=list)
+    stop_conditions: list[str] = Field(default_factory=list)
+    fallback_actions: list[str] = Field(default_factory=list)
+    success_count: int = 0
+    failure_count: int = 0
+    partial_count: int = 0
+
+
+class AgentLearningOverviewView(BaseModel):
+    skills: list[ProductSkillView] = Field(default_factory=list)
+    experiences: list[ProductExperienceView] = Field(default_factory=list)
+    experience_candidate_count: int = 0
+    trajectory_count: int = 0
+    completed_trajectory_count: int = 0

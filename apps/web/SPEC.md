@@ -67,7 +67,7 @@ OBSERVATORY     live runtime + frozen proof
 
 `WORLD` is the default landing surface. `START` is globally available and visually distinctive; it is not a sixth list page.
 
-The internal `/api/v1/workbench/*` surface is dev/test only and is never a dependency of Product UI.
+The legacy `/api/v1/workbench/*` surface has been retired. Product/Application routes are the browser-facing contract.
 
 ---
 
@@ -712,7 +712,7 @@ Status:
 | Agent regression proof | B | agent-runtime benchmark |
 | formal competition proof | B | benchmark/competition runtime |
 
-Product implementation must close these seams instead of calling Workbench from the browser.
+Product implementation closes these seams through Product/Application read models rather than a parallel diagnostic transport.
 
 ---
 
@@ -820,7 +820,7 @@ This path deliberately covers monitoring, enrichment, QA, Agent architecture, au
 A Product view is complete only when:
 
 - its live facts come from a named runtime owner;
-- no Workbench API is used by Product UI;
+- the retired Workbench API is absent; Product UI uses Product/Application routes only;
 - loading/empty/error/degraded states work;
 - primary interactions are real and navigable;
 - conclusions/facts/metrics can be drilled into evidence or technical coordinates;

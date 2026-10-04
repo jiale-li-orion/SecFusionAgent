@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { motion } from 'motion/react'
+import { useNavigate } from 'react-router-dom'
 import { Eye, FlaskConical, Gauge, Radar, ScanSearch, Send, Sparkles, Telescope } from 'lucide-react'
 import { askQuestion, type QuestionResult, type TaskKind } from '../lib/api'
 
@@ -12,6 +13,7 @@ const modes = [
 ]
 
 export function StartPage() {
+  const navigate = useNavigate()
   const [modeId, setModeId] = useState('VERIFY')
   const [question, setQuestion] = useState('')
   const [cveId, setCveId] = useState('')
@@ -99,6 +101,11 @@ export function StartPage() {
               <strong>{result.execution_profile}</strong>
               <p>{result.mode === 'accepted' ? `Case ${result.investigation?.case_id ?? ''}` : summarizeDecision(result)}</p>
               <span className="mono tiny">session {result.session_id}</span>
+              {result.mode === 'accepted' && result.investigation?.case_id && (
+                <button className="result-primary-action" onClick={() => navigate(`/investigations?case=${encodeURIComponent(result.investigation!.case_id)}&session=${encodeURIComponent(result.session_id)}`)}>
+                  ENTER INVESTIGATION
+                </button>
+              )}
             </motion.div>
           )}
         </aside>

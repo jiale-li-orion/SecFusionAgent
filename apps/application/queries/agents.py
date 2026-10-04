@@ -212,3 +212,118 @@ def _capability_view(item: CapabilityInvocationModel) -> AgentCapabilityActivity
         finished_at=item.finished_at,
         failure_code=item.failure_code,
     )
+
+
+async def get_agent_learning_overview(session: AsyncSession):
+    from sqlalchemy import func
+
+    from apps.application.views.agents import (
+        AgentLearningOverviewView,
+        ProductExperienceView,
+        ProductSkillView,
+    )
+    from packages.investigation.skills.storage import SkillVersionModel
+    from packages.investigation.storage.models import (
+        ExperienceCandidateModel,
+        ExperienceModel,
+        ExperienceVersionModel,
+        InvestigationTrajectoryModel,
+    )
+
+    skill_rows = list(
+        await session.scalars(
+            select(SkillVersionModel).order_by(
+                SkillVersionModel.skill_id,
+                SkillVersionModel.version.desc(),
+            )
+        )
+    )
+    skills: list[ProductSkillView] = []
+    seen: set[str] = set()
+    for row in skill_rows:
+        if row.skill_id in seen:
+            continue
+        seen.add(row.skill_id)
+        manifest = row.manifest_json
+        procedure = row.procedure_json
+        provenance = row.provenance_json
+        skills.append(
+            ProductSkillView(
+                skill_ref=f"skill:{row.skill_id}@{row.version}",
+                skill_id=row.skill_id,
+                version=row.version,
+                status=row.status,
+                source_type=row.source_type,
+                task_patterns=list(manifest.get("task_patterns", [])),
+                evidence_need_patterns=list(manifest.get("evidence_need_patterns", [])),
+                applicable_object_types=list(manifest.get("applicable_object_types", [])),
+                applicability_conditions=list(manifest.get("applicability_conditions", [])),
+                required_capability_classes=list(manifest.get("required_capability_classes", [])),
+                optional_capability_classes=list(manifest.get("optional_capability_classes", [])),
+                expected_outcomes=list(manifest.get("expected_outcomes", [])),
+                risk_hint=manifest.get("risk_hint"),
+                cost_hint=manifest.get("cost_hint"),
+                validation_ref=row.validation_ref,
+                supersedes=row.supersedes,
+                steps=list(procedure.get("steps", [])),
+                evidence_expectations=list(procedure.get("evidence_expectations", [])),
+                failure_guards=list(procedure.get("failure_guards", [])),
+                fallbacks=list(procedure.get("fallbacks", [])),
+                stop_conditions=list(procedure.get("stop_conditions", [])),
+                provenance_origin=str(provenance.get("origin", "unknown")),
+                supporting_trajectory_refs=list(provenance.get("supporting_trajectory_refs", [])),
+                supporting_experience_pattern_refs=list(provenance.get("supporting_experience_pattern_refs", [])),
+                validation_case_refs=list(provenance.get("validation_case_refs", [])),
+                promotion_history=list(provenance.get("promotion_history", [])),
+            )
+        )
+
+    experience_rows = (
+        await session.execute(
+            select(ExperienceVersionModel, ExperienceModel)
+            .join(ExperienceModel, ExperienceModel.experience_id == ExperienceVersionModel.experience_id)
+            .order_by(ExperienceModel.updated_at.desc(), ExperienceVersionModel.version.desc())
+        )
+    ).all()
+    experiences = [
+        ProductExperienceView(
+            experience_id=model.experience_id,
+            experience_version_id=version.experience_version_id,
+            version=version.version,
+            name=model.name,
+            task_signature=model.task_signature,
+            status=version.status,
+            trigger_signals=list(version.trigger_signals),
+            applicable_conditions=list(version.applicable_conditions),
+            recommended_actions=list(version.recommended_actions),
+            evidence_expectation=list(version.evidence_expectation),
+            failure_modes=list(version.failure_modes),
+            stop_conditions=list(version.stop_conditions),
+            fallback_actions=list(version.fallback_actions),
+            success_count=version.success_count,
+            failure_count=version.failure_count,
+            partial_count=version.partial_count,
+        )
+        for version, model in experience_rows
+    ]
+    candidate_count = int(
+        await session.scalar(select(func.count()).select_from(ExperienceCandidateModel)) or 0
+    )
+    trajectory_count = int(
+        await session.scalar(select(func.count()).select_from(InvestigationTrajectoryModel)) or 0
+    )
+    completed_count = int(
+        await session.scalar(
+            select(func.count())
+            .select_from(InvestigationTrajectoryModel)
+            .where(InvestigationTrajectoryModel.status == "completed")
+        )
+        or 0
+    )
+    return AgentLearningOverviewView(
+        skills=skills,
+        experiences=experiences,
+        experience_candidate_count=candidate_count,
+        trajectory_count=trajectory_count,
+        completed_trajectory_count=completed_count,
+    )

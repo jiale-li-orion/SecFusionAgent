@@ -9,7 +9,7 @@ The authoritative Product UI contract is [`SPEC.md`](SPEC.md). Product v1 expose
 The Product App is independent from:
 
 - the project Wiki/Website, which explains the architecture and competition evidence;
-- `/api/v1/workbench/*`, which remains an internal dev/test diagnostic API while it is useful to engineering;
+- the retired Runtime Workbench surface; Product UI uses Product/Application contracts only;
 - A2A transport DTOs, which are protocol compatibility rather than Product presentation contracts.
 
 The Product browser must use stable Product/Application routes and Product-safe read models. It must not query internal persistence models or depend on Workbench responses.
@@ -28,19 +28,9 @@ OBSERVATORY     live operations + frozen proof
 
 `START` exposes the canonical DIRECT / RETRIEVE / VERIFY / INVESTIGATE / WATCH interaction modes.
 
-## Current migration state
+## Current product state
 
-`legacy/index.html`, `legacy/app.js` and `legacy/styles.css` are the previous Runtime Workbench console. Do not extend that UI or treat its `/api/v1/workbench/*` calls as Product contracts. The React/TypeScript Product App now owns `index.html` and `src/`.
-
-P0 replaces the legacy static console with the React/TypeScript Product App and closes the first Product read/event seams described in `SPEC.md`:
-
-- Evidence read;
-- live Data Plane/source overview;
-- Hot Pool read;
-- Product-safe Task/Role/RuntimeActivity projection;
-- Investigation ProductEvent/SSE.
-
-Until that replacement lands, the old console remains useful only as a local engineering aid.
+The former Runtime Workbench UI and `/api/v1/workbench/*` transport have been retired. Runtime facts required by the competition are exposed through Product-safe read models used by WORLD, INTELLIGENCE, INVESTIGATIONS, AGENTS and OBSERVATORY.
 
 ## Truthfulness rule
 
