@@ -122,3 +122,55 @@ async def test_product_validation_and_not_found_use_problem_detail() -> None:
             assert missing.json()["request_id"] == "missing-1"
     finally:
         await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_product_runtime_activity_and_sse_replay_from_durable_events() -> None:
+    engine, factory = await _database()
+    app = create_app()
+    app.state.session_factory = factory
+
+    async def override_session() -> AsyncIterator[AsyncSession]:
+        async with factory() as session:
+            yield session
+
+    app.dependency_overrides[database_session] = override_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            started = await client.post(
+                "/api/v1/investigations",
+                headers={"X-Request-ID": "activity-start", "X-Principal": "user:test"},
+                json={
+                    "cve_id": "CVE-2026-51515",
+                    "goal": "Verify fix boundary",
+                    "evidence_question": "Which version first contains the fix?",
+                    "task_kind": "verify_version_fix",
+                },
+            )
+            assert started.status_code == 202, started.text
+            case_id = started.json()["case_id"]
+
+            activity = await client.get(f"/api/v1/investigations/{case_id}/activity")
+            assert activity.status_code == 200, activity.text
+            events = activity.json()["events"]
+            assert events
+            assert "started" in {item["event_type"] for item in events}
+            assert "evidence_need_changed" in {item["event_type"] for item in events}
+            assert "TaskCreated" in {item["technical_type"] for item in events}
+            assert "payload_ref" not in activity.text
+            assert "idempotency_key" not in activity.text
+
+            stream = await client.get(f"/api/v1/investigations/{case_id}/events?follow=false")
+            assert stream.status_code == 200, stream.text
+            assert stream.headers["content-type"].startswith("text/event-stream")
+            assert "event: started" in stream.text
+            first_id = events[0]["event_id"]
+
+            replay = await client.get(
+                f"/api/v1/investigations/{case_id}/events?follow=false",
+                headers={"Last-Event-ID": first_id},
+            )
+            assert replay.status_code == 200
+            assert f"id: {first_id}" not in replay.text
+    finally:
+        await engine.dispose()

@@ -85,3 +85,24 @@ class InvestigationPage(BaseModel):
 class StartInvestigationResult(BaseModel):
     mode: Literal["accepted"] = "accepted"
     investigation: InvestigationView
+
+
+class ProductRuntimeEventView(BaseModel):
+    event_id: str
+    event_type: str
+    technical_type: str
+    source_kind: str
+    case_id: str
+    task_run_id: str | None = None
+    role_id: str | None = None
+    status: str | None = None
+    actor: str | None = None
+    summary: str
+    evidence_refs: list[str] = Field(default_factory=list)
+    case_revision: int | None = None
+    occurred_at: datetime
+
+
+class ProductRuntimeActivityView(BaseModel):
+    case_id: str
+    events: list[ProductRuntimeEventView] = Field(default_factory=list)

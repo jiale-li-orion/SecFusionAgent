@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Query, Response, status
+import asyncio
+import json
+
+from fastapi import APIRouter, Query, Request, Response, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, model_validator
 
 from apps.api.dependencies import RequestContextDep, SessionDep
@@ -10,7 +14,12 @@ from apps.application.commands.start_investigation import (
     StartInvestigationUseCase,
 )
 from apps.application.queries.investigations import InvestigationQueries
-from apps.application.views.investigations import InvestigationPage, InvestigationView
+from apps.application.queries.runtime_activity import get_runtime_activity
+from apps.application.views.investigations import (
+    InvestigationPage,
+    InvestigationView,
+    ProductRuntimeActivityView,
+)
 from packages.shared.config import get_settings
 from packages.task_runtime.contracts.models import TaskKind
 
@@ -105,3 +114,74 @@ async def list_investigations(
 )
 async def get_investigation(case_id: str, session: SessionDep) -> InvestigationView:
     return await InvestigationQueries().get(session, case_id)
+
+
+@router.get(
+    "/{case_id}/activity",
+    response_model=ProductRuntimeActivityView,
+    responses={404: {"model": ProblemDetail}},
+)
+async def investigation_activity(
+    case_id: str,
+    session: SessionDep,
+) -> ProductRuntimeActivityView:
+    result = await get_runtime_activity(session, case_id)
+    if result is None:
+        from apps.application.errors import ResourceNotFoundError
+
+        raise ResourceNotFoundError("investigation not found", context={"case_id": case_id})
+    return result
+
+
+@router.get("/{case_id}/events")
+async def investigation_events(
+    case_id: str,
+    request: Request,
+    session: SessionDep,
+    follow: bool = Query(default=True),
+) -> StreamingResponse:
+    initial = await get_runtime_activity(session, case_id)
+    if initial is None:
+        from apps.application.errors import ResourceNotFoundError
+
+        raise ResourceNotFoundError("investigation not found", context={"case_id": case_id})
+    last_event_id = request.headers.get("Last-Event-ID")
+    factory = request.app.state.session_factory
+
+    async def stream():
+        cursor = last_event_id
+        seen: set[str] = set()
+        heartbeat_ticks = 0
+        while True:
+            async with factory() as read_session:
+                activity = await get_runtime_activity(read_session, case_id)
+            events = activity.events if activity is not None else []
+            if cursor and not seen:
+                ids = [event.event_id for event in events]
+                if cursor in ids:
+                    seen.update(ids[: ids.index(cursor) + 1])
+            pending = [event for event in events if event.event_id not in seen]
+            for event in pending:
+                seen.add(event.event_id)
+                cursor = event.event_id
+                payload = json.dumps(event.model_dump(mode="json"), ensure_ascii=False)
+                yield (
+                    f"id: {event.event_id}\n"
+                    f"event: {event.event_type}\n"
+                    f"data: {payload}\n\n"
+                )
+            if not follow or await request.is_disconnected():
+                break
+            heartbeat_ticks += 1
+            if not pending and heartbeat_ticks % 15 == 0:
+                yield ": heartbeat\n\n"
+            await asyncio.sleep(1.0)
+
+    return StreamingResponse(
+        stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
