@@ -104,21 +104,7 @@ export function IntelligencePage() {
                 ))}
               </div>
 
-              <section className="relation-section panel-glass">
-                <div className="section-title-row">
-                  <div><small>FOCUSED KNOWLEDGE GRAPH</small><strong>RELATION NEIGHBORHOOD</strong></div>
-                  <span>{obj.relations.length} canonical edges</span>
-                </div>
-                <div className="relation-stage">
-                  <div className="relation-core"><ShieldCheck size={24} /><strong>{selectedCve}</strong></div>
-                  <div className="relation-list">
-                    {obj.relations.slice(0, 18).map((relation, index) => (
-                      <RelationCard key={relation.relation_id} relation={relation} index={index} onEvidence={setEvidenceRef} />
-                    ))}
-                    {obj.relations.length === 0 && <div className="empty-state">No current canonical relations.</div>}
-                  </div>
-                </div>
-              </section>
+              <FocusedKnowledgeGraph relations={obj.relations} selectedCve={selectedCve} onEvidence={setEvidenceRef} />
             </>
           )}
         </div>
@@ -184,20 +170,96 @@ function ClaimGroup({ title, claims, onEvidence }: { title: string; claims: Know
   )
 }
 
-function RelationCard({ relation, index, onEvidence }: { relation: KnowledgeRelation; index: number; onEvidence: (ref: string) => void }) {
+function FocusedKnowledgeGraph({ relations, selectedCve, onEvidence }: { relations: KnowledgeRelation[]; selectedCve: string; onEvidence: (ref: string) => void }) {
+  const layers = useMemo(() => ['ALL', ...Array.from(new Set(relations.map((item) => item.target.object_type))).sort()], [relations])
+  const [layer, setLayer] = useState('ALL')
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const visible = relations.filter((item) => layer === 'ALL' || item.target.object_type === layer).slice(0, 10)
+  const selected = relations.find((item) => item.relation_id === selectedId) ?? null
+
+  useEffect(() => {
+    if (selected && layer !== 'ALL' && selected.target.object_type !== layer) setSelectedId(null)
+  }, [layer, selected])
+
+  return (
+    <section className={`relation-section graph-mode panel-glass ${selected ? 'graph-focused' : ''}`}>
+      <div className="section-title-row">
+        <div><small>FOCUSED KNOWLEDGE GRAPH</small><strong>RELATION NEIGHBORHOOD</strong></div>
+        <span>{relations.length} canonical edges · {visible.length} visible</span>
+      </div>
+      <div className="graph-toolbar">
+        <div className="graph-layers">
+          {layers.map((item) => <button key={item} className={layer === item ? 'active' : ''} onClick={() => setLayer(item)}>{item}</button>)}
+        </div>
+        {selected && <button className="graph-reset" onClick={() => setSelectedId(null)}>RESET FOCUS</button>}
+      </div>
+      <div className="focused-graph-stage">
+        <motion.div className="graph-world" animate={{ scale: selected ? 1.045 : 1, x: selected ? -36 : 0 }} transition={{ type: 'spring', stiffness: 180, damping: 24 }}>
+          <svg className="graph-edges" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            {visible.map((relation, index) => {
+              const point = graphPoint(index, visible.length)
+              const active = relation.relation_id === selectedId
+              return <path key={relation.relation_id} className={selected ? active ? 'active' : 'dimmed' : ''} d={`M 50 50 Q ${(50 + point.x) / 2} ${(50 + point.y) / 2 - 4} ${point.x} ${point.y}`} />
+            })}
+          </svg>
+          <div className="graph-core-node"><ShieldCheck size={23} /><strong>{selectedCve}</strong><small>Vulnerability</small></div>
+          {visible.map((relation, index) => {
+            const point = graphPoint(index, visible.length)
+            const active = relation.relation_id === selectedId
+            const dimmed = Boolean(selected && !active)
+            return <GraphRelationNode key={relation.relation_id} relation={relation} point={point} active={active} dimmed={dimmed} onSelect={() => setSelectedId(active ? null : relation.relation_id)} />
+          })}
+          {visible.length === 0 && <div className="graph-empty">No canonical relation in this semantic layer.</div>}
+        </motion.div>
+
+        <AnimatePresence>
+          {selected && <motion.aside className="graph-relation-dossier" initial={{ opacity: 0, x: 28 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 18 }} transition={{ type: 'spring', stiffness: 230, damping: 27 }}>
+            <button onClick={() => setSelectedId(null)} className="graph-dossier-close" aria-label="Close relation focus"><X size={15} /></button>
+            <small>CANONICAL RELATION</small>
+            <strong>{humanize(selected.relation_type)}</strong>
+            <RelationTargetIdentity relation={selected} />
+            <div className="graph-relation-facts">
+              <div><small>ORIGIN</small><strong>{selected.origin}</strong></div>
+              <div><small>REVISION</small><strong>{selected.created_revision}</strong></div>
+              <div><small>TARGET TYPE</small><strong>{selected.target.object_type}</strong></div>
+            </div>
+            <div className="graph-evidence-block"><small>EVIDENCE</small><EvidenceCapsules evidence={selected.evidence} onEvidence={onEvidence} /></div>
+            <div className="graph-coordinate mono">{selected.relation_id}</div>
+          </motion.aside>}
+        </AnimatePresence>
+      </div>
+    </section>
+  )
+}
+
+function GraphRelationNode({ relation, point, active, dimmed, onSelect }: { relation: KnowledgeRelation; point: { x: number; y: number }; active: boolean; dimmed: boolean; onSelect: () => void }) {
   const displayName = relation.target.properties.display_name
   const label = typeof displayName === 'string' ? displayName : relation.target.external_identifiers.cve?.[0] ?? relation.target.canonical_key
-  return (
-    <motion.article className="relation-card" initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: Math.min(index * .025, .3) }}>
-      <span className="relation-icon"><GitBranch size={15} /></span>
-      <div className="relation-copy">
-        <small>{relation.relation_type}</small>
-        <strong>{label}</strong>
-        <span>{relation.target.object_type}</span>
-      </div>
-      <EvidenceCapsules evidence={relation.evidence} onEvidence={onEvidence} compact />
-    </motion.article>
-  )
+  return <motion.button
+    className={`graph-relation-node ${active ? 'active' : ''} ${dimmed ? 'dimmed' : ''}`}
+    style={{ left: `${point.x}%`, top: `${point.y}%` }}
+    onClick={onSelect}
+    initial={{ opacity: 0, scale: .85 }}
+    animate={{ opacity: dimmed ? .15 : 1, scale: active ? 1.08 : dimmed ? .92 : 1 }}
+    transition={{ type: 'spring', stiffness: 220, damping: 24 }}
+  >
+    <span className="graph-node-glyph"><GitBranch size={13} /></span>
+    <span><small>{humanize(relation.relation_type)}</small><strong>{label}</strong><em>{relation.target.object_type}</em></span>
+    {relation.evidence.length > 0 && <b>{relation.evidence.length}E</b>}
+  </motion.button>
+}
+
+function RelationTargetIdentity({ relation }: { relation: KnowledgeRelation }) {
+  const displayName = relation.target.properties.display_name
+  const label = typeof displayName === 'string' ? displayName : relation.target.external_identifiers.cve?.[0] ?? relation.target.canonical_key
+  return <div className="graph-target-identity"><span className="relation-icon"><GitBranch size={15} /></span><div><small>TARGET</small><strong>{label}</strong><span>{relation.target.object_type}</span></div></div>
+}
+
+function graphPoint(index: number, count: number) {
+  const angle = -Math.PI / 2 + (index / Math.max(count, 1)) * Math.PI * 2
+  const radiusX = count <= 6 ? 33 : 38
+  const radiusY = count <= 6 ? 34 : 39
+  return { x: 50 + Math.cos(angle) * radiusX, y: 50 + Math.sin(angle) * radiusY }
 }
 
 function EvidenceCapsules({ evidence, onEvidence, compact = false }: { evidence: EvidenceRef[]; onEvidence: (ref: string) => void; compact?: boolean }) {
