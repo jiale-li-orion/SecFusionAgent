@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>SecFusion Console</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail">
+      <div class="brand"><span class="brand-mark">SF</span><div><strong>SecFusion</strong><small>runtime console</small></div></div>
+      <nav>
+        <button class="nav-item active" data-view="overview"><span>01</span>运行态</button>
+        <button class="nav-item" data-view="knowledge"><span>02</span>Knowledge</button>
+        <button class="nav-item" data-view="cases"><span>03</span>Investigation</button>
+        <button class="nav-item" data-view="tasks"><span>04</span>Task Runtime</button>
+      </nav>
+      <div class="rail-foot"><span id="connection-dot"></span><div><strong id="connection-label">connecting</strong><small id="connection-detail">127.0.0.1:8000</small></div></div>
+    </aside>
+
+    <main class="workspace">
+      <header class="topline">
+        <div><span class="eyebrow">AI SECURITY INTELLIGENCE</span><h1 id="view-title">运行态</h1></div>
+        <div class="top-actions"><button id="refresh-all" class="button ghost">刷新</button><span id="clock" class="clock"></span></div>
+      </header>
+
+      <section id="view-overview" class="view active">
+        <div class="metric-grid">
+          <article><span>KNOWLEDGE REV</span><strong id="m-revision">—</strong><small>canonical world</small></article>
+          <article><span>SOURCES</span><strong id="m-sources">—</strong><small id="m-source-note">runtime owners</small></article>
+          <article><span>OBJECTS</span><strong id="m-objects">—</strong><small>canonical entities</small></article>
+          <article><span>CASES</span><strong id="m-cases">—</strong><small>active / total</small></article>
+          <article><span>TASKS</span><strong id="m-tasks">—</strong><small>live / total</small></article>
+          <article><span>MODEL</span><strong id="m-model">—</strong><small>M5 / M6 provider</small></article>
+        </div>
+        <div class="grid two-one">
+          <section class="panel span-two">
+            <div class="panel-head"><div><span class="kicker">M1 · monitoring</span><h2>Source runtime</h2></div><div id="coverage" class="coverage"></div></div>
+            <div class="table-wrap"><table><thead><tr><th>Source</th><th>Class / role</th><th>Path</th><th>Last success</th><th>Failures</th><th>Next due</th></tr></thead><tbody id="source-body"></tbody></table></div>
+          </section>
+          <section class="panel pulse-panel">
+            <div class="panel-head"><div><span class="kicker">Control plane</span><h2>System pulse</h2></div></div>
+            <div class="pulse-list"><div><span>Admission</span><b>policy gated</b></div><div><span>Task events</span><b>durable</b></div><div><span>Evidence</span><b>reference only</b></div><div><span>Replay</span><b>fail closed</b></div></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="view-knowledge" class="view">
+        <div class="query-bar"><input id="cve-input" placeholder="CVE-2025-XXXXX" spellcheck="false"><button id="lookup-cve" class="button primary">读取 Knowledge</button><button id="enrich-cve" class="button ghost" disabled>触发富化</button></div>
+        <div id="knowledge-empty" class="empty-state"><span>02</span><h2>选择一个 CVE</h2><p>这里读取 canonical Knowledge 和 EvidenceRef，不展示前端拼接的摘要。</p></div>
+        <div id="knowledge-detail" class="hidden"></div>
+      </section>
+
+      <section id="view-cases" class="view">
+        <div class="split">
+          <div>
+            <section class="panel compact">
+              <div class="panel-head"><div><span class="kicker">M4</span><h2>新建 Case</h2></div></div>
+              <form id="case-form" class="form-stack">
+                <label>CVE<input id="case-cve" placeholder="CVE-2025-XXXXX" required></label>
+                <label>调查目标<textarea id="case-goal" rows="2" placeholder="确认受影响版本与修复边界" required></textarea></label>
+                <label>EvidenceNeed<textarea id="case-question" rows="2" placeholder="哪个版本首次包含修复？" required></textarea></label>
+                <button class="button primary" type="submit">创建 Case</button>
+              </form>
+            </section>
+            <div class="section-label">CASES</div><div id="case-list" class="stack-list"></div>
+          </div>
+          <section class="panel detail-panel"><div id="case-detail" class="empty-detail"><span>CASE</span><p>选择一个 Case 查看 InvestigationState、EvidenceNeed、Decision 和 replay coordinate。</p></div></section>
+        </div>
+      </section>
+
+      <section id="view-tasks" class="view">
+        <div class="split">
+          <div><div class="section-label">TASK RUNS</div><div id="task-list" class="stack-list"></div></div>
+          <section class="panel detail-panel"><div id="task-detail" class="empty-detail"><span>TASK</span><p>选择 TaskRun 查看 Contract、Context 与 TaskEvent。</p></div></section>
+        </div>
+      </section>
+    </main>
+  </div>
+  <div id="toast" class="toast"></div>
+  <script src="app.js"></script>
+</body>
+</html>

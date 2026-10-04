@@ -14,6 +14,7 @@ from apps.api.routes.investigations import router as investigations_router
 from apps.api.routes.knowledge import router as knowledge_router
 from apps.api.routes.questions import router as questions_router
 from apps.api.routes.workbench import router as workbench_router
+from apps.api.routes.world import router as world_router
 from apps.runtime_models import register_runtime_models
 from packages.shared.config import get_settings
 from packages.shared.db import create_engine, create_session_factory
@@ -66,14 +67,22 @@ def create_app() -> FastAPI:
     app.include_router(decisions_router)
     app.include_router(questions_router)
     app.include_router(knowledge_router)
+    app.include_router(world_router)
     app.include_router(workbench_router)
-    web_root = Path("apps/web")
+    web_root = Path("apps/web/legacy")
+    product_web_root = Path("apps/web/dist")
     if (
         settings.api_workbench_enabled
         and settings.environment in {"dev", "test"}
         and web_root.is_dir()
     ):
         app.mount("/app", StaticFiles(directory=web_root, html=True), name="web")
+    if product_web_root.is_dir():
+        app.mount(
+            "/product",
+            StaticFiles(directory=product_web_root, html=True),
+            name="product-web",
+        )
 
     return app
 

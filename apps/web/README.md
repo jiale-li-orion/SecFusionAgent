@@ -30,7 +30,7 @@ OBSERVATORY     live operations + frozen proof
 
 ## Current migration state
 
-`index.html`, `app.js` and `styles.css` are the previous Runtime Workbench console and are **legacy implementation slated for replacement in Product P0**. Do not extend that UI or treat its `/api/v1/workbench/*` calls as Product contracts.
+`legacy/index.html`, `legacy/app.js` and `legacy/styles.css` are the previous Runtime Workbench console. Do not extend that UI or treat its `/api/v1/workbench/*` calls as Product contracts. The React/TypeScript Product App now owns `index.html` and `src/`.
 
 P0 replaces the legacy static console with the React/TypeScript Product App and closes the first Product read/event seams described in `SPEC.md`:
 
