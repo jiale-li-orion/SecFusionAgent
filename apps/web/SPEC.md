@@ -800,7 +800,7 @@ This path deliberately covers monitoring, enrichment, QA, Agent architecture, au
 - Agent task/delegation/capability visuals;
 - Observatory full curves;
 - benchmark proof drill-down;
-- cancel/resume;
+- explicit cancel; resume remains split between runtime dependency wake and durable Case/session continuation;
 - degraded/fallback/recovery UX.
 
 ### P2 — cinematic finish and deployment

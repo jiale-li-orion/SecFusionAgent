@@ -9,6 +9,10 @@ from pydantic import BaseModel, Field, model_validator
 
 from apps.api.dependencies import RequestContextDep, SessionDep
 from apps.api.errors import ProblemDetail
+from apps.application.commands.investigation_lifecycle import (
+    CancelInvestigationCommand,
+    CancelInvestigationUseCase,
+)
 from apps.application.commands.start_investigation import (
     StartInvestigationCommand,
     StartInvestigationUseCase,

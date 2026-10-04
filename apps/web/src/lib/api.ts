@@ -483,3 +483,16 @@ export async function getAgentLearning(): Promise<AgentLearningOverview> {
   if (!response.ok) throw new Error(`Agent learning unavailable (${response.status})`)
   return response.json() as Promise<AgentLearningOverview>
 }
+
+export async function cancelInvestigation(caseId: string): Promise<InvestigationView> {
+  const response = await fetch(`/api/v1/investigations/${encodeURIComponent(caseId)}/cancel`, {
+    method: 'POST',
+    headers: { 'X-Principal': 'user:product-demo' },
+  })
+  const body = await response.json().catch(() => null)
+  if (!response.ok) {
+    const detail = body?.detail ?? body?.title ?? `Cancel failed (${response.status})`
+    throw new Error(String(detail))
+  }
+  return body as InvestigationView
+}

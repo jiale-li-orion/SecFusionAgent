@@ -6,6 +6,7 @@ import {
   BadgeCheck,
   CircleAlert,
   CircleDot,
+  OctagonX,
   FileWarning,
   Link2,
   MessageSquareText,
@@ -18,6 +19,7 @@ import {
 import { useSearchParams } from 'react-router-dom'
 import {
   askQuestion,
+  cancelInvestigation,
   getEvidence,
   getInvestigation,
   getInvestigationActivity,
@@ -142,6 +144,8 @@ function CaseWorkspace({ investigation, events, onEvidence, sessionId, onFollowU
   const [followUp, setFollowUp] = useState('')
   const [followUpBusy, setFollowUpBusy] = useState(false)
   const [sessionTurns, setSessionTurns] = useState<Array<{ kind: 'user' | 'system'; text: string }>>([])
+  const [cancelBusy, setCancelBusy] = useState(false)
+  const [cancelError, setCancelError] = useState('')
 
   async function sendFollowUp() {
     const question = followUp.trim()
@@ -159,6 +163,20 @@ function CaseWorkspace({ investigation, events, onEvidence, sessionId, onFollowU
       setFollowUpBusy(false)
     }
   }
+  async function cancelCase() {
+    if (cancelBusy || !liveStatuses.has(investigation.status)) return
+    setCancelBusy(true)
+    setCancelError('')
+    try {
+      await cancelInvestigation(investigation.case_id)
+      onFollowUpComplete()
+    } catch (error) {
+      setCancelError(error instanceof Error ? error.message : 'Cancel failed')
+    } finally {
+      setCancelBusy(false)
+    }
+  }
+
   return (
     <div className="case-workspace-stack">
       <article className="case-hero panel-glass">
@@ -166,7 +184,7 @@ function CaseWorkspace({ investigation, events, onEvidence, sessionId, onFollowU
           <span className="case-hero-sigil"><Radar size={25} /></span>
           <div><small>CASE / {investigation.execution_profile ?? 'RUNTIME'}</small><strong>{investigation.goal}</strong><span className="mono">{investigation.case_id}</span></div>
         </div>
-        <div className="case-hero-state"><span className={`case-state-badge state-${investigation.status}`}>{investigation.status}</span><strong>REV {investigation.revision}</strong><small>{investigation.current_activity.actor_role ?? 'runtime'} · {investigation.current_activity.phase}</small></div>
+        <div className="case-hero-state"><span className={`case-state-badge state-${investigation.status}`}>{investigation.status}</span><strong>REV {investigation.revision}</strong><small>{investigation.current_activity.actor_role ?? 'runtime'} · {investigation.current_activity.phase}</small>{liveStatuses.has(investigation.status) && <button className="case-cancel-button" onClick={() => void cancelCase()} disabled={cancelBusy}><OctagonX size={12} /> {cancelBusy ? 'CANCELLING…' : 'CANCEL CASE'}</button>}{cancelError && <em className="case-cancel-error">{cancelError}</em>}</div>
       </article>
 
       <div className="case-state-grid">
@@ -181,7 +199,7 @@ function CaseWorkspace({ investigation, events, onEvidence, sessionId, onFollowU
       <section className="conversation-shell panel-glass">
         <div className="conversation-title"><MessageSquareText size={15} /><div><small>CONTINUOUS INTERACTION</small><strong>CASE SESSION</strong></div><span>{sessionId ? 'BOUND TO CURRENT CASE' : 'OPEN FROM START TO BIND SESSION'}</span></div>
         <div className="conversation-preview">
-          <div className="system-message"><Sparkles size={14} /><p>{latestNarrative(events, investigation)}</p></div>
+          <div className="system-message"><Sparkles size={14} /><ProgressiveReveal text={latestNarrative(events, investigation)} /></div>
           {sessionTurns.map((turn, index) => <motion.div key={`${turn.kind}:${index}`} className={`session-turn turn-${turn.kind}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}><small>{turn.kind === 'user' ? 'YOU' : 'SECFUSION'}</small><p>{turn.text}</p></motion.div>)}
           <div className={`case-session-composer ${sessionId ? 'enabled' : 'disabled'}`}>
             <input value={followUp} onChange={(event) => setFollowUp(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void sendFollowUp() } }} disabled={!sessionId || followUpBusy} placeholder={sessionId ? '继续当前调查…' : '从 START 进入调查后即可持续追问'} />
@@ -269,6 +287,34 @@ function TraceRow({ label, value }: { label: string; value: string }) { return <
 function EventIcon({ type }: { type: string }) { if (type === 'failed') return <CircleAlert size={13} />; if (type === 'decision_ready') return <Sparkles size={13} />; if (type === 'finding_added') return <BadgeCheck size={13} />; if (type === 'evidence_need_changed') return <SearchCheck size={13} />; if (type === 'waiting') return <Orbit size={13} />; return <TerminalSquare size={13} /> }
 function RadioState({ state }: { state: string }) { return state === 'live' ? <CircleDot size={11} /> : <Activity size={11} /> }
 function latestNarrative(events: ProductRuntimeEvent[], investigation: InvestigationView) { const latest = events[events.length - 1]; return latest?.summary ?? `${investigation.current_activity.actor_role ?? 'Runtime'} is ${investigation.current_activity.phase}.` }
+
+function ProgressiveReveal({ text }: { text: string }) {
+  const [visible, setVisible] = useState(text)
+  const [revealing, setRevealing] = useState(false)
+
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setVisible(text)
+      setRevealing(false)
+      return
+    }
+    let index = Math.min(8, text.length)
+    setVisible(text.slice(0, index))
+    setRevealing(index < text.length)
+    const step = Math.max(1, Math.ceil(text.length / 28))
+    const timer = window.setInterval(() => {
+      index = Math.min(text.length, index + step)
+      setVisible(text.slice(0, index))
+      if (index >= text.length) {
+        setRevealing(false)
+        window.clearInterval(timer)
+      }
+    }, 18)
+    return () => window.clearInterval(timer)
+  }, [text])
+
+  return <p className="progressive-narrative">{visible}{revealing && <span className="reveal-caret" aria-hidden="true" />}</p>
+}
 
 function continuationTaskKind(value: string | null): TaskKind {
   if (value === 'verify_version_fix' || value === 'investigate_incident' || value === 'watch_incident') return value

@@ -777,3 +777,11 @@ kbd { border: 1px solid var(--line-strong); border-radius: 5px; padding: 2px 5px
 .experience-list strong { color: #c3cac8; font-size: 9px; }
 .experience-list span, .experience-list p { color: #68757e; font-size: 7px; margin: 0; }
 @media (max-width: 1400px) { .agent-learning-grid { grid-template-columns: 1fr; } }
+.case-cancel-button { margin-top: 7px; min-height: 30px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid rgba(255,114,120,.2); border-radius: 8px; background: rgba(255,114,120,.045); color: #e9979a; font-size: 7px; letter-spacing: .08em; cursor: pointer; }
+.case-cancel-button:hover { border-color: rgba(255,114,120,.42); background: rgba(255,114,120,.075); }
+.case-cancel-button:disabled { opacity: .5; cursor: wait; }
+.case-cancel-error { margin-top: 4px; max-width: 180px; color: #d98c90; font-size: 7px; font-style: normal; line-height: 1.35; }
+.progressive-narrative { margin: 0; }
+.reveal-caret { display: inline-block; width: 5px; height: 1em; margin-left: 2px; vertical-align: -2px; background: var(--lime); opacity: .75; animation: revealCaret 720ms steps(1,end) infinite; }
+@keyframes revealCaret { 50% { opacity: .08; } }
+@media (prefers-reduced-motion: reduce) { .reveal-caret { display: none; } }
