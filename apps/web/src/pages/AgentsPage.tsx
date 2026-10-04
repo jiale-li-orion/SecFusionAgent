@@ -68,6 +68,8 @@ export function AgentsPage() {
             <span>{runtime?.recent_tasks.length ?? 0} loaded · {runtime?.recent_capabilities.length ?? 0} capability invocations</span>
           </div>
 
+          <TaskTopology tasks={runtime?.recent_tasks ?? []} selectedTask={selectedTask} onSelect={setSelectedTaskOverride} />
+
           <div className="task-lanes">
             <div className="task-lane live-lane">
               <div className="task-lane-title"><CircleDot size={13} /><strong>LIVE</strong><span>{activeTasks.length}</span></div>
@@ -140,6 +142,95 @@ function RoleSigil({ role, live }: { role: string; live: boolean }) {
   if (role === 'DecisionRole') return <div className={`role-sigil oracle-sigil ${live ? 'live' : ''}`}><div className="orbit orbit-a" /><div className="orbit orbit-b" /><Sparkles size={22} /></div>
   if (role === 'InvestigationRole') return <div className={`role-sigil argus-sigil ${live ? 'live' : ''}`}><div className="argus-eye"><Radio size={22} /></div><i /><i /><i /></div>
   return <div className={`role-sigil alchemist-sigil ${live ? 'live' : ''}`}><div /><div /><div /><div /><Orbit size={20} /></div>
+}
+
+function TaskTopology({ tasks, selectedTask, onSelect }: { tasks: AgentTaskSummary[]; selectedTask: string | null; onSelect: (runId: string) => void }) {
+  const topology = useMemo(() => buildTaskTopology(tasks, selectedTask), [tasks, selectedTask])
+  const selectedModel = tasks.find((task) => task.run_id === selectedTask) ?? null
+  const selectedCase = selectedModel?.case_id ?? null
+  return <div className="task-topology">
+    <div className="task-topology-head">
+      <div className="task-role-axis"><span>ORACLE</span><span>ARGUS</span><span>ALCHEMIST</span></div>
+      <div><small>REAL PARENT / CHILD LINKS ONLY</small><strong>{topology.nodes.length} visible nodes · {topology.edges.length} delegation links</strong></div>
+    </div>
+    <div className="task-topology-canvas">
+      <div className="task-role-column role-decision" /><div className="task-role-column role-investigation" /><div className="task-role-column role-enrichment" />
+      <svg className="task-topology-edges" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        {topology.edges.map((edge) => {
+          const active = edge.parent.run_id === selectedTask || edge.child.run_id === selectedTask || Boolean(selectedCase && edge.parent.task.case_id === selectedCase && edge.child.task.case_id === selectedCase)
+          return <path key={`${edge.parent.run_id}:${edge.child.run_id}`} className={active ? 'active' : selectedTask ? 'dimmed' : ''} d={`M ${edge.parent.x} ${edge.parent.y} C ${edge.parent.x} ${(edge.parent.y + edge.child.y) / 2}, ${edge.child.x} ${(edge.parent.y + edge.child.y) / 2}, ${edge.child.x} ${edge.child.y}`} />
+        })}
+      </svg>
+      {topology.nodes.map((node) => {
+        const task = node.task
+        const related = !selectedTask || task.run_id === selectedTask || Boolean(selectedCase && task.case_id === selectedCase)
+        return <motion.button
+          key={task.run_id}
+          className={`task-crystal state-${task.status} ${task.run_id === selectedTask ? 'selected' : ''} ${related ? '' : 'dimmed'}`}
+          style={{ left: `${node.x}%`, top: `${node.y}%` }}
+          onClick={() => onSelect(task.run_id)}
+          initial={{ opacity: 0, scale: .75 }}
+          animate={{ opacity: related ? 1 : .2, scale: task.run_id === selectedTask ? 1.1 : 1 }}
+          transition={{ type: 'spring', stiffness: 230, damping: 25 }}
+          title={`${task.role_id} · ${task.task_kind} · ${task.status}`}
+        >
+          <span className="task-crystal-core" />
+          <span className="task-crystal-copy"><small>{rolePresentation[task.role_id]?.alias ?? task.role_id}</small><strong>{shortTaskKind(task.task_kind)}</strong><em>{task.status}</em></span>
+          {task.parent_run_id && <GitFork size={10} className="task-child-mark" />}
+        </motion.button>
+      })}
+      {topology.nodes.length === 0 && <div className="task-topology-empty">No durable TaskRun in current read window.</div>}
+    </div>
+  </div>
+}
+
+type TaskTopologyNode = { task: AgentTaskSummary; x: number; y: number; run_id: string }
+type TaskTopologyEdge = { parent: TaskTopologyNode; child: TaskTopologyNode }
+
+function buildTaskTopology(tasks: AgentTaskSummary[], selectedTask: string | null): { nodes: TaskTopologyNode[]; edges: TaskTopologyEdge[] } {
+  const allById = new Map(tasks.map((task) => [task.run_id, task]))
+  const chosen = new Map<string, AgentTaskSummary>()
+  const selected = selectedTask ? allById.get(selectedTask) ?? null : null
+
+  if (selected) {
+    chosen.set(selected.run_id, selected)
+    if (selected.parent_run_id && allById.has(selected.parent_run_id)) chosen.set(selected.parent_run_id, allById.get(selected.parent_run_id)!)
+    for (const task of tasks) if (task.parent_run_id === selected.run_id || (selected.case_id && task.case_id === selected.case_id)) chosen.set(task.run_id, task)
+  }
+  for (const task of tasks) if (activeStatuses.has(task.status)) chosen.set(task.run_id, task)
+  for (const task of tasks) {
+    if (chosen.size >= 14) break
+    if (task.parent_run_id && allById.has(task.parent_run_id)) {
+      chosen.set(task.parent_run_id, allById.get(task.parent_run_id)!)
+      chosen.set(task.run_id, task)
+    }
+  }
+  for (const task of tasks) {
+    if (chosen.size >= 14) break
+    chosen.set(task.run_id, task)
+  }
+
+  const byRole = new Map<string, AgentTaskSummary[]>()
+  for (const task of chosen.values()) byRole.set(task.role_id, [...(byRole.get(task.role_id) ?? []), task])
+  const roleX: Record<string, number> = { DecisionRole: 17, InvestigationRole: 50, EnrichmentRole: 83 }
+  const nodes: TaskTopologyNode[] = []
+  for (const [role, roleTasks] of byRole) {
+    const sorted = [...roleTasks].sort((a, b) => Number(activeStatuses.has(b.status)) - Number(activeStatuses.has(a.status)) || new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+    sorted.slice(0, 6).forEach((task, index) => nodes.push({ task, run_id: task.run_id, x: roleX[role] ?? 50, y: 17 + index * 14 }))
+  }
+  const nodeById = new Map(nodes.map((node) => [node.run_id, node]))
+  const edges: TaskTopologyEdge[] = []
+  for (const node of nodes) {
+    if (!node.task.parent_run_id) continue
+    const parent = nodeById.get(node.task.parent_run_id)
+    if (parent) edges.push({ parent, child: node })
+  }
+  return { nodes, edges }
+}
+
+function shortTaskKind(value: string) {
+  const clean = value.replaceAll('_', ' ')
+  return clean.length > 18 ? `${clean.slice(0, 16)}…` : clean
 }
 
 function TaskCard({ task, selected, onSelect }: { task: AgentTaskSummary; selected: boolean; onSelect: (runId: string) => void }) {

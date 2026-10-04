@@ -5,11 +5,11 @@ import { Eye, FlaskConical, Gauge, Radar, ScanSearch, Send, Sparkles, Telescope 
 import { askQuestion, type QuestionResult, type TaskKind } from '../lib/api'
 
 const modes = [
-  { id: 'DIRECT', title: '快速回答', taskKind: 'lookup' as TaskKind, icon: Gauge, tone: 'lime', description: '从当前已确认 Evidence World 直接形成证据约束的回答。' },
-  { id: 'RETRIEVE', title: '证据检索', taskKind: 'retrieve' as TaskKind, icon: ScanSearch, tone: 'cyan', description: '扩大本地检索上下文，保持 passage 与 canonical fact 的边界。' },
-  { id: 'VERIFY', title: '精准核验', taskKind: 'verify_version_fix' as TaskKind, icon: FlaskConical, tone: 'violet', description: '围绕修复边界、版本与证据冲突启动 durable verification。' },
-  { id: 'INVESTIGATE', title: '深度调查', taskKind: 'investigate_incident' as TaskKind, icon: Telescope, tone: 'amber', description: '进入多步调查，可选择 Skill / Capability 并发生真实委派。' },
-  { id: 'WATCH', title: '持续守望', taskKind: 'watch_incident' as TaskKind, icon: Eye, tone: 'blue', description: '保留 waiting Case，在外部世界变化后恢复调查。' },
+  { id: 'DIRECT', title: '快速回答', taskKind: 'lookup' as TaskKind, icon: Gauge, tone: 'lime', description: '从当前已确认 Evidence World 直接形成证据约束的回答。', tempo: 'seconds', durable: 'no durable Case', outcome: 'Decision', capability: 'current Evidence World' },
+  { id: 'RETRIEVE', title: '证据检索', taskKind: 'retrieve' as TaskKind, icon: ScanSearch, tone: 'cyan', description: '扩大本地检索上下文，保持 passage 与 canonical fact 的边界。', tempo: 'seconds', durable: 'upgrade when needed', outcome: 'Decision / escalate', capability: 'local retrieval' },
+  { id: 'VERIFY', title: '精准核验', taskKind: 'verify_version_fix' as TaskKind, icon: FlaskConical, tone: 'violet', description: '围绕修复边界、版本与证据冲突启动 durable verification。', tempo: 'multi-step', durable: 'durable Case', outcome: 'Verified Decision', capability: 'evidence + enrichment' },
+  { id: 'INVESTIGATE', title: '深度调查', taskKind: 'investigate_incident' as TaskKind, icon: Telescope, tone: 'amber', description: '进入多步调查，可选择 Skill / Capability 并发生真实委派。', tempo: 'deep runtime', durable: 'durable Case', outcome: 'Investigation', capability: 'Skill / Capability / delegation' },
+  { id: 'WATCH', title: '持续守望', taskKind: 'watch_incident' as TaskKind, icon: Eye, tone: 'blue', description: '保留 waiting Case，在外部世界变化后恢复调查。', tempo: 'asynchronous', durable: 'waiting Case', outcome: 'Wake episode', capability: 'world-change recovery' },
 ]
 
 export function StartPage() {
@@ -21,6 +21,7 @@ export function StartPage() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const selected = useMemo(() => modes.find((m) => m.id === modeId)!, [modeId])
+  const selectedIndex = modes.findIndex((mode) => mode.id === modeId)
 
   async function launch() {
     if (!question.trim()) return
@@ -50,27 +51,42 @@ export function StartPage() {
       <div className="mission-layout">
         <div className="mission-stage panel-glass">
           <div className="mission-orbits" />
-          <div className="mode-grid">
-            {modes.map(({ id, title, icon: Icon, tone, description }) => {
+          <div className="mission-orbit-field">
+            {modes.map(({ id, title, icon: Icon, tone, description, tempo, durable, outcome, capability }, index) => {
               const active = id === modeId
+              const slot = missionSlot(index, selectedIndex)
               return (
                 <motion.button
                   key={id}
                   onClick={() => setModeId(id)}
-                  className={`mode-pod tone-${tone} ${active ? 'active' : ''}`}
-                  animate={{ y: active ? -10 : 0, scale: active ? 1.035 : 1 }}
-                  transition={{ type: 'spring', stiffness: 220, damping: 22 }}
+                  className={`mode-pod orbital tone-${tone} ${active ? 'active' : ''}`}
+                  animate={{
+                    left: `${slot.left}%`,
+                    top: `${slot.top}%`,
+                    width: active ? 250 : 172,
+                    minHeight: active ? 265 : 154,
+                    opacity: active ? 1 : .62,
+                    scale: active ? 1 : .95,
+                  }}
+                  transition={{ type: 'spring', stiffness: 190, damping: 25, mass: .72 }}
                 >
-                  <span className="mode-sigil"><Icon size={24} /></span>
+                  <span className="mode-sigil"><Icon size={active ? 26 : 20} /></span>
                   <small>{title}</small>
                   <strong>{id}</strong>
-                  <p>{description}</p>
+                  {active ? <p>{description}</p> : <span className="mode-orbit-caption">{outcome}</span>}
+                  {active && <div className="mode-boundaries"><span>{tempo}</span><span>{durable}</span><span>{capability}</span></div>}
                 </motion.button>
               )
             })}
           </div>
 
-          <motion.div key={selected.id} className={`launch-core tone-${selected.tone}`} initial={{ scale: 0.96 }} animate={{ scale: 1 }}>
+          <motion.div
+            key={selected.id}
+            className={`launch-core tone-${selected.tone}`}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: .24, ease: [0.22, 1, 0.36, 1] }}
+          >
             <Sparkles size={18} />
             <strong>{selected.id}</strong>
             <small>{selected.title}</small>
@@ -83,6 +99,12 @@ export function StartPage() {
             <div><small>SELECTED PROFILE</small><strong>{selected.id}</strong></div>
           </div>
           <p className="console-description">{selected.description}</p>
+          <div className="mode-console-facts">
+            <ModeConsoleFact label="TEMPO" value={selected.tempo} />
+            <ModeConsoleFact label="CASE" value={selected.durable} />
+            <ModeConsoleFact label="OUTCOME" value={selected.outcome} />
+            <ModeConsoleFact label="CAPABILITY" value={selected.capability} />
+          </div>
 
           <label className="field-label">Target CVE <span>optional</span></label>
           <input className="field-input mono" value={cveId} onChange={(e) => setCveId(e.target.value)} placeholder="CVE-2026-…" />
@@ -112,6 +134,22 @@ export function StartPage() {
       </div>
     </section>
   )
+}
+
+function missionSlot(index: number, selectedIndex: number) {
+  if (index === selectedIndex) return { left: 50, top: 35 }
+  const others = [0, 1, 2, 3].map((offset) => (selectedIndex + 1 + offset) % modes.length)
+  const slotIndex = others.indexOf(index)
+  return [
+    { left: 18, top: 30 },
+    { left: 82, top: 30 },
+    { left: 24, top: 72 },
+    { left: 76, top: 72 },
+  ][Math.max(0, slotIndex)]
+}
+
+function ModeConsoleFact({ label, value }: { label: string; value: string }) {
+  return <div><small>{label}</small><strong>{value}</strong></div>
 }
 
 function summarizeDecision(result: QuestionResult) {
