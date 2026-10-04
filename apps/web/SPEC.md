@@ -857,3 +857,73 @@ Never fabricate:
 - an animated processing path without a runtime fact owner.
 
 Presentation aliases and cinematic abstraction are encouraged. Business truth remains singular.
+
+---
+
+## 17. Visual ambition — bold by default
+
+Product v1 is allowed to be cinematic, spatial and visually assertive. The frontend must communicate the real scale of the system; reducing SecFusionAgent to a conventional admin shell would hide engineering work that is directly relevant to competition scoring.
+
+The visual goal is not restraint for its own sake. It is **high-impact, high-information presentation with semantic discipline**.
+
+### 17.1 Required WOW moments
+
+Each primary product space should have one memorable visual event:
+
+- `WORLD`: live source constellation → Hot object → durable Evidence/Knowledge promotion;
+- `START`: selected execution mode moves forward and initiates a real Product action;
+- `AGENTS`: Role accepts Task / delegation appears / recovery episode resumes;
+- `INVESTIGATIONS`: ProductEvent stream changes Case state and a Decision converges from Evidence;
+- `INTELLIGENCE`: focused graph expands around a selected object and evidence remains inspectable;
+- `OBSERVATORY`: live runtime motion collapses into a frozen, drillable proof state.
+
+These moments may use stronger camera movement, masking, parallax, line-draw, particle transit, digit-roll and spatial transitions than ordinary enterprise software.
+
+### 17.2 Text and number motion
+
+Motion intensity is hierarchical:
+
+```text
+hero/system-state     strong reveal / scan / mask-in
+live ProductEvent     short slide/fade/highlight
+metric change         count-up / digit-roll / line-draw
+ordinary prose        stable
+technical coordinate restrained instrument-style reveal
+```
+
+Do not animate every label. Visual impact comes from contrast between stable information and decisive state changes.
+
+### 17.3 The product may look expensive
+
+Allowed:
+
+- 2.5D / WebGL world space;
+- particle/evidence transit;
+- orbital relationships;
+- live task links;
+- role sigils;
+- controlled glow;
+- layered translucent surfaces;
+- cinematic route transitions;
+- animated data curves;
+- spatial focus and dossier reveal;
+- high-impact START interaction.
+
+The product should feel like a live scientific/security instrument, not a cautious CRUD application.
+
+### 17.4 What still cannot be theatricalized
+
+Visual ambition does not relax truthfulness:
+
+- no fake processing event;
+- no fake Task/Role activity;
+- no fake streaming;
+- no fake Skill promotion;
+- no fake runtime metric;
+- no fake source health;
+- no fake evidence edge;
+- no fake success state.
+
+The rule is:
+
+> **Be loud about what the system really did. Never invent something merely because it looks impressive.**
