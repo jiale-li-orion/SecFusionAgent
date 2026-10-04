@@ -62,3 +62,29 @@ class WorldOverviewView(BaseModel):
     lexical_ready_documents: int = 0
     artifact_store_status: str | None = None
     public_epoch_artifact_integrity_rate: float | None = None
+
+
+class HotBugView(BaseModel):
+    source_id: str
+    external_object_id: str
+    external_revision: str | None = None
+    cve_id: str | None = None
+    title: str | None = None
+    description: str | None = None
+    status: str | None = None
+    cvss_score: float | None = None
+    cvss_severity: str | None = None
+    affected_products: list[str] = Field(default_factory=list)
+    canonical_url: str | None = None
+    updated_at: datetime | None = None
+    fetched_at: datetime
+    changed_fields: list[str] = Field(default_factory=list)
+    priority_signals: list[str] = Field(default_factory=list)
+    access_count: float = 0.0
+    active: bool = False
+    pinned: bool = False
+    ttl_seconds: int | None = None
+
+
+class HotBugListView(BaseModel):
+    items: list[HotBugView] = Field(default_factory=list)

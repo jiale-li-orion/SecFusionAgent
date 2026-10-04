@@ -93,3 +93,31 @@ export async function getWorldOverview(): Promise<WorldOverview> {
   if (!response.ok) throw new Error(`World overview unavailable (${response.status})`)
   return response.json() as Promise<WorldOverview>
 }
+
+export type HotBug = {
+  source_id: string
+  external_object_id: string
+  external_revision: string | null
+  cve_id: string | null
+  title: string | null
+  description: string | null
+  status: string | null
+  cvss_score: number | null
+  cvss_severity: string | null
+  affected_products: string[]
+  canonical_url: string | null
+  updated_at: string | null
+  fetched_at: string
+  changed_fields: string[]
+  priority_signals: string[]
+  access_count: number
+  active: boolean
+  pinned: boolean
+  ttl_seconds: number | null
+}
+
+export async function getHotWorld(limit = 6): Promise<{ items: HotBug[] }> {
+  const response = await fetch(`/api/v1/world/hot?limit=${limit}`)
+  if (!response.ok) throw new Error(`Hot world unavailable (${response.status})`)
+  return response.json() as Promise<{ items: HotBug[] }>
+}

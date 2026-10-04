@@ -5,7 +5,7 @@ from typing import Any, cast
 
 from redis.asyncio import Redis
 
-from packages.intelligence.hot_cache.contracts import HotBugRecord
+from packages.intelligence.hot_cache.contracts import HotBugCacheEntry, HotBugRecord
 
 
 class RedisHotBugCache:
@@ -62,6 +62,75 @@ class RedisHotBugCache:
             pipeline.expire(key, int(ttl))
         await pipeline.execute()
 
+
+    async def list_ranked(self, *, limit: int = 24) -> list[HotBugCacheEntry]:
+        if limit < 1:
+            return []
+        candidate_limit = max(limit * 4, limit)
+        updated_keys = await cast(
+            Awaitable[Any],
+            self._client.zrevrange(self.UPDATED_KEY, 0, candidate_limit - 1),
+        )
+        access_keys = await cast(
+            Awaitable[Any],
+            self._client.zrevrange(self.ACCESS_KEY, 0, candidate_limit - 1),
+        )
+        active_keys = await cast(Awaitable[Any], self._client.smembers(self.ACTIVE_KEY))
+        pinned_keys = await cast(Awaitable[Any], self._client.smembers(self.PINNED_KEY))
+
+        candidates = {
+            _as_text(key)
+            for key in [*updated_keys, *access_keys, *active_keys, *pinned_keys]
+        }
+        if not candidates:
+            return []
+
+        ordered_keys = sorted(candidates)
+        pipeline = self._client.pipeline(transaction=False)
+        for key in ordered_keys:
+            pipeline.get(key)
+            pipeline.zscore(self.ACCESS_KEY, key)
+            pipeline.zscore(self.UPDATED_KEY, key)
+            pipeline.sismember(self.ACTIVE_KEY, key)
+            pipeline.sismember(self.PINNED_KEY, key)
+            pipeline.ttl(key)
+        raw = await pipeline.execute()
+
+        entries: list[HotBugCacheEntry] = []
+        stride = 6
+        for index, _key in enumerate(ordered_keys):
+            payload, access, updated, active, pinned, ttl = raw[
+                index * stride : (index + 1) * stride
+            ]
+            if payload is None:
+                continue
+            if isinstance(payload, bytes):
+                payload = payload.decode("utf-8")
+            record = HotBugRecord.model_validate_json(payload)
+            ttl_value = int(ttl) if ttl is not None and int(ttl) >= 0 else None
+            entries.append(
+                HotBugCacheEntry(
+                    record=record,
+                    access_count=float(access or 0.0),
+                    updated_score=float(updated or 0.0),
+                    active=bool(active),
+                    pinned=bool(pinned),
+                    ttl_seconds=ttl_value,
+                )
+            )
+
+        entries.sort(
+            key=lambda item: (
+                item.pinned,
+                item.active,
+                item.access_count,
+                item.updated_score,
+                item.record.cache_key,
+            ),
+            reverse=True,
+        )
+        return entries[:limit]
+
     async def evict(self, source_id: str, external_object_id: str) -> None:
         key = _bug_key(source_id, external_object_id)
         pinned = await cast(Awaitable[Any], self._client.sismember(self.PINNED_KEY, key))
@@ -74,6 +143,10 @@ class RedisHotBugCache:
         pipeline.srem(self.ACTIVE_KEY, key)
         pipeline.hdel(self.TTL_KEY, key)
         await pipeline.execute()
+
+
+def _as_text(value: str | bytes) -> str:
+    return value.decode("utf-8") if isinstance(value, bytes) else value
 
 
 def _bug_key(source_id: str, external_object_id: str) -> str:

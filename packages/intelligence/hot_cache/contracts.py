@@ -36,6 +36,15 @@ class HotNormalizationResult(BaseModel):
     priority_signals: list[str]
 
 
+class HotBugCacheEntry(BaseModel):
+    record: HotBugRecord
+    access_count: float = 0.0
+    updated_score: float = 0.0
+    active: bool = False
+    pinned: bool = False
+    ttl_seconds: int | None = None
+
+
 class HotBugCache(Protocol):
     async def get(self, source_id: str, external_object_id: str) -> HotBugRecord | None: ...
 

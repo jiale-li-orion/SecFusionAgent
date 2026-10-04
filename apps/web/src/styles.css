@@ -203,3 +203,13 @@ kbd { border: 1px solid var(--line-strong); border-radius: 5px; padding: 2px 5px
 .runtime-metric small { color: #6d7d87; font-size: 8px; letter-spacing: .14em; }
 .runtime-metric strong { color: currentColor; font-size: 20px; letter-spacing: -.02em; }
 .runtime-metric span { color: #77848e; font-size: 9px; }
+.hot-cloud { position: absolute; inset: 0; z-index: 6; pointer-events: none; }
+.hot-cve { position: absolute; transform: translate(-50%,-50%); pointer-events: auto; min-width: 132px; max-width: 170px; padding: 8px 10px; border: 1px solid color-mix(in srgb, currentColor 38%, transparent); border-radius: 11px; background: linear-gradient(180deg, color-mix(in srgb, currentColor 7%, rgba(12,18,24,.96)), rgba(8,13,18,.96)); box-shadow: 0 14px 40px rgba(0,0,0,.2), 0 0 24px color-mix(in srgb, currentColor 6%, transparent); cursor: pointer; text-align: left; backdrop-filter: blur(10px); }
+.hot-cve:hover { border-color: color-mix(in srgb, currentColor 65%, transparent); box-shadow: 0 18px 46px rgba(0,0,0,.22), 0 0 34px color-mix(in srgb, currentColor 11%, transparent); }
+.hot-cve-top { display: flex; align-items: center; gap: 6px; color: currentColor; }
+.hot-cve-top strong { font-size: 9px; letter-spacing: .04em; }
+.hot-cve-meta { display: flex; align-items: baseline; gap: 6px; margin-top: 5px; }
+.hot-cve-meta b { color: currentColor; font-size: 14px; }
+.hot-cve-meta em { color: #8b99a3; font-size: 7px; font-style: normal; letter-spacing: .08em; text-transform: uppercase; }
+.hot-cve small { display: block; margin-top: 5px; color: #65737e; font-size: 7px; text-transform: uppercase; letter-spacing: .08em; }
+.hot-layer-label.unavailable { color: #a37175; border-color: rgba(255,114,120,.2); }

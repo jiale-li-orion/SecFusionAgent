@@ -12,7 +12,7 @@ import {
   ShieldAlert,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { getWorldOverview } from '../lib/api'
+import { getHotWorld, getWorldOverview, type HotBug } from '../lib/api'
 
 const sources = [
   { key: 'vulnerability', label: 'VULNERABILITY', sub: 'CVE · NVD · KEV', icon: Bug, x: 14, y: 25, tone: 'cyan' },
@@ -28,9 +28,11 @@ const sources = [
 export function WorldPage() {
   const navigate = useNavigate()
   const worldQuery = useQuery({ queryKey: ['world-overview'], queryFn: getWorldOverview, refetchInterval: 30_000 })
+  const hotQuery = useQuery({ queryKey: ['world-hot'], queryFn: () => getHotWorld(5), refetchInterval: 20_000 })
   const snapshot = worldQuery.data
   const oneHour = snapshot?.windows['1h']
   const categoryHealth = new Map(snapshot?.categories.map((item) => [item.category, item]) ?? [])
+  const hotItems = hotQuery.data?.items ?? []
 
   return (
     <section className="page world-page">
@@ -85,9 +87,17 @@ export function WorldPage() {
           </motion.button>
         })}
 
-        <div className="hot-layer-label">
-          <Flame size={13} /> HOT LAYER · Redis read seam connecting
-        </div>
+        {hotItems.length > 0 ? (
+          <div className="hot-cloud">
+            {hotItems.slice(0, 5).map((item, index) => (
+              <HotBugCard key={`${item.source_id}:${item.external_object_id}`} item={item} index={index} onOpen={() => navigate(`/intelligence?cve=${encodeURIComponent(item.cve_id ?? item.external_object_id)}`)} />
+            ))}
+          </div>
+        ) : (
+          <div className={`hot-layer-label ${hotQuery.isError ? 'unavailable' : ''}`}>
+            <Flame size={13} /> {hotQuery.isError ? 'HOT LAYER UNAVAILABLE' : hotQuery.isLoading ? 'HOT LAYER CONNECTING' : 'HOT LAYER EMPTY'}
+          </div>
+        )}
         <div className="world-path path-bug">BUG STREAM</div>
         <div className="world-path path-dev">DEVELOPMENT INDEX</div>
         <div className="world-path path-insight">INSIGHT CORPUS</div>
@@ -102,6 +112,38 @@ export function WorldPage() {
         <RuntimeMetric label="SNAPSHOT" value={snapshot ? snapshotAge(snapshot.generated_at) : '—'} detail={snapshot ? new Date(snapshot.generated_at).toLocaleString() : 'loading operational truth'} tone="blue" />
       </div>
     </section>
+  )
+}
+
+const hotSlots = [
+  { left: '25%', top: '44%' },
+  { left: '74%', top: '43%' },
+  { left: '62%', top: '69%' },
+  { left: '37%', top: '70%' },
+  { left: '52%', top: '31%' },
+]
+
+function HotBugCard({ item, index, onOpen }: { item: HotBug; index: number; onOpen: () => void }) {
+  const slot = hotSlots[index % hotSlots.length]
+  const tone = item.pinned ? 'amber' : item.active ? 'lime' : item.priority_signals.includes('critical_severity') ? 'coral' : 'violet'
+  const identity = item.cve_id ?? item.external_object_id
+  const signal = item.pinned ? 'PINNED' : item.active ? 'ACTIVE' : item.priority_signals[0]?.replaceAll('_', ' ') ?? 'HOT'
+  return (
+    <motion.button
+      className={`hot-cve tone-${tone}`}
+      style={slot}
+      onClick={onOpen}
+      initial={{ opacity: 0, scale: 0.86 }}
+      animate={{ opacity: 1, scale: 1, y: [0, -4, 0] }}
+      transition={{ opacity: { duration: .25 }, scale: { duration: .25 }, y: { duration: 4.6 + index * .4, repeat: Infinity, ease: 'easeInOut' } }}
+    >
+      <span className="hot-cve-top"><Flame size={12} /><strong>{identity}</strong></span>
+      <span className="hot-cve-meta">
+        {item.cvss_score != null && <b>{item.cvss_score.toFixed(1)}</b>}
+        <em>{item.cvss_severity ?? item.status ?? signal}</em>
+      </span>
+      <small>{signal} · access {item.access_count.toFixed(0)}</small>
+    </motion.button>
   )
 }
 

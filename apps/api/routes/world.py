@@ -4,15 +4,22 @@ import json
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
+from redis.asyncio import Redis
+from redis.exceptions import RedisError
 
 from apps.application.views.world import (
+    HotBugListView,
+    HotBugView,
     WorldCategoryHealthView,
     WorldHealthCountsView,
     WorldOverviewView,
     WorldSeriesPointView,
     WorldWindowView,
 )
+from packages.intelligence.hot_cache.contracts import HotBugCacheEntry
+from packages.intelligence.hot_cache.redis import RedisHotBugCache
+from packages.shared.config import get_settings
 
 router = APIRouter(prefix="/api/v1/world", tags=["world"])
 
@@ -71,6 +78,23 @@ async def world_overview() -> WorldOverviewView:
     )
 
 
+@router.get("/hot", response_model=HotBugListView)
+async def hot_world(limit: int = Query(default=18, ge=1, le=64)) -> HotBugListView:
+    settings = get_settings()
+    redis = Redis.from_url(settings.redis_hot_cache_url)
+    try:
+        entries = await RedisHotBugCache(redis).list_ranked(limit=limit)
+    except RedisError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Hot Bug working set is unavailable",
+        ) from exc
+    finally:
+        await redis.aclose()
+
+    return HotBugListView(items=[_hot_view(entry) for entry in entries])
+
+
 def _load_snapshot() -> dict[str, Any]:
     try:
         return json.loads(_DATA_PLANE_SNAPSHOT.read_text(encoding="utf-8"))
@@ -96,3 +120,43 @@ def _window_view(metrics: dict[str, Any]) -> WorldWindowView:
         fresh_knowledge_latency_p95_seconds=metrics.get("fresh_knowledge_latency_p95_seconds"),
         evidence_integrity_rate=metrics.get("evidence_integrity_rate"),
     )
+
+
+def _hot_view(entry: HotBugCacheEntry) -> HotBugView:
+    record = entry.record
+    projection = record.projection
+    affected_raw = projection.get("affected_products")
+    affected_products = (
+        [str(item) for item in affected_raw if isinstance(item, str)]
+        if isinstance(affected_raw, list)
+        else []
+    )
+    return HotBugView(
+        source_id=record.source_id,
+        external_object_id=record.external_object_id,
+        external_revision=record.external_revision,
+        cve_id=_string_or_none(projection.get("cve_id")),
+        title=_string_or_none(projection.get("title")),
+        description=_string_or_none(projection.get("description_en")),
+        status=_string_or_none(projection.get("status")),
+        cvss_score=_float_or_none(projection.get("cvss_score")),
+        cvss_severity=_string_or_none(projection.get("cvss_severity")),
+        affected_products=affected_products,
+        canonical_url=record.canonical_url,
+        updated_at=record.updated_at,
+        fetched_at=record.fetched_at,
+        changed_fields=record.changed_fields,
+        priority_signals=record.priority_signals,
+        access_count=entry.access_count,
+        active=entry.active,
+        pinned=entry.pinned,
+        ttl_seconds=entry.ttl_seconds,
+    )
+
+
+def _string_or_none(value: Any) -> str | None:
+    return value if isinstance(value, str) else None
+
+
+def _float_or_none(value: Any) -> float | None:
+    return float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else None
