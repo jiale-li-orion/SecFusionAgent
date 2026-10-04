@@ -1,3 +1,5 @@
+import { useEffect, useRef, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import {
   Activity,
   Bot,
@@ -21,6 +23,36 @@ const nav = [
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate()
+  const searchRef = useRef<HTMLInputElement>(null)
+  const [searchValue, setSearchValue] = useState('')
+  const [searchError, setSearchError] = useState('')
+  const readiness = useQuery({ queryKey: ['shell-readiness'], queryFn: checkReadiness, refetchInterval: 15_000, retry: false })
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        searchRef.current?.focus()
+        searchRef.current?.select()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
+
+  function submitSearch(event: React.FormEvent) {
+    event.preventDefault()
+    const value = searchValue.trim().toUpperCase()
+    if (!value) return
+    if (!/^CVE-\d{4}-\d+$/.test(value)) {
+      setSearchError('Use a canonical CVE ID')
+      return
+    }
+    setSearchError('')
+    navigate(`/intelligence?cve=${encodeURIComponent(value)}`)
+  }
+
+  const readinessState = readiness.isLoading ? 'checking' : readiness.data ? 'ready' : 'degraded'
 
   return (
     <div className="app-shell">
@@ -49,21 +81,21 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </button>
 
         <div className="system-mini">
-          <div><span className="live-dot" /> PRODUCT P0</div>
-          <small>World shell online</small>
-          <small>Runtime views connecting</small>
+          <div><span className={`live-dot state-${readinessState}`} /> PRODUCT APP</div>
+          <small>{readiness.data ? 'API readiness verified' : readiness.isLoading ? 'Checking API readiness' : 'Runtime degraded / unavailable'}</small>
+          <small>Evidence-first product surface</small>
         </div>
       </aside>
 
       <main className="workspace">
         <header className="topbar">
-          <div className="search-shell">
+          <form className={`search-shell ${searchError ? 'invalid' : ''}`} onSubmit={submitSearch}>
             <Search size={16} />
-            <input aria-label="Search" placeholder="Search CVE, entity, source…" />
+            <input ref={searchRef} aria-label="Jump to CVE" value={searchValue} onChange={(event) => { setSearchValue(event.target.value); if (searchError) setSearchError('') }} placeholder={searchError || 'Jump to CVE…'} />
             <kbd>⌘K</kbd>
-          </div>
+          </form>
           <div className="topbar-state">
-            <span className="live-pill"><CircleDot size={13} /> LIVE</span>
+            <span className={`live-pill readiness-${readinessState}`}><CircleDot size={13} /> {readiness.isLoading ? 'CHECKING' : readiness.data ? 'API READY' : 'DEGRADED'}</span>
             <span className="demo-user">DEMO / ANALYST</span>
           </div>
         </header>
@@ -71,4 +103,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
       </main>
     </div>
   )
+}
+
+async function checkReadiness() {
+  try {
+    const response = await fetch('/health/ready', { cache: 'no-store' })
+    return response.ok
+  } catch {
+    return false
+  }
 }

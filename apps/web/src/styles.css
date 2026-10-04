@@ -527,10 +527,7 @@ kbd { border: 1px solid var(--line-strong); border-radius: 5px; padding: 2px 5px
 .conversation-preview { padding: 13px; display: grid; gap: 10px; }
 .system-message { display: flex; gap: 8px; align-items: start; max-width: 78%; color: var(--violet); }
 .system-message p { margin: 0; color: #9da7a9; font-size: 9px; line-height: 1.55; }
-.composer-disabled { display: flex; gap: 7px; padding: 7px; border: 1px solid rgba(190,216,224,.075); border-radius: 11px; background: rgba(7,12,17,.55); }
-.composer-disabled input { flex: 1; border: 0; background: transparent; color: #65727b; outline: 0; font-size: 9px; }
-.composer-disabled button { border: 1px solid rgba(190,216,224,.08); border-radius: 8px; background: rgba(255,255,255,.015); color: #56636c; font-size: 7px; padding: 0 10px; }
-.activity-head { height: 58px; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; border-bottom: 1px solid var(--line); }
+activity-head { height: 58px; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; border-bottom: 1px solid var(--line); }
 .activity-head > div { display: grid; gap: 3px; }
 .activity-head small { color: #657783; font-size: 6.5px; letter-spacing: .12em; }
 .activity-head strong { color: #c5cfce; font-size: 10px; }
@@ -941,3 +938,25 @@ kbd { border: 1px solid var(--line-strong); border-radius: 5px; padding: 2px 5px
 .task-stack { max-height: 360px; }
 .history-stack { max-height: 360px; }
 @media (max-width: 1380px) { .task-crystal { width: 128px; } .task-topology-canvas { height: 300px; } }
+
+/* Route-level loading remains inside the product instrument language. */
+.product-space-loader { min-height: calc(100vh - 66px); position: relative; display: grid; place-items: center; overflow: hidden; color: #71838c; }
+.loader-grid { position: absolute; inset: 0; opacity: .22; background-image: linear-gradient(rgba(100,217,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(100,217,255,.045) 1px,transparent 1px); background-size: 42px 42px; mask-image: radial-gradient(circle at center,black 15%,transparent 72%); }
+.loader-core { width: 190px; height: 190px; position: relative; display: grid; place-items: center; align-content: center; gap: 6px; border-radius: 50%; border: 1px solid rgba(100,217,255,.14); background: radial-gradient(circle,rgba(100,217,255,.04),transparent 68%); }
+.loader-core strong { color: #94a6aa; font-size: 8px; letter-spacing: .14em; }
+.loader-core small { color: #596a73; font-size: 7px; letter-spacing: .1em; }
+.loader-ring { position: absolute; border-radius: 50%; border: 1px solid rgba(100,217,255,.14); }
+.loader-ring.ring-a { inset: 21px; animation: loaderOrbit 2.8s linear infinite; border-style: dashed; }
+.loader-ring.ring-b { inset: 45px 15px; border-color: rgba(168,139,255,.12); transform: rotate(56deg); }
+.loader-scan { position: absolute; top: 0; bottom: 0; left: -9%; width: 9%; background: linear-gradient(90deg,transparent,rgba(184,243,90,.025),transparent); animation: loaderScan 1.9s ease-in-out infinite; }
+@keyframes loaderOrbit { to { transform: rotate(360deg); } }
+@keyframes loaderScan { 60%,100% { left: 109%; } }
+@media (prefers-reduced-motion: reduce) { .loader-ring.ring-a, .loader-scan { animation: none; } }
+.search-shell.invalid { border-color: rgba(255,114,120,.34); box-shadow: 0 0 0 3px rgba(255,114,120,.025); }
+.search-shell.invalid input::placeholder { color: #a66f73; }
+.live-pill.readiness-ready { color: #d9ff9f; border-color: rgba(184,243,90,.22); background: rgba(184,243,90,.06); }
+.live-pill.readiness-checking { color: #9cc8d3; border-color: rgba(100,217,255,.16); background: rgba(100,217,255,.035); }
+.live-pill.readiness-degraded { color: #e1a3a5; border-color: rgba(255,114,120,.2); background: rgba(255,114,120,.045); }
+.live-dot.state-ready { background: var(--lime); box-shadow: 0 0 10px rgba(184,243,90,.5); }
+.live-dot.state-checking { background: var(--cyan); box-shadow: 0 0 10px rgba(100,217,255,.4); }
+.live-dot.state-degraded { background: var(--coral); box-shadow: 0 0 10px rgba(255,114,120,.4); }
