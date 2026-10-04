@@ -220,3 +220,79 @@ export async function getEvidence(evidenceRef: string): Promise<EvidenceDetail> 
   if (!response.ok) throw new Error(response.status === 404 ? 'Evidence not found' : `Evidence unavailable (${response.status})`)
   return response.json() as Promise<EvidenceDetail>
 }
+
+export type AgentRoleRuntime = {
+  role_id: string
+  version: string
+  state_model: string
+  planner_profile: string
+  default_execution_profile: string
+  accepted_task_kinds: string[]
+  skill_scope: string[]
+  status_counts: Record<string, number>
+  active_tasks: number
+  total_tasks: number
+  last_updated_at: string | null
+}
+
+export type AgentTaskSummary = {
+  run_id: string
+  task_kind: string
+  case_id: string | null
+  parent_run_id: string | null
+  role_id: string
+  role_version: string
+  status: string
+  stop_reason: string | null
+  result_available: boolean
+  event_count: number
+  last_event_type: string | null
+  last_event_at: string | null
+  created_at: string
+  updated_at: string
+  finished_at: string | null
+}
+
+export type AgentCapabilityActivity = {
+  invocation_id: string
+  task_run_id: string
+  case_id: string | null
+  capability_id: string
+  binding_id: string
+  tool_impl_id: string
+  status: string
+  started_at: string
+  finished_at: string | null
+  failure_code: string | null
+}
+
+export type AgentRuntimeOverview = {
+  generated_at: string
+  roles: AgentRoleRuntime[]
+  recent_tasks: AgentTaskSummary[]
+  recent_capabilities: AgentCapabilityActivity[]
+}
+
+export type AgentTaskDetail = {
+  task: AgentTaskSummary
+  events: Array<{
+    event_id: string
+    seq: number
+    event_type: string
+    producer: string
+    emitted_at: string
+  }>
+  capabilities: AgentCapabilityActivity[]
+}
+
+export async function getAgentRuntime(): Promise<AgentRuntimeOverview> {
+  const response = await fetch('/api/v1/agents/runtime?task_limit=72')
+  if (!response.ok) throw new Error(`Agent runtime unavailable (${response.status})`)
+  return response.json() as Promise<AgentRuntimeOverview>
+}
+
+export async function getAgentTask(runId: string): Promise<AgentTaskDetail> {
+  const response = await fetch(`/api/v1/tasks/${encodeURIComponent(runId)}`)
+  if (!response.ok) throw new Error(response.status === 404 ? 'Task not found' : `Task unavailable (${response.status})`)
+  return response.json() as Promise<AgentTaskDetail>
+}
