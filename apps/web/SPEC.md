@@ -1,686 +1,859 @@
-# SecFusion Product Frontend Spec
+# SecFusion Product Frontend Spec v2
 
 > Status: **Frozen for Product v1 implementation**
 > Date: 2026-10-04
 > Owner: Product App (`apps/web`)
-> Scope: user-facing SecFusion product frontend. This document does **not** define the Wiki/Website or the internal Workbench.
+> Supersedes: 2026-10-04 narrow Ask/Investigation/Intelligence draft
 
-## 0. Product decision
+## 0. Product contract
 
-`apps/web` becomes the **SecFusion Product App**. The old runtime-console UI is retired rather than evolved into the product.
+`apps/web` is the user-facing SecFusion product. It is independent from the Wiki/Website and does not use the old Workbench UI as its product shell.
 
-The product frontend talks only to stable Product/Application HTTP contracts:
+The product must make the system's real capabilities visible:
 
 ```text
-/api/v1/questions
-/api/v1/investigations
-/api/v1/decisions
-/api/v1/vulnerabilities
-/api/v1/evidence
-/health
+External sources
+  → Data Plane / Evidence World
+  → Evidence + Knowledge + Incident + Insight + Experience
+  → Task / Agent Runtime
+  → Investigation State
+  → Decision / QA
+  → Evaluation / Operations proof
 ```
 
-It must not call `/api/v1/workbench/*`.
+The frontend may introduce presentation aliases, visual grouping and derived read models. It must not introduce a second source of business truth.
 
-The Workbench backend may remain as a dev/test-only diagnostic surface while it is useful for engineering. It is not product navigation, not a product dependency, and is disabled in production.
+### Anti-toy rule
 
-The Wiki/Website remains a separate documentation/competition-explanation surface. No Wiki component, page hierarchy, data projection or visual layout is reused as Product UI.
+Anything rendered as a live system fact must resolve to an existing runtime owner, read model, metric or event. Hard-coded demo telemetry, fake Agent activity, fake source health, fake Skill status and fake streaming are prohibited.
 
 ---
 
-## 1. Product promise
+## 1. Requirements / competition alignment
 
-SecFusion is an **evidence-first security intelligence workspace**.
+The product exposes the complete M1–M8 story rather than only the final QA surface.
 
-A user should be able to move through one continuous product flow:
+| Requirement | Product proof |
+|---|---|
+| M1 monitoring / multi-source automation | WORLD + OBSERVATORY live source/runtime views |
+| M2 evidence preservation / normalization | Evidence inspector + source/revision/locator |
+| M3 enrichment / association | Intelligence dossier, 12 enrichment dimensions, graph |
+| M4 investigation context | Investigation confirmed/conflict/unknown/evidence-gap state |
+| M5 Agent investigation | AGENTS, Task/activity/delegation/Capability/Skill |
+| M6 decision / QA | START + continuous session + Decision/citations |
+| M7 evaluation | OBSERVATORY / PROOF |
+| M8 operations | OBSERVATORY / LIVE + health/degraded/recovery |
+| C1 traceability | every visible conclusion/fact has evidence drill-down |
+| C2 external content untrusted | evidence/source semantics remain visible; no source text becomes authority in the UI |
+| C3 bounded execution | Task state, budget/deadline/stop reason where reliable |
 
-```text
-Ask a security question
-  → get a fast evidence-grounded answer
-  → inspect the supporting evidence
-  → escalate an unresolved question into an Investigation
-  → watch the Investigation progress
-  → receive a final Decision with citations / conflicts / unknowns
-```
-
-The frontend exposes the security-intelligence object the user is working on, not the internal runtime machinery used to produce it.
-
-### Product v1 success condition
-
-A new user can open the deployed IP address and, without understanding `TaskRun / M4 / M6 / BenchmarkRun / ContextManifest`, complete all of the following:
-
-1. query a CVE and understand its current facts;
-2. ask a natural-language question about the CVE;
-3. inspect the sources supporting the answer;
-4. launch a deeper investigation when evidence is insufficient;
-5. return to an investigation and see its current state;
-6. understand what is confirmed, conflicting, unknown and still being investigated;
-7. read the final conclusion with traceable evidence.
+The competition explicitly scores Agent usage, automation/engineering and demonstration quality. Those capabilities are therefore first-class product surfaces, not hidden engineering diagnostics.
 
 ---
 
-## 2. Design reference and interpretation
+## 2. Information architecture
 
-Primary visual/product reference:
+Keep the navigation short: five real spaces plus one global action.
 
-- Skillry Opus 5.5 gallery: <https://skillry.dev/ai-videos/opus-5-5>
+```text
+WORLD           live Evidence World / Data Plane
+INTELLIGENCE    dossiers, relationships and evidence
+INVESTIGATIONS  durable cases and continuous user interaction
+AGENTS          Role / Task / Capability / Skill / Experience
+OBSERVATORY     live runtime + frozen proof
 
-We borrow its **product principles**, not its page content or branding:
+                [ START ]
+```
 
-- content is the primary object; navigation and controls stay visually quiet;
-- categories/modes are lightweight chips rather than a dashboard taxonomy;
-- cards expose useful metadata without turning into dense admin tables;
-- detail views keep the primary object, its comparison/evidence and its action close together;
-- actions such as “copy prompt” live next to the object they act on;
-- real product content is used in the UI; generic placeholder widgets are avoided;
-- one coherent visual language beats many ornamental components.
+`WORLD` is the default landing surface. `START` is globally available and visually distinctive; it is not a sixth list page.
 
-### Explicit visual bans
-
-- no “cyber security dashboard” cliché;
-- no matrix rain, shields, radar sweeps or decorative network graphs;
-- no glow-heavy neon chrome;
-- no gradients on ordinary UI chrome;
-- no fake telemetry counters that do not help the user act;
-- no M1/M2/M3/M4/M5/M6 labels in user-facing copy;
-- no raw JSON as the default representation;
-- no giant KPI dashboard as the landing page;
-- no motion for its own sake;
-- no component-library look where every region is an identical card.
+The internal `/api/v1/workbench/*` surface is dev/test only and is never a dependency of Product UI.
 
 ---
 
-## 3. Information architecture
+## 3. Global START — five execution modes
 
-Product v1 has **three** primary destinations.
+The Product maps directly to TD2's canonical execution profiles.
+
+| User mode | Canonical profile | Behavior |
+|---|---|---|
+| 快速回答 | `DIRECT` | answer from current confirmed world |
+| 证据检索 | `RETRIEVE` | bounded local retrieval + synthesis |
+| 精准核验 | `VERIFY` | bounded active verification, durable Investigation |
+| 深度调查 | `INVESTIGATE` | multi-step Agent investigation / delegation |
+| 持续守望 | `WATCH` | durable waiting Case, wake on world/time/source change |
+
+### START interaction
+
+Use a five-mode spatial selector, inspired by priority-reveal / inspect-split motion grammar, not ordinary radio buttons.
+
+Each mode exposes, on focus:
+
+- what it does;
+- expected interaction class (interactive / async / waiting);
+- whether it creates or continues a durable Case;
+- relevant capability classes;
+- simplified target/question inputs;
+- optional advanced source/budget/deadline controls only when the user expands them.
+
+`START` produces one of two honest outcomes:
 
 ```text
-研判 Ask
-调查 Investigations
-情报 Intelligence
+completed → Decision
+accepted  → Investigation
 ```
 
-No fourth “Runtime / Tasks / Sources / Evaluation” product destination is introduced.
-
-### 3.1 研判 / Ask
-
-Default landing surface.
-
-Purpose: turn a question into either a synchronous evidence-grounded Decision or an asynchronous Investigation.
-
-### 3.2 调查 / Investigations
-
-Purpose: list durable investigations and open one as a living case file.
-
-### 3.3 情报 / Intelligence
-
-Purpose: inspect canonical vulnerability Knowledge directly, including claims, relations and evidence.
-
-### 3.4 Evidence drawer
-
-Evidence is not a primary navigation destination. It opens in context from a conclusion, finding, claim or relation.
+A `202 Accepted` result is never rendered as a finished answer.
 
 ---
 
-## 4. Core user journeys
+## 4. WORLD — Evidence World
 
-### Journey A — Fast fact lookup
+### 4.1 Purpose
+
+WORLD answers:
+
+> What is SecFusion observing now, how is information flowing through the system, what is hot, what is being enriched, and what has become durable evidence/knowledge?
+
+This is the main visual proof of M1–M3 automation.
+
+### 4.2 Stable topology
+
+The topology is grounded in TD1 and the source registry.
+
+#### Outer source taxonomy
+
+Eight product source categories:
 
 ```text
-Ask
-→ target CVE optional
-→ mode = 快速研判
-→ POST /api/v1/questions task_kind=lookup
-→ Decision
-→ conclusion + evidence chips
-→ Evidence drawer
+vulnerability
+development
+academic
+vendor
+independent
+normative
+assets
+incidents
 ```
 
-Expected response class: interactive, seconds rather than minutes.
+#### Processing layer
 
-### Journey B — Retrieval-assisted answer
+Four main processing paths plus one side path:
 
 ```text
-Ask
-→ mode = 检索证据
-→ POST /api/v1/questions task_kind=retrieve
-→ current Knowledge + bounded retrieval context
-→ Decision
-→ citations
+Bug Stream
+Structured Development Index
+Insight Corpus
+Incident Watch
+Asset Observation (on-demand side path)
 ```
 
-UI must not imply that retrieved text automatically became canonical fact.
-
-### Journey C — Escalate to investigation
+#### Hot layer
 
 ```text
-Ask
-→ mode = 深度验证
-→ task_kind chosen from product-safe deep tasks
-→ POST /api/v1/questions
-→ 202 Accepted + InvestigationView
-→ navigate to investigation detail
-→ poll GET /api/v1/investigations/{case_id}
+Hot Bug working set
+Incident signal / candidate working set
 ```
 
-First v1 deep-verification preset:
+#### Durable inner world
 
 ```text
-verify_version_fix
-```
-
-Additional TaskKinds may be exposed later only when product copy and lifecycle are understandable.
-
-### Journey D — Continue an investigation
-
-```text
-Investigation detail
-→ current episode terminal/waiting
-→ user asks follow-up
-→ POST /api/v1/questions with session_id
-→ same durable Case continues
-```
-
-The UI must never create the impression that every follow-up creates a second Case.
-
-### Journey E — Inspect canonical intelligence
-
-```text
-Intelligence
-→ CVE search
-→ GET /api/v1/vulnerabilities/{cve_id}
-→ object summary
-→ claims / relations grouped by user meaning
-→ evidence chips
-→ Evidence drawer
-```
-
----
-
-## 5. Screen contracts
-
-## 5.1 Ask
-
-### Empty state
-
-The landing screen is prompt-first, not metric-first.
-
-Composition:
-
-```text
-brand / compact product nav
-
-What do you need to verify?
-short positioning copy
-
-[ example intent ] [ example intent ] [ example intent ]
-
-mode chips                  optional target CVE
-┌─────────────────────────────────────────────────────┐
-│ Ask a security intelligence question…        Send │
-└─────────────────────────────────────────────────────┘
-```
-
-Example intents must be backed by real supported workloads, e.g.:
-
-- “这个 CVE 的 CVSS 分数是多少？”
-- “该版本是否受影响？”
-- “哪个版本首次包含修复？”
-
-### Conversation state
-
-Conversation is intentionally narrow. It shows user turns and SecFusion results, not a general chat transcript.
-
-A synchronous result renders as a **Decision block**:
-
-```text
-Answer
-  concise answer payload
-
-Supported conclusions
-  proposition                             [Evidence 2]
-  proposition                             [Evidence 1]
-
-Conflicts          Unknowns
-...
-
-stop reason / timestamp kept secondary
-```
-
-If the result becomes an Investigation, render an **Investigation launch block** with current phase and one clear action: `查看调查`.
-
-### Session
-
-`session_id` lives in browser session/local state and is shown only as subtle continuity state, not as an opaque UUID in the main UI.
-
-“新建研判会话” clears local conversation and current session binding. It does not delete server-side durable records.
-
----
-
-## 5.2 Investigations list
-
-No runtime-table layout.
-
-Each investigation card contains:
-
-- goal;
-- target identity where available;
-- status;
-- current activity / phase;
-- count of open evidence needs;
-- updated time;
-- compact evidence-state summary where useful.
-
-Filters:
-
-```text
-全部 / 进行中 / 等待 / 已完成
-```
-
-Filters remain chips/tabs, never a multi-row admin filter form in v1.
-
----
-
-## 5.3 Investigation detail
-
-This is the primary “product proof” screen.
-
-Layout on desktop:
-
-```text
-┌──────────────── main case file ────────────────┬──── context rail ────┐
-│ goal + status                                  │ current activity      │
-│                                                │ evidence gaps         │
-│ CONFIRMED FINDINGS                             │ timestamps            │
-│ finding [Evidence]                             │                      │
-│ finding [Evidence]                             │                      │
-│                                                │                      │
-│ CONFLICTS / UNKNOWNS                           │                      │
-│                                                │                      │
-│ LATEST DECISION                                │                      │
-│ conclusions + citations                        │                      │
-└────────────────────────────────────────────────┴──────────────────────┘
-```
-
-The page uses four user-facing semantic states:
-
-- 已确认 Confirmed
-- 有冲突 Conflict
-- 未知 Unknown
-- 待补证据 Evidence needed
-
-Internal `tentative/hypothesis/state revision` concepts appear only where they materially help the user.
-
-### Activity representation
-
-Do not expose TaskEvent logs as the default product timeline.
-
-`InvestigationActivitySummaryView` becomes the default lifecycle line:
-
-```text
-正在验证修复版本
-InvestigationRole · verify_version_fix
-updated 16:31
-```
-
-A future “technical details” disclosure may show runtime coordinates for debugging/demo, but is collapsed and non-essential.
-
----
-
-## 5.4 Intelligence detail
-
-The page starts with the vulnerability identity and a compact current summary derived only from returned Knowledge fields.
-
-Primary structure:
-
-```text
-CVE identity
-external identifiers / canonical object
-
-Facts
-  severity
-  CVSS
-  KEV
-  EPSS
-  weakness
-  ...
-
-Applicability & remediation
-  affected / fixed / not affected
-  product / version / justification
-
-Development & references
-  PR / commit / release / advisory
-
 Evidence
+Knowledge
+Incident
+Insight
+Experience
 ```
 
-The frontend does not invent a new semantic ontology. Grouping is presentation-only over canonical predicate/relation names.
+### 4.3 Live motion semantics
 
-Unknown predicates remain accessible under “其他事实” rather than being dropped.
+The WORLD canvas may use 2.5D/WebGL, but animation is state-driven.
+
+| Motion / visual state | Fact source |
+|---|---|
+| source pulse | scheduled acquisition success/no-change |
+| incoming particle | fresh external change / observation |
+| dashed/ghost trail | backfill observation |
+| path transit | source retention/processing path |
+| hot-object elevation | recency/access/workflow/domain-priority signals |
+| active/pinned orbit | active/pinned Hot Bug state |
+| field flash | `changed_fields` |
+| processor branch lights | actual deterministic/graph/semantic/provider-backed execution |
+| crystallization into center | promotion / durable Evidence or Knowledge commit |
+| core ripple | KnowledgeChange / canonical write |
+| source flicker | degraded health |
+| dim/lock | blocked source |
+| fallback edge | actual provider/capability fallback |
+
+Ambient drift may exist only to communicate that the system is online; it cannot impersonate a processing event.
+
+### 4.4 Hot Pool
+
+The existing Redis Hot Bug contract is the truth source. Product adds a read seam, not a new Hot entity.
+
+Target API:
+
+```text
+GET /api/v1/world/hot
+GET /api/v1/world/hot/{source_id}/{external_object_id}
+```
+
+`HotItemView` should expose current source/revision/timestamps, `changed_fields`, `priority_signals`, access/activity/pin state and a compact projection summary.
+
+Selected Hot CVE opens a dossier and may jump into INTELLIGENCE.
+
+### 4.5 Enrichment view
+
+For one selected vulnerability, reveal the registered enrichment dimensions and their current semantic status:
+
+```text
+identity
+severity
+weakness
+product/package
+version applicability
+fix/remediation
+exploit state
+exploit likelihood
+advisory/reference
+asset exposure
+research/paper
+incident context
+```
+
+`resolved / conflict / unknown / missing` is more important than decorative completeness rings.
+
+The UI separately represents:
+
+- Data Plane processing path (retention/lifecycle);
+- M3 enrichment processor (`deterministic / graph / semantic / provider-backed`).
+
+They must never be conflated visually.
+
+### 4.6 WORLD live metrics
+
+The existing data-plane measurement contract is Product data:
+
+```text
+1h / 6h / 24h / 168h rolling windows
+hourly_series
+category_hourly_series
+source_health
+pipeline_state
+storage
+```
+
+WORLD keeps a compact live strip. Full charts live in OBSERVATORY.
 
 ---
 
-## 5.5 Evidence drawer
+## 5. INTELLIGENCE — evidence-first dossiers
 
-Clicking an Evidence chip opens a right-side drawer on desktop and a full-height sheet on mobile.
+### 5.1 Primary objects
 
-Required fields:
+Product eventually supports:
 
-- source;
-- external object/revision;
-- observed/published/updated time;
-- canonical URL when present;
-- source locator rendered structurally;
-- evidence reference identity in technical detail.
+- Vulnerability;
+- Incident;
+- ResearchWork / Document;
+- Normative document / Requirement / Control;
+- Repo / PR / Commit / Release;
+- Product / Package / SoftwareVersion;
+- InternetAsset.
 
-The first Product v1 backend addition is a read-only endpoint:
+Product v1 makes Vulnerability and Incident strongest first.
+
+### 5.2 Vulnerability dossier
+
+Group canonical facts/relations into user-readable sections without inventing a new ontology:
+
+```text
+Identity & Severity
+Weakness
+Affected Product / Version Applicability
+Fix / Remediation
+Exploit / KEV / PoC
+EPSS / Likelihood
+Advisories
+Internet Exposure
+Research / Paper
+Incident Context
+Other canonical facts
+```
+
+Every fact/relation keeps its Evidence control adjacent.
+
+### 5.3 Focused knowledge graph
+
+Use a bounded neighborhood around the selected object, inspired by Project Knowledge Graph / Interactive System Map.
+
+Typical vulnerability neighborhood:
+
+```text
+CVE
+ ↔ Product / SoftwareVersion
+ ↔ Weakness
+ ↔ Advisory
+ ↔ Repo / PR / Commit / Release
+ ↔ ExploitArtifact
+ ↔ ResearchWork
+ ↔ SecurityIncident
+ ↔ InternetAsset
+```
+
+Requirements:
+
+- stable typed nodes/edges;
+- search/focus/filter;
+- current object remains the visual anchor;
+- selected-node dossier is available without hover;
+- canonical/source-specific/exploratory layers are distinguishable;
+- the graph never implies completeness beyond the loaded neighborhood.
+
+### 5.4 Evidence inspector
+
+Target Product API:
 
 ```text
 GET /api/v1/evidence/{evidence_ref}
 ```
 
-It resolves an existing `EvidenceLink → Observation` only. It creates no new authority or duplicate evidence model.
+It resolves the existing EvidenceLink/Observation/Artifact coordinate and exposes only safe Product fields:
 
-If the canonical URL is safe/present, expose `查看原始来源`.
+- source identity/class/authority where known;
+- external object/revision;
+- published/updated/observed/fetched timestamps;
+- locator;
+- safe excerpt/media metadata where available;
+- canonical URL where safe;
+- evidence identity.
+
+Internal storage URI/path/credential never leaks.
 
 ---
 
-## 6. Visual system
+## 6. INVESTIGATIONS — case file + continuous interaction
 
-## 6.1 Direction
+### 6.1 Layout
 
-The product should feel like a **research/editorial intelligence workspace**, not a SOC appliance.
-
-Default theme: warm neutral light surface with dark typography and one controlled acid-green accent.
+Desktop uses a case-file / session split:
 
 ```text
-Canvas          #F3F1EA
-Surface         #FCFBF7
-Text            #111318
-Muted text      #70736E
-Border          #D8D6CF
-Accent          #C8F04A
-Accent text     #111318
-Dark emphasis   #17191D
+Case dossier                         Continuous interaction
+┌────────────────────────────┐      ┌────────────────────────────┐
+│ target / goal / status     │      │ session turns              │
+│ current activity           │      │ user follow-up             │
+│ confirmed findings         │      │ Decision / citations       │
+│ conflicts                  │      │ investigation launch       │
+│ unknowns                   │      │ SSE activity               │
+│ open evidence needs        │      │ composer                   │
+│ latest decision            │      └────────────────────────────┘
+└────────────────────────────┘
 ```
 
-Semantic colors are reserved for meaning:
+### 6.2 User-facing states
+
+Primary semantic buckets:
+
+- 已确认 / Confirmed;
+- 有冲突 / Conflict;
+- 未知 / Unknown;
+- 待补证据 / Evidence needed.
+
+Progress is never a model-invented percentage. Use phase, EvidenceNeed state and Task terminal state.
+
+### 6.3 Session continuity
+
+A Product session that owns an active/waiting Investigation continues the same durable Case when allowed by the backend lifecycle contract.
+
+The UI explicitly says “继续当前调查” rather than making every turn look like a new bot request.
+
+### 6.4 Runtime activity
+
+TD2A's Product-safe `RuntimeActivityView` must be implemented and used here.
+
+Allowed activity vocabulary:
 
 ```text
-confirmed       green
-conflict        amber/red
-unknown         neutral violet/gray
-evidence need   blue
+task_started
+evidence_need_selected
+retrieval_planned
+capability_selected
+external_observation
+child_task_started
+child_task_completed
+state_updated
+decision_ready
+waiting
+completed
+failed
 ```
 
-Accent green is **not** used as “everything successful”. It is brand/action color.
+Do not expose chain-of-thought, raw PolicyDecision, full prompt, credential or unredacted tool output.
 
-## 6.2 Typography
+### 6.5 ProductEvent / SSE
 
-- preferred: Geist / Inter-like grotesk;
-- system fallbacks required;
-- body 14–16px;
-- dense metadata 11–12px;
-- headings use weight/size, not uppercase everywhere;
-- monospace only for CVE IDs, hashes, refs and exact source coordinates.
-
-## 6.3 Shape
-
-- radius: 12–18px for large interactive containers;
-- chips: pill radius;
-- ordinary information does not need a bordered card;
-- use whitespace and type hierarchy before adding boxes;
-- borders are 1px quiet neutral, never glowing.
-
-## 6.4 Motion
-
-Motion exists to explain state change.
-
-- page/view transition: 140–200ms;
-- drawer: 180–240ms;
-- list insert/status update: opacity + small translate only;
-- no bounce easing;
-- no particle effects;
-- no perpetual ambient motion;
-- `prefers-reduced-motion` must disable non-essential transitions.
-
-Polling updates should avoid layout jumps; changed values briefly highlight, then settle.
-
----
-
-## 7. Interaction rules
-
-### 7.1 One primary action per region
-
-Examples:
-
-- Ask composer → `发送`
-- Investigation launch → `查看调查`
-- Evidence drawer → `查看原始来源`
-
-Secondary actions stay visually quiet.
-
-### 7.2 User language over architecture language
-
-User-facing:
+Target contract:
 
 ```text
-正在验证修复版本
-需要更多一手证据
-已确认 4 条事实
-存在 1 项来源冲突
+GET /api/v1/investigations/{case_id}/events
+Accept: text/event-stream
+Last-Event-ID: ...
 ```
 
-Avoid by default:
+Product event types:
 
 ```text
-M4 State
-TaskRun
-ContextManifest
-ExecutionEnvelope
-ModelAttempt
-BenchmarkRun
+investigation.started
+investigation.status_changed
+investigation.progress
+investigation.finding_added
+investigation.conflict_changed
+investigation.evidence_need_changed
+investigation.decision_ready
+investigation.waiting
+investigation.completed
+investigation.failed
+investigation.canceled
 ```
 
-### 7.3 Evidence always in context
+SSE powers real activity/message reveal. It must reconnect from durable state when transient delivery is unavailable.
 
-Do not create an “Evidence table” disconnected from the conclusion it supports.
+### 6.6 Text streaming boundary
 
-Every visible citation starts from a conclusion/finding/fact and opens the evidence detail from there.
+Current model execution returns a structured completed response. Until a real streaming provider/runtime contract exists, progressive rendering of a completed Decision is visual reveal only and must not be described as token streaming.
 
-### 7.4 Honest async behavior
-
-A `202 Accepted` response is not rendered as a finished answer.
-
-The UI immediately shows:
-
-- investigation created;
-- current status/activity;
-- what evidence gap is being pursued;
-- latest update time;
-- a link into the durable investigation.
+If true token streaming is later implemented, it gets its own explicit ProductEvent/ModelExecution contract.
 
 ---
 
-## 8. API mapping
+## 7. AGENTS — visible runtime, no fake personas
 
-| Product interaction | HTTP contract |
-|---|---|
-| Ask quick fact | `POST /api/v1/questions`, `task_kind=lookup` |
-| Ask with retrieval | `POST /api/v1/questions`, `task_kind=retrieve` |
-| Deep verify | `POST /api/v1/questions`, `task_kind=verify_version_fix` |
-| Follow-up | `POST /api/v1/questions` + `session_id` |
-| List investigations | `GET /api/v1/investigations` |
-| Investigation detail/poll | `GET /api/v1/investigations/{case_id}` |
-| Decision deep link | `GET /api/v1/decisions/{decision_id}` |
-| CVE Knowledge | `GET /api/v1/vulnerabilities/{cve_id}` |
-| Evidence detail | `GET /api/v1/evidence/{evidence_ref}` |
-| Availability | `GET /health/ready`, `/health` |
+The code has exactly three canonical Roles. Product aliases are 1:1 presentation identities.
 
-### Product frontend hard rule
+### ORACLE / 判谕者
 
 ```text
-rg '/api/v1/workbench' apps/web
+Canonical: DecisionRole@1
+Mission: evidence-bounded Decision and citations
+Profiles: DIRECT / RETRIEVE
 ```
 
-must return no Product-App callsite.
+Visual signature: eclipse/concentric focus axis; evidence converges into a bounded conclusion.
 
----
-
-## 9. Error / empty / loading states
-
-### API unavailable
-
-Show one concise global status and preserve typed input. Do not dump fetch exceptions into the canvas.
-
-### Model unavailable
-
-For LOOKUP/RETRIEVE, map dependency failure to a product message:
-
-> 当前研判模型不可用。已有情报仍可查看；稍后可重试智能研判。
-
-### CVE not in Knowledge
-
-Do not fabricate an empty object.
-
-> 当前 Knowledge 中没有该漏洞的 durable record。
-
-A future explicit acquisition action may be added through a Product API. The frontend must not call Workbench enrichment as a hidden fallback.
-
-### Investigation empty list
-
-Explain what creates one and offer a link back to Ask.
-
-### Loading
-
-Use skeleton/text placeholders matching final geometry. Avoid a full-screen spinner after initial app load.
-
----
-
-## 10. Responsive behavior
-
-Desktop target: 1280–1600px.
-
-Tablet/mobile remains functional for demo and review:
-
-- primary nav collapses to top/bottom compact navigation;
-- investigation master/detail becomes stacked navigation;
-- evidence drawer becomes full-screen sheet;
-- composer remains pinned near bottom on Ask view;
-- no horizontal data tables in Product v1.
-
----
-
-## 11. Frontend implementation boundary
-
-### v1 implementation strategy
-
-Optimize for finishing the product, not frontend-framework depth.
-
-`apps/web` stays a self-contained first-party SPA that can be served as static assets. The first implementation may remain dependency-light HTML/CSS/JavaScript as long as it obeys this Spec and has clear component/render boundaries in code.
-
-A framework migration is justified only by concrete product complexity, not by aesthetics.
-
-Required internal modules/concepts in `app.js` or later split files:
+### ARGUS / 百眼调查者
 
 ```text
-api client
-router/view state
-session state
-Ask renderer
-Decision renderer
-Investigation list/detail renderer
-Knowledge renderer
-Evidence drawer
-polling lifecycle
-problem-detail mapping
+Canonical: InvestigationRole@1
+Mission: EvidenceNeed-driven investigation, Skill/Capability choice,
+         delegation, wait/recovery/stop
+Profiles: VERIFY / INVESTIGATE / WATCH
 ```
 
-No domain/business rule is implemented in the browser.
+Visual signature: multi-aperture / multi-focus observation sigil.
 
----
-
-## 12. Production deployment contract
-
-Target topology after a public IP/server is available:
+### ALCHEMIST / 炼证者
 
 ```text
-Internet
-  → reverse proxy (80/443)
-      → /              Product static frontend
-      → /api/*         FastAPI
-      → /health/*      FastAPI
-
-FastAPI
-  → PostgreSQL
-  → Redis roles
-  → ArtifactStore
-  → worker / scheduler / task-event services
+Canonical: EnrichmentRole@1
+Mission: fill M3 evidence gaps using deterministic/graph/semantic/provider operators
 ```
 
-Production defaults:
+Visual signature: segmented processing ring; segments light only for real processor/operator activity.
 
-- same-origin frontend/API;
-- Workbench disabled;
-- PostgreSQL/Redis ports not publicly exposed;
-- only reverse proxy exposes host ports;
-- model/provider credentials remain server-side env/secrets;
-- TLS termination at reverse proxy once hostname/domain is available;
-- before public exposure, product/API access gets an explicit demo authentication or access-control layer. `X-Principal` is not treated as authentication.
+Canonical role ID/version stays visible in the technical dossier.
 
----
+### 7.1 Task field
 
-## 13. Product v1 acceptance gate
+Tasks are shown as a parent/child execution field, not as an arbitrary workflow animation.
 
-A frontend build is not “done” because it renders.
-
-### Functional
-
-- [ ] Product App makes zero Workbench API calls.
-- [ ] CVE lookup works against real Knowledge.
-- [ ] synchronous LOOKUP renders a Decision.
-- [ ] RETRIEVE renders a Decision without upgrading passages to fake facts.
-- [ ] deep verification creates an Investigation and navigates into it.
-- [ ] Investigation list/detail works from stable Product read models.
-- [ ] Investigation detail polls without duplicating Cases.
-- [ ] follow-up reuses product `session_id`.
-- [ ] Decision citations open Evidence drawer.
-- [ ] Knowledge claim/relation evidence opens the same Evidence drawer.
-- [ ] 202 / 404 / 422 / 503 ProblemDetail states are product-readable.
-
-### Visual
-
-- [ ] no runtime dashboard landing page;
-- [ ] no raw JSON in the default path;
-- [ ] no Wiki/Website UI reused;
-- [ ] user actions are attached to the object they affect;
-- [ ] desktop and mobile both remain usable;
-- [ ] loading/error/empty states are intentionally designed;
-- [ ] reduced-motion preference respected.
-
-### Deployment
-
-- [ ] Product frontend available at `/`.
-- [ ] Product API same-origin under `/api/v1`.
-- [ ] Workbench not reachable in production.
-- [ ] database/Redis not bound publicly.
-- [ ] reverse-proxy health path available.
-- [ ] one compose command can start the deployable product stack.
-
----
-
-## 14. Implementation order
-
-Do not implement by visual section. Implement by user-complete vertical slice.
+State grammar:
 
 ```text
-P1  App shell + Ask LOOKUP + Decision + citation
-P2  Evidence drawer + Intelligence Knowledge detail
-P3  Deep verify → Investigation + polling
-P4  Investigation list/detail + follow-up session
-P5  production static serving + reverse proxy + compose
-P6  responsive/polish/error states + end-to-end product gate
+queued/submitted       low-energy pending
+running                active pulse
+waiting_*              stable suspended orbit
+completed              settled/stable
+failed                  broken but retained
+canceled                sealed/archived
 ```
 
-After P6, Workbench UI is deleted/retired. The Workbench backend is kept only if it still saves engineering time; otherwise remove it separately without coupling that cleanup to Product delivery.
+Parent-child links exist only when durable parent/delegation facts exist.
+
+Selected Task dossier should expose, where available:
+
+- Task kind/profile/status;
+- EvidenceNeed;
+- selected Skill;
+- selected Capability / invocation;
+- current activity;
+- budget/deadline summary;
+- stop/failure reason;
+- child Task refs;
+- evidence/result refs;
+- technical coordinates under an expandable section.
+
+### 7.2 Skill Codex
+
+Existing seed skills:
+
+```text
+VerifyFixBoundary
+ResolveSourceConflict
+TraceIncidentEvidence
+AssessAffectedDeployment
+AssessApplicability
+```
+
+Product reads real Skill status (`candidate / validated / active / ...`). It never promotes seeded candidates visually.
+
+Selected Skill detail may expose applicability, semantic procedure, guards, fallbacks, stop conditions, capability classes and deeper provenance/validation refs.
+
+### 7.3 Experience / evolution
+
+Visualize the existing evolution path:
+
+```text
+Trajectory
+  → ExperienceCandidate
+  → ExperiencePattern
+  → SkillPatchCandidate / SkillCandidate
+  → M7 replay / regression
+  → validated / active SkillVersion
+```
+
+Support and counterexample trajectories remain visible. Experience is presented as procedural prior, never factual Evidence authority.
+
+---
+
+## 8. OBSERVATORY — live operations and frozen proof
+
+One top-level view, two explicit modes:
+
+```text
+LIVE | PROOF
+```
+
+### 8.1 LIVE
+
+Data Plane live metrics include:
+
+- source health and category distribution;
+- observations / fresh changes / backfill;
+- canonical writes;
+- document growth;
+- scheduled run success;
+- provider-boundary vs runtime-owned failures;
+- queue delay / execution p95;
+- fresh Knowledge latency where evaluable;
+- source/category contribution and concentration;
+- artifact integrity;
+- 1h / 6h / 24h / 7d selection.
+
+Use charts appropriate to the data (spectrum monitor, line/trend, event bars, activity calendar, balance chart) rather than one generic chart component.
+
+Agent live data may include:
+
+- Task status/role distribution;
+- capability invocation;
+- model attempts/retries;
+- stop/failure reasons;
+- wake/recovery state;
+- budget facts only where measurement is authoritative.
+
+System live data includes readiness/degraded components, outbox/task-event lag and worker/dependency health as they become available through stable read models.
+
+### 8.2 PROOF
+
+Frozen competition/evaluation evidence is visually separate from LIVE.
+
+Current formal headline facts:
+
+```text
+CompetitionReport 2735331f-1f7d-419c-80d2-72c4ce157b5f
+6 formal BenchmarkRuns completed
+37/37 CaseRuns passed
+
+M1
+12/12 latency-evaluable
+within 6h = 100%
+source_delivery_coverage = 61.538%
+
+M3
+292 TP / 1 FP / 1 FN
+precision = recall = 99.659%
+
+M6 Product QA
+14 cases
+core correctness metrics = 1.0
+latency avg 2.517s / max 4.032s
+
+Session QA
+context/target/retrieval reuse metrics = 1.0
+
+Evaluation substrate
+85/87 core metrics observed
+only exact monetary provider/capability costs unavailable
+```
+
+The 61.538% coverage weakness remains visible. Passing CaseRun status must not be used to hide an imperfect business metric.
+
+Controlled Agent-runtime benchmark is labeled as controlled regression evidence, not live external success rate.
+
+---
+
+## 9. Visual direction
+
+### 9.1 Core art direction
+
+**Cinematic Scientific Instrument** — an active research/security instrument with spatial depth, restrained illumination and editorially clear dossiers.
+
+Avoid generic “cybersecurity dashboard” motifs such as matrix rain, shield wallpaper and arbitrary neon wiring.
+
+Suggested semantic palette:
+
+```text
+Void            #07090D
+Deep surface    #0D1117
+Raised surface  #131923
+Primary text    #F2F1EA
+Secondary       #9299A5
+Hairline        rgba(255,255,255,.10)
+
+Live / brand    acid-lime #C9F45B
+Data / source   ice-cyan  #72D7FF
+Agent / reason  violet    #A88BFF
+Conflict        amber     #FFB35C
+Failure         coral     #FF6B72
+```
+
+Colors encode semantic channels. The eight source categories do not become eight saturated colors.
+
+### 9.2 Layering
+
+Translucency / blur is allowed only where it communicates spatial layering. Ordinary lists and dossiers use strong typography and spacing before borders/effects.
+
+Glow is state/focus/activity dependent, not permanent decoration.
+
+### 9.3 Typography
+
+- modern grotesk for Product text;
+- monospace for CVE, source, revision, hash and technical coordinates;
+- large display type used sparingly;
+- body/dossier information remains selectable DOM text.
+
+---
+
+## 10. Motion system
+
+Motion is planned before page polish.
+
+### Ambient
+
+Slow world drift / depth only. No business meaning.
+
+### State transition
+
+Triggered by real fresh change, promotion, Task start/wait/complete, finding, Decision, failure/recovery.
+
+### Focus transition
+
+Camera/layout focuses selected source/CVE/Agent/Task while preserving orientation.
+
+### Narrative transition
+
+START → result, Evidence → conclusion, Task → child Task may use a more visible velocity-matched reveal.
+
+### Rules
+
+- do not animate hundreds of DOM elements simultaneously;
+- graph/world uses LOD/clustering;
+- no bounce-heavy UI;
+- live updates should not cause layout jumps;
+- `prefers-reduced-motion` removes camera drift/particle transit/progressive reveal while preserving status meaning;
+- an animation cannot imply a runtime operation that did not occur.
+
+---
+
+## 11. Product API gap contract
+
+Status:
+
+- `A` — Product API exists;
+- `B` — backend fact/store exists, stable Product read model/API missing;
+- `C` — TD2A/PRD contract exists, runtime implementation missing;
+- `D` — presentation projection over existing facts.
+
+| Capability | Status | Owner / action |
+|---|---|---|
+| Question DIRECT/RETRIEVE | A | `/api/v1/questions` |
+| VERIFY/INVESTIGATE/WATCH start | A | questions/investigations |
+| Product session continuation | A | AskQuestionUseCase |
+| Decision read | A | `/api/v1/decisions/{id}` |
+| Investigation list/detail | A | `/api/v1/investigations` |
+| Vulnerability Knowledge | A | `/api/v1/vulnerabilities/{cve}` |
+| Evidence view | B/C | EvidenceLink + Observation; add Product read route |
+| Intelligence search | B/C | retrieval kernel; add Application query |
+| Incident Product detail | B/C | incident durable state; add Product read route |
+| RuntimeActivityView | B/C | TaskEvent/Trajectory; add projection |
+| Investigation SSE | C | ProductEvent projector + SSE |
+| cancel/resume | B/C | task lifecycle; add Product command |
+| source/System overview | B/C | SourceState/data-plane; add Product aggregate |
+| data-plane metrics | B | existing metric generator/state; add live Product read route |
+| Hot Pool list/detail | B | Redis hot cache; add ranked read seam |
+| Evidence World topology | B/D | source registry + TD1 topology + runtime overlays |
+| Agent Role/Task status | B | Role registry + TaskRun |
+| Capability activity | B | CapabilityInvocation |
+| Skill read | B | SkillStore |
+| Experience read | B | ExperienceStore |
+| Trajectory read | B | TrajectoryService |
+| model attempt/retry read | B | ModelRequest/ModelAttempt |
+| true token streaming | C | new provider/runtime stream contract required |
+| Agent regression proof | B | agent-runtime benchmark |
+| formal competition proof | B | benchmark/competition runtime |
+
+Product implementation must close these seams instead of calling Workbench from the browser.
+
+---
+
+## 12. Frontend technology
+
+The previous dependency-free HTML/CSS/JS constraint is removed. Product complexity now justifies a real app stack.
+
+Recommended v1:
+
+```text
+React + TypeScript + Vite
+React Router
+TanStack Query
+Motion
+ECharts
+Three.js / React Three Fiber for WORLD only
+Lucide
+```
+
+No large generic UI component framework is required; the product needs a custom visual grammar.
+
+Rules:
+
+- WebGL is limited to spatial WORLD / selected Agent visualization;
+- dossiers/forms/tables/text remain DOM;
+- graphs/metrics must have accessible labels/summary;
+- WORLD has a 2D/static reduced-motion fallback;
+- business logic remains backend-owned.
+
+---
+
+## 13. Demo path
+
+A competition demo should tell one continuous story:
+
+```text
+WORLD
+  → see 8 source domains and live runtime truth
+  → focus a Hot CVE
+
+INTELLIGENCE
+  → inspect enrichment dimensions / graph / evidence
+
+START / VERIFY
+  → launch a fix-boundary verification
+
+INVESTIGATION + AGENTS
+  → ARGUS selects evidence gap / Skill / Capability
+  → optional ALCHEMIST child enrichment
+  → real activity arrives over ProductEvent/SSE
+
+ORACLE / Decision
+  → evidence-bounded answer
+  → citation opens source Evidence
+
+AGENT evolution
+  → Skill / Experience / trajectory proof
+
+OBSERVATORY / PROOF
+  → live runtime curves
+  → formal M1/M3/M6/Agent/fault evidence
+```
+
+This path deliberately covers monitoring, enrichment, QA, Agent architecture, automation, engineering and demonstration value.
+
+---
+
+## 14. Delivery order
+
+### P0 — product truth surface
+
+1. React/Vite Product shell and five-space navigation + START;
+2. existing Product API integration;
+3. Evidence Product read endpoint;
+4. Data Plane Product snapshot/source overview endpoints;
+5. Hot Pool read seam;
+6. Task/Role/RuntimeActivity read seam;
+7. ProductEvent/SSE;
+8. real vertical path: `WORLD → START → Investigation → Decision → Evidence`.
+
+### P1 — full competition capability exposure
+
+- intelligence search / incident / graph;
+- Skill / Experience / Trajectory read surfaces;
+- Agent task/delegation/capability visuals;
+- Observatory full curves;
+- benchmark proof drill-down;
+- cancel/resume;
+- degraded/fallback/recovery UX.
+
+### P2 — cinematic finish and deployment
+
+- Evidence World 2.5D/WebGL refinement;
+- Role sigil motion system;
+- responsive/reduced-motion/accessibility;
+- reverse proxy / production Compose / TLS seam;
+- explicit demo access control;
+- curated frozen demo cases;
+- performance/visual regression checks.
+
+---
+
+## 15. Acceptance gate
+
+A Product view is complete only when:
+
+- its live facts come from a named runtime owner;
+- no Workbench API is used by Product UI;
+- loading/empty/error/degraded states work;
+- primary interactions are real and navigable;
+- conclusions/facts/metrics can be drilled into evidence or technical coordinates;
+- animation carries an explicit state/focus/relationship meaning;
+- user copy is understandable without reading TD2;
+- expert coordinates remain inspectable;
+- the view maps to a Requirements/competition value;
+- reduced-motion remains fully informative.
+
+Repository hard gate:
+
+```text
+rg '/api/v1/workbench' apps/web/src
+```
+
+must return no Product callsite.
+
+---
+
+## 16. Never fake
+
+Never fabricate:
+
+- source/runtime health;
+- Hot CVE state;
+- Agent Role or Task delegation;
+- Skill activation/promotion;
+- tool/provider invocation;
+- token streaming;
+- private chain-of-thought;
+- live success metrics from frozen benchmark data;
+- external success rate from controlled Agent regression;
+- monetary cost from token count × public pricing;
+- an animated processing path without a runtime fact owner.
+
+Presentation aliases and cinematic abstraction are encouraged. Business truth remains singular.
