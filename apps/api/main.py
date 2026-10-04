@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from apps.api.errors import install_error_handlers
 from apps.api.routes.a2a import router as a2a_router
 from apps.api.routes.decisions import router as decisions_router
+from apps.api.routes.evidence import router as evidence_router
 from apps.api.routes.health import router as health_router
 from apps.api.routes.investigations import router as investigations_router
 from apps.api.routes.knowledge import router as knowledge_router
@@ -37,6 +38,7 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
         openapi_tags=[
             {"name": "knowledge", "description": "Stable current-world intelligence reads."},
+            {"name": "evidence", "description": "Product-safe Evidence traceability reads."},
             {
                 "name": "investigations",
                 "description": "Product investigation lifecycle and stable read models.",
@@ -65,6 +67,7 @@ def create_app() -> FastAPI:
     app.include_router(a2a_router)
     app.include_router(investigations_router)
     app.include_router(decisions_router)
+    app.include_router(evidence_router)
     app.include_router(questions_router)
     app.include_router(knowledge_router)
     app.include_router(world_router)
