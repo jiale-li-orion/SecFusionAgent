@@ -137,6 +137,19 @@ def _static_product_gate(results: list[GateResult]) -> None:
     )
     _require_source(
         results,
+        name="world-semantic-motion",
+        relative_path="apps/web/src/pages/WorldPage.tsx",
+        needles=(
+            "provider_boundary_failure_rate",
+            "runtime_owned_failure_rate",
+            "taxonomy-map + runtime-overlay",
+            "provider-boundary failure rate",
+            "runtime-owned failure rate",
+        ),
+        detail="WORLD motion distinguishes measured runtime failure from taxonomy route mapping",
+    )
+    _require_source(
+        results,
         name="reduced-motion",
         relative_path="apps/web/src/cinematic.css",
         needles=("@media (prefers-reduced-motion: reduce)",),

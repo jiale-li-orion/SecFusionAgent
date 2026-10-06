@@ -150,6 +150,9 @@ export function WorldPage() {
       backfill: Number(latest?.backfill_observations ?? 0),
       runs: Number(latest?.scheduled_runs ?? 0),
       observations: Number(latest?.observations ?? 0),
+      successRate: typeof latest?.scheduled_run_success_rate === 'number' ? latest.scheduled_run_success_rate : null,
+      providerFailure: typeof latest?.provider_boundary_failure_rate === 'number' ? latest.provider_boundary_failure_rate : null,
+      runtimeFailure: typeof latest?.runtime_owned_failure_rate === 'number' ? latest.runtime_owned_failure_rate : null,
     }]
   })), [snapshot?.category_hourly_series])
   const hotItems = useMemo(() => hotQuery.data?.items ?? [], [hotQuery.data?.items])
@@ -322,7 +325,7 @@ export function WorldPage() {
           <i className={oneHour?.canonical_writes ? 'active' : ''} />
         </div>
 
-        <div className="processing-lanes" aria-label="Processing paths">
+        <div className="processing-lanes" aria-label="Category route projections">
           {Object.keys(worldLanePoints).map((lane) => (
             <button
               type="button"
@@ -413,7 +416,9 @@ export function WorldPage() {
           <span><i className="fresh" />{text('粒子密度 = 1h fresh changes', 'particle density = 1h fresh changes')}</span>
           <span><i className="ghost" />{text('幽灵轨迹 = 1h backfill', 'ghost transit = 1h backfill')}</span>
           <span><i className="write" />{text('核心波纹 = 1h canonical writes', 'core ripple = 1h canonical writes')}</span>
-          <span><i className="degraded" />{text('琥珀色 = 来源类别存在 degraded 状态', 'amber = category has degraded sources')}</span>
+          <span><i className="degraded" />{text('节点健康色 = source health 聚合', 'node health color = source health aggregate')}</span>
+          <span><i className="provider-failure" />{text('琥珀 halo = provider-boundary failure rate', 'amber halo = provider-boundary failure rate')}</span>
+          <span><i className="runtime-failure" />{text('珊瑚 halo = runtime-owned failure rate', 'coral halo = runtime-owned failure rate')}</span>
         </div>
 
         {!hasFocus && <div className="world-focus-hint"><Crosshair size={12} /> {text('聚焦来源 / Hot Object', 'FOCUS SOURCE / HOT OBJECT')}</div>}
@@ -662,7 +667,7 @@ function SourceLens({
       <div className="lens-title"><span><Icon size={18} /></span><div><small>{source.sub}</small><strong>{text(source.labelZh, source.label)}</strong></div></div>
       <p>{text(narrative.summaryZh, narrative.summary)}</p>
       <div className="lens-facts">
-        <LensFact label={text('处理路径', 'PROCESSING PATH')} value={narrative.lane} />
+        <LensFact label={text('类别路径', 'CATEGORY ROUTE')} value={narrative.lane} />
         <LensFact label={text('世界角色', 'WORLD ROLE')} value={text(narrative.roleZh, narrative.role)} />
         <LensFact label={text('健康度', 'HEALTH')} value={health ? text(`${health.healthy}/${total} 健康`, `${health.healthy}/${total} healthy`) : text('快照不可用', 'snapshot unavailable')} />
         <LensFact label={text('新增 · 6H', 'FRESH · 6H')} value={String(summary.fresh)} />
@@ -763,14 +768,14 @@ function PathLens({ lane, snapshot }: { lane: string; snapshot: WorldOverview | 
 
   return (
     <div className="lens-stack path-lens">
-      <div className="lens-index">{text('处理路径 / 运行投影', 'PROCESSING PATH / RUNTIME PROJECTION')}</div>
+      <div className="lens-index">{text('类别路径 / 运行叠加', 'CATEGORY ROUTE / RUNTIME OVERLAY')}</div>
       <div className="path-lens-title">
-        <div><small>{text('处理路径', 'PROCESSING PATH')}</small><strong>{lane}</strong></div>
+        <div><small>{text('类别路径', 'CATEGORY ROUTE')}</small><strong>{lane}</strong></div>
         <span>{text(`${categories.length} 类来源 · ${providers.length} 个 provider`, `${categories.length} categories · ${providers.length} sources`)}</span>
       </div>
       <p>{text(
-        '这一视角汇总当前路径真实接收的来源类别、近六小时运行量和 source health；未记录的中间处理步骤保持不可见。',
-        'This view aggregates source categories actually assigned to the path, six-hour activity, and source health; unrecorded intermediate processing steps remain unseen.',
+        '这一视角使用产品 taxonomy 的类别→路径映射，再叠加近六小时运行量和 source health；它不声称某一次 execution 选择了未记录的处理路径。',
+        'This view applies the product taxonomy category-to-route mapping, then overlays six-hour activity and source health; it does not claim an unrecorded per-execution path selection.',
       )}</p>
       <div className="lens-facts">
         <LensFact label={text('来源类别', 'CATEGORIES')} value={categories.map((item) => text(item.labelZh, item.label)).join(' · ')} />
@@ -800,7 +805,7 @@ function PathLens({ lane, snapshot }: { lane: string; snapshot: WorldOverview | 
           </div>
         ))}
       </div>
-      <div className="lens-coordinate mono">{lane.toLowerCase().replaceAll(' ', '-')} / product-read</div>
+      <div className="lens-coordinate mono">{lane.toLowerCase().replaceAll(' ', '-')} / taxonomy-map + runtime-overlay</div>
     </div>
   )
 }

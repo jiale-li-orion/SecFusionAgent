@@ -798,6 +798,14 @@
   color: #4f6879 !important;
 }
 
+.world-space .world-semantic-legend i.provider-failure {
+  background: #b9844e !important;
+}
+
+.world-space .world-semantic-legend i.runtime-failure {
+  background: #a96962 !important;
+}
+
 .intelligence-space .claim-row small,
 .intelligence-space .graph-toolbar,
 .intelligence-space .graph-relation-node small,

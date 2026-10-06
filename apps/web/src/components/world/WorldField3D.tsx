@@ -64,6 +64,9 @@ type CategoryActivity = {
   backfill: number
   runs: number
   observations: number
+  successRate: number | null
+  providerFailure: number | null
+  runtimeFailure: number | null
 }
 
 function CanonicalWriteCrystallization({ canonicalWrites, reduceMotion }: { canonicalWrites: number; reduceMotion: boolean }) {
@@ -370,7 +373,15 @@ function SourceConstellation({
         const selected = focusedSource === key
         const laneSelected = focusedLane === sourceLanes[key]
         const dimmed = Boolean((focusedSource && !selected) || (focusedLane && !laneSelected))
-        const runtimeActivity = activity[key] ?? { fresh: 0, backfill: 0, runs: 0, observations: 0 }
+        const runtimeActivity = activity[key] ?? {
+          fresh: 0,
+          backfill: 0,
+          runs: 0,
+          observations: 0,
+          successRate: null,
+          providerFailure: null,
+          runtimeFailure: null,
+        }
         return (
           <SourceNode
             key={key}
@@ -418,6 +429,9 @@ function SourceNode({
   onFocus: () => void
 }) {
   const node = useRef<THREE.Group>(null)
+  const providerFailure = activity.providerFailure ?? 0
+  const runtimeFailure = activity.runtimeFailure ?? 0
+  const failureRate = Math.max(providerFailure, runtimeFailure)
   const curve = useMemo(() => new THREE.QuadraticBezierCurve3(
       position,
       position.clone().multiplyScalar(.42).add(new THREE.Vector3(0, 0, 1.4)),
@@ -442,8 +456,14 @@ function SourceNode({
     if (!node.current || reduceMotion) return
     node.current.rotation.y += delta * (.13 + index * .005)
     node.current.rotation.z -= delta * .035
-    if (activity.runs > 0 && !blocked) {
-      const cadence = Math.min(4.2, 1.25 + Math.log2(activity.runs + 1) * .55)
+    if (failureRate > 0 && !blocked) {
+      const cadence = 2.2 + Math.min(3.8, failureRate * 8)
+      const instability = .035 + Math.min(.09, failureRate * .16)
+      const pulse = .98 + Math.sin(state.clock.elapsedTime * cadence + index) * instability
+      node.current.scale.setScalar(selected ? pulse * 1.18 : pulse)
+    } else if (activity.runs > 0 && !blocked) {
+      const successfulRuns = activity.runs * (activity.successRate ?? 1)
+      const cadence = Math.min(4.2, 1.25 + Math.log2(successfulRuns + 1) * .55)
       const pulse = .96 + Math.abs(Math.sin(state.clock.elapsedTime * cadence + index)) * .13
       node.current.scale.setScalar(selected ? pulse * 1.18 : pulse)
     } else if (degraded && !blocked) {
@@ -486,6 +506,18 @@ function SourceNode({
           <torusGeometry args={[.59, .007, 6, 70]} />
           <meshBasicMaterial color="#7B7798" transparent opacity={dimmed ? .018 : .10} />
         </mesh>
+        {providerFailure > 0 && (
+          <mesh rotation={[Math.PI / 2.15, .08, Math.PI / 5]}>
+            <torusGeometry args={[.72, .012, 6, 72]} />
+            <meshBasicMaterial color="#B9844E" transparent opacity={dimmed ? .02 : Math.min(.44, .12 + providerFailure * .9)} depthWrite={false} />
+          </mesh>
+        )}
+        {runtimeFailure > 0 && (
+          <mesh rotation={[Math.PI / 2.7, .42, -.18]}>
+            <torusGeometry args={[.83, .009, 6, 72]} />
+            <meshBasicMaterial color="#A96962" transparent opacity={dimmed ? .018 : Math.min(.38, .10 + runtimeFailure * .82)} depthWrite={false} />
+          </mesh>
+        )}
         <mesh visible={false} name={sourceKey}>
           <sphereGeometry args={[.65, 10, 10]} />
           <meshBasicMaterial transparent opacity={0} />
