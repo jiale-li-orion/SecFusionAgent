@@ -39,6 +39,14 @@ OBSERVATORY     live operations + frozen proof
 
 `START` exposes the canonical DIRECT / RETRIEVE / VERIFY / INVESTIGATE / WATCH interaction modes.
 
+The guided product story is URL-addressable. Add `guide=live` to keep the current-runtime eight-act path open while moving through Product spaces, or `guide=frozen` to bind the five-act proof path to persisted BenchmarkRun / CaseRun / TaskRun / Decision coordinates. The guide only navigates existing Product reads; it does not synthesize telemetry or evaluation results.
+
+## Browser regression gate
+
+`make product-visual-check` runs Chromium against the live local Product at `http://127.0.0.1:8000/product`. It resolves current Hot / Case / Task / Proof coordinates, checks all six Product spaces at 1440×1000, 1366×768, 1024×768, and 390×844, rejects document-level horizontal overflow or collapsed primary regions, checks the reduced-motion WORLD fallback, and writes review screenshots under `/tmp/secfusion-product-visual`.
+
+Install the browser runtime once with `uv run playwright install chromium`. Keep this gate separate from the fast `make product-check`; run it whenever composition, responsive layout, navigation shell, or cinematic state changes.
+
 ## Current product state
 
 The former Runtime Workbench UI and `/api/v1/workbench/*` transport have been retired. Runtime facts required by the competition are exposed through Product-safe read models used by WORLD, INTELLIGENCE, INVESTIGATIONS, AGENTS and OBSERVATORY.

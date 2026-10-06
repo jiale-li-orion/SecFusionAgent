@@ -692,25 +692,25 @@ Status:
 | Decision read | A | `/api/v1/decisions/{id}` |
 | Investigation list/detail | A | `/api/v1/investigations` |
 | Vulnerability Knowledge | A | `/api/v1/vulnerabilities/{cve}` |
-| Evidence view | B/C | EvidenceLink + Observation; add Product read route |
-| Intelligence search | B/C | retrieval kernel; add Application query |
-| Incident Product detail | B/C | incident durable state; add Product read route |
-| RuntimeActivityView | B/C | TaskEvent/Trajectory; add projection |
-| Investigation SSE | C | ProductEvent projector + SSE |
-| cancel/resume | B/C | task lifecycle; add Product command |
-| source/System overview | B/C | SourceState/data-plane; add Product aggregate |
-| data-plane metrics | B | existing metric generator/state; add live Product read route |
-| Hot Pool list/detail | B | Redis hot cache; add ranked read seam |
-| Evidence World topology | B/D | source registry + TD1 topology + runtime overlays |
-| Agent Role/Task status | B | Role registry + TaskRun |
-| Capability activity | B | CapabilityInvocation |
-| Skill read | B | SkillStore |
-| Experience read | B | ExperienceStore |
-| Trajectory read | B | TrajectoryService |
-| model attempt/retry read | B | ModelRequest/ModelAttempt |
+| Evidence view | A | `/api/v1/evidence/{evidence_ref}` |
+| Intelligence search | A | `/api/v1/intelligence/search` |
+| Incident Product detail | A | `/api/v1/incidents/{incident_id}` |
+| RuntimeActivityView | A | Product Task detail projects TaskEvent / Capability / PromptAssembly / Budget |
+| Investigation SSE | A | `/api/v1/investigations/{case_id}/events` |
+| cancel/resume | A | explicit cancel; durable Case/session continuation; dependency wake remains runtime-owned |
+| source/System overview | A | `/api/v1/world/overview` + `/api/v1/observatory/system` |
+| data-plane metrics | A | WORLD / OBSERVATORY consume measured operational windows |
+| Hot Pool list/detail | A | `/api/v1/world/hot` + ranked detail read |
+| Evidence World topology | A/D | source registry + Product snapshot + bounded visual projection |
+| Agent Role/Task status | A | `/api/v1/agents/runtime` + `/api/v1/tasks*` |
+| Capability activity | A | CapabilityInvocation projected through Agent runtime/task detail |
+| Skill read | A | `/api/v1/agents/learning` |
+| Experience read | A | `/api/v1/agents/learning` |
+| Trajectory read | A/D | Experience support records expose bounded trajectory coordinates; raw trace stays backend-owned |
+| model attempt/retry read | A | persisted ModelRequest / ModelAttempt projection in Agent runtime |
 | true token streaming | C | new provider/runtime stream contract required |
-| Agent regression proof | B | agent-runtime benchmark |
-| formal competition proof | B | benchmark/competition runtime |
+| Agent regression proof | A | frozen benchmark / controlled-runtime coordinates in OBSERVATORY |
+| formal competition proof | A | `/api/v1/observatory/proof*` |
 
 Product implementation closes these seams through Product/Application read models rather than a parallel diagnostic transport.
 
@@ -782,7 +782,7 @@ This path deliberately covers monitoring, enrichment, QA, Agent architecture, au
 
 ## 14. Delivery order
 
-### P0 — product truth surface
+### P0 — product truth surface — closed
 
 1. React/Vite Product shell and five-space navigation + START;
 2. existing Product API integration;
@@ -793,7 +793,7 @@ This path deliberately covers monitoring, enrichment, QA, Agent architecture, au
 7. ProductEvent/SSE;
 8. real vertical path: `WORLD → START → Investigation → Decision → Evidence`.
 
-### P1 — full competition capability exposure
+### P1 — full competition capability exposure — closed
 
 - intelligence search / incident / graph;
 - Skill / Experience / Trajectory read surfaces;
@@ -803,7 +803,7 @@ This path deliberately covers monitoring, enrichment, QA, Agent architecture, au
 - explicit cancel; resume remains split between runtime dependency wake and durable Case/session continuation;
 - degraded/fallback/recovery UX.
 
-### P2 — cinematic finish and deployment
+### P2 — cinematic finish and deployment — closed for Product v1
 
 - Evidence World 2.5D/WebGL refinement;
 - Role sigil motion system;
@@ -812,6 +812,15 @@ This path deliberately covers monitoring, enrichment, QA, Agent architecture, au
 - explicit demo access control;
 - curated frozen demo cases;
 - performance/visual regression checks.
+
+Current closure evidence:
+
+- `make product-check` owns static Product contract checks, build/bundle budgets, deploy checks and Product/API/runtime regression tests;
+- `make product-live-gate` validates the live Product data path against the running API;
+- `make product-visual-check` resolves current Product objects and browser-checks all six spaces at desktop, projector, tablet and mobile viewports, plus reduced-motion WORLD;
+- `guide=live` and `guide=frozen` make the current-runtime and persisted-proof demo paths reproducible across navigation and refresh;
+- Nginx/Compose deployment remains fail-closed behind Basic Auth, with `/healthz` as the sole unauthenticated health route;
+- worker-process uptime stays explicitly unavailable until a heartbeat owner exists; true provider token streaming stays outside Product v1 until the runtime exposes a real stream contract.
 
 ---
 
@@ -837,6 +846,14 @@ rg '/api/v1/workbench' apps/web/src
 ```
 
 must return no Product callsite.
+
+The standard Product completion gates are:
+
+```text
+make product-check
+make product-live-gate
+make product-visual-check
+```
 
 ---
 

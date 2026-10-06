@@ -121,8 +121,10 @@ def _static_product_gate(results: list[GateResult]) -> None:
             "storyMode",
             "FROZEN PATH",
             "BenchmarkRun / CaseRun",
+            "guidedModeFromSearch",
+            "withGuidedMode",
         ),
-        detail="live + formal frozen guided paths present",
+        detail="live + formal frozen guided paths are URL-addressable",
     )
     _require_source(
         results,
@@ -385,6 +387,43 @@ def run_gate(api_base: str, web_url: str | None) -> list[GateResult]:
                 raise RuntimeError("task detail missing runtime coordinates")
             results.append(GateResult("task-detail", run_id))
 
+    system = _json(api_base, "/api/v1/observatory/system")
+    dependencies = system.get("dependencies", [])
+    if not isinstance(dependencies, list):
+        raise RuntimeError("system overview dependencies is not a list")
+    component_names = {
+        item.get("component")
+        for item in dependencies
+        if isinstance(item, dict) and isinstance(item.get("component"), str)
+    }
+    required_components = {
+        "postgresql",
+        "redis_broker",
+        "redis_hot_cache",
+        "redis_task_bus",
+    }
+    if not required_components.issubset(component_names):
+        raise RuntimeError(
+            f"system overview missing dependencies: {sorted(required_components - component_names)}"
+        )
+    boundaries = system.get("measurement_boundaries", {})
+    if not isinstance(boundaries, dict) or boundaries.get("worker_process_health") != (
+        "unavailable_no_heartbeat_contract"
+    ):
+        raise RuntimeError(
+            "system overview must preserve the worker heartbeat measurement boundary"
+        )
+    results.append(
+        GateResult(
+            "system",
+            (
+                f"{system.get('overall', 'unknown')} · "
+                f"{len(dependencies)} dependencies · "
+                f"stream pending {system.get('task_event_stream_pending', '—')}"
+            ),
+        )
+    )
+
     investigations = _json(api_base, "/api/v1/investigations?limit=8")
     cases = investigations.get("items", [])
     if not isinstance(cases, list):
@@ -482,7 +521,7 @@ def run_gate(api_base: str, web_url: str | None) -> list[GateResult]:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate live SecFusion Product read seams.")
     parser.add_argument("--api-base", default="http://127.0.0.1:8000")
-    parser.add_argument("--web-url", default="http://127.0.0.1:4173/product/")
+    parser.add_argument("--web-url", default="http://127.0.0.1:8000/product/")
     parser.add_argument(
         "--static-only",
         action="store_true",
