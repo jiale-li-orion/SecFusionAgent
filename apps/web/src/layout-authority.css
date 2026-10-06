@@ -1765,12 +1765,6 @@ body,
     margin: 0 !important;
   }
 
-  .start-space > .payload-deck {
-    max-height: none;
-    margin-top: 18px !important;
-    overflow: visible;
-  }
-
   .intelligence-space .intel-layout,
   .intelligence-space .intel-reading-deck,
   .investigations-space .investigation-layout,
@@ -1921,12 +1915,6 @@ body,
   }
 
   /* START: execution chamber remains the first-screen protagonist. */
-  .start-space {
-    grid-template-columns: minmax(0, 1fr) 360px !important;
-    grid-template-rows: auto minmax(0, 1fr) !important;
-    gap: 10px 22px !important;
-    padding: 48px 22px 18px 26px !important;
-  }
 
   .start-space > .mission-briefing {
     min-height: 72px !important;
@@ -1942,15 +1930,6 @@ body,
     font-size: 9.75px !important;
   }
 
-  .start-space > .start-theater {
-    min-height: 500px !important;
-    height: 500px !important;
-  }
-
-  .start-space > .payload-deck {
-    max-height: calc(100vh - 126px) !important;
-  }
-
   .start-space .mode-chamber {
     width: 132px !important;
     min-height: 102px !important;
@@ -1959,11 +1938,6 @@ body,
   .start-space .mode-chamber.active {
     width: 170px !important;
     min-height: 132px !important;
-  }
-
-  .start-space .mission-reactor {
-    width: 108px !important;
-    height: 108px !important;
   }
 
   /* INTELLIGENCE becomes a compact reading spread, not a tall landing page. */
@@ -2025,11 +1999,6 @@ body,
 
   .agents-space .runtime-stage-caption h1 {
     font-size: clamp(34px, 3.5vw, 48px) !important;
-  }
-
-  .agents-space .role-theater {
-    height: 320px !important;
-    min-height: 320px !important;
   }
 
   .agents-space .role-entity:nth-of-type(1) {
