@@ -302,7 +302,6 @@
 }
 
 .agents-space .task-ledger-row,
-.agents-space .task-card,
 .agents-space .skill-family-list button,
 .agents-space .experience-list button {
   border-radius: 0 !important;
@@ -422,12 +421,6 @@
 
 .agents-space.runtime-loaded .role-theater {
   border-top: 1px solid rgba(168, 139, 255, .045);
-}
-.shell-space-intelligence .narrative-compass,
-.shell-space-investigations .narrative-compass,
-.shell-space-agents .narrative-compass,
-.shell-space-observatory .narrative-compass {
-  opacity: .52;
 }
 .product-skip-link {
   border: 1px solid rgba(201, 244, 91, .32);

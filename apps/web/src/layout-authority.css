@@ -546,6 +546,7 @@ body,
 
 
   max-width: 220px;
+  top: auto !important;
 }
 
 .start-space .payload-grid,
@@ -605,7 +606,6 @@ body,
 }
 
 .intelligence-space .dossier-masthead,
-.intelligence-space .intelligence-hero,
 .intelligence-space .intel-layout {
   width: 100%;
   min-width: 0;
@@ -1053,6 +1053,7 @@ body,
 
 .agents-space .role-theater {
   position: relative !important;
+  height: 430px !important;
 
 
 
@@ -1060,6 +1061,7 @@ body,
 
 .agents-space .role-entity {
   min-width: 0;
+  max-width: 30% !important;
 
 }
 
@@ -1870,10 +1872,6 @@ body,
     min-height: 46px !important;
   }
 
-  .narrative-compass {
-    top: 9px !important;
-  }
-
   /* WORLD keeps title, live readings, field and recent flow inside one glance. */
   .world-space {
     grid-template-rows: auto auto minmax(440px, 1fr) 104px !important;
@@ -2105,6 +2103,13 @@ body,
 
 
   gap: 12px !important;
+  grid-template-rows: auto auto minmax(640px, 1fr) !important;
+  grid-template-areas:
+    "brief console"
+    "origin console"
+    "theatre console" !important;
+  column-gap: 28px !important;
+  row-gap: 10px !important;
 
 
 }
@@ -2114,10 +2119,14 @@ body,
   grid-template-columns: minmax(0, 1fr) auto !important;
   align-items: end;
   gap: 26px;
+  grid-row: 1 !important;
+  grid-column: 1 !important;
+  grid-area: brief !important;
 }
 
 .start-space > .mission-briefing h1 {
   max-width: none !important;
+  white-space: normal !important;
 
 }
 
@@ -2129,6 +2138,13 @@ body,
 
 
   overflow: visible !important;
+  align-self: stretch !important;
+  grid-template-areas:
+    "head"
+    "payload"
+    "advanced"
+    "outcome" !important;
+  max-height: calc(100vh - 88px) !important;
 }
 
 .start-space .mode-chamber {
@@ -2138,22 +2154,14 @@ body,
   padding: 0 !important;
 }
 
-.start-space .alchemist-boundary {
-  top: auto !important;
-
-
-}
-
 /* AGENTS — role theatre is the protagonist; topology begins beneath it. */
 .agents-space .role-theater {
-  height: 430px !important;
   min-height: 430px !important;
   overflow: visible !important;
 }
 
 .agents-space .role-entity {
   width: 30% !important;
-  max-width: 30% !important;
 }
 
 .agents-space .role-entity:nth-of-type(1) {
@@ -2472,31 +2480,6 @@ body,
 }
 
 /* Route cue becomes edge annotation in object-led spaces. */
-.shell-space-intelligence .narrative-compass,
-.shell-space-investigations .narrative-compass,
-.shell-space-agents .narrative-compass,
-.shell-space-observatory .narrative-compass {
-  top: auto !important;
-  bottom: 12px !important;
-  left: calc(var(--shell-rail) + 18px) !important;
-  right: 18px !important;
-  min-height: 26px !important;
-}
-
-.shell-space-intelligence .narrative-copy strong,
-.shell-space-investigations .narrative-copy strong,
-.shell-space-agents .narrative-copy strong,
-.shell-space-observatory .narrative-copy strong {
-  max-width: 560px;
-  font-size: 9px !important;
-}
-
-.shell-space-intelligence .narrative-copy small,
-.shell-space-investigations .narrative-copy small,
-.shell-space-agents .narrative-copy small,
-.shell-space-observatory .narrative-copy small {
-  font-size: 8px !important;
-}
 
 @media (max-width: 1380px) {
   .intelligence-space.has-dossier .dossier-masthead,
@@ -2524,15 +2507,6 @@ body,
   .intelligence-space.has-dossier .dossier-masthead p {
     writing-mode: horizontal-tb;
     margin-bottom: 4px !important;
-  }
-
-  .shell-space-intelligence .narrative-compass,
-  .shell-space-investigations .narrative-compass,
-  .shell-space-agents .narrative-compass,
-  .shell-space-observatory .narrative-compass {
-    position: relative !important;
-    inset: auto !important;
-    margin: 4px 14px 0;
   }
 }
 
@@ -2591,6 +2565,8 @@ body,
   left: 0 !important;
   top: -16px !important;
   right: auto !important;
+  justify-self: end;
+  align-self: start;
 
 
 
@@ -2647,6 +2623,10 @@ body,
 
 
   align-items: stretch;
+  grid-template-areas:
+    "target"
+    "prompt"
+    "launch" !important;
 }
 
 .start-space .payload-field textarea {
@@ -2654,6 +2634,7 @@ body,
 
 
   line-height: 1.42;
+  resize: vertical;
 }
 
 .start-space .start-outcome {
@@ -3326,13 +3307,6 @@ body,
 .start-space {
   display: grid !important;
   grid-template-columns: minmax(0, 1.35fr) minmax(360px, .65fr) !important;
-  grid-template-rows: auto auto minmax(640px, 1fr) !important;
-  grid-template-areas:
-    "brief console"
-    "origin console"
-    "theatre console" !important;
-  column-gap: 28px !important;
-  row-gap: 10px !important;
   width: 100%;
   min-height: 100vh;
   padding: 58px 28px 28px 32px !important;
@@ -3340,9 +3314,6 @@ body,
 }
 
 .start-space > .mission-briefing {
-  grid-row: 1 !important;
-  grid-column: 1 !important;
-  grid-area: brief !important;
   position: relative !important;
   inset: auto !important;
   width: 100% !important;
@@ -3354,10 +3325,6 @@ body,
 
 .start-space > .mission-briefing > div:first-child {
   max-width: 820px;
-}
-
-.start-space > .mission-briefing h1 {
-  white-space: normal !important;
 }
 
 .start-space > .mission-origin {
@@ -3390,19 +3357,12 @@ body,
   grid-area: console !important;
   position: relative !important;
   inset: auto !important;
-  align-self: stretch !important;
   display: grid !important;
   grid-template-columns: 1fr !important;
-  grid-template-areas:
-    "head"
-    "payload"
-    "advanced"
-    "outcome" !important;
   align-content: start;
   width: 100% !important;
   min-width: 0 !important;
   max-width: none !important;
-  max-height: calc(100vh - 88px) !important;
   margin: 0 !important;
   padding: 12px 0 18px 20px !important;
   overflow-y: auto !important;
@@ -3413,8 +3373,6 @@ body,
   content: "EXECUTION CONSOLE" !important;
   position: static !important;
   grid-area: head;
-  justify-self: end;
-  align-self: start;
   margin-bottom: -14px;
   font: 7px ui-monospace, monospace !important;
   pointer-events: none;
@@ -3437,10 +3395,6 @@ body,
   grid-area: payload !important;
   display: grid !important;
   grid-template-columns: 1fr !important;
-  grid-template-areas:
-    "target"
-    "prompt"
-    "launch" !important;
   gap: 0 !important;
   min-height: 0 !important;
 }
@@ -3468,7 +3422,6 @@ body,
 .start-space .payload-field textarea {
   min-height: 126px !important;
   height: 126px;
-  resize: vertical;
 }
 
 .start-space .payload-launch {
