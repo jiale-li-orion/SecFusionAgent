@@ -5,6 +5,7 @@ const root = new URL('../src/', import.meta.url)
 const limits = [
   { prefix: 'pages/', maxLines: 1000 },
   { prefix: 'components/', maxLines: 700 },
+  { prefix: 'lib/api/', maxLines: 400 },
 ]
 
 async function walk(directory) {
@@ -35,4 +36,4 @@ if (violations.length) {
   process.exit(1)
 }
 
-console.log('Product source-size guard: pages <= 1000 lines; components <= 700 lines.')
+console.log('Product source-size guard: pages <= 1000; components <= 700; API domains <= 400 lines.')
