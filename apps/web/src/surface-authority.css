@@ -177,6 +177,13 @@
   background: linear-gradient(90deg, rgba(255, 179, 92, .025), transparent);
 }
 
+@media (max-width: 760px) {
+  .agents-space .role-entity {
+    border-bottom: 1px solid rgba(168, 139, 255, .055) !important;
+    background: linear-gradient(90deg, rgba(168, 139, 255, .018), transparent) !important;
+  }
+}
+
 .observatory-space.observatory-proof .proof-block,
 .observatory-space.observatory-proof .proof-number,
 .observatory-space.observatory-proof .proof-targets,

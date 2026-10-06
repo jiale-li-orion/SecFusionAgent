@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useRef, useState } from 'react'
+import { useCallback, useDeferredValue, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   Activity,
@@ -33,8 +33,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const shellRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const [searchOpen, setSearchOpen] = useState(false)
-  const [storyOpen, setStoryOpen] = useState(false)
-  const [storyMode, setStoryMode] = useState<'live' | 'frozen'>('live')
+  const guidedMode = guidedModeFromSearch(location.search)
+  const storyOpen = guidedMode !== null
+  const storyMode = guidedMode ?? 'live'
   const [searchValue, setSearchValue] = useState('')
   const deferredSearchValue = useDeferredValue(searchValue.trim())
   const [searchError, setSearchError] = useState('')
@@ -65,6 +66,16 @@ export function Shell({ children }: { children: React.ReactNode }) {
     staleTime: 60_000,
   })
 
+  const setGuidedStory = useCallback((mode: 'live' | 'frozen' | null) => {
+    const params = new URLSearchParams(location.search)
+    if (mode) params.set('guide', mode)
+    else params.delete('guide')
+    navigate({
+      pathname: location.pathname,
+      search: params.size ? `?${params.toString()}` : '',
+    }, { replace: true })
+  }, [location.pathname, location.search, navigate])
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
@@ -76,12 +87,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
       }
       if (event.key === 'Escape') {
         setSearchOpen(false)
-        setStoryOpen(false)
+        setGuidedStory(null)
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [])
+  }, [setGuidedStory])
 
   function submitSearch(event: React.FormEvent) {
     event.preventDefault()
@@ -232,7 +243,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <span>{text('定位对象', 'LOCATE OBJECT')}</span>
             <kbd>⌘K</kbd>
           </button>
-          <button className={`story-trigger ${storyOpen ? 'active' : ''}`} onClick={() => setStoryOpen((value) => !value)}>
+          <button className={`story-trigger ${storyOpen ? 'active' : ''}`} onClick={() => setGuidedStory(storyOpen ? null : storyMode)}>
             <Waypoints size={14} />
             <span>{text('演示主路径', 'GUIDED PATH')}</span>
             <b>{storyMode === 'live' ? 8 : 5}</b>
@@ -310,11 +321,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
           >
             <div className="guided-story-head">
               <div><small>REAL PRODUCT STORY</small><strong>{storyMode === 'live' ? text('八幕实时系统路径', 'EIGHT-ACT LIVE PATH') : text('五幕冻结证明路径', 'FIVE-ACT FROZEN PATH')}</strong><span>{storyMode === 'live' ? text('对象从当前 Product read 派生', 'objects resolve from current Product reads') : text('对象从正式 BenchmarkRun / CaseRun 派生', 'objects resolve from formal BenchmarkRun / CaseRun')}</span></div>
-              <button onClick={() => setStoryOpen(false)} aria-label={text('关闭演示路径', 'Close guided path')}><X size={14} /></button>
+              <button onClick={() => setGuidedStory(null)} aria-label={text('关闭演示路径', 'Close guided path')}><X size={14} /></button>
             </div>
             <div className="guided-story-mode" role="tablist" aria-label={text('演示路径模式', 'Guided path mode')}>
-              <button role="tab" aria-selected={storyMode === 'live'} className={storyMode === 'live' ? 'active' : ''} onClick={() => setStoryMode('live')}>{text('实时链', 'LIVE PATH')}</button>
-              <button role="tab" aria-selected={storyMode === 'frozen'} className={storyMode === 'frozen' ? 'active' : ''} onClick={() => setStoryMode('frozen')}>{text('冻结链', 'FROZEN PATH')}</button>
+              <button role="tab" aria-selected={storyMode === 'live'} className={storyMode === 'live' ? 'active' : ''} onClick={() => setGuidedStory('live')}>{text('实时链', 'LIVE PATH')}</button>
+              <button role="tab" aria-selected={storyMode === 'frozen'} className={storyMode === 'frozen' ? 'active' : ''} onClick={() => setGuidedStory('frozen')}>{text('冻结链', 'FROZEN PATH')}</button>
             </div>
             <div className="guided-story-truth">
               <span className={storyError ? 'degraded' : 'ready'} />
@@ -328,7 +339,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                     key={step.index}
                     className={`${active ? 'active' : ''} ${step.path ? '' : 'unavailable'}`}
                     disabled={!step.path}
-                    onClick={() => { if (step.path) navigate(step.path) }}
+                    onClick={() => { if (step.path) navigate(withGuidedMode(step.path, storyMode)) }}
                   >
                     <span>{step.index}</span>
                     <div><small>{language === 'zh' ? step.titleZh : step.titleEn}</small><strong>{step.detail}</strong><em>{language === 'zh' ? step.scopeZh : step.scopeEn}</em></div>
@@ -581,6 +592,18 @@ function shouldSearchGlobalKnowledge(value: string) {
   if (/^(object|incident|case|task):/i.test(value)) return false
   if (/^CVE-\d{4}-\d+$/i.test(value)) return false
   return true
+}
+
+function guidedModeFromSearch(search: string): 'live' | 'frozen' | null {
+  const guide = new URLSearchParams(search).get('guide')
+  return guide === 'live' || guide === 'frozen' ? guide : null
+}
+
+function withGuidedMode(path: string, mode: 'live' | 'frozen') {
+  const [pathname, search = ''] = path.split('?')
+  const params = new URLSearchParams(search)
+  params.set('guide', mode)
+  return `${pathname}?${params.toString()}`
 }
 
 function compactCommandLabel(value: string, fallback: string) {
