@@ -3,7 +3,7 @@ import { extname, join, relative } from 'node:path'
 
 const root = new URL('../src/', import.meta.url)
 const limits = [
-  { prefix: 'pages/', maxLines: 1000 },
+  { prefix: 'pages/', maxLines: 700 },
   { prefix: 'components/', maxLines: 700 },
   { prefix: 'lib/api/', maxLines: 400 },
 ]
@@ -36,4 +36,4 @@ if (violations.length) {
   process.exit(1)
 }
 
-console.log('Product source-size guard: pages <= 1000; components <= 700; API domains <= 400 lines.')
+console.log('Product source-size guard: pages <= 700; components <= 700; API domains <= 400 lines.')
