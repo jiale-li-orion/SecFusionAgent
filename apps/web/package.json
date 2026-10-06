@@ -7,8 +7,9 @@
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "lint": "eslint . && npm run lint:css-authority",
-    "lint:css-authority": "node scripts/check-css-authority.mjs"
+    "lint": "eslint . && npm run lint:css-authority && npm run lint:source-size",
+    "lint:css-authority": "node scripts/check-css-authority.mjs",
+    "lint:source-size": "node scripts/check-source-size.mjs"
   },
   "dependencies": {
     "@react-three/fiber": "^9.8.1",

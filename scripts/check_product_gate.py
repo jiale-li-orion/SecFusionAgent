@@ -152,7 +152,7 @@ def _static_product_gate(results: list[GateResult]) -> None:
     _require_source(
         results,
         name="proof-evidence-drilldown",
-        relative_path="apps/web/src/pages/ObservatoryPage.tsx",
+        relative_path="apps/web/src/components/observatory/ObservatoryProof.tsx",
         needles=("getEvidence(", "METRIC → EVIDENCE", "getCompetitionProofRun"),
         detail="MetricObservation drills into typed proof refs",
     )
@@ -240,10 +240,16 @@ def _static_product_gate(results: list[GateResult]) -> None:
     )
     _require_source(
         results,
-        name="system-overview",
+        name="system-overview-query",
         relative_path="apps/web/src/pages/ObservatoryPage.tsx",
+        needles=("getSystemOverview", "observatory-system"),
+        detail="Observatory orchestration owns the live system read",
+    )
+    _require_source(
+        results,
+        name="system-overview",
+        relative_path="apps/web/src/components/observatory/ObservatoryLive.tsx",
         needles=(
-            "getSystemOverview",
             "OUTBOX PENDING",
             "TASK DELIVERY",
             "STREAM UNACKED",
