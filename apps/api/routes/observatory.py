@@ -1,13 +1,19 @@
 from __future__ import annotations
 
+import asyncio
 import json
+from datetime import UTC, datetime
 from pathlib import Path
+from time import perf_counter
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
+from redis.asyncio import Redis
+from redis.exceptions import RedisError
 from sqlalchemy import func, select
 
 from apps.api.dependencies import SessionDep
+from apps.application.queries.system import get_delivery_backlogs
 from apps.application.views.observatory import (
     CompetitionProofView,
     ProofCaseRunView,
@@ -18,6 +24,7 @@ from apps.application.views.observatory import (
     ProofRunSummaryView,
     ProofTargetView,
 )
+from apps.application.views.system import SystemDependencyView, SystemOverviewView
 from packages.evaluation.benchmark.storage import (
     BenchmarkCaseModel,
     BenchmarkCaseRunModel,
@@ -25,6 +32,7 @@ from packages.evaluation.benchmark.storage import (
     DeploymentRevisionModel,
     MetricObservationModel,
 )
+from packages.shared.config import get_settings
 
 router = APIRouter(prefix="/api/v1/observatory", tags=["observatory"])
 
@@ -49,6 +57,97 @@ _HEADLINE_METRICS = {
     "m6.session_retrieval_reuse_rate",
     "engineering.fault_recovery_success",
 }
+
+
+def _utc_now() -> datetime:
+    return datetime.now(UTC)
+
+
+async def _redis_ping(component: str, url: str) -> SystemDependencyView:
+    client = Redis.from_url(url, decode_responses=True)
+    started = perf_counter()
+    try:
+        await client.ping()
+    except RedisError as exc:
+        return SystemDependencyView(
+            component=component,
+            status="unhealthy",
+            latency_ms=round((perf_counter() - started) * 1000, 2),
+            detail_code=type(exc).__name__,
+        )
+    finally:
+        await client.aclose()
+    return SystemDependencyView(
+        component=component,
+        status="healthy",
+        latency_ms=round((perf_counter() - started) * 1000, 2),
+    )
+
+
+async def _task_stream_pending(
+    redis: Redis,
+    *,
+    stream_name: str,
+    group_name: str,
+) -> int | None:
+    try:
+        pending = await redis.xpending(stream_name, group_name)
+    except RedisError:
+        return None
+    if isinstance(pending, dict):
+        value = pending.get("pending")
+        return int(value) if value is not None else None
+    return None
+
+
+@router.get("/system", response_model=SystemOverviewView)
+async def system_overview(session: SessionDep) -> SystemOverviewView:
+    settings = get_settings()
+    outbox, task_delivery = await get_delivery_backlogs(session)
+
+    redis_results = await asyncio.gather(
+        _redis_ping("redis_broker", settings.redis_broker_url),
+        _redis_ping("redis_hot_cache", settings.redis_hot_cache_url),
+        _redis_ping("redis_task_bus", settings.redis_task_bus_url),
+    )
+    task_bus = Redis.from_url(settings.redis_task_bus_url, decode_responses=True)
+    try:
+        stream_pending = await _task_stream_pending(
+            task_bus,
+            stream_name=settings.task_event_stream_name,
+            group_name=settings.task_event_scheduler_group,
+        )
+    finally:
+        await task_bus.aclose()
+
+    dependencies = [
+        SystemDependencyView(component="postgresql", status="healthy"),
+        *redis_results,
+    ]
+    runtime_policy_status = "healthy" if settings.runtime_policy_path.is_file() else "missing"
+    model_provider_status = (
+        "configured" if settings.model_base_url and settings.model_name else "disabled"
+    )
+    unhealthy = any(item.status == "unhealthy" for item in dependencies)
+    degraded = runtime_policy_status != "healthy" or any(
+        item.status == "degraded" for item in dependencies
+    )
+    overall = "unhealthy" if unhealthy else "degraded" if degraded else "healthy"
+    return SystemOverviewView(
+        generated_at=_utc_now(),
+        overall=overall,
+        dependencies=dependencies,
+        outbox=outbox,
+        task_event_delivery=task_delivery,
+        task_event_stream_pending=stream_pending,
+        runtime_policy_status=runtime_policy_status,
+        model_provider_status=model_provider_status,
+        measurement_boundaries={
+            "worker_process_health": "unavailable_no_heartbeat_contract",
+            "model_provider_status": "configuration_only_not_live_probe",
+            "artifact_store_health": "use_world_operational_snapshot",
+        },
+    )
 
 
 @router.get("/proof", response_model=CompetitionProofView)

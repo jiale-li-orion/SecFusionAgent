@@ -232,6 +232,19 @@ def _static_product_gate(results: list[GateResult]) -> None:
     )
     _require_source(
         results,
+        name="system-overview",
+        relative_path="apps/web/src/pages/ObservatoryPage.tsx",
+        needles=(
+            "getSystemOverview",
+            "OUTBOX PENDING",
+            "TASK DELIVERY",
+            "STREAM UNACKED",
+            "Worker process health has no heartbeat owner yet",
+        ),
+        detail="live Product system health keeps measured dependencies and explicit gaps separate",
+    )
+    _require_source(
+        results,
         name="keyboard-product",
         relative_path="apps/web/src/components/Shell.tsx",
         needles=("product-skip-link", 'id="product-main"', "tabIndex={-1}"),

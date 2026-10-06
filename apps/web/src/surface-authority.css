@@ -134,6 +134,49 @@
   border-bottom: 1px solid rgba(114, 215, 255, .045) !important;
 }
 
+.observatory-space .system-dependency,
+.observatory-space .system-backlog-strip > div,
+.observatory-space .system-measurement-boundary {
+  border: 0;
+  border-left: 1px solid rgba(114, 215, 255, .055);
+  background: linear-gradient(90deg, rgba(114, 215, 255, .018), transparent);
+}
+
+.observatory-space .system-dependency.status-healthy {
+  border-left-color: rgba(201, 244, 91, .28);
+}
+
+.observatory-space .system-dependency.status-unhealthy {
+  border-left-color: rgba(255, 107, 114, .48);
+}
+
+.observatory-space .system-dependency.status-degraded {
+  border-left-color: rgba(255, 179, 92, .42);
+}
+
+.observatory-space .system-dependency small,
+.observatory-space .system-backlog-strip small {
+  color: #53666e;
+  letter-spacing: .08em;
+}
+
+.observatory-space .system-dependency strong,
+.observatory-space .system-backlog-strip strong {
+  color: #bac9c8;
+  font-weight: 560;
+}
+
+.observatory-space .system-dependency > span,
+.observatory-space .system-backlog-strip span,
+.observatory-space .system-measurement-boundary {
+  color: #65757b;
+}
+
+.observatory-space .system-measurement-boundary {
+  border-left-color: rgba(255, 179, 92, .18);
+  background: linear-gradient(90deg, rgba(255, 179, 92, .025), transparent);
+}
+
 .observatory-space.observatory-proof .proof-block,
 .observatory-space.observatory-proof .proof-number,
 .observatory-space.observatory-proof .proof-targets,

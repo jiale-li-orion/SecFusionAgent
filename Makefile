@@ -64,6 +64,7 @@ product-check: product-web-check
 		apps/api/tests/test_product_observatory.py \
 		apps/api/tests/test_product_questions.py \
 		apps/api/tests/test_product_edge.py \
+		apps/api/tests/test_product_system.py \
 		apps/api/tests/test_world_route.py \
 		packages/reasoning/tests \
 		tests/test_decision_runtime.py

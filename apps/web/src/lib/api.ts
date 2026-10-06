@@ -21,6 +21,12 @@ export type QuestionResult = {
   } | null
 }
 
+export async function getSystemOverview(): Promise<SystemOverview> {
+  const response = await fetch('/api/v1/observatory/system')
+  if (!response.ok) throw new Error(`System overview unavailable (${response.status})`)
+  return response.json() as Promise<SystemOverview>
+}
+
 export type ProductDocument = {
   document_id: string
   object_id: string
@@ -578,6 +584,30 @@ export type AgentControlRuntime = {
   stop_reason_counts: Record<string, number>
   wake_latency_ms: number | null
   wake_latency_measurement: string
+}
+
+export type SystemDependency = {
+  component: string
+  status: string
+  latency_ms: number | null
+  detail_code: string | null
+}
+
+export type SystemBacklog = {
+  pending_count: number
+  oldest_pending_at: string | null
+}
+
+export type SystemOverview = {
+  generated_at: string
+  overall: string
+  dependencies: SystemDependency[]
+  outbox: SystemBacklog
+  task_event_delivery: SystemBacklog
+  task_event_stream_pending: number | null
+  runtime_policy_status: string
+  model_provider_status: string
+  measurement_boundaries: Record<string, string>
 }
 
 export type AgentRuntimeOverview = {

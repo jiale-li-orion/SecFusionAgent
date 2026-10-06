@@ -25,7 +25,7 @@ import {
   Waypoints,
   X,
 } from 'lucide-react'
-import { evidenceBoundObjectIds, getAgentRuntime, getCompetitionProof, getCompetitionProofRun, getEvidence, getWorldOverview, type CompetitionProof, type ProofMetricObservation, type ProofRunDetail, type WorldOverview } from '../lib/api'
+import { evidenceBoundObjectIds, getAgentRuntime, getCompetitionProof, getCompetitionProofRun, getEvidence, getSystemOverview, getWorldOverview, type CompetitionProof, type ProofMetricObservation, type ProofRunDetail, type SystemOverview, type WorldOverview } from '../lib/api'
 import { useI18n } from '../lib/i18n'
 import { dominantRuntimeName, rankRuntimeCounts, runtimeToken } from '../lib/runtimePresentation'
 
@@ -43,6 +43,7 @@ export function ObservatoryPage() {
   const [windowKey, setWindowKey] = useState<(typeof windows)[number]>('24h')
   const worldQuery = useQuery({ queryKey: ['observatory-world'], queryFn: getWorldOverview, refetchInterval: 30_000 })
   const agentsQuery = useQuery({ queryKey: ['observatory-agents'], queryFn: getAgentRuntime, refetchInterval: 15_000 })
+  const systemQuery = useQuery({ queryKey: ['observatory-system'], queryFn: getSystemOverview, refetchInterval: 15_000 })
   const proofQuery = useQuery({ queryKey: ['competition-proof'], queryFn: getCompetitionProof, staleTime: 60_000 })
 
   function selectMode(nextMode: ObservatoryMode) {
@@ -108,14 +109,14 @@ export function ObservatoryPage() {
             exit={reduceMotion ? undefined : { opacity: .18, scaleY: .025, filter: 'brightness(2.2) saturate(.5)', transformOrigin: 'center top' }}
             transition={{ duration: reduceMotion ? 0 : .3, ease: [0.22, 1, 0.36, 1] }}
           >
-            {(worldQuery.isError || agentsQuery.isError) && (
+            {(worldQuery.isError || agentsQuery.isError || systemQuery.isError) && (
               <div className="observatory-live-fault">
                 <TriangleAlert size={14} />
-                <div><small>{text('LIVE 读取降级', 'LIVE READ DEGRADED')}</small><strong>{worldQuery.isError ? text('Data Plane 快照不可用', 'Data Plane snapshot unavailable') : text('Agent Runtime 快照不可用', 'Agent Runtime snapshot unavailable')}</strong></div>
+                <div><small>{text('LIVE 读取降级', 'LIVE READ DEGRADED')}</small><strong>{worldQuery.isError ? text('Data Plane 快照不可用', 'Data Plane snapshot unavailable') : agentsQuery.isError ? text('Agent Runtime 快照不可用', 'Agent Runtime snapshot unavailable') : text('System overview 不可用', 'System overview unavailable')}</strong></div>
                 <button onClick={() => selectMode('proof')}><Archive size={12} /> {text('打开冻结 PROOF', 'OPEN FROZEN PROOF')}</button>
               </div>
             )}
-            <LiveObservatory world={worldQuery.data ?? null} agents={agentsQuery.data ?? null} windowKey={windowKey} setWindowKey={setWindowKey} />
+            <LiveObservatory world={worldQuery.data ?? null} agents={agentsQuery.data ?? null} system={systemQuery.data ?? null} windowKey={windowKey} setWindowKey={setWindowKey} />
           </motion.div>
         ) : (
           <motion.div
@@ -194,7 +195,7 @@ function proofRefKind(ref: string) {
   return kind?.replaceAll('-', ' ').toUpperCase() || 'FROZEN REF'
 }
 
-function LiveObservatory({ world, agents, windowKey, setWindowKey }: { world: WorldOverview | null; agents: Awaited<ReturnType<typeof getAgentRuntime>> | null; windowKey: string; setWindowKey: (value: (typeof windows)[number]) => void }) {
+function LiveObservatory({ world, agents, system, windowKey, setWindowKey }: { world: WorldOverview | null; agents: Awaited<ReturnType<typeof getAgentRuntime>> | null; system: SystemOverview | null; windowKey: string; setWindowKey: (value: (typeof windows)[number]) => void }) {
   const { text } = useI18n()
   const navigate = useNavigate()
   const [focus, setFocus] = useState<'world' | 'sources' | 'agents' | 'system' | null>(null)
@@ -285,6 +286,26 @@ function LiveObservatory({ world, agents, windowKey, setWindowKey }: { world: Wo
             <SystemFact icon={Eye} label="LEXICAL READY" value={world ? compactNumber(world.lexical_ready_documents) : '—'} />
             <SystemFact icon={ShieldCheck} label="ARTIFACT STORE" value={world?.artifact_store_status ?? '—'} />
             <SystemFact icon={Fingerprint} label="ARTIFACT INTEGRITY" value={world?.public_epoch_artifact_integrity_rate != null ? pct(world.public_epoch_artifact_integrity_rate) : '—'} />
+          </div>
+          <div className="system-dependency-mesh">
+            {(system?.dependencies ?? []).map((dependency) => (
+              <div key={dependency.component} className={`system-dependency status-${dependency.status}`}>
+                {dependency.component === 'postgresql' ? <DatabaseZap size={13} /> : <RadioTower size={13} />}
+                <div><small>{runtimeToken(dependency.component)}</small><strong>{runtimeToken(dependency.status)}</strong></div>
+                <span>{dependency.latency_ms == null ? '—' : `${dependency.latency_ms.toFixed(1)}ms`}</span>
+              </div>
+            ))}
+            {!system && <div className="system-dependency-empty">{text('解析依赖健康…', 'RESOLVING DEPENDENCY HEALTH…')}</div>}
+          </div>
+          <div className="system-backlog-strip">
+            <SystemBacklog label="OUTBOX PENDING" value={system?.outbox.pending_count} oldest={system?.outbox.oldest_pending_at ?? null} />
+            <SystemBacklog label="TASK DELIVERY" value={system?.task_event_delivery.pending_count} oldest={system?.task_event_delivery.oldest_pending_at ?? null} />
+            <SystemBacklog label="STREAM UNACKED" value={system?.task_event_stream_pending} />
+            <SystemBacklog label="RUNTIME POLICY" value={system ? runtimeToken(system.runtime_policy_status) : null} />
+          </div>
+          <div className="system-measurement-boundary">
+            <TriangleAlert size={12} />
+            <span>{text('Worker process health 尚无 heartbeat owner；当前不伪造 worker 在线率。', 'Worker process health has no heartbeat owner yet; no worker uptime is inferred.')}</span>
           </div>
         </section>
       </div>
@@ -724,6 +745,7 @@ function AgentSpectrumBlueprint() {
 function LiveMetric({ icon: Icon, label, value, detail, tone, active, onClick }: { icon: typeof Activity; label: string; value: string; detail: string; tone: string; active?: boolean; onClick?: () => void }) { return <button type="button" className={`live-metric tone-${tone} ${active ? 'focus-selected' : ''}`} onClick={onClick}><span className="live-metric-icon"><Icon size={17} /></span><div><small>{label}</small><strong>{value}</strong><span>{detail}</span></div></button> }
 function PanelHead({ eyebrow, title, meta, icon: Icon }: { eyebrow: string; title: string; meta: string; icon: typeof Activity }) { return <div className="panel-head"><span className="panel-head-icon"><Icon size={15} /></span><div><small>{eyebrow}</small><strong>{title}</strong></div><span>{meta}</span></div> }
 function SystemFact({ icon: Icon, label, value }: { icon: typeof Boxes; label: string; value: string }) { return <div className="system-fact"><Icon size={16} /><small>{label}</small><strong>{value}</strong></div> }
+function SystemBacklog({ label, value, oldest = null }: { label: string; value: number | string | null | undefined; oldest?: string | null }) { return <div><small>{label}</small><strong>{value == null ? '—' : typeof value === 'number' ? compactNumber(value) : value}</strong>{oldest && <span>{snapshotAge(oldest)}</span>}</div> }
 function RoleBars({ counts }: { counts: Record<string, number> }) { const total = Object.values(counts).reduce((sum, value) => sum + value, 0) || 1; return <div className="role-bars"><span className="done" style={{ width: `${((counts.completed ?? 0) / total) * 100}%` }} /><span className="live" style={{ width: `${(((counts.running ?? 0) + (counts.queued ?? 0)) / total) * 100}%` }} /><span className="fail" style={{ width: `${(((counts.failed ?? 0) + (counts.blocked ?? 0)) / total) * 100}%` }} /></div> }
 function ProofBlock({ title, eyebrow, tone, icon: Icon, children }: { title: string; eyebrow: string; tone: string; icon: typeof Activity; children: React.ReactNode }) { return <motion.section className={`proof-block tone-${tone}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}><div className="proof-block-head"><span><Icon size={16} /></span><div><small>{eyebrow}</small><strong>{title}</strong></div></div><div className="proof-block-body">{children}</div></motion.section> }
 function ProofNumber({ label, value, warning = false }: { label: string; value: string; warning?: boolean }) { return <div className={`proof-number ${warning ? 'warning' : ''}`}><small>{label}</small><strong>{value}</strong></div> }

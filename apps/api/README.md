@@ -32,6 +32,8 @@ LOOKUP/RETRIEVE model calls use the same recorded provider wrapper as formal QA 
 
 `dependencies.py` owns the shared SQLAlchemy session dependency and `RequestContext`. `main.py` creates a request id at the HTTP edge and returns it as `X-Request-ID`; Product Application links that id into the created ExecutionEnvelope trace context. `errors.py` maps Application failures and Product validation errors to RFC 9457-style `ProblemDetail`. Runtime diagnostics that belong in the product are exposed through Product-safe read models.
 
+`GET /api/v1/observatory/system` is the Product-safe system health aggregate. It reports PostgreSQL and the three separated Redis roles, durable outbox / TaskEvent delivery backlog, and Redis Stream pending work. It deliberately reports worker-process health as unavailable until a heartbeat owner exists; model-provider status is configuration state rather than a fabricated live provider probe, while ArtifactStore integrity remains owned by the Data Plane operational snapshot.
+
 `routes/health.py` separates liveness from readiness: liveness only means process alive; readiness verifies the database/schema and required runtime-policy configuration. Aggregate `/health` reports optional model-provider absence as disabled/degraded rather than making the whole API unready.
 
 ## Retired Runtime Workbench
