@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useDeferredValue, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   Activity,
@@ -16,7 +16,7 @@ import {
 import { AnimatePresence, motion } from 'motion/react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useI18n } from '../lib/i18n'
-import { getAgentRuntime, getCompetitionProof, getCompetitionProofRun, getHotWorld, listIncidents, listInvestigations } from '../lib/api'
+import { getAgentRuntime, getCompetitionProof, getCompetitionProofRun, getHotWorld, listIncidents, listInvestigations, searchIntelligence } from '../lib/api'
 
 const nav = [
   { to: '/', label: 'WORLD', zh: '世界', sub: 'Evidence World', subZh: '证据世界', icon: Radar },
@@ -36,6 +36,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const [storyOpen, setStoryOpen] = useState(false)
   const [storyMode, setStoryMode] = useState<'live' | 'frozen'>('live')
   const [searchValue, setSearchValue] = useState('')
+  const deferredSearchValue = useDeferredValue(searchValue.trim())
   const [searchError, setSearchError] = useState('')
   const [commandIndex, setCommandIndex] = useState(0)
   const [commandKeyboardActive, setCommandKeyboardActive] = useState(false)
@@ -50,6 +51,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const storyAgents = useQuery({ queryKey: ['guided-story-agents'], queryFn: getAgentRuntime, enabled: (storyOpen && storyMode === 'live') || searchOpen, staleTime: 15_000 })
   const storyProof = useQuery({ queryKey: ['guided-story-proof'], queryFn: getCompetitionProof, enabled: storyOpen || searchOpen, staleTime: 60_000 })
   const commandIncidents = useQuery({ queryKey: ['command-incidents'], queryFn: () => listIncidents(8), enabled: searchOpen, staleTime: 20_000 })
+  const commandKnowledge = useQuery({
+    queryKey: ['command-knowledge', deferredSearchValue],
+    queryFn: () => searchIntelligence(deferredSearchValue, 12),
+    enabled: searchOpen && shouldSearchGlobalKnowledge(deferredSearchValue),
+    staleTime: 20_000,
+  })
   const frozenRunId = storyProof.data?.runs.slice().sort((a, b) => b.case_count - a.case_count)[0]?.benchmark_run_id ?? null
   const storyFrozenRun = useQuery({
     queryKey: ['guided-story-frozen-run', frozenRunId],
@@ -89,7 +96,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
     const caseMatch = raw.match(/^case:(.+)$/i)
     const taskMatch = raw.match(/^task:(.+)$/i)
     if (!/^CVE-\d{4}-\d+$/.test(cve) && !objectMatch?.[1]?.trim() && !incidentMatch?.[1]?.trim() && !caseMatch?.[1]?.trim() && !taskMatch?.[1]?.trim()) {
-      setSearchError(text('请输入 CVE、object:<id>、incident:<id>、case:<id> 或 task:<id>', 'Use CVE, object:<id>, incident:<id>, case:<id>, or task:<id>'))
+      if (commandItems[0]) {
+        openCommandItem(commandItems[0])
+        return
+      }
+      setSearchError(text('没有匹配对象；也可输入 CVE、object:<id>、incident:<id>、case:<id> 或 task:<id>', 'No matching object. You can also use CVE, object:<id>, incident:<id>, case:<id>, or task:<id>.'))
       return
     }
     setSearchError('')
@@ -169,6 +180,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
     ? storyHot.isError || storyCases.isError || storyAgents.isError || storyProof.isError
     : storyProof.isError || storyFrozenRun.isError
   const commandItems = buildCommandItems({
+    knowledge: commandKnowledge.data?.items ?? [],
     hot: storyHot.data?.items ?? [],
     cases: storyCases.data?.items ?? [],
     tasks: storyAgents.data?.recent_tasks ?? [],
@@ -176,7 +188,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
     runs: storyProof.data?.runs ?? [],
     query: searchValue,
   })
-  const commandLoading = searchOpen && (storyHot.isLoading || storyCases.isLoading || storyAgents.isLoading || storyProof.isLoading || commandIncidents.isLoading)
+  const commandLoading = searchOpen && (storyHot.isLoading || storyCases.isLoading || storyAgents.isLoading || storyProof.isLoading || commandIncidents.isLoading || commandKnowledge.isLoading)
 
   return (
     <div
@@ -488,6 +500,7 @@ type CommandObjectKind = 'CVE' | 'OBJECT' | 'CASE' | 'TASK' | 'INCIDENT' | 'PROO
 type CommandObjectItem = { kind: CommandObjectKind; ref: string; label: string; meta: string; path: string }
 
 function buildCommandItems(input: {
+  knowledge: Awaited<ReturnType<typeof searchIntelligence>>['items']
   hot: Awaited<ReturnType<typeof getHotWorld>>['items']
   cases: Awaited<ReturnType<typeof listInvestigations>>['items']
   tasks: Awaited<ReturnType<typeof getAgentRuntime>>['recent_tasks']
@@ -496,6 +509,16 @@ function buildCommandItems(input: {
   query: string
 }): CommandObjectItem[] {
   const items: CommandObjectItem[] = []
+  for (const item of input.knowledge) {
+    const cve = item.external_identifiers.cve?.[0]?.toUpperCase() ?? null
+    items.push({
+      kind: cve ? 'CVE' : 'OBJECT',
+      ref: cve ?? item.object_id,
+      label: item.label,
+      meta: `${item.object_type} · ${compactTraceRef(item.canonical_key)} · rev ${item.created_revision}`,
+      path: cve ? `/intelligence?cve=${encodeURIComponent(cve)}&from=command` : `/intelligence?object=${encodeURIComponent(item.object_id)}&from=command`,
+    })
+  }
   for (const item of input.hot.slice(0, 8)) {
     const cve = item.cve_id?.toUpperCase() ?? null
     const ref = cve ?? item.external_object_id
@@ -545,11 +568,19 @@ function buildCommandItems(input: {
     })
   }
 
+  const deduped = [...new Map(items.map((item) => [`${item.kind}:${item.ref}`, item])).values()]
   const query = input.query.trim().toLowerCase()
   const filtered = query
-    ? items.filter((item) => `${item.kind} ${item.ref} ${item.label} ${item.meta}`.toLowerCase().includes(query))
-    : items
+    ? deduped.filter((item) => `${item.kind} ${item.ref} ${item.label} ${item.meta}`.toLowerCase().includes(query))
+    : deduped
   return filtered.slice(0, 14)
+}
+
+function shouldSearchGlobalKnowledge(value: string) {
+  if (value.length < 2) return false
+  if (/^(object|incident|case|task):/i.test(value)) return false
+  if (/^CVE-\d{4}-\d+$/i.test(value)) return false
+  return true
 }
 
 function compactCommandLabel(value: string, fallback: string) {

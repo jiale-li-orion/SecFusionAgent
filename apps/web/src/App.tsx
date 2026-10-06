@@ -1,5 +1,5 @@
-import { Suspense, lazy } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
+import { Component, Suspense, lazy, type ErrorInfo, type ReactNode } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { Shell } from './components/Shell'
 
@@ -12,45 +12,92 @@ const ObservatoryPage = lazy(() => import('./pages/ObservatoryPage').then((modul
 
 export default function App() {
   const location = useLocation()
-  const transition = routeTransition(location.pathname)
+  const reduceMotion = Boolean(useReducedMotion())
+  const transition = routeTransition(location.pathname, reduceMotion)
   const routeSpace = routeSpaceName(location.pathname)
+  const aperture = routeAperture(routeSpace, reduceMotion)
 
   return (
-    <Shell>
-      <Suspense fallback={<ProductSpaceLoader space={routeSpace} />}>
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={location.pathname}
-            className={`route-stage route-space-${routeSpace}`}
-            initial={transition.initial}
-            animate={transition.animate}
-            exit={transition.exit}
-            transition={{ duration: transition.duration, ease: [0.22, 1, 0.36, 1] }}
-          >
+    <ProductErrorBoundary key={`${location.pathname}:${location.search}`}>
+      <Shell>
+        <Suspense fallback={<ProductSpaceLoader space={routeSpace} />}>
+          <AnimatePresence mode="wait" initial={false}>
             <motion.div
-              className={`route-aperture aperture-${routeSpace}`}
-              initial={routeAperture(routeSpace).initial}
-              animate={routeAperture(routeSpace).animate}
-              transition={{ duration: routeAperture(routeSpace).duration, ease: [0.16, 1, 0.3, 1] }}
-              aria-hidden="true"
-            />
-            <Routes location={location}>
-              <Route path="/" element={<WorldPage />} />
-              <Route path="/start" element={<StartPage key={`start:${location.search}`} />} />
-              <Route path="/intelligence" element={<IntelligencePage key={`intelligence:${location.search}`} />} />
-              <Route path="/investigations" element={<InvestigationsPage key={`investigations:${location.search}`} />} />
-              <Route path="/agents" element={<AgentsPage />} />
-              <Route path="/observatory" element={<ObservatoryPage key={`observatory:${location.search}`} />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </motion.div>
-        </AnimatePresence>
-      </Suspense>
-    </Shell>
+              key={location.pathname}
+              className={`route-stage route-space-${routeSpace}`}
+              initial={transition.initial}
+              animate={transition.animate}
+              exit={transition.exit}
+              transition={{ duration: transition.duration, ease: [0.22, 1, 0.36, 1] }}
+            >
+              {!reduceMotion && (
+                <motion.div
+                  className={`route-aperture aperture-${routeSpace}`}
+                  initial={aperture.initial}
+                  animate={aperture.animate}
+                  transition={{ duration: aperture.duration, ease: [0.16, 1, 0.3, 1] }}
+                  aria-hidden="true"
+                />
+              )}
+              <Routes location={location}>
+                <Route path="/" element={<WorldPage />} />
+                <Route path="/start" element={<StartPage key={`start:${location.search}`} />} />
+                <Route path="/intelligence" element={<IntelligencePage key={`intelligence:${location.search}`} />} />
+                <Route path="/investigations" element={<InvestigationsPage key={`investigations:${location.search}`} />} />
+                <Route path="/agents" element={<AgentsPage />} />
+                <Route path="/observatory" element={<ObservatoryPage key={`observatory:${location.search}`} />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </motion.div>
+          </AnimatePresence>
+        </Suspense>
+      </Shell>
+    </ProductErrorBoundary>
   )
 }
 
-function routeAperture(space: ReturnType<typeof routeSpaceName>) {
+type ProductErrorBoundaryState = {
+  failed: boolean
+}
+
+class ProductErrorBoundary extends Component<{ children: ReactNode }, ProductErrorBoundaryState> {
+  state: ProductErrorBoundaryState = { failed: false }
+
+  static getDerivedStateFromError(): ProductErrorBoundaryState {
+    return { failed: true }
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    if (import.meta.env.DEV) {
+      console.error('SecFusion product render failure', error, info)
+    }
+  }
+
+  render() {
+    if (!this.state.failed) return this.props.children
+    return (
+      <main className="product-render-fault" role="alert">
+        <div className="product-render-fault-mark" aria-hidden="true">!</div>
+        <div>
+          <small>PRODUCT RENDER BOUNDARY</small>
+          <strong>当前空间未能完成渲染</strong>
+          <p>Runtime 与持久数据没有因此被修改。可以重新装载当前空间，或返回 Evidence World。</p>
+        </div>
+        <div className="product-render-fault-actions">
+          <button onClick={() => window.location.reload()}>重新装载</button>
+          <button onClick={() => window.location.assign(import.meta.env.BASE_URL)}>返回 WORLD</button>
+        </div>
+      </main>
+    )
+  }
+}
+
+function routeAperture(space: ReturnType<typeof routeSpaceName>, reduceMotion = false) {
+  if (reduceMotion) return {
+    duration: 0,
+    initial: { opacity: 0 },
+    animate: { opacity: 0 },
+  }
   if (space === 'world') return {
     duration: .62,
     initial: { opacity: .75, scale: .74, clipPath: 'ellipse(16% 34% at 50% 50%)' },
@@ -92,7 +139,13 @@ function routeSpaceName(pathname: string) {
   return 'world'
 }
 
-function routeTransition(pathname: string) {
+function routeTransition(pathname: string, reduceMotion = false) {
+  if (reduceMotion) return {
+    duration: 0,
+    initial: { opacity: 1 },
+    animate: { opacity: 1 },
+    exit: { opacity: 1 },
+  }
   const space = routeSpaceName(pathname)
   if (space === 'start') return {
     duration: .5,

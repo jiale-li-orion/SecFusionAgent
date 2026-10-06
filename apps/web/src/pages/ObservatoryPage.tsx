@@ -27,6 +27,7 @@ import {
 } from 'lucide-react'
 import { evidenceBoundObjectIds, getAgentRuntime, getCompetitionProof, getCompetitionProofRun, getEvidence, getWorldOverview, type CompetitionProof, type ProofMetricObservation, type ProofRunDetail, type WorldOverview } from '../lib/api'
 import { useI18n } from '../lib/i18n'
+import { dominantRuntimeName, rankRuntimeCounts, runtimeToken } from '../lib/runtimePresentation'
 
 const windows = ['1h', '6h', '24h', '168h'] as const
 
@@ -134,6 +135,42 @@ export function ObservatoryPage() {
   )
 }
 
+function AgentLiveInstrument({ runtime }: { runtime: Awaited<ReturnType<typeof getAgentRuntime>> }) {
+  const { text } = useI18n()
+  const model = runtime.model_runtime
+  const control = runtime.control_runtime
+  const topProvider = dominantRuntimeName(model.provider_counts)
+  const topModel = dominantRuntimeName(model.model_counts)
+  const stopReasons = rankRuntimeCounts(control.stop_reason_counts, 4)
+  return (
+    <div className="agent-live-instrument">
+      <div className="agent-live-instrument-head">
+        <div><small>MODEL / CONTROL RUNTIME</small><strong>{text('最近持久执行样本', 'RECENT PERSISTED SAMPLE')}</strong></div>
+        <span>{model.scope.replaceAll('_', ' ')}</span>
+      </div>
+      <div className="agent-live-signal">
+        <div><small>REQUEST</small><strong>{model.request_count}</strong><span>{model.attempt_count} attempts</span></div>
+        <div><small>RETRY</small><strong>{model.retry_attempt_count}</strong><span>{model.retry_scheduled_count} scheduled</span></div>
+        <div><small>FAIL</small><strong>{model.failed_attempt_count}</strong><span>{model.unknown_after_dispatch_count} unknown</span></div>
+        <div><small>MODEL P95</small><strong>{model.p95_latency_ms == null ? '—' : `${model.p95_latency_ms}ms`}</strong><span>{topProvider ?? 'provider unavailable'}</span></div>
+      </div>
+      <div className="agent-live-coordinate">
+        <div><BrainCircuit size={12} /><span>{topModel ?? text('没有持久 ModelAttempt', 'no persisted ModelAttempt')}</span></div>
+        <div><Waypoints size={12} /><span>{control.dependency_wake_count} wakes · {control.waiting_event_count} waits</span></div>
+        <div><Clock3 size={12} /><span>{text('WAKE LATENCY 未测量', 'WAKE LATENCY UNMEASURED')}</span></div>
+      </div>
+      <div className="agent-stop-reasons">
+        <small>RECENT STOP REASONS</small>
+        <div>
+          {stopReasons.length
+            ? stopReasons.map(([reason, count]) => <span key={reason}><b>{count}</b>{runtimeToken(reason)}</span>)
+            : <span>{text('当前读取窗口没有 stop reason', 'no stop reason in current read window')}</span>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function compactEvidenceObjectRef(value: string) { return value.length > 30 ? `${value.slice(0, 14)}…${value.slice(-8)}` : value }
 
 function proofTargetPath(ref: string, runId: string, caseRunId: string) {
@@ -226,6 +263,7 @@ function LiveObservatory({ world, agents, windowKey, setWindowKey }: { world: Wo
             {!agents && <AgentSpectrumBlueprint />}
           </div>
           <div className="capability-activity-summary"><Binary size={13} /><span>{text('持久化 CapabilityInvocation', 'Persisted CapabilityInvocation')}</span><strong>{agents?.recent_capabilities.length ?? 0}</strong></div>
+          {agents && <AgentLiveInstrument runtime={agents} />}
         </section>
 
         <section

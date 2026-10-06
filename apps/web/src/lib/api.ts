@@ -21,6 +21,98 @@ export type QuestionResult = {
   } | null
 }
 
+export type ProductDocument = {
+  document_id: string
+  object_id: string
+  source_id: string
+  external_object_id: string
+  canonical_url: string | null
+  created_at: string
+  current_revision: {
+    document_revision_id: string
+    observation_id: string
+    external_revision: string | null
+    title: string | null
+    published_at: string | null
+    updated_at: string | null
+    content_hash: string
+    parser_name: string
+    parser_version: string
+    created_at: string
+  } | null
+  chunk_count: number
+  index_status_counts: Record<string, number>
+  embedded_chunk_count: number
+  embedding_models: string[]
+  sections: string[]
+  insight: {
+    insight_candidate_id: string
+    change_type: string
+    evidence_maturity: string
+    promotion_state: string
+    related_object_ids: string[]
+    related_claim_ids: string[]
+    related_relation_ids: string[]
+  } | null
+}
+
+export async function getDocumentByObject(objectId: string): Promise<ProductDocument> {
+  const response = await fetch(`/api/v1/documents/by-object/${encodeURIComponent(objectId)}`)
+  if (!response.ok) throw new Error(response.status === 404 ? 'Document not found' : `Document unavailable (${response.status})`)
+  return response.json() as Promise<ProductDocument>
+}
+
+export async function getDocument(documentId: string): Promise<ProductDocument> {
+  const response = await fetch(`/api/v1/documents/${encodeURIComponent(documentId)}`)
+  if (!response.ok) throw new Error(response.status === 404 ? 'Document not found' : `Document unavailable (${response.status})`)
+  return response.json() as Promise<ProductDocument>
+}
+
+export async function getHotWorldItem(sourceId: string, externalObjectId: string): Promise<HotBug> {
+  const response = await fetch(
+    `/api/v1/world/hot/${encodeURIComponent(sourceId)}/${encodeURIComponent(externalObjectId)}`,
+  )
+  if (!response.ok) throw new Error(response.status === 404 ? 'Hot object not found' : `Hot object unavailable (${response.status})`)
+  return response.json() as Promise<HotBug>
+}
+
+export async function listAgentTasks(input: {
+  roleId?: string
+  status?: string
+  caseId?: string
+  limit?: number
+} = {}): Promise<AgentTaskPage> {
+  const params = new URLSearchParams()
+  if (input.roleId) params.set('role_id', input.roleId)
+  if (input.status) params.set('status', input.status)
+  if (input.caseId) params.set('case_id', input.caseId)
+  params.set('limit', String(input.limit ?? 72))
+  const response = await fetch(`/api/v1/tasks?${params.toString()}`)
+  if (!response.ok) throw new Error(`Task list unavailable (${response.status})`)
+  return response.json() as Promise<AgentTaskPage>
+}
+
+export type IntelligenceSearchItem = {
+  object_id: string
+  object_type: string
+  canonical_key: string
+  label: string
+  created_revision: number
+  external_identifiers: Record<string, string[]>
+}
+
+export type IntelligenceSearchResult = {
+  query: string
+  items: IntelligenceSearchItem[]
+}
+
+export async function searchIntelligence(query: string, limit = 12): Promise<IntelligenceSearchResult> {
+  const params = new URLSearchParams({ q: query, limit: String(limit) })
+  const response = await fetch(`/api/v1/intelligence/search?${params.toString()}`)
+  if (!response.ok) throw new Error(`Intelligence search unavailable (${response.status})`)
+  return response.json() as Promise<IntelligenceSearchResult>
+}
+
 export function evidenceBoundObjectIds(item: EvidenceDetail): string[] {
   const refs: string[] = []
   if (item.target.target_kind === 'object') refs.push(item.target.target_id)
@@ -35,9 +127,30 @@ export function evidenceBoundObjectIds(item: EvidenceDetail): string[] {
 }
 
 export async function getKnowledgeObject(objectId: string): Promise<KnowledgeObject> {
-  const response = await fetch(`/api/v1/objects/${encodeURIComponent(objectId)}`)
+  const response = await fetch(`/api/v1/intelligence/objects/${encodeURIComponent(objectId)}`)
   if (!response.ok) throw new Error(response.status === 404 ? 'Knowledge object not found' : `Knowledge object unavailable (${response.status})`)
   return response.json() as Promise<KnowledgeObject>
+}
+
+export type IntelligenceGraph = {
+  center: {
+    object_id: string
+    object_type: string
+    canonical_key: string
+    label: string
+  }
+  relations: KnowledgeRelation[]
+  total_relation_count: number
+  neighborhood: string
+}
+
+export async function getIntelligenceGraph(objectId: string, limit = 24): Promise<IntelligenceGraph> {
+  const params = new URLSearchParams({ limit: String(limit) })
+  const response = await fetch(
+    `/api/v1/intelligence/objects/${encodeURIComponent(objectId)}/graph?${params.toString()}`,
+  )
+  if (!response.ok) throw new Error(response.status === 404 ? 'Knowledge graph not found' : `Knowledge graph unavailable (${response.status})`)
+  return response.json() as Promise<IntelligenceGraph>
 }
 
 export type ProofRunSummary = {
@@ -442,11 +555,43 @@ export type AgentCapabilityActivity = {
   observation_class: string | null
 }
 
+export type AgentModelRuntime = {
+  scope: string
+  request_limit: number
+  request_count: number
+  attempt_count: number
+  retry_attempt_count: number
+  retry_scheduled_count: number
+  failed_attempt_count: number
+  unknown_after_dispatch_count: number
+  p95_latency_ms: number | null
+  provider_counts: Record<string, number>
+  model_counts: Record<string, number>
+  latest_attempt_at: string | null
+}
+
+export type AgentControlRuntime = {
+  scope: string
+  sampled_task_count: number
+  dependency_wake_count: number
+  waiting_event_count: number
+  stop_reason_counts: Record<string, number>
+  wake_latency_ms: number | null
+  wake_latency_measurement: string
+}
+
 export type AgentRuntimeOverview = {
   generated_at: string
   roles: AgentRoleRuntime[]
   recent_tasks: AgentTaskSummary[]
   recent_capabilities: AgentCapabilityActivity[]
+  model_runtime: AgentModelRuntime
+  control_runtime: AgentControlRuntime
+}
+
+export type AgentTaskPage = {
+  generated_at: string
+  items: AgentTaskSummary[]
 }
 
 export type AgentTaskDetail = {

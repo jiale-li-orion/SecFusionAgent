@@ -17,11 +17,45 @@ import {
 } from 'lucide-react'
 import { getAgentLearning, getAgentRuntime, getAgentTask, getCompetitionProof, getCompetitionProofRun, type AgentRoleRuntime, type AgentTaskSummary, type ProductSkill } from '../lib/api'
 import { useI18n } from '../lib/i18n'
+import { dominantRuntimeName, rankRuntimeCounts, runtimeToken } from '../lib/runtimePresentation'
 
 const rolePresentation: Record<string, { alias: string; cn: string; tone: string; copy: string; copyEn: string }> = {
   DecisionRole: { alias: 'ORACLE', cn: '判谕者', tone: 'cyan', copy: '证据进入收束阶段后，ORACLE 生成 Decision，并保留引用、冲突与未决项。', copyEn: 'ORACLE closes verified context into a Decision while preserving citations, conflicts, and unknowns.' },
   InvestigationRole: { alias: 'ARGUS', cn: '百眼调查者', tone: 'violet', copy: 'ARGUS 围绕 EvidenceNeed 推进持久 Case，选择 Skill 与 Capability；需要补证时委派 Enrichment。', copyEn: 'ARGUS advances a durable Case around EvidenceNeed, selects Skill and Capability, and delegates Enrichment when required.' },
   EnrichmentRole: { alias: 'ALCHEMIST', cn: '炼证者', tone: 'amber', copy: 'ALCHEMIST 接收 Enrichment 子任务，把缺失维度补成新的 Evidence 与 Knowledge。', copyEn: 'ALCHEMIST receives Enrichment child tasks and turns missing dimensions into new Evidence and Knowledge.' },
+}
+
+function ModelRuntimeRibbon({ runtime }: { runtime: Awaited<ReturnType<typeof getAgentRuntime>> }) {
+  const { text } = useI18n()
+  const model = runtime.model_runtime
+  const control = runtime.control_runtime
+  const provider = dominantRuntimeName(model.provider_counts)
+  const actualModel = dominantRuntimeName(model.model_counts)
+  const stopReasons = rankRuntimeCounts(control.stop_reason_counts, 3)
+  return (
+    <section className="agent-model-runtime-ribbon">
+      <div className="agent-model-runtime-title">
+        <BrainCircuit size={14} />
+        <div><small>{text('最近持久 MODEL 执行', 'RECENT PERSISTED MODEL EXECUTION')}</small><strong>{model.scope.replaceAll('_', ' ')}</strong></div>
+        <span>{text(`最近 ${model.request_limit} 个请求上限`, `latest ${model.request_limit} request limit`)}</span>
+      </div>
+      <div className="agent-model-runtime-flow">
+        <div><small>REQUESTS</small><strong>{model.request_count}</strong><span>{model.attempt_count} attempts</span></div>
+        <i />
+        <div><small>RETRY ATTEMPTS</small><strong>{model.retry_attempt_count}</strong><span>{model.retry_scheduled_count} scheduled</span></div>
+        <i />
+        <div><small>FAILED / UNKNOWN</small><strong>{model.failed_attempt_count} / {model.unknown_after_dispatch_count}</strong><span>{model.p95_latency_ms == null ? 'p95 unavailable' : `p95 ${model.p95_latency_ms} ms`}</span></div>
+        <i />
+        <div><small>PROVIDER / MODEL</small><strong>{provider ?? '—'}</strong><span>{actualModel ?? '—'}</span></div>
+      </div>
+      <div className="agent-control-runtime-line">
+        <span><b>{control.dependency_wake_count}</b> dependency wakes</span>
+        <span><b>{control.waiting_event_count}</b> waiting boundaries</span>
+        <span><b>{control.wake_latency_measurement.toUpperCase()}</b> wake latency</span>
+        {stopReasons.map(([reason, count]) => <span key={reason}><b>{count}</b> {runtimeToken(reason)}</span>)}
+      </div>
+    </section>
+  )
 }
 
 function buildRecoveryTrace(events: Array<{ seq: number; event_type: string; producer: string; emitted_at: string }>) {
@@ -308,6 +342,7 @@ export function AgentsPage() {
         })}
       </div>
 
+      {runtime && <ModelRuntimeRibbon runtime={runtime} />}
       {detailQuery.data && <RuntimeActivityView detail={detailQuery.data} onSkillSelect={inspectSkillRef} />}
       {controlledRun && <AgentControlledProof run={controlledRun} detail={controlledRunQuery.data ?? null} />}
 

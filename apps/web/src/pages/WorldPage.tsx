@@ -18,7 +18,7 @@ import {
   X,
 } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { getHotWorld, getWorldOverview, type HotBug, type WorldOverview } from '../lib/api'
+import { getHotWorld, getHotWorldItem, getWorldOverview, type HotBug, type WorldOverview } from '../lib/api'
 import { useI18n } from '../lib/i18n'
 
 const WorldField3D = lazy(() => import('../components/world/WorldField3D').then((module) => ({ default: module.WorldField3D })))
@@ -118,6 +118,7 @@ export function WorldPage() {
   const focusedSource = sourceParam && sources.some((source) => source.key === sourceParam) ? sourceParam : null
   const focusedLane = laneParam && Object.hasOwn(worldLanePoints, laneParam) ? laneParam : null
   const focusedHotKey = hotParam
+  const focusedHotCoordinate = useMemo(() => parseHotIdentity(focusedHotKey), [focusedHotKey])
   const [locator, setLocator] = useState('')
   const [locatorError, setLocatorError] = useState('')
   const [worldWindow, setWorldWindow] = useState<WorldWindow>('1h')
@@ -126,6 +127,13 @@ export function WorldPage() {
   const [world3DReady, setWorld3DReady] = useState(false)
   const worldQuery = useQuery({ queryKey: ['world-overview'], queryFn: getWorldOverview, refetchInterval: 30_000 })
   const hotQuery = useQuery({ queryKey: ['world-hot'], queryFn: () => getHotWorld(6), refetchInterval: 20_000 })
+  const hotDetailQuery = useQuery({
+    queryKey: ['world-hot-detail', focusedHotCoordinate?.sourceId, focusedHotCoordinate?.externalObjectId],
+    queryFn: () => getHotWorldItem(focusedHotCoordinate!.sourceId, focusedHotCoordinate!.externalObjectId),
+    enabled: Boolean(focusedHotCoordinate),
+    refetchInterval: focusedHotCoordinate ? 20_000 : false,
+    retry: false,
+  })
   const snapshot = worldQuery.data
   const oneHour = snapshot?.windows['1h']
   const activeWindow = snapshot?.windows[worldWindow] ?? oneHour
@@ -145,9 +153,11 @@ export function WorldPage() {
     }]
   })), [snapshot?.category_hourly_series])
   const hotItems = useMemo(() => hotQuery.data?.items ?? [], [hotQuery.data?.items])
-  const focusedHot = useMemo(() => hotItems.find((item) => hotIdentity(item) === focusedHotKey) ?? null, [hotItems, focusedHotKey])
+  const focusedHot = hotDetailQuery.data
+    ?? hotItems.find((item) => hotIdentity(item) === focusedHotKey)
+    ?? null
   const focusedSourceMeta = sources.find((source) => source.key === focusedSource) ?? null
-  const hasFocus = Boolean(focusedSourceMeta || focusedHot || focusedLane)
+  const hasFocus = Boolean(focusedSourceMeta || focusedHotKey || focusedLane)
   const snapshotFresh = snapshot ? clockNow - new Date(snapshot.generated_at).getTime() <= 120_000 : false
 
   useEffect(() => {
@@ -269,7 +279,7 @@ export function WorldPage() {
         {locatorError && <span>{locatorError}</span>}
       </form>
 
-      <div className={`world-stage ${hasFocus ? 'has-focus' : ''} ${focusedSource ? 'focus-source' : ''} ${focusedHot ? 'focus-hot' : ''} ${focusedLane ? 'focus-lane' : ''}`}>
+      <div className={`world-stage ${hasFocus ? 'has-focus' : ''} ${focusedSource ? 'focus-source' : ''} ${focusedHotKey ? 'focus-hot' : ''} ${focusedLane ? 'focus-lane' : ''}`}>
         {snapshot && !snapshotFresh && (
           <div className="world-freeze-state">
             <span />
@@ -423,7 +433,7 @@ export function WorldPage() {
         <AnimatePresence>
           {hasFocus && (
             <motion.aside
-              className={`world-lens ${focusedHot ? 'lens-hot-focus' : 'lens-source-focus'}`}
+              className={`world-lens ${focusedHotKey ? 'lens-hot-focus' : 'lens-source-focus'}`}
               initial={{ opacity: 0, x: 48, clipPath: 'inset(0 0 0 18%)' }}
               animate={{ opacity: 1, x: 0, clipPath: 'inset(0 0 0 0%)' }}
               exit={{ opacity: 0, x: 28, clipPath: 'inset(0 0 0 12%)' }}
@@ -436,6 +446,15 @@ export function WorldPage() {
                   const query = new URLSearchParams({ cve: target, from: 'world', worldRef: `hot:${focusedHot.source_id}:${focusedHot.external_object_id}` })
                   navigate(`/intelligence?${query.toString()}`)
                 }} />
+              ) : focusedHotKey ? (
+                <div className="lens-stack hot-detail-state">
+                  <div className="lens-index">HOT WORKING SET / DIRECT READ</div>
+                  <div className="lens-title"><span><Flame size={18} /></span><div><small>{text('对象坐标', 'OBJECT COORDINATE')}</small><strong>{focusedHotKey}</strong></div></div>
+                  {hotDetailQuery.isLoading
+                    ? <p>{text('正在从 Redis Hot Layer 恢复该对象…', 'Resolving this object directly from the Redis Hot Layer…')}</p>
+                    : <p className="error-block">{text('当前 Hot Layer 中找不到该对象，或 detail read seam 不可用。', 'This object is absent from the current Hot Layer or the detail read seam is unavailable.')}</p>}
+                  <button className="recovery-action" onClick={() => void hotDetailQuery.refetch()}>{text('重试 Hot detail', 'RETRY HOT DETAIL')}</button>
+                </div>
               ) : focusedSourceMeta ? (
                 <SourceLens
                   source={focusedSourceMeta}
@@ -843,6 +862,16 @@ function laneSlug(lane: string) {
 
 function hotIdentity(item: HotBug) {
   return `${item.source_id}:${item.external_object_id}`
+}
+
+function parseHotIdentity(value: string | null) {
+  if (!value) return null
+  const separator = value.indexOf(':')
+  if (separator <= 0 || separator >= value.length - 1) return null
+  return {
+    sourceId: value.slice(0, separator),
+    externalObjectId: value.slice(separator + 1),
+  }
 }
 
 function snapshotAge(value: string) {

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useDeferredValue, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import {
@@ -22,12 +22,15 @@ import {
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   evidenceBoundObjectIds,
+  getDocumentByObject,
   getEvidence,
   getHotWorld,
   getIncident,
+  getIntelligenceGraph,
   getKnowledgeObject,
   getVulnerability,
   listIncidents,
+  searchIntelligence,
   type EvidenceRef,
   type IncidentDetail,
   type KnowledgeClaim,
@@ -49,7 +52,9 @@ export function IntelligencePage() {
   const paramIncident = params.get('incident') ?? ''
   const paramView = params.get('view')
   const [inputOverride, setInputOverride] = useState<string | null>(null)
+  const [searchError, setSearchError] = useState('')
   const input = inputOverride ?? (paramIncident ? `incident:${paramIncident}` : paramObject ? `object:${paramObject}` : paramCve)
+  const deferredInput = useDeferredValue(input.trim())
   const evidenceRef = paramEvidence
   const readingMode: 'dossier' | 'graph' | 'evidence' = paramEvidence || paramView === 'evidence'
     ? 'evidence'
@@ -59,6 +64,12 @@ export function IntelligencePage() {
   const [returnReadingMode, setReturnReadingMode] = useState<'dossier' | 'graph'>('dossier')
   const hotQuery = useQuery({ queryKey: ['world-hot-intelligence'], queryFn: () => getHotWorld(64), refetchInterval: 20_000 })
   const incidentListQuery = useQuery({ queryKey: ['incident-index'], queryFn: () => listIncidents(16), staleTime: 20_000 })
+  const objectSearchQuery = useQuery({
+    queryKey: ['intelligence-search', deferredInput],
+    queryFn: () => searchIntelligence(deferredInput, 12),
+    enabled: shouldSearchKnowledge(deferredInput),
+    staleTime: 20_000,
+  })
   const incidentQuery = useQuery({
     queryKey: ['incident', paramIncident],
     queryFn: () => getIncident(paramIncident),
@@ -76,6 +87,18 @@ export function IntelligencePage() {
     enabled: !paramIncident && Boolean(selectedObjectId || selectedCve),
   })
   const obj = knowledgeQuery.data
+  const graphQuery = useQuery({
+    queryKey: ['intelligence-graph', obj?.object_id],
+    queryFn: () => getIntelligenceGraph(obj!.object_id, 24),
+    enabled: Boolean(obj),
+    staleTime: 30_000,
+  })
+  const documentQuery = useQuery({
+    queryKey: ['product-document-by-object', obj?.object_id],
+    queryFn: () => getDocumentByObject(obj!.object_id),
+    enabled: Boolean(obj && (obj.object_type === 'Document' || obj.object_type === 'ResearchWork')),
+    staleTime: 30_000,
+  })
   const incident = incidentQuery.data
   const displayName = obj?.properties.display_name
   const headline = incident
@@ -89,11 +112,19 @@ export function IntelligencePage() {
     if (!value) return
     const incidentMatch = raw.match(/^incident:(.+)$/i)
     const objectMatch = raw.match(/^object:(.+)$/i)
+    setSearchError('')
     setInputOverride(/^CVE-\d{4}-\d+$/i.test(raw) ? value : raw)
     if (/^CVE-\d{4}-\d+$/.test(value)) setParams({ cve: value })
     else if (incidentMatch?.[1]?.trim()) setParams({ incident: incidentMatch[1].trim() })
     else if (objectMatch?.[1]?.trim()) setParams({ object: objectMatch[1].trim() })
-    else setParams({ object: raw })
+    else if (objectSearchQuery.data?.items[0]) openSearchResult(objectSearchQuery.data.items[0].object_id)
+    else setSearchError(text('当前 Knowledge World 没有匹配对象。', 'No matching object exists in the current Knowledge World.'))
+  }
+
+  function openSearchResult(objectId: string) {
+    setSearchError('')
+    setInputOverride(null)
+    setParams({ object: objectId })
   }
 
   const groupedClaims = useMemo(() => groupClaims(obj?.claims ?? []), [obj?.claims])
@@ -152,6 +183,35 @@ export function IntelligencePage() {
           <Search size={15} />
           <input value={input} onChange={(event) => setInputOverride(event.target.value)} placeholder="CVE-2026-… / object:<id> / incident:<id>" />
           <button type="submit">{text('打开档案', 'OPEN DOSSIER')}</button>
+          <AnimatePresence>
+            {shouldSearchKnowledge(input.trim()) && (
+              <motion.div
+                className="intel-object-search-results"
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+              >
+                <div className="intel-object-search-head">
+                  <small>{text('KNOWLEDGE OBJECT SEARCH', 'KNOWLEDGE OBJECT SEARCH')}</small>
+                  <span>{objectSearchQuery.isLoading ? text('检索中…', 'SEARCHING…') : text(`${objectSearchQuery.data?.items.length ?? 0} 个对象`, `${objectSearchQuery.data?.items.length ?? 0} objects`)}</span>
+                </div>
+                <div>
+                  {(objectSearchQuery.data?.items ?? []).map((item) => (
+                    <button type="button" key={item.object_id} onClick={() => openSearchResult(item.object_id)}>
+                      <span className="intel-search-object-kind">{item.object_type}</span>
+                      <div><strong>{item.label}</strong><small className="mono">{item.canonical_key}</small></div>
+                      <em>REV {item.created_revision}</em>
+                    </button>
+                  ))}
+                  {!objectSearchQuery.isLoading && !objectSearchQuery.isError && (objectSearchQuery.data?.items.length ?? 0) === 0 && (
+                    <p>{text('当前 durable Knowledge 没有匹配对象。', 'No matching object in current durable Knowledge.')}</p>
+                  )}
+                  {objectSearchQuery.isError && <p className="error-block">{String(objectSearchQuery.error.message)}</p>}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          {searchError && <span className="intel-search-error">{searchError}</span>}
         </form>
       </header>
 
@@ -217,6 +277,13 @@ export function IntelligencePage() {
               {(!obj || obj.object_type === 'Vulnerability')
                 ? <EnrichmentConstellation claims={obj?.claims ?? []} cveId={selectedCve || headline} />
                 : <ObjectFacetField obj={obj} />}
+              {obj && (obj.object_type === 'Document' || obj.object_type === 'ResearchWork') && (
+                <DocumentIndexDossier
+                  document={documentQuery.data ?? null}
+                  loading={documentQuery.isLoading}
+                  error={documentQuery.isError ? String(documentQuery.error.message) : null}
+                />
+              )}
 
               {knowledgeQuery.isError && !hotMatch && <div className="intel-state error-block"><span>{String(knowledgeQuery.error.message)}</span><button className="recovery-action" onClick={() => void knowledgeQuery.refetch()}>{text('重试 Knowledge read', 'RETRY KNOWLEDGE READ')}</button></div>}
               {!selectedCve && !selectedObjectId && <IntelligenceArchiveBlueprint />}
@@ -232,7 +299,11 @@ export function IntelligencePage() {
                   </div>
 
                   <FocusedKnowledgeGraph
-                    relations={obj.relations}
+                    relations={graphQuery.data?.relations ?? []}
+                    totalRelationCount={graphQuery.data?.total_relation_count ?? obj.relations.length}
+                    neighborhood={graphQuery.data?.neighborhood ?? 'canonical_outbound_one_hop'}
+                    loading={graphQuery.isLoading}
+                    error={graphQuery.isError ? String(graphQuery.error.message) : null}
                     selectedLabel={headline}
                     objectType={obj.object_type}
                     onEvidence={openEvidence}
@@ -267,6 +338,13 @@ export function IntelligencePage() {
 }
 
 function compactEvidenceObjectRef(value: string) { return value.length > 30 ? `${value.slice(0, 14)}…${value.slice(-8)}` : value }
+
+function shouldSearchKnowledge(value: string) {
+  if (value.length < 2) return false
+  if (/^object:/i.test(value) || /^incident:/i.test(value)) return false
+  if (/^CVE-\d{4}-\d+$/i.test(value)) return false
+  return true
+}
 
 function evidenceProvenanceClass(role: string, sourceClass: string) {
   const value = (role + ' ' + sourceClass).toLowerCase()
@@ -528,6 +606,66 @@ function ObjectFacetField({ obj }: { obj: Awaited<ReturnType<typeof getKnowledge
   )
 }
 
+function DocumentIndexDossier({
+  document,
+  loading,
+  error,
+}: {
+  document: Awaited<ReturnType<typeof getDocumentByObject>> | null
+  loading: boolean
+  error: string | null
+}) {
+  const { text } = useI18n()
+  if (loading) {
+    return <section className="document-index-dossier is-loading"><FileSearch size={18} /><span>{text('解析文档索引…', 'RESOLVING DOCUMENT INDEX…')}</span></section>
+  }
+  if (error || !document) {
+    return <section className="document-index-dossier is-error"><FileSearch size={18} /><span>{error ?? text('文档索引不可用', 'Document index unavailable')}</span></section>
+  }
+  const revision = document.current_revision
+  const indexed = Object.entries(document.index_status_counts).sort((a, b) => b[1] - a[1])
+  return (
+    <section className="document-index-dossier">
+      <div className="document-index-head">
+        <div>
+          <small>MANAGED DOCUMENT / INDEX PROVENANCE</small>
+          <strong>{revision?.title ?? document.external_object_id}</strong>
+          <span className="mono">{document.document_id}</span>
+        </div>
+        <div>
+          <small>{text('来源', 'SOURCE')}</small>
+          <strong>{document.source_id}</strong>
+          <span>{revision ? `${revision.parser_name}@${revision.parser_version}` : text('无 revision', 'no revision')}</span>
+        </div>
+      </div>
+      <div className="document-index-measures">
+        <div><small>CHUNKS</small><strong>{document.chunk_count}</strong><span>{text('正文不在 Product read 中暴露', 'content withheld from Product read')}</span></div>
+        <div><small>EMBEDDED</small><strong>{document.embedded_chunk_count}</strong><span>{document.embedding_models.join(' · ') || text('未记录 embedding model', 'no embedding model recorded')}</span></div>
+        <div><small>INDEX STATE</small><strong>{indexed.map(([status, count]) => `${count} ${status}`).join(' · ') || '—'}</strong><span>{text('持久 chunk 状态', 'persisted chunk state')}</span></div>
+        <div><small>SECTIONS</small><strong>{document.sections.length}</strong><span>{document.sections.slice(0, 3).join(' · ') || '—'}</span></div>
+      </div>
+      <div className="document-index-provenance">
+        <div>
+          <small>CURRENT REVISION</small>
+          <strong className="mono">{revision?.document_revision_id ?? '—'}</strong>
+          <span>{revision?.external_revision ?? revision?.content_hash.slice(0, 16) ?? '—'}</span>
+        </div>
+        <div>
+          <small>OBSERVATION</small>
+          <strong className="mono">{revision?.observation_id ?? '—'}</strong>
+          <span>{revision?.updated_at ? formatDate(revision.updated_at) : revision?.created_at ? formatDate(revision.created_at) : '—'}</span>
+        </div>
+        <div>
+          <small>INSIGHT CANDIDATE</small>
+          <strong>{document.insight?.promotion_state ?? '—'}</strong>
+          <span>{document.insight ? `${humanize(document.insight.change_type)} · ${humanize(document.insight.evidence_maturity)}` : text('未持久化 InsightCandidate', 'no persisted InsightCandidate')}</span>
+        </div>
+      </div>
+      {document.canonical_url && <a className="document-canonical-link" href={document.canonical_url} target="_blank" rel="noreferrer">{text('打开规范文档来源', 'OPEN CANONICAL DOCUMENT SOURCE')} <ExternalLink size={12} /></a>}
+    </section>
+  )
+}
+
 const enrichmentDimensions = [
   { key: 'identity', label: 'IDENTITY', test: /title|description|status|assigner|identifier|cve/i },
   { key: 'severity', label: 'SEVERITY', test: /cvss|severity|score/i },
@@ -646,7 +784,27 @@ function ClaimGroup({ title, claims, onEvidence }: { title: string; claims: Know
   )
 }
 
-function FocusedKnowledgeGraph({ relations, selectedLabel, objectType, onEvidence, onOpenTarget }: { relations: KnowledgeRelation[]; selectedLabel: string; objectType: string; onEvidence: (ref: string) => void; onOpenTarget: (objectId: string) => void }) {
+function FocusedKnowledgeGraph({
+  relations,
+  totalRelationCount,
+  neighborhood,
+  loading,
+  error,
+  selectedLabel,
+  objectType,
+  onEvidence,
+  onOpenTarget,
+}: {
+  relations: KnowledgeRelation[]
+  totalRelationCount: number
+  neighborhood: string
+  loading: boolean
+  error: string | null
+  selectedLabel: string
+  objectType: string
+  onEvidence: (ref: string) => void
+  onOpenTarget: (objectId: string) => void
+}) {
   const { text } = useI18n()
   const layers = useMemo(() => ['ALL', ...Array.from(new Set(relations.map((item) => item.target.object_type))).sort()], [relations])
   const [layer, setLayer] = useState('ALL')
@@ -662,8 +820,9 @@ function FocusedKnowledgeGraph({ relations, selectedLabel, objectType, onEvidenc
     <section className={`relation-section graph-mode ${selected ? 'graph-focused' : ''}`}>
       <div className="section-title-row">
         <div><small>FOCUSED KNOWLEDGE GRAPH</small><strong>RELATION NEIGHBORHOOD</strong></div>
-        <span>{text(`${relations.length} 条 canonical edges · ${visible.length} 条可见`, `${relations.length} canonical edges · ${visible.length} visible`)}</span>
+        <span>{text(`${totalRelationCount} 条 canonical edges · ${visible.length} 条可见`, `${totalRelationCount} canonical edges · ${visible.length} visible`)}</span>
       </div>
+      <div className="graph-read-boundary"><span>{neighborhood.replaceAll('_', ' ')}</span>{totalRelationCount > relations.length && <b>{text(`读取窗口 ${relations.length}/${totalRelationCount}`, `read window ${relations.length}/${totalRelationCount}`)}</b>}</div>
       <div className="graph-toolbar">
         <div className="graph-layers">
           {layers.map((item) => <button key={item} className={layer === item ? 'active' : ''} onClick={() => setLayer(item)}>{item}</button>)}
@@ -692,7 +851,9 @@ function FocusedKnowledgeGraph({ relations, selectedLabel, objectType, onEvidenc
             const dimmed = Boolean(selected && !active)
             return <GraphRelationNode key={relation.relation_id} relation={relation} point={point} active={active} dimmed={dimmed} onSelect={() => setSelectedId(active ? null : relation.relation_id)} />
           })}
-          {visible.length === 0 && <div className="graph-empty">{text('当前语义层没有 canonical Relation。', 'No canonical relation in this semantic layer.')}</div>}
+          {loading && <div className="graph-empty">{text('解析 bounded canonical neighborhood…', 'RESOLVING BOUNDED CANONICAL NEIGHBORHOOD…')}</div>}
+          {!loading && error && <div className="graph-empty error-block">{error}</div>}
+          {!loading && !error && visible.length === 0 && <div className="graph-empty">{text('当前语义层没有 canonical Relation。', 'No canonical relation in this semantic layer.')}</div>}
         </motion.div>
         <span className="graph-zoom-hint">{text('CTRL / ⌘ + 滚轮 · 缩放', 'CTRL / ⌘ + WHEEL · ZOOM')}</span>
 
