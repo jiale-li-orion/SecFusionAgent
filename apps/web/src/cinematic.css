@@ -1883,24 +1883,17 @@ body {
 @keyframes live-breathe { to { opacity: .42; } }
 
 @media (max-width: 1320px) {
-  .instrument-bar { grid-template-columns: 210px minmax(470px, 1fr) 290px; }
-  .instrument-nav-item { font-size: 8px; }
   .world-space,
   .start-space,
   .agents-space { padding-inline: 20px; }
   .source-beacon { min-width: 122px; }
   .source-beacon-copy em { display: none; }
-  .role-entity { grid-template-columns: 98px 1fr; gap: 8px; padding-inline: 12px; }
-  .role-entity .role-sigil { width: 90px; height: 90px; }
-  .role-entity-runtime { display: none; }
-  .agent-memory-complex { grid-template-columns: minmax(0, 1.25fr) 360px; }
+  .role-entity { padding-inline: 12px; }
 }
 
 @media (max-width: 1120px) {
-  .instrument-bar { grid-template-columns: 190px minmax(400px, 1fr) 260px; }
   .brand-copy small,
   .instrument-nav-item span { display: none; }
-  .instrument-nav-item { gap: 0; }
   .command-trigger span,
   .runtime-state { font-size: 0; }
   .source-beacon { min-width: 106px; }
@@ -5692,12 +5685,6 @@ body {
   border-top: 1px solid rgba(64,64,48,.11);
   padding-top: 16px;
 }
-
-@media (max-width: 1300px) {
-  .observatory-space.observatory-proof .proof-grid {
-    grid-template-columns: repeat(2,minmax(0,1fr));
-  }
-}
 .nav-copy {
   display: grid;
   gap: 2px;
@@ -6749,10 +6736,6 @@ body {
   .agent-memory-complex {
     grid-template-columns: 1fr;
   }
-  .experience-memory {
-    transform: none;
-    margin-top: 22px;
-  }
 }
 .source-provider-list {
   margin-top: 14px;
@@ -7363,10 +7346,6 @@ body {
   100% { opacity: 0; transform: translateX(34%); }
 }
 @media (max-width: 1180px) {
-  .world-hero-actions {
-    left: 21px;
-    top: 124px;
-  }
   .world-telemetry .telemetry-readout:nth-child(n+4) {
     display: none;
   }
@@ -7378,9 +7357,6 @@ body {
   }
   .processing-lanes {
     gap: 4px;
-  }
-  .processing-lanes span {
-    font-size: 6px;
   }
   .world-lens.lens-source-focus,
   .world-lens.lens-hot-focus {
@@ -7485,19 +7461,7 @@ body {
     display: none;
   }
   .intelligence-space .intel-reading-deck .relation-section {
-    position: relative;
-    top: auto;
-    min-height: 480px;
-    border-left: 0;
-    border-top: 1px solid rgba(73,66,54,.12);
     padding: 20px 0 0;
-  }
-
-  .investigations-space .investigation-layout {
-    grid-template-areas:
-      "cases"
-      "work"
-      "activity";
   }
   .investigations-space .case-list {
     display: grid;
@@ -7506,9 +7470,6 @@ body {
   }
 
   .role-theater {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 10px;
     padding-block: 12px;
   }
   .role-theater::before,
@@ -8767,21 +8728,6 @@ body {
 .start-decision-outcome {
   padding-top: 14px;
 }
-
-@media (max-width: 1360px) {
-
-  .payload-deck {
-    width: 326px;
-  }
-}
-
-@media (max-width: 1080px) {
-
-  .payload-deck {
-    max-height: none;
-    overflow: visible;
-  }
-}
 .role-theater.has-role-focus .role-entity {
   transition:
     left 320ms cubic-bezier(.22,1,.36,1),
@@ -9211,10 +9157,6 @@ body {
 }
 
 @media (max-width: 1080px) {
-  .world-hero-actions {
-    position: static;
-    margin-top: 14px;
-  }
   .world-live-flow-track {
     row-gap: 12px;
   }
@@ -9286,12 +9228,7 @@ body {
 }
 
 @media (max-width: 760px) {
-  .product-shell { --shell-rail: 62px; }
   .instrument-bar { padding-inline: 6px; }
-  .payload-field {
-    border-right: 0;
-    border-bottom: 1px solid rgba(255,255,255,.045);
-  }
   .investigations-space .investigation-layout {
     grid-template-areas:
       "cases"
@@ -10638,9 +10575,7 @@ body {
 @media (max-width: 1260px) {
   .experience-list {
     grid-template-columns: repeat(2,minmax(0,1fr));
-    border-right: 0;
     border-bottom: 1px solid rgba(114,215,255,.07);
-    padding: 0 0 12px;
   }
 }
 .task-field .task-topology-edges path.frozen {
@@ -12080,15 +12015,6 @@ body {
   font-size: 8px;
   font-weight: 520;
 }
-
-@media (max-width: 1280px) {
-  .skill-governance {
-    padding-left: 0;
-    padding-top: 12px;
-    border-left: 0;
-    border-top: 1px solid rgba(168,139,255,.07);
-  }
-}
 .case-wait-boundary {
   grid-column: 1 / -1;
   display: grid;
@@ -12253,16 +12179,8 @@ body {
   .route-aperture {
     inset: 0 0 70px;
   }
-  .world-title-lockup h1{
-    font-size: clamp(38px,12vw,58px);
-  }
-  .world-hero-actions {
-    position: static;
-    margin-top: 12px;
-  }
   .world-telemetry {
     padding: 0 18px;
-    background: rgba(242,248,252,.5);
   }
   .telemetry-readout {
     flex: 0 0 150px;
@@ -12292,9 +12210,6 @@ body {
   .hot-crystal:nth-of-type(4) { top: 50% !important; }
   .hot-crystal:nth-of-type(5) { top: 60% !important; }
   .hot-crystal:nth-of-type(6) { top: 70% !important; }
-  .world-lens {
-    max-height: 64vh;
-  }
   .world-semantic-legend,
   .world-focus-hint,
   .world-coordinate {
@@ -12303,19 +12218,11 @@ body {
   .world-live-flow {
     padding-inline: 14px;
   }
-
-  .start-theater {
-    min-height: 650px;
-  }
   .start-role-gate {
     width: 94px;
-    top: 16%;
   }
   .mode-chamber:not(.active) {
     width: 104px;
-  }
-  .mode-readout > div {
-    grid-template-columns: repeat(2,1fr);
   }
   .alchemist-boundary {
     width: 180px;
@@ -12442,9 +12349,6 @@ body {
     border-left: 0;
     border-top: 1px solid rgba(64,64,48,.11);
     padding: 18px 0 0;
-  }
-  .observatory-space.observatory-proof .proof-grid {
-    grid-template-columns: 1fr;
   }
 }
 .investigation-evidence-lens {
@@ -12654,24 +12558,15 @@ body {
 }
 
 @media (max-width: 1320px) {
-  .payload-deck {
-    width: min(430px,38vw);
-  }
   .start-theater {
     width: min(1060px,82vw);
   }
 }
 
 @media (max-width: 1080px) {
-  .start-theater {
-    height: 560px;
-  }
   .payload-deck,
   .start-outcome {
     inset: auto;
-  }
-  .advanced-toggle {
-    position: static;
   }
 }
 .route-aperture {
@@ -12930,13 +12825,6 @@ body {
   }
   .start-route-legend {
     margin-top: 14px;
-  }
-  .start-theater {
-    min-height: 650px;
-    margin-top: 14px;
-  }
-  .payload-deck {
-    margin-top: 18px;
   }
 }
 
