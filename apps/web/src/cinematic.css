@@ -420,6 +420,7 @@ body {
   gap: 4px;
   pointer-events: none;
   text-align: center;
+  backdrop-filter: blur(12px);
 }
 
 .durable-core-label small {
@@ -677,6 +678,7 @@ body {
 
 .processing-lanes {
   transform: translateX(-50%);
+  pointer-events: none;
 }
 
 .processing-lanes span {
@@ -765,6 +767,7 @@ body {
 
 .hot-field {
   z-index: 16;
+  pointer-events: none;
 }
 
 .hot-field-label {
@@ -773,6 +776,7 @@ body {
   align-items: center;
   font-size: 6px;
   letter-spacing: .12em;
+  pointer-events: auto;
 }
 
 .hot-field-label svg { color: var(--amber); }
@@ -786,6 +790,7 @@ body {
   color: #7d6f94;
   cursor: pointer;
   text-align: left;
+  pointer-events: auto;
 }
 
 .hot-crystal::after {
@@ -874,6 +879,7 @@ body {
 
 .world-lens {
   padding: 24px 20px;
+  backdrop-filter: blur(18px);
 }
 
 .world-lens::before {
@@ -1160,6 +1166,7 @@ body {
   cursor: pointer;
   text-align: left;
   will-change: left, top, transform, opacity;
+  transform-origin: center center;
 }
 
 .mode-chamber-index {
@@ -1495,6 +1502,8 @@ body {
 .role-entity {
   z-index: 1;
   align-self: center;
+  cursor: pointer;
+  clip-path: none;
 }
 
 .role-entity.role-live {
@@ -1637,7 +1646,6 @@ body {
 
 .instrument-section-head strong {
   color: #aeb8b4;
-  font-size: 8px;
   letter-spacing: .07em;
 }
 
@@ -1724,7 +1732,6 @@ body {
   align-items: center;
   gap: 9px;
   padding: 6px 8px 6px 0;
-  border-top: 1px solid rgba(255,255,255,.045);
   color: #65727a;
   text-align: left;
   cursor: pointer;
@@ -2022,7 +2029,7 @@ body {
   align-content: center;
   gap: 3px;
   padding: 7px 13px;
-  background: transparent;
+  background: transparent; min-width: 72px;
 }
 
 .intelligence-space .dossier-stat small {
@@ -2163,6 +2170,7 @@ body {
 .intelligence-space .graph-relation-node {
   border-radius: 0;
   clip-path: polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);
+  border-color: rgba(83,72,54,.12);
 }
 
 .intelligence-space .evidence-inspector {
@@ -2420,6 +2428,7 @@ body {
 
 .observatory-space .chart-scanline {
   opacity: .4;
+  animation: none;
 }
 
 .observatory-space .agent-spectrum-row.live {
@@ -2722,6 +2731,7 @@ body {
   border-color: rgba(114,215,255,.14);
   align-self: end;
   margin-bottom: 8px;
+  pointer-events: auto;
 }
 
 .world-hero-actions button {
@@ -2963,10 +2973,8 @@ body {
 
 .intelligence-space .intel-side {
   transform: translateY(42px);
-}
-
-.dossier-hero {
-  padding-right: 20px;
+  backdrop-filter: blur(12px);
+  align-self: start;
 }
 
 .intelligence-space .dossier-stat {
@@ -3148,7 +3156,6 @@ body {
 }
 
 .intel-search {
-  margin-bottom: 8px;
   height: 36px;
   border-radius: 0;
 }
@@ -3159,7 +3166,6 @@ body {
   padding-inline: 8px 0;
 }
 .dossier-hero {
-  padding-left: 6px;
   border: 0;
   border-left: 1px solid rgba(114,215,255,.12);
 }
@@ -3167,7 +3173,6 @@ body {
 .intelligence-space .dossier-stats {
   align-self: end;
 }
-.intelligence-space .dossier-stat { min-width: 72px; }
 .intelligence-space .dossier-stat strong { font-size: 24px; }
 .evidence-inspector {
   border: 0;
@@ -3305,7 +3310,6 @@ body {
 .role-entity {
   color: inherit;
   font: inherit;
-  cursor: pointer;
 }
 .role-entity.role-focused {
   z-index: 6;
@@ -3860,6 +3864,7 @@ body {
     "confirmed conflicts"
     "confirmed unknowns"
     "needs needs";
+  grid-template-columns: minmax(0,1.2fr) minmax(260px,.8fr);
 }
 
 .investigations-space .state-column {
@@ -4691,7 +4696,6 @@ body {
 
 .durable-core-label {
   color: #24384a;
-  backdrop-filter: blur(12px);
 }
 
 .world-semantic-legend,
@@ -4708,7 +4712,6 @@ body {
 .world-lens {
   color: #223746;
   border-color: rgba(49,86,112,.14);
-  backdrop-filter: blur(18px);
 }
 
 .world-lens strong,
@@ -4888,8 +4891,6 @@ body {
   border-top: 1px solid rgba(68,61,50,.12);
 }
 .intelligence-space .intel-side {
-  backdrop-filter: blur(12px);
-  align-self: start;
   padding: 18px 0 18px 18px;
   border-left: 1px solid rgba(73,66,54,.14);
   box-shadow: none;
@@ -4946,10 +4947,12 @@ body {
   background: rgba(255,255,249,.28);
   display: grid;
   box-shadow: none;
+  align-items: center;
 }
 .observatory-space.observatory-proof .proof-run-ledger {
   margin-top: 34px;
   background: transparent;
+  padding-top: 20px;
 }
 
 @media (max-width: 1320px) {
@@ -4959,7 +4962,6 @@ body {
 }
 
 .world-hero-actions {
-  pointer-events: auto;
   position: absolute;
   display: flex;
   gap: 18px;
@@ -5009,7 +5011,6 @@ body {
 .hot-field {
   position: absolute;
   inset: 0;
-  pointer-events: none;
 }
 
 .hot-field-label {
@@ -5018,11 +5019,6 @@ body {
   gap: 2px;
   padding-left: 12px;
   border-left: 2px solid rgba(190,91,61,.35);
-  pointer-events: auto;
-}
-
-.hot-crystal {
-  pointer-events: auto;
 }
 
 .telemetry-readout {
@@ -5182,7 +5178,6 @@ body {
 .intelligence-space .graph-relation-node {
   color: #403d36;
   background: rgba(244,240,231,.86);
-  border-color: rgba(83,72,54,.12);
 }
 
 .intelligence-space .graph-relation-node.selected {
@@ -5251,7 +5246,6 @@ body {
   align-items: center;
   gap: 14px;
   box-shadow: none;
-  clip-path: none;
   text-align: left;
 }
 
@@ -5398,7 +5392,6 @@ body {
 }
 .investigations-space .case-state-grid {
   display: grid;
-  grid-template-columns: minmax(0,1.2fr) minmax(260px,.8fr);
   gap: 12px 16px;
   align-items: stretch;
 }
@@ -5595,10 +5588,6 @@ body {
   border-left: 1px solid rgba(114,215,255,.055);
 }
 
-.observatory-space.observatory-proof .proof-seal {
-  align-items: center;
-}
-
 .observatory-space.observatory-proof .proof-seal-mark {
   transform: scale(1.18);
 }
@@ -5612,7 +5601,6 @@ body {
 
 .observatory-space.observatory-proof .proof-run-ledger {
   border-top: 1px solid rgba(64,64,48,.12);
-  padding-top: 20px;
 }
 
 .observatory-space.observatory-proof .proof-run-rail button {
@@ -6607,6 +6595,7 @@ body {
 
 .skill-record-title {
   grid-template-columns: auto 1fr auto;
+  justify-content: space-between;
 }
 .skill-record-title span,
 .skill-record-title b {
@@ -6683,6 +6672,10 @@ body {
   margin-top: 18px;
   border-top: 1px solid rgba(255,255,255,.04);
   counter-reset: durable-experience;
+  align-content: start;
+  align-self: start;
+  max-height: calc(100vh - 110px);
+  scrollbar-width: thin;
 }
 .experience-list article {
   counter-increment: durable-experience;
@@ -8028,7 +8021,6 @@ body {
   position: absolute;
   inset: 0;
   display: block;
-  pointer-events: none;
 }
 
 .processing-lanes span {
@@ -8405,7 +8397,6 @@ body {
 
 .mode-chamber {
   transform: translate(-50%,-50%);
-  transform-origin: center center;
 }
 
 .mode-chamber.active {
@@ -8697,10 +8688,6 @@ body {
 
 .payload-deck-head > div > strong {
   letter-spacing: -.02em;
-}
-
-.advanced-toggle {
-  padding-left: 8px;
 }
 
 .payload-launch.role-oracle {
@@ -9125,9 +9112,6 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .mode-chamber.mode-watch::before { animation: none; }
-}
-.payload-deck-head {
-  border-top: 1px solid rgba(168,139,255,.08);
 }
 .payload-launch:hover {
   background:
@@ -10391,7 +10375,6 @@ body {
 
 .experience-list {
   display: grid;
-  align-content: start;
   gap: 3px;
 }
 
@@ -10746,12 +10729,10 @@ body {
 }
 .observatory-space .chart-scanline {
   display: none;
-  animation: none;
 }
 .agent-origin {
   z-index: 18;
   max-width: min(720px,78vw);
-  border-left: 1px solid rgba(168,139,255,.22);
   color: #697079;
 }
 .agent-origin > span {
@@ -10926,6 +10907,7 @@ body {
   overflow: visible;
   max-height: none;
   scrollbar-width: thin;
+  grid-area: payload;
 }
 
 .payload-deck::before {
@@ -10967,13 +10949,17 @@ body {
 .world-title-lockup > div:first-child > small { color:#536f82; }
 
 .mission-briefing { grid-template-columns:minmax(0,1fr) auto; align-items:end; border-bottom:1px solid rgba(168,139,255,.08);
-  gap: 28px; }
+  gap: 28px;
+  grid-area: brief;
+  align-self: stretch;
+  align-content: start; }
 .mission-briefing p { margin:0 0 3px; color:#716980; font:7.5px ui-monospace,monospace; letter-spacing:.12em; }
 .mission-briefing h1 { color:#eeeaf4; font-weight:650; }
 .mission-briefing h1 span { color:#9284bd; }
 .mission-briefing > div:first-child > small { display:block; }
 .mission-briefing .start-route-legend { align-self:end;
-  left: 18px; }
+  left: 18px;
+  bottom: -34px; }
 .dossier-masthead::before { content:"SECFUSION / INTELLIGENCE ARCHIVE"; position:absolute; left:3vw; top:26px; color:rgba(72,64,52,.42); font:7px ui-monospace,monospace; letter-spacing:.15em; }
 .dossier-masthead p { margin:0 0 7px; color:#8a8175; font:8px ui-monospace,monospace; letter-spacing:.10em; }
 .dossier-masthead h1 { color:#292720; font-family:Georgia,"Times New Roman",serif; font-weight:560; letter-spacing:-.055em; }
@@ -11890,7 +11876,6 @@ body {
 
 .skill-record-title {
   display: flex;
-  justify-content: space-between;
   gap: 18px;
   align-items: start;
   margin-bottom: 10px;
@@ -12469,7 +12454,6 @@ body {
 }
 
 .mission-briefing .start-route-legend {
-  bottom: -34px;
   margin: 0;
 }
 
@@ -12678,10 +12662,7 @@ body {
 }
 
 .mission-briefing {
-  grid-area: brief;
-  align-self: stretch;
   display: grid;
-  align-content: start;
 
   border-right: 1px solid rgba(168,139,255,.09);
 }
@@ -12744,7 +12725,6 @@ body {
 }
 
 .payload-deck {
-  grid-area: payload;
   margin: 0;
 }
 
@@ -12762,12 +12742,10 @@ body {
 
 .mission-advanced {
   backdrop-filter: blur(18px);
-  margin-top: 14px;
 }
 
 .start-outcome {
   backdrop-filter: blur(16px);
-  margin-top: 14px;
 }
 
 @media (max-width: 1320px) {
@@ -13647,8 +13625,6 @@ body {
   }
 }
 .intel-reading-switch {
-  right: 0;
-  bottom: -14px;
   display: grid;
   grid-template-columns: repeat(3,auto);
   align-items: center;
@@ -14371,9 +14347,6 @@ body {
 }
 .runtime-stage-caption {
   z-index: 18;
-  left: 2.2vw;
-  right: 2.2vw;
-  top: 62px;
   border: 0;
   pointer-events: none;
 }
@@ -14707,12 +14680,9 @@ body {
 .experience-list {
   position: sticky;
   top: 72px;
-  align-self: start;
-  max-height: calc(100vh - 110px);
   overflow: auto;
   padding: 0 14px 0 0;
   border-right: 1px solid rgba(114,215,255,.07);
-  scrollbar-width: thin;
 }
 
 .experience-list button {
@@ -15105,9 +15075,6 @@ body {
 .dossier-origin button:hover {
   color: #c1b6d0;
   transform: translateX(-3px);
-}
-.dossier-origin {
-  border-left-color: rgba(113,91,57,.22);
 }
 .dossier-origin button {
   border-bottom-color: rgba(113,91,57,.2);
@@ -15655,29 +15622,16 @@ body .product-shell .observatory-proof .proof-grid .proof-block:nth-child(1)::af
   font-size: 11px;
 }
 
-.payload-launch {
-  border-left: 1px solid rgba(168,139,255,.18);
-}
-
 .payload-launch strong {
   font-size: 13px;
 }
 
 .advanced-toggle {
   position: static;
-  margin-left: auto;
-}
-
-.mission-advanced {
-  left: 0;
-  right: 0;
-  bottom: calc(100% + 8px);
 }
 
 .start-outcome {
   z-index: 47;
-  left: calc(var(--shell-rail) + 26px);
-  bottom: 190px;
 }
 
 @media (max-width: 1260px) {
