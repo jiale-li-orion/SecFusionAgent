@@ -349,6 +349,13 @@ body {
   cursor: pointer;
   font-size: 8px;
   letter-spacing: 0.11em;
+  transition: transform 180ms cubic-bezier(.22,1,.36,1), color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-bottom: 1px solid rgba(114,215,255,.12);
+  border-bottom-color: rgba(42,78,103,.18);
 }
 
 .world-hero-actions button:last-child {
@@ -1039,6 +1046,11 @@ body {
   gap: 3px 10px;
   color: var(--cyan);
   border-left: 1px solid rgba(255,255,255,.06);
+  border-right: 0;
+  border-left-color: rgba(45,73,93,.1);
+  background: transparent;
+  min-height: 92px;
+  padding: 12px 13px 9px;
 }
 
 .telemetry-readout:last-child { border-right: 0; }
@@ -1337,6 +1349,9 @@ body {
   color: var(--violet);
   cursor: pointer;
   text-align: left;
+  margin: 0; grid-area: launch;
+  align-self: stretch;
+  transform: none;
 }
 
 .payload-launch.role-oracle {
@@ -1382,6 +1397,10 @@ body {
   grid-template-columns: 130px 90px 1fr auto auto;
   align-items: center;
   gap: 10px;
+  padding: 0;
+  box-shadow: 0 22px 65px rgba(0,0,0,.28);
+  backdrop-filter: blur(16px);
+  z-index: 47;
 }
 
 .start-outcome.accepted { border-color: var(--violet); background: linear-gradient(90deg, rgba(168,139,255,.045), transparent 42%); }
@@ -1482,6 +1501,17 @@ body {
 .role-theater {
   border-top: 1px solid var(--hairline);
   padding-inline: 16px;
+  grid-template-columns: 1fr 1.16fr .9fr;
+  gap: 24px;
+  display: block;
+  margin: 4px 2vw 18px;
+  border-bottom: 1px solid rgba(168,139,255,.08);
+  background:
+    radial-gradient(circle at 50% 31%,rgba(114,215,255,.055),transparent 17%),
+    radial-gradient(circle at 18% 61%,rgba(168,139,255,.05),transparent 18%),
+    radial-gradient(circle at 83% 64%,rgba(255,179,92,.045),transparent 20%);
+  margin-top: 0;
+  padding-top: 78px;
 }
 
 .role-axis {
@@ -1504,6 +1534,17 @@ body {
   align-self: center;
   cursor: pointer;
   clip-path: none;
+  border: 0 !important;
+  background: transparent !important;
+  color: inherit;
+  font: inherit;
+  transition: filter 220ms ease, opacity 220ms ease, transform 260ms cubic-bezier(.22,1,.36,1);
+  display: grid;
+  grid-template-columns: 132px minmax(0,1fr);
+  align-items: center;
+  gap: 14px;
+  box-shadow: none;
+  text-align: left;
 }
 
 .role-entity.role-live {
@@ -1618,6 +1659,10 @@ body {
   min-height: 620px;
   margin-top: 16px;
   margin-inline: 2vw;
+  border-bottom: 0;
+  border-top: 1px solid rgba(168,139,255,.07);
+  padding-top: 18px;
+  background: linear-gradient(180deg,rgba(255,255,255,.012),transparent 26%);
 }
 
 .task-field {
@@ -1987,6 +2032,10 @@ body {
 
 .dossier-hero {
   justify-content: space-between;
+  border: 0;
+  border-left: 1px solid rgba(114,215,255,.12);
+  color: #272620;
+  border-left-color: rgba(99,83,57,.22);
 }
 
 .intelligence-space .dossier-id {
@@ -2212,6 +2261,10 @@ body {
 
 .investigations-space .case-card {
   min-height: 76px;
+  margin-bottom: 4px;
+  padding-left: 4px;
+  transition: transform 180ms ease, opacity 180ms ease, background 180ms ease, border-color 180ms ease;
+  opacity: .78;
 }
 
 .investigations-space .case-workspace {
@@ -2239,6 +2292,11 @@ body {
 .investigations-space .state-column {
   min-width: 0;
   border: 0;
+  transition: opacity 180ms ease, filter 180ms ease, transform 200ms cubic-bezier(.22,1,.36,1);
+  min-height: 210px;
+  background:
+    linear-gradient(180deg,rgba(13,17,23,.42),rgba(7,9,13,.18) 74%,transparent);
+  opacity: 1;
 }
 
 .investigations-space .state-item {
@@ -2424,6 +2482,11 @@ body {
 
 .observatory-space .telemetry-chart {
   border-radius: 0;
+  min-height: 174px;
+  border: 0;
+  border-bottom: 1px solid rgba(114,215,255,.045);
+  border-bottom-color: rgba(114,215,255,.08);
+  background: linear-gradient(180deg,rgba(114,215,255,.022),transparent);
 }
 
 .observatory-space .chart-scanline {
@@ -2732,10 +2795,14 @@ body {
   align-self: end;
   margin-bottom: 8px;
   pointer-events: auto;
-}
-
-.world-hero-actions button {
-  transition: transform 180ms cubic-bezier(.22,1,.36,1), color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  position: absolute;
+  display: flex;
+  gap: 18px;
+  left: 31px;
+  top: 184px;
 }
 
 .world-hero-actions button:hover {
@@ -2919,10 +2986,6 @@ body {
   padding: 0 20px;
 }
 
-.telemetry-readout {
-  border-right: 0;
-}
-
 .telemetry-readout:nth-child(2),
 .telemetry-readout:nth-child(5) {
   transform: translateY(7px);
@@ -2932,9 +2995,6 @@ body {
   width: 18%;
   opacity: .22;
 }
-.role-theater {
-  grid-template-columns: 1fr 1.16fr .9fr;
-}
 
 .role-entity + .role-entity {
   border-left: 0;
@@ -2942,10 +3002,6 @@ body {
 
 .role-entity::before {
   height: 1px;
-}
-
-.agent-runtime-grid {
-  border-bottom: 0;
 }
 
 .task-field {
@@ -2975,6 +3031,11 @@ body {
   transform: translateY(42px);
   backdrop-filter: blur(12px);
   align-self: start;
+  background: rgba(240,236,226,.72);
+  padding: 18px 0 18px 18px;
+  border-left: 1px solid rgba(73,66,54,.14);
+  box-shadow: none;
+  min-height: calc(100vh - 90px);
 }
 
 .intelligence-space .dossier-stat {
@@ -3022,6 +3083,15 @@ body {
 .investigations-space .conversation-shell {
   border: 0;
   margin-left: 0;
+  border-top: 0;
+  border-bottom: 0;
+  border-left: 1px solid rgba(168,139,255,.12);
+  padding-left: 16px;
+  border-left-color: rgba(168,139,255,.14);
+  background:
+    linear-gradient(90deg,rgba(168,139,255,.055),transparent 68%),
+    radial-gradient(circle at 75% 16%,rgba(168,139,255,.055),transparent 25%),
+    rgba(13,15,20,.38);
 }
 
 .observatory-space .live-metric {
@@ -3117,19 +3187,6 @@ body {
 }
 .command-trigger kbd { opacity: .42; border: 0; background: transparent; }
 .global-start-glyph { border: 0; background: transparent; }
-
-.world-hero-actions {
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-}
-.world-hero-actions button {
-  height: 32px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  border-bottom: 1px solid rgba(114,215,255,.12);
-}
 .world-hero-actions button:hover,
 .world-hero-actions button.launch:hover {
   transform: translateX(4px);
@@ -3153,6 +3210,16 @@ body {
 .world-focus-hint { border: 0; background: transparent; opacity: .56; }
 .world-telemetry {
   padding: 9px 28px 16px;
+  color: #2b4151;
+  border-color: rgba(38,68,90,.13);
+  gap: 0 !important;
+  align-items: stretch;
+  background:
+    linear-gradient(180deg,rgba(247,251,253,.48),rgba(240,247,251,.16));
+  border-top: 1px solid rgba(48,78,101,.08);
+  border-bottom: 1px solid rgba(48,78,101,.08);
+  box-shadow: none;
+  backdrop-filter: blur(8px);
 }
 
 .intel-search {
@@ -3164,10 +3231,6 @@ body {
   border: 0;
   background: transparent;
   padding-inline: 8px 0;
-}
-.dossier-hero {
-  border: 0;
-  border-left: 1px solid rgba(114,215,255,.12);
 }
 .dossier-sigil { border: 0; background: transparent; }
 .intelligence-space .dossier-stats {
@@ -3186,19 +3249,11 @@ body {
   background: linear-gradient(90deg,rgba(114,215,255,.018),transparent);
 }
 .intel-blueprint-claims > div:nth-child(even) { transform: translateY(12px); }
-
-.role-theater {
-  gap: 24px;
-}
 .role-axis {
   width: auto;
   height: 1px;
   bottom: auto;
   background: linear-gradient(90deg,transparent,rgba(114,215,255,.13),rgba(168,139,255,.16),rgba(255,179,92,.13),transparent);
-}
-.role-entity {
-  border: 0 !important;
-  background: transparent !important;
 }
 .investigations-space .case-rail-head,
 .investigations-space .activity-head {
@@ -3206,10 +3261,6 @@ body {
   padding-left: 0;
   padding-right: 0;
   opacity: .78;
-}
-.investigations-space .case-card {
-  margin-bottom: 4px;
-  padding-left: 4px;
 }
 .investigations-space .case-card.selected {
   border-left-color: rgba(168,139,255,.55);
@@ -3306,11 +3357,6 @@ body {
   font-style: normal;
   letter-spacing: .08em;
 }
-
-.role-entity {
-  color: inherit;
-  font: inherit;
-}
 .role-entity.role-focused {
   z-index: 6;
   filter: brightness(1.22) saturate(1.08);
@@ -3405,9 +3451,6 @@ body {
   transform: translateY(-4px);
 }
 .system-status-panel { cursor: pointer; }
-.investigations-space .state-column {
-  transition: opacity 180ms ease, filter 180ms ease, transform 200ms cubic-bezier(.22,1,.36,1);
-}
 .investigations-space .state-column-head {
   width: 100%;
   appearance: none;
@@ -3867,12 +3910,6 @@ body {
   grid-template-columns: minmax(0,1.2fr) minmax(260px,.8fr);
 }
 
-.investigations-space .state-column {
-  min-height: 210px;
-  background:
-    linear-gradient(180deg,rgba(13,17,23,.42),rgba(7,9,13,.18) 74%,transparent);
-}
-
 .investigations-space .state-column:nth-child(2),
 .investigations-space .state-column:nth-child(4) {
   transform: translateY(12px);
@@ -3880,13 +3917,6 @@ body {
 
 .investigations-space .decision-focus-wrap {
   min-width: 0;
-}
-
-.investigations-space .conversation-shell {
-  border-top: 0;
-  border-bottom: 0;
-  border-left: 1px solid rgba(168,139,255,.12);
-  padding-left: 16px;
 }
 
 .investigations-space .conversation-title {
@@ -4663,10 +4693,6 @@ body {
   pointer-events: none;
 }
 
-.world-hero-actions button {
-  border-bottom-color: rgba(42,78,103,.18);
-}
-
 .world-hero-actions button.launch {
   color: #7a572e;
   border-bottom-color: rgba(151,103,50,.28);
@@ -4718,14 +4744,6 @@ body {
 .world-lens h2 {
   color: #203444;
 }
-
-.world-telemetry {
-  color: #2b4151;
-}
-
-.telemetry-readout {
-  border-left-color: rgba(45,73,93,.1);
-}
 .shell-space-start {
   background: #05070b;
 }
@@ -4770,11 +4788,6 @@ body {
   background-size: 140px 100%,auto !important;
 }
 
-.dossier-hero {
-  color: #272620;
-  border-left-color: rgba(99,83,57,.22);
-}
-
 .intelligence-space .dossier-id small,
 .intelligence-space .dossier-id span,
 .intelligence-space .dossier-stat small,
@@ -4806,10 +4819,6 @@ body {
 .intelligence-space .claim-row,
 .intelligence-space .inspector-block {
   border-color: rgba(68,61,50,.08);
-}
-
-.intelligence-space .intel-side {
-  background: rgba(240,236,226,.72);
 }
 .shell-space-investigations {
   background: #111316;
@@ -4890,11 +4899,6 @@ body {
   padding-top: 24px;
   border-top: 1px solid rgba(68,61,50,.12);
 }
-.intelligence-space .intel-side {
-  padding: 18px 0 18px 18px;
-  border-left: 1px solid rgba(73,66,54,.14);
-  box-shadow: none;
-}
 .investigation-stats {
   align-items: center;
 }
@@ -4903,11 +4907,6 @@ body {
 }
 .investigations-space .activity-rail {
   border-left: 1px solid rgba(255,179,92,.05);
-}
-.role-theater {
-  display: block;
-  margin: 4px 2vw 18px;
-  border-bottom: 1px solid rgba(168,139,255,.08);
 }
 .role-axis {
   left: 9%;
@@ -4959,12 +4958,6 @@ body {
   .intelligence-space .intel-section-grid {
     columns: 1;
   }
-}
-
-.world-hero-actions {
-  position: absolute;
-  display: flex;
-  gap: 18px;
 }
 
 .world-webgl {
@@ -5019,10 +5012,6 @@ body {
   gap: 2px;
   padding-left: 12px;
   border-left: 2px solid rgba(190,91,61,.35);
-}
-
-.telemetry-readout {
-  background: transparent;
 }
 
 .telemetry-readout:nth-child(2),
@@ -5189,10 +5178,6 @@ body {
   min-height: 70vh;
 }
 
-.intelligence-space .intel-side {
-  min-height: calc(100vh - 90px);
-}
-
 .intelligence-space .claim-group-title {
   position: relative;
   padding-bottom: 8px;
@@ -5213,12 +5198,6 @@ body {
   grid-template-columns: 120px minmax(0,1fr);
   padding: 9px 0;
 }
-.role-theater {
-  background:
-    radial-gradient(circle at 50% 31%,rgba(114,215,255,.055),transparent 17%),
-    radial-gradient(circle at 18% 61%,rgba(168,139,255,.05),transparent 18%),
-    radial-gradient(circle at 83% 64%,rgba(255,179,92,.045),transparent 20%);
-}
 
 .role-theater::before,
 .role-theater::after {
@@ -5237,16 +5216,6 @@ body {
 }
 .role-theater::after {
   border-style: dashed;
-}
-
-.role-entity {
-  transition: filter 220ms ease, opacity 220ms ease, transform 260ms cubic-bezier(.22,1,.36,1);
-  display: grid;
-  grid-template-columns: 132px minmax(0,1fr);
-  align-items: center;
-  gap: 14px;
-  box-shadow: none;
-  text-align: left;
 }
 
 .role-entity::before {
@@ -5343,11 +5312,6 @@ body {
 .role-entity.role-enrichmentrole .alchemist-sigil {
   color: var(--amber);
   filter: drop-shadow(0 0 24px rgba(255,179,92,.07));
-}
-
-.agent-runtime-grid {
-  border-top: 1px solid rgba(168,139,255,.07);
-  padding-top: 18px;
 }
 
 .task-topology {
@@ -5507,10 +5471,6 @@ body {
     transparent;
 }
 
-.investigations-space .conversation-shell {
-  border-left-color: rgba(168,139,255,.14);
-}
-
 @media (max-width: 1220px) {
   .investigations-space .case-state-grid {
     grid-template-columns: 1fr;
@@ -5541,6 +5501,10 @@ body {
   border: 0;
   border-left: 1px solid rgba(114,215,255,.11);
   padding-left: 18px; grid-row: span 2;
+  border-left-color: rgba(114,215,255,.18);
+  background:
+    radial-gradient(circle at 30% 28%,rgba(114,215,255,.055),transparent 26%),
+    rgba(7,14,19,.18);
 }
 
 .observatory-space .source-spectrum {
@@ -5567,12 +5531,6 @@ body {
 
 .observatory-space .telemetry-charts {
   gap: 24px;
-}
-
-.observatory-space .telemetry-chart {
-  min-height: 174px;
-  border: 0;
-  border-bottom: 1px solid rgba(114,215,255,.045);
 }
 
 .observatory-space .chart-canvas {
@@ -5952,14 +5910,6 @@ body {
   text-shadow: 0 0 18px rgba(114,215,255,.07);
 }
 
-.observatory-space .telemetry-wide {
-  border-left-color: rgba(114,215,255,.18);
-}
-
-.observatory-space .telemetry-chart {
-  border-bottom-color: rgba(114,215,255,.08);
-}
-
 .observatory-space .chart-canvas {
   background:
     linear-gradient(rgba(114,215,255,.04) 1px,transparent 1px),
@@ -6145,6 +6095,13 @@ body {
 
 .start-theater {
   margin-top: 0;
+  z-index: 8;
+  grid-area: theater;
+
+  border: 0;
+  transition: background 320ms ease, filter 320ms ease;
+
+  height: 680px;
 }
 
 .mode-chamber.mode-direct {
@@ -6397,10 +6354,6 @@ body {
   color: #766758;
   font: 6.5px ui-monospace,monospace;
   letter-spacing: .12em;
-}
-
-.investigations-space .case-card {
-  transition: transform 180ms ease, opacity 180ms ease, background 180ms ease, border-color 180ms ease;
 }
 .investigations-space .case-card.selected {
   transform: translateX(8px);
@@ -7107,9 +7060,6 @@ body {
     width: 108px;
     min-height: 108px;
   }
-}
-.start-outcome {
-  padding: 0;
 }
 
 .start-case-outcome {
@@ -9209,9 +9159,6 @@ body {
     linear-gradient(180deg,rgba(255,255,255,.08),transparent 24%,rgba(43,70,89,.08)),
     radial-gradient(ellipse at 50% 100%,rgba(55,82,100,.15),transparent 54%);
 }
-.world-telemetry {
-  border-color: rgba(38,68,90,.13);
-}
 .telemetry-readout strong { color: #18384d; }
 .source-beacon:hover,
 .source-beacon.selected {
@@ -9265,9 +9212,6 @@ body {
     radial-gradient(circle at 70% 13%,rgba(255,179,92,.09),transparent 24%),
     linear-gradient(180deg,#191b20 0%,#101216 100%) !important;
 }
-.investigations-space .case-card {
-  opacity: .78;
-}
 .investigations-space .case-card.selected {
   opacity: 1;
 }
@@ -9284,9 +9228,6 @@ body {
   color: #f0eae6;
   font-size: 13px;
 }
-.investigations-space .state-column {
-  opacity: 1;
-}
 .investigations-space .state-column.tone-lime {
   background: linear-gradient(90deg,rgba(201,244,91,.04),transparent 52%);
 }
@@ -9301,12 +9242,6 @@ body {
 }
 .investigations-space .state-item strong { color: #c3bfbc; }
 .investigations-space .state-item small { color: #77777b; }
-.investigations-space .conversation-shell {
-  background:
-    linear-gradient(90deg,rgba(168,139,255,.055),transparent 68%),
-    radial-gradient(circle at 75% 16%,rgba(168,139,255,.055),transparent 25%),
-    rgba(13,15,20,.38);
-}
 .investigations-space .conversation-title strong { color: #d0c8dc; }
 .investigations-space .system-message { color: #aaa3b2; }
 .investigations-space .runtime-event { opacity: .86; }
@@ -9326,9 +9261,6 @@ body {
 .role-coordinates span { color: #75727d; }
 .role-entity-runtime span,
 .role-entity-runtime small { color: #77747d; }
-.agent-runtime-grid {
-  background: linear-gradient(180deg,rgba(255,255,255,.012),transparent 26%);
-}
 .task-field {
   background:
     radial-gradient(circle at 50% 26%,rgba(168,139,255,.055),transparent 32%),
@@ -9361,14 +9293,6 @@ body {
 .observatory-space .live-metric strong { color: #d8e8eb; }
 .observatory-space .live-metric small,
 .observatory-space .live-metric span { color: #6e858e; }
-.observatory-space .telemetry-wide {
-  background:
-    radial-gradient(circle at 30% 28%,rgba(114,215,255,.055),transparent 26%),
-    rgba(7,14,19,.18);
-}
-.observatory-space .telemetry-chart {
-  background: linear-gradient(180deg,rgba(114,215,255,.022),transparent);
-}
 .observatory-space .spectrum-row strong,
 .observatory-space .agent-spectrum-row strong { color: #aebfc3; }
 .observatory-space .source-spectrum,
@@ -10908,6 +10832,21 @@ body {
   max-height: none;
   scrollbar-width: thin;
   grid-area: payload;
+  position: fixed;
+  z-index: 46;
+  left: calc(var(--shell-rail) + 24px);
+  right: 24px;
+  bottom: 18px;
+  width: auto;
+
+  padding: 12px 16px 14px;
+  border: 0;
+  border-top: 1px solid rgba(168,139,255,.13);
+  background:
+    linear-gradient(180deg,rgba(6,7,11,.76),rgba(6,7,11,.96) 24%),
+    radial-gradient(circle at 76% 10%,rgba(168,139,255,.05),transparent 28%);
+  box-shadow: 0 -26px 70px rgba(0,0,0,.22);
+  backdrop-filter: blur(20px);
 }
 
 .payload-deck::before {
@@ -10922,10 +10861,6 @@ body {
 }
 
 .payload-deck-head {
-  margin: 0;
-}
-
-.payload-launch {
   margin: 0;
 }
 
@@ -10952,7 +10887,13 @@ body {
   gap: 28px;
   grid-area: brief;
   align-self: stretch;
-  align-content: start; }
+  align-content: start;
+  margin: 0;
+  display: grid;
+
+  border-right: 1px solid rgba(168,139,255,.09);
+
+  border-left: 1px solid rgba(114,215,255,.18); }
 .mission-briefing p { margin:0 0 3px; color:#716980; font:7.5px ui-monospace,monospace; letter-spacing:.12em; }
 .mission-briefing h1 { color:#eeeaf4; font-weight:650; }
 .mission-briefing h1 span { color:#9284bd; }
@@ -12449,10 +12390,6 @@ body {
   }
 }
 
-.mission-briefing {
-  margin: 0;
-}
-
 .mission-briefing .start-route-legend {
   margin: 0;
 }
@@ -12484,17 +12421,9 @@ body {
 .payload-field.target { grid-area: target; }
 .payload-field.prompt { grid-area: prompt; }
 
-.payload-launch { grid-area: launch;
-  align-self: stretch;
-}
-
 .advanced-toggle {
   left: 14px;
   bottom: -27px;
-}
-
-.start-outcome {
-  box-shadow: 0 22px 65px rgba(0,0,0,.28);
 }
 
 .start-outcome.error {
@@ -12661,12 +12590,6 @@ body {
   }
 }
 
-.mission-briefing {
-  display: grid;
-
-  border-right: 1px solid rgba(168,139,255,.09);
-}
-
 .mission-briefing::before {
   content: "MISSION CONTROL";
   position: absolute;
@@ -12703,14 +12626,6 @@ body {
   font-size: 8px;
 }
 
-.start-theater {
-  z-index: 8;
-  grid-area: theater;
-
-  border: 0;
-
-}
-
 .mode-readout {
 
   border-top: 1px solid rgba(168,139,255,.08);
@@ -12736,16 +12651,8 @@ body {
   transform: none;
 }
 
-.payload-launch {
-  transform: none;
-}
-
 .mission-advanced {
   backdrop-filter: blur(18px);
-}
-
-.start-outcome {
-  backdrop-filter: blur(16px);
 }
 
 @media (max-width: 1320px) {
@@ -12769,11 +12676,6 @@ body {
   }
 }
 
-.world-hero-actions {
-  left: 31px;
-  top: 184px;
-}
-
 .world-locator {
   min-height: 42px;
   border: 0;
@@ -12781,11 +12683,6 @@ body {
   background: rgba(243,249,252,.74);
   box-shadow: none;
   backdrop-filter: blur(10px);
-}
-
-.telemetry-readout {
-  min-height: 92px;
-  padding: 12px 13px 9px;
 }
 
 .telemetry-readout strong {
@@ -12848,10 +12745,6 @@ body {
   pointer-events: auto;
 }
 
-.world-telemetry {
-  gap: 0 !important;
-}
-
 .world-time-lens {
   display: grid;
   grid-template-columns: repeat(2,1fr);
@@ -12875,15 +12768,6 @@ body {
   color: #20394b;
   border-bottom-color: rgba(47,96,131,.36);
   background: rgba(255,255,255,.28);
-}
-.world-telemetry {
-  align-items: stretch;
-  background:
-    linear-gradient(180deg,rgba(247,251,253,.48),rgba(240,247,251,.16));
-  border-top: 1px solid rgba(48,78,101,.08);
-  border-bottom: 1px solid rgba(48,78,101,.08);
-  box-shadow: none;
-  backdrop-filter: blur(8px);
 }
 
 .world-telemetry::before {
@@ -13423,9 +13307,6 @@ body {
     border-left: 0 !important;
     border-top: 1px solid rgba(255,255,255,.05) !important;
   }
-}
-.start-theater {
-  transition: background 320ms ease, filter 320ms ease;
 }
 
 .chamber-focus-direct {
@@ -14375,10 +14256,6 @@ body {
   padding: 4px 0 0 14px;
   border-left: 1px solid rgba(114,215,255,.07);
   background: transparent;
-}
-.role-theater {
-  margin-top: 0;
-  padding-top: 78px;
 }
 .case-docket-heading {
   border-bottom: 1px solid rgba(255,179,92,.09);
@@ -15383,12 +15260,6 @@ body .product-shell .observatory-proof .proof-grid .proof-block:nth-child(1)::af
   font-size: 8px;
 }
 
-.mission-briefing {
-
-  border-left: 1px solid rgba(114,215,255,.18);
-
-}
-
 .mission-briefing h1 {
   margin-top: 3px;
 
@@ -15405,12 +15276,6 @@ body .product-shell .observatory-proof .proof-grid .proof-block:nth-child(1)::af
   margin-top: 18px;
   display: grid;
   gap: 7px;
-}
-
-.start-theater {
-
-  height: 680px;
-
 }
 
 .start-theater::before {
@@ -15587,24 +15452,6 @@ body .product-shell .observatory-proof .proof-grid .proof-block:nth-child(1)::af
   padding: 0 12px 0 0;
 }
 
-.payload-deck {
-  position: fixed;
-  z-index: 46;
-  left: calc(var(--shell-rail) + 24px);
-  right: 24px;
-  bottom: 18px;
-  width: auto;
-
-  padding: 12px 16px 14px;
-  border: 0;
-  border-top: 1px solid rgba(168,139,255,.13);
-  background:
-    linear-gradient(180deg,rgba(6,7,11,.76),rgba(6,7,11,.96) 24%),
-    radial-gradient(circle at 76% 10%,rgba(168,139,255,.05),transparent 28%);
-  box-shadow: 0 -26px 70px rgba(0,0,0,.22);
-  backdrop-filter: blur(20px);
-}
-
 .payload-deck::before {
   left: 0;
   right: auto;
@@ -15628,10 +15475,6 @@ body .product-shell .observatory-proof .proof-grid .proof-block:nth-child(1)::af
 
 .advanced-toggle {
   position: static;
-}
-
-.start-outcome {
-  z-index: 47;
 }
 
 @media (max-width: 1260px) {
