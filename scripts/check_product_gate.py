@@ -358,6 +358,28 @@ def run_gate(api_base: str, web_url: str | None) -> list[GateResult]:
     for key in ("source_health", "categories", "sources", "windows", "hourly_series"):
         if key not in world:
             raise RuntimeError(f"world overview missing {key}")
+    window_24h = world.get("windows", {}).get("24h", {})
+    for key in (
+        "document_chunks",
+        "document_text_bytes",
+        "fresh_contributing_sources",
+        "fresh_contributing_categories",
+        "fresh_top1_source_share",
+        "evidence_integrity_rate",
+        "evidence_physical_bytes",
+    ):
+        if key not in window_24h:
+            raise RuntimeError(f"world 24h measurement contract missing {key}")
+    hourly = world.get("hourly_series", [])
+    if hourly and isinstance(hourly[-1], dict):
+        for key in (
+            "document_chunks",
+            "fresh_contributing_sources",
+            "fresh_contributing_categories",
+            "fresh_top1_source_share",
+        ):
+            if key not in hourly[-1]:
+                raise RuntimeError(f"world hourly measurement contract missing {key}")
     results.append(
         GateResult(
             "world",

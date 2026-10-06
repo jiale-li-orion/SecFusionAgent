@@ -228,6 +228,16 @@ function LiveObservatory({ world, agents, system, windowKey, setWindowKey }: { w
             <TelemetryChart title="FRESH / BACKFILL" series={series} lines={[{ key: 'fresh_external_changes', label: 'fresh', tone: 'cyan' }, { key: 'backfill_observations', label: 'backfill', tone: 'violet' }]} />
             <TelemetryChart title="CANONICAL WRITES" series={series} lines={[{ key: 'canonical_writes', label: 'writes', tone: 'lime' }, { key: 'observations', label: 'observations', tone: 'blue' }]} />
             <TelemetryChart title="QUEUE / EXECUTION" series={series} lines={[{ key: 'queue_delay_p95_seconds', label: 'queue p95', tone: 'violet' }, { key: 'execution_p95_seconds', label: 'execution p95', tone: 'amber' }]} />
+            <TelemetryChart title="DOCUMENT GROWTH" series={series} lines={[{ key: 'document_chunks', label: 'chunks', tone: 'cyan' }]} />
+            <TelemetryChart title="FRESH SOURCE BREADTH" series={series} lines={[{ key: 'fresh_contributing_sources', label: 'sources', tone: 'lime' }, { key: 'fresh_contributing_categories', label: 'categories', tone: 'violet' }]} />
+          </div>
+          <div className="world-measurement-ledger">
+            <MeasurementFact label="DOCUMENT REVISIONS" value={current ? compactNumber(current.document_revisions) : '—'} />
+            <MeasurementFact label="DOCUMENT TEXT" value={current ? bytes(current.document_text_bytes) : '—'} />
+            <MeasurementFact label="TOP-1 FRESH SHARE" value={current?.fresh_top1_source_share == null ? '—' : pct(current.fresh_top1_source_share)} />
+            <MeasurementFact label="EVIDENCE INTEGRITY" value={current?.evidence_integrity_rate == null ? '—' : pct(current.evidence_integrity_rate)} />
+            <MeasurementFact label="EVIDENCE OBJECTS" value={current ? `${current.evidence_artifacts_present}/${current.evidence_artifacts}` : '—'} />
+            <MeasurementFact label="EVIDENCE BYTES" value={current ? bytes(current.evidence_physical_bytes) : '—'} />
           </div>
         </section>
 
@@ -745,6 +755,7 @@ function AgentSpectrumBlueprint() {
 function LiveMetric({ icon: Icon, label, value, detail, tone, active, onClick }: { icon: typeof Activity; label: string; value: string; detail: string; tone: string; active?: boolean; onClick?: () => void }) { return <button type="button" className={`live-metric tone-${tone} ${active ? 'focus-selected' : ''}`} onClick={onClick}><span className="live-metric-icon"><Icon size={17} /></span><div><small>{label}</small><strong>{value}</strong><span>{detail}</span></div></button> }
 function PanelHead({ eyebrow, title, meta, icon: Icon }: { eyebrow: string; title: string; meta: string; icon: typeof Activity }) { return <div className="panel-head"><span className="panel-head-icon"><Icon size={15} /></span><div><small>{eyebrow}</small><strong>{title}</strong></div><span>{meta}</span></div> }
 function SystemFact({ icon: Icon, label, value }: { icon: typeof Boxes; label: string; value: string }) { return <div className="system-fact"><Icon size={16} /><small>{label}</small><strong>{value}</strong></div> }
+function MeasurementFact({ label, value }: { label: string; value: string }) { return <div><small>{label}</small><strong>{value}</strong></div> }
 function SystemBacklog({ label, value, oldest = null }: { label: string; value: number | string | null | undefined; oldest?: string | null }) { return <div><small>{label}</small><strong>{value == null ? '—' : typeof value === 'number' ? compactNumber(value) : value}</strong>{oldest && <span>{snapshotAge(oldest)}</span>}</div> }
 function RoleBars({ counts }: { counts: Record<string, number> }) { const total = Object.values(counts).reduce((sum, value) => sum + value, 0) || 1; return <div className="role-bars"><span className="done" style={{ width: `${((counts.completed ?? 0) / total) * 100}%` }} /><span className="live" style={{ width: `${(((counts.running ?? 0) + (counts.queued ?? 0)) / total) * 100}%` }} /><span className="fail" style={{ width: `${(((counts.failed ?? 0) + (counts.blocked ?? 0)) / total) * 100}%` }} /></div> }
 function ProofBlock({ title, eyebrow, tone, icon: Icon, children }: { title: string; eyebrow: string; tone: string; icon: typeof Activity; children: React.ReactNode }) { return <motion.section className={`proof-block tone-${tone}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}><div className="proof-block-head"><span><Icon size={16} /></span><div><small>{eyebrow}</small><strong>{title}</strong></div></div><div className="proof-block-body">{children}</div></motion.section> }
@@ -756,6 +767,7 @@ function numeric(value: number | string | null | undefined) { return typeof valu
 function seconds(value: number | null | undefined) { return value == null ? '—' : value < 1 ? `${(value * 1000).toFixed(0)}ms` : `${value.toFixed(value < 10 ? 2 : 1)}s` }
 function pct(value: number) { return `${(value * 100).toFixed(value >= .995 ? 0 : 1)}%` }
 function compactNumber(value: number) { return Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(value) }
+function bytes(value: number) { return value < 1024 ? `${value} B` : value < 1024 ** 2 ? `${(value / 1024).toFixed(1)} KiB` : `${(value / 1024 ** 2).toFixed(1)} MiB` }
 function formatNumber(value: number) { return Math.abs(value) < 10 ? value.toFixed(3).replace(/0+$/, '').replace(/\.$/, '') : value.toFixed(0) }
 function proofMetric(metric: CompetitionProof['headline_metrics'][number] | undefined) { if (!metric) return '—'; if (metric.unit === 'ratio') return pct(metric.value); if (metric.unit === 'seconds') return `${metric.value.toFixed(3)}s`; return `${formatNumber(metric.value)}${metric.unit ? ` ${metric.unit}` : ''}` }
 function rawMetric(metric: CompetitionProof['headline_metrics'][number] | undefined) { return metric ? formatNumber(metric.value) : '—' }

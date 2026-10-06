@@ -80,6 +80,27 @@
 
 /* OBSERVATORY live/proof switchboard surfaces. */
 
+.observatory-space .world-measurement-ledger {
+  border-top: 1px solid rgba(114, 215, 255, .09);
+  border-bottom: 1px solid rgba(114, 215, 255, .05);
+}
+
+.observatory-space .world-measurement-ledger > div {
+  border-right: 1px solid rgba(114, 215, 255, .05);
+}
+
+.observatory-space .world-measurement-ledger > div:last-child {
+  border-right-color: transparent;
+}
+
+.observatory-space .world-measurement-ledger small {
+  color: #617780;
+}
+
+.observatory-space .world-measurement-ledger strong {
+  color: #d9e6e6;
+}
+
 /* Cross-space handoff coordinates. */
 
 /* START mission load and execution-boundary surfaces. */

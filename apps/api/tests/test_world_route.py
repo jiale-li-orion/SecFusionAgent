@@ -45,6 +45,17 @@ async def test_world_overview_exposes_product_safe_data_plane_snapshot() -> None
     assert "next_due_at" in source
     assert "latest_error_code" in source
     assert isinstance(payload["hourly_series"], list)
+    assert "document_chunks" in payload["windows"]["1h"]
+    assert "document_text_bytes" in payload["windows"]["1h"]
+    assert "fresh_contributing_sources" in payload["windows"]["1h"]
+    assert "fresh_contributing_categories" in payload["windows"]["1h"]
+    assert "fresh_top1_source_share" in payload["windows"]["1h"]
+    assert "evidence_integrity_rate" in payload["windows"]["1h"]
+    if payload["hourly_series"]:
+        latest = payload["hourly_series"][-1]
+        assert "document_chunks" in latest
+        assert "fresh_contributing_sources" in latest
+        assert "fresh_top1_source_share" in latest
 
 
 @pytest.mark.asyncio

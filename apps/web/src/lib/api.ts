@@ -328,6 +328,9 @@ export type WorldOverview = {
     fresh_external_changes: number
     backfill_observations: number
     canonical_writes: number
+    document_revisions: number
+    document_chunks: number
+    document_text_bytes: number
     scheduled_runs: number
     scheduled_run_success_rate: number | null
     provider_boundary_failure_rate: number | null
@@ -335,7 +338,13 @@ export type WorldOverview = {
     queue_delay_p95_seconds: number | null
     execution_p95_seconds: number | null
     fresh_knowledge_latency_p95_seconds: number | null
+    fresh_contributing_sources: number
+    fresh_contributing_categories: number
+    fresh_top1_source_share: number | null
+    evidence_artifacts: number
+    evidence_artifacts_present: number
     evidence_integrity_rate: number | null
+    evidence_physical_bytes: number
   }>
   hourly_series: Array<Record<string, number | string | null>>
   category_hourly_series: Record<string, Array<Record<string, number | string | null>>>

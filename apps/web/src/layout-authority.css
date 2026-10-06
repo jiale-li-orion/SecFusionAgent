@@ -23,6 +23,41 @@ body,
   min-width: 0;
 }
 
+.observatory-space .telemetry-charts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.observatory-space .world-measurement-ledger {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0;
+  margin-top: 16px;
+}
+
+.observatory-space .world-measurement-ledger > div {
+  min-width: 0;
+  padding: 9px 10px;
+}
+
+.observatory-space .world-measurement-ledger small,
+.observatory-space .world-measurement-ledger strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 1100px) {
+  .observatory-space .telemetry-charts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .observatory-space .world-measurement-ledger {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .observatory-space.observatory-proof .proof-seal-copy,
 .observatory-space.observatory-proof .proof-seal-stats {
   min-width: 0;

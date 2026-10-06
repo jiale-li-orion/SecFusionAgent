@@ -149,6 +149,9 @@ def _window_view(metrics: dict[str, Any]) -> WorldWindowView:
         fresh_external_changes=int(metrics.get("fresh_external_changes", 0)),
         backfill_observations=int(metrics.get("backfill_observations", 0)),
         canonical_writes=int(metrics.get("canonical_writes", 0)),
+        document_revisions=int(metrics.get("document_revisions", 0)),
+        document_chunks=int(metrics.get("document_chunks", 0)),
+        document_text_bytes=int(metrics.get("document_text_bytes", 0)),
         scheduled_runs=int(metrics.get("scheduled_runs", 0)),
         scheduled_run_success_rate=metrics.get("scheduled_run_success_rate"),
         provider_boundary_failure_rate=metrics.get("provider_boundary_failure_rate"),
@@ -156,7 +159,13 @@ def _window_view(metrics: dict[str, Any]) -> WorldWindowView:
         queue_delay_p95_seconds=metrics.get("queue_delay_p95_seconds"),
         execution_p95_seconds=metrics.get("execution_p95_seconds"),
         fresh_knowledge_latency_p95_seconds=metrics.get("fresh_knowledge_latency_p95_seconds"),
+        fresh_contributing_sources=int(metrics.get("fresh_contributing_sources", 0)),
+        fresh_contributing_categories=int(metrics.get("fresh_contributing_categories", 0)),
+        fresh_top1_source_share=metrics.get("fresh_top1_source_share"),
+        evidence_artifacts=int(metrics.get("evidence_artifacts", 0)),
+        evidence_artifacts_present=int(metrics.get("evidence_artifacts_present", 0)),
         evidence_integrity_rate=metrics.get("evidence_integrity_rate"),
+        evidence_physical_bytes=int(metrics.get("evidence_physical_bytes", 0)),
     )
 
 

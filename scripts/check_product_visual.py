@@ -247,6 +247,47 @@ def _check_page(
     return errors
 
 
+def _check_live_observatory(
+    browser: Browser,
+    product_base: str,
+    screenshot_dir: Path,
+) -> list[str]:
+    errors: list[str] = []
+    space = ProductSpace(
+        "observatory-live",
+        "/observatory",
+        ".observatory-space",
+        (
+            Landmark(".live-command-strip", .68, .82),
+            Landmark(".telemetry-wide", .48, .82),
+            Landmark(".system-status-panel", .24, .82),
+        ),
+    )
+    for viewport in (VIEWPORTS[0], VIEWPORTS[-1]):
+        context = browser.new_context(
+            viewport={"width": viewport.width, "height": viewport.height}
+        )
+        page = context.new_page()
+        try:
+            errors.extend(
+                f"{viewport.name}: {error}"
+                for error in _check_page(
+                    page,
+                    space=space,
+                    viewport=viewport,
+                    product_base=product_base,
+                    screenshot_dir=screenshot_dir,
+                )
+            )
+            if page.locator(".telemetry-chart").count() < 5:
+                errors.append(f"{viewport.name}: full live measurement chart set missing")
+            if page.locator(".world-measurement-ledger > div").count() != 6:
+                errors.append(f"{viewport.name}: measurement ledger is incomplete")
+        finally:
+            context.close()
+    return errors
+
+
 def _check_frozen_guide(browser: Browser, product_base: str, screenshot_dir: Path) -> list[str]:
     context = browser.new_context(viewport={"width": 1440, "height": 1000})
     page = context.new_page()
@@ -358,6 +399,14 @@ def main() -> int:
             failures.extend(
                 f"frozen-guide: {error}"
                 for error in _check_frozen_guide(
+                    browser,
+                    args.product_base,
+                    args.screenshots_dir,
+                )
+            )
+            failures.extend(
+                f"observatory-live: {error}"
+                for error in _check_live_observatory(
                     browser,
                     args.product_base,
                     args.screenshots_dir,

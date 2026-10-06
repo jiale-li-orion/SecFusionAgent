@@ -37,6 +37,9 @@ class WorldWindowView(BaseModel):
     fresh_external_changes: int = 0
     backfill_observations: int = 0
     canonical_writes: int = 0
+    document_revisions: int = 0
+    document_chunks: int = 0
+    document_text_bytes: int = 0
     scheduled_runs: int = 0
     scheduled_run_success_rate: float | None = None
     provider_boundary_failure_rate: float | None = None
@@ -44,7 +47,13 @@ class WorldWindowView(BaseModel):
     queue_delay_p95_seconds: float | None = None
     execution_p95_seconds: float | None = None
     fresh_knowledge_latency_p95_seconds: float | None = None
+    fresh_contributing_sources: int = 0
+    fresh_contributing_categories: int = 0
+    fresh_top1_source_share: float | None = None
+    evidence_artifacts: int = 0
+    evidence_artifacts_present: int = 0
     evidence_integrity_rate: float | None = None
+    evidence_physical_bytes: int = 0
 
 
 class WorldSeriesPointView(BaseModel):
@@ -53,6 +62,8 @@ class WorldSeriesPointView(BaseModel):
     fresh_external_changes: int = 0
     backfill_observations: int = 0
     canonical_writes: int = 0
+    document_chunks: int = 0
+    document_text_bytes: int = 0
     scheduled_runs: int = 0
     scheduled_run_success_rate: float | None = None
     provider_boundary_failure_rate: float | None = None
@@ -60,6 +71,9 @@ class WorldSeriesPointView(BaseModel):
     queue_delay_p95_seconds: float | None = None
     execution_p95_seconds: float | None = None
     fresh_knowledge_latency_p95_seconds: float | None = None
+    fresh_contributing_sources: int = 0
+    fresh_contributing_categories: int = 0
+    fresh_top1_source_share: float | None = None
 
 
 class WorldOverviewView(BaseModel):
