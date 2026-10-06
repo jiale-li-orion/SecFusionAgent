@@ -70,3 +70,24 @@ class IntelligenceGraphView(BaseModel):
     relations: list[RelationView] = Field(default_factory=list)
     total_relation_count: int = 0
     neighborhood: str = "canonical_outbound_one_hop"
+
+
+class ProductEnrichmentDimensionView(BaseModel):
+    dimension: str
+    status: str
+    requirement_id: str
+    accepted_fact_refs: list[str] = Field(default_factory=list)
+    conflict_refs: list[str] = Field(default_factory=list)
+    missing_prerequisites: list[str] = Field(default_factory=list)
+    attempted_operator_refs: list[str] = Field(default_factory=list)
+    blocked_attempt_refs: list[str] = Field(default_factory=list)
+    world_revision: int
+
+
+class ProductEnrichmentStateView(BaseModel):
+    object_id: str
+    object_type: str
+    canonical_key: str
+    vocabulary_revision: str
+    world_revision: int
+    dimensions: list[ProductEnrichmentDimensionView] = Field(default_factory=list)

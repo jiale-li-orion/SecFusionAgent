@@ -21,6 +21,59 @@
 
 /* Product read additions introduced by the current data seams. */
 
+.intelligence-space .enrichment-orbit > svg line.status-resolved {
+  stroke: rgba(114, 215, 255, .24);
+  stroke-dasharray: .8 .7;
+}
+
+.intelligence-space .enrichment-orbit > svg line.status-conflict {
+  stroke: rgba(255, 179, 92, .38);
+  stroke-dasharray: .45 .55;
+}
+
+.intelligence-space .enrichment-orbit > svg line.status-unknown {
+  stroke: rgba(168, 139, 255, .2);
+  stroke-dasharray: .35 .9;
+}
+
+.intelligence-space .enrichment-orbit > svg line.status-missing,
+.intelligence-space .enrichment-orbit > svg line.status-unavailable {
+  stroke: rgba(255, 255, 255, .045);
+  stroke-dasharray: .4 1.2;
+}
+
+.intelligence-space .enrichment-dimension.status-resolved {
+  border-color: rgba(114, 215, 255, .36);
+}
+
+.intelligence-space .enrichment-dimension.status-conflict {
+  border-color: rgba(255, 179, 92, .46);
+  background: linear-gradient(90deg, rgba(255, 179, 92, .055), transparent);
+}
+
+.intelligence-space .enrichment-dimension.status-conflict strong,
+.intelligence-space .enrichment-dimension.status-conflict small {
+  color: var(--amber);
+}
+
+.intelligence-space .enrichment-dimension.status-unknown {
+  border-color: rgba(168, 139, 255, .28);
+  background: linear-gradient(90deg, rgba(168, 139, 255, .035), transparent);
+}
+
+.intelligence-space .enrichment-dimension.status-unknown small {
+  color: #8c7db0;
+}
+
+.intelligence-space .enrichment-dimension.status-missing {
+  opacity: .52;
+}
+
+.intelligence-space .enrichment-dimension.status-unavailable {
+  opacity: .38;
+  filter: saturate(.35);
+}
+
 /* START final visual authority; geometry remains in layout-authority.css. */
 
 /* Runtime ownership and frozen proof contrast. */

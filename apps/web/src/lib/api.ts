@@ -159,6 +159,33 @@ export async function getIntelligenceGraph(objectId: string, limit = 24): Promis
   return response.json() as Promise<IntelligenceGraph>
 }
 
+export type IntelligenceEnrichmentDimension = {
+  dimension: string
+  status: 'resolved' | 'conflict' | 'unknown' | 'missing'
+  requirement_id: string
+  accepted_fact_refs: string[]
+  conflict_refs: string[]
+  missing_prerequisites: string[]
+  attempted_operator_refs: string[]
+  blocked_attempt_refs: string[]
+  world_revision: number
+}
+
+export type IntelligenceEnrichmentState = {
+  object_id: string
+  object_type: string
+  canonical_key: string
+  vocabulary_revision: string
+  world_revision: number
+  dimensions: IntelligenceEnrichmentDimension[]
+}
+
+export async function getIntelligenceEnrichment(objectId: string): Promise<IntelligenceEnrichmentState> {
+  const response = await fetch(`/api/v1/intelligence/objects/${encodeURIComponent(objectId)}/enrichment`)
+  if (!response.ok) throw new Error(response.status === 404 ? 'Enrichment state not found' : `Enrichment state unavailable (${response.status})`)
+  return response.json() as Promise<IntelligenceEnrichmentState>
+}
+
 export type ProofRunSummary = {
   benchmark_run_id: string
   suite_ref: string

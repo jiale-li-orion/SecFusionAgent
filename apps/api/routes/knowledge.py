@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from apps.api.dependencies import SessionDep
 from apps.application.queries.intelligence import (
     get_product_document,
+    get_product_enrichment_state,
     get_product_intelligence_graph,
     search_product_intelligence,
 )
@@ -10,6 +11,7 @@ from apps.application.views.intelligence import (
     IntelligenceGraphView,
     IntelligenceSearchView,
     ProductDocumentView,
+    ProductEnrichmentStateView,
 )
 from packages.intelligence.knowledge.read import (
     KnowledgeObjectView,
@@ -39,6 +41,29 @@ async def document_by_object(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="document not found",
+        )
+    return result
+
+
+@router.get(
+    "/intelligence/objects/{object_id}/enrichment",
+    response_model=ProductEnrichmentStateView,
+)
+async def intelligence_object_enrichment(
+    object_id: str,
+    session: SessionDep,
+) -> ProductEnrichmentStateView:
+    try:
+        result = await get_product_enrichment_state(session, object_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="knowledge object not found",
         )
     return result
 

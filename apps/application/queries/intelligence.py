@@ -13,7 +13,10 @@ from apps.application.views.intelligence import (
     ProductDocumentInsightView,
     ProductDocumentRevisionView,
     ProductDocumentView,
+    ProductEnrichmentDimensionView,
+    ProductEnrichmentStateView,
 )
+from packages.enrichment.runtime.state import EnrichmentStateBuilder
 from packages.intelligence.knowledge.read import get_object_by_id
 from packages.intelligence.storage.document_models import (
     DocumentChunkModel,
@@ -99,6 +102,43 @@ async def search_product_intelligence(
                 },
             )
             for item in ranked[:limit]
+        ],
+    )
+
+
+async def get_product_enrichment_state(
+    session: AsyncSession,
+    object_id: str,
+) -> ProductEnrichmentStateView | None:
+    obj = await session.get(ObjectModel, object_id)
+    if obj is None:
+        return None
+    if obj.object_type != "Vulnerability":
+        raise ValueError("enrichment-v1 Product state supports Vulnerability objects only")
+    snapshot = await EnrichmentStateBuilder().build(
+        session,
+        object_id,
+        materialize=False,
+    )
+    return ProductEnrichmentStateView(
+        object_id=snapshot.target_object_id,
+        object_type=snapshot.target_object_type,
+        canonical_key=snapshot.target_object_key,
+        vocabulary_revision=snapshot.vocabulary_revision,
+        world_revision=snapshot.world_revision,
+        dimensions=[
+            ProductEnrichmentDimensionView(
+                dimension=item.dimension.value,
+                status=item.status.value,
+                requirement_id=item.requirement_id,
+                accepted_fact_refs=list(item.accepted_fact_refs),
+                conflict_refs=list(item.conflict_refs),
+                missing_prerequisites=list(item.missing_prerequisites),
+                attempted_operator_refs=list(item.attempted_operator_refs),
+                blocked_attempt_refs=list(item.blocked_attempt_refs),
+                world_revision=item.world_revision,
+            )
+            for item in snapshot.dimensions
         ],
     )
 

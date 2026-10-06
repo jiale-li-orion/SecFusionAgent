@@ -94,6 +94,22 @@ def _resolve_spaces(api_base: str) -> tuple[ProductSpace, ...]:
         if run and run.get("benchmark_run_id")
         else ""
     )
+    canonical_cve = ""
+    if proof_run:
+        run_detail = _json(
+            api_base,
+            f"/api/v1/observatory/proof/runs/{proof_run}",
+        )
+        canonical_cve = next(
+            (
+                ref.removeprefix("cve:")
+                for item in run_detail.get("cases", [])
+                if isinstance(item, dict)
+                for ref in item.get("target_refs", [])
+                if isinstance(ref, str) and ref.startswith("cve:")
+            ),
+            "",
+        )
 
     return (
         ProductSpace(
@@ -118,7 +134,9 @@ def _resolve_spaces(api_base: str) -> tuple[ProductSpace, ...]:
         ),
         ProductSpace(
             "intelligence",
-            _query("/intelligence", cve=cve) if cve else "/intelligence",
+            _query("/intelligence", cve=canonical_cve or cve)
+            if canonical_cve or cve
+            else "/intelligence",
             ".intelligence-space",
             (
                 Landmark(".dossier-masthead", .62, .82),

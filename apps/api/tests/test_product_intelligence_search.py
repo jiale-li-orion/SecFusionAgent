@@ -17,6 +17,7 @@ from packages.intelligence.storage.document_models import (
     InsightCandidateModel,
 )
 from packages.intelligence.storage.knowledge_models import (
+    ClaimModel,
     ExternalIdentifierModel,
     KnowledgeRevisionModel,
     ObjectModel,
@@ -81,6 +82,38 @@ async def _database():
                     namespace="github_repo",
                     value="vllm-project/vllm",
                     object_id=repository.object_id,
+                ),
+                ClaimModel(
+                    claim_id="claim-cvss-nvd",
+                    subject_id=vulnerability.object_id,
+                    predicate="cvss_score",
+                    value=9.8,
+                    qualifier={
+                        "source_id": "nvd-cves-2",
+                        "vocabulary_revision": "enrichment-v1",
+                        "vocabulary_scope": "canonical",
+                    },
+                    origin="source_asserted",
+                    lifecycle="accepted",
+                    processing_run_id=None,
+                    created_revision=1,
+                    superseded_revision=None,
+                ),
+                ClaimModel(
+                    claim_id="claim-cvss-vendor",
+                    subject_id=vulnerability.object_id,
+                    predicate="cvss_score",
+                    value=8.8,
+                    qualifier={
+                        "source_id": "vendor-source",
+                        "vocabulary_revision": "enrichment-v1",
+                        "vocabulary_scope": "canonical",
+                    },
+                    origin="source_asserted",
+                    lifecycle="accepted",
+                    processing_run_id=None,
+                    created_revision=1,
+                    superseded_revision=None,
                 ),
                 RelationModel(
                     relation_id="relation-vuln-repo",
@@ -186,6 +219,9 @@ async def test_product_intelligence_search_resolves_names_and_external_ids() -> 
                 "/api/v1/intelligence/objects/object-vulnerability/graph",
                 params={"limit": 1},
             )
+            enrichment = await client.get(
+                "/api/v1/intelligence/objects/object-vulnerability/enrichment"
+            )
 
         assert by_name.status_code == 200, by_name.text
         assert by_name.json()["items"][0]["object_id"] == "object-repository"
@@ -206,6 +242,18 @@ async def test_product_intelligence_search_resolves_names_and_external_ids() -> 
         assert graph_body["total_relation_count"] == 1
         assert graph_body["relations"][0]["relation_id"] == "relation-vuln-repo"
         assert graph_body["relations"][0]["target"]["object_id"] == "object-repository"
+
+        assert enrichment.status_code == 200, enrichment.text
+        enrichment_body = enrichment.json()
+        assert enrichment_body["vocabulary_revision"] == "enrichment-v1"
+        assert len(enrichment_body["dimensions"]) == 12
+        dimensions = {
+            item["dimension"]: item for item in enrichment_body["dimensions"]
+        }
+        assert dimensions["identity"]["status"] == "resolved"
+        assert dimensions["severity"]["status"] == "conflict"
+        assert len(dimensions["severity"]["conflict_refs"]) == 2
+        assert dimensions["weakness"]["status"] == "missing"
 
         assert document.status_code == 200, document.text
         document_body = document.json()

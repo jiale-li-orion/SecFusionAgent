@@ -535,6 +535,59 @@ def run_gate(api_base: str, web_url: str | None) -> list[GateResult]:
                     ),
                 )
             )
+            cases_for_run = detail.get("cases", [])
+            canonical_cve = next(
+                (
+                    ref.removeprefix("cve:")
+                    for case in cases_for_run
+                    if isinstance(case, dict)
+                    for ref in case.get("target_refs", [])
+                    if isinstance(ref, str) and ref.startswith("cve:")
+                ),
+                None,
+            )
+            if canonical_cve:
+                search = _json(
+                    api_base,
+                    f"/api/v1/intelligence/search?q={quote(canonical_cve, safe='')}&limit=4",
+                )
+                vulnerability = next(
+                    (
+                        item
+                        for item in search.get("items", [])
+                        if isinstance(item, dict)
+                        and item.get("object_type") == "Vulnerability"
+                        and isinstance(item.get("object_id"), str)
+                    ),
+                    None,
+                )
+                if vulnerability is None:
+                    raise RuntimeError(
+                        f"frozen target {canonical_cve} has no current Vulnerability object"
+                    )
+                object_id = str(vulnerability["object_id"])
+                enrichment = _json(
+                    api_base,
+                    "/api/v1/intelligence/objects/"
+                    f"{quote(object_id, safe='')}/enrichment",
+                )
+                dimensions = enrichment.get("dimensions", [])
+                allowed_states = {"resolved", "conflict", "unknown", "missing"}
+                if not isinstance(dimensions, list) or len(dimensions) != 12:
+                    raise RuntimeError("enrichment-v1 Product state must expose 12 dimensions")
+                states = {
+                    item.get("status")
+                    for item in dimensions
+                    if isinstance(item, dict)
+                }
+                if not states or not states <= allowed_states:
+                    raise RuntimeError(f"invalid enrichment states: {sorted(states)}")
+                results.append(
+                    GateResult(
+                        "enrichment-state",
+                        f"{canonical_cve} · 12 dimensions · {','.join(sorted(states))}",
+                    )
+                )
 
     if web_url:
         html = _html(web_url)
