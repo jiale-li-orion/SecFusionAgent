@@ -1179,6 +1179,18 @@ body {
   text-align: left;
   will-change: left, top, transform, opacity;
   transform-origin: center center;
+  transform: translate(-50%,-50%);
+  transition:
+    width 260ms cubic-bezier(.22,1,.36,1),
+    min-height 260ms cubic-bezier(.22,1,.36,1),
+    padding 260ms cubic-bezier(.22,1,.36,1),
+    filter 180ms ease,
+    opacity 180ms ease,
+    box-shadow 220ms ease;
+
+  border-radius: 0;
+
+  backdrop-filter: none;
 }
 
 .mode-chamber-index {
@@ -1227,6 +1239,12 @@ body {
   gap: 3px;
   border-radius: 50%;
   color: var(--violet);
+  filter: brightness(1.22);
+
+  border: 0;
+  background:
+    radial-gradient(circle at 50% 50%,rgba(168,139,255,.13),rgba(11,10,18,.55) 42%,transparent 67%);
+  box-shadow: 0 0 70px rgba(168,139,255,.06);
 }
 
 .mission-reactor.role-oracle {
@@ -1273,6 +1291,11 @@ body {
   display: grid;
   justify-items: center;
   gap: 5px;
+  min-height: 106px;
+
+  border-top: 1px solid rgba(168,139,255,.08);
+
+  padding-top: 14px;
 }
 
 .mode-readout > strong {
@@ -1298,6 +1321,11 @@ body {
   color: #806947;
   display: grid;
   gap: 3px;
+
+  border: 0;
+  border-left: 1px solid rgba(255,179,92,.12);
+  background: transparent;
+  padding: 0 12px 0 0;
 }
 
 .alchemist-boundary span {
@@ -1311,6 +1339,8 @@ body {
 
 .payload-deck-head {
   justify-content: space-between;
+  margin: 0;
+  padding-inline: 4px;
 }
 
 .payload-deck-head small {
@@ -1385,6 +1415,8 @@ body {
 .payload-launch strong {
   position: relative;
   letter-spacing: .09em;
+  color: #e8f4cf;
+  font-size: 13px;
 }
 
 .payload-launch:disabled {
@@ -1616,6 +1648,10 @@ body {
 
 .role-entity-copy > p {
   margin: 3px 0 6px;
+  margin-top: 9px;
+  line-height: 1.55;
+  max-width: 270px;
+  font-size: 10.5px; color: #9c98a2;
 }
 
 .role-coordinates span {
@@ -1667,6 +1703,13 @@ body {
 
 .task-field {
   padding: 0 18px 16px 0;
+  border-right: 0;
+  padding-right: 0;
+  background:
+    radial-gradient(circle at 50% 26%,rgba(168,139,255,.055),transparent 32%),
+    linear-gradient(90deg,rgba(255,255,255,.012) 1px,transparent 1px),
+    linear-gradient(rgba(255,255,255,.012) 1px,transparent 1px);
+  background-size: auto,72px 72px,72px 72px;
 }
 
 .instrument-section-head {
@@ -2860,25 +2903,6 @@ body {
   box-shadow: 0 24px 60px rgba(0,0,0,.28), 0 0 38px rgba(168,139,255,.12);
 }
 
-.mode-chamber > b {
-  position: absolute;
-  right: 10px;
-  bottom: 8px;
-  color: #56646c;
-  font-weight: 500;
-  letter-spacing: .05em;
-  opacity: 0;
-  transform: translateY(4px);
-  transition: opacity 180ms ease, transform 180ms ease, color 180ms ease;
-}
-
-.mode-chamber:hover > b,
-.mode-chamber.preview > b,
-.mode-chamber.active > b {
-  opacity: 1;
-  transform: translateY(0);
-}
-
 .selected-route.is-preview {
   stroke-dasharray: 1.7 1.1;
   opacity: .68 !important;
@@ -3004,18 +3028,27 @@ body {
   height: 1px;
 }
 
-.task-field {
-  border-right: 0;
-  padding-right: 0;
-}
-
 .task-runtime-lens {
   transform: translateY(18px);
   align-self: start;
+  min-height: 520px;
+  padding: 14px 0 0 16px;
+  border-left: 1px solid rgba(168,139,255,.1);
+  background:
+    linear-gradient(90deg,rgba(168,139,255,.035),transparent),
+    rgba(10,11,17,.36);
+  border-left-color: rgba(168,139,255,.16);
 }
 .agent-memory-complex {
   border: 0;
   margin-inline: 2vw;
+  grid-template-columns: minmax(0,1.25fr) minmax(330px,.75fr);
+  gap: 38px;
+  display: block;
+  margin: 46px 2vw 0;
+  padding: 0;
+  border-top: 0;
+  background: transparent;
 }
 .intelligence-space .intel-layout {
   background: transparent;
@@ -5263,10 +5296,6 @@ body {
   text-shadow: 0 0 20px rgba(255,255,255,.035);
 }
 
-.role-entity-copy > p {
-  margin-top: 9px;
-}
-
 .role-coordinates {
   margin-top: 10px;
 }
@@ -5320,17 +5349,6 @@ body {
 
 .task-topology-canvas {
   min-height: 460px;
-}
-
-.task-runtime-lens {
-  min-height: 520px;
-  padding: 14px 0 0 16px;
-  border-left: 1px solid rgba(168,139,255,.1);
-}
-
-.agent-memory-complex {
-  grid-template-columns: minmax(0,1.25fr) minmax(330px,.75fr);
-  gap: 38px;
 }
 
 .skill-codex,
@@ -5667,11 +5685,6 @@ body {
 .role-entity-copy > small {
   font-size: 8px;
 }
-.role-entity-copy > p {
-  line-height: 1.55;
-  max-width: 270px;
-  font-size: 10.5px;
-}
 .role-coordinates span,
 .role-entity-runtime small,
 .role-entity-runtime span,
@@ -5832,9 +5845,6 @@ body {
 }
 .mode-chamber > em,
 .mode-chamber-index {
-  font-size: 7.5px;
-}
-.mode-chamber > b {
   font-size: 7.5px;
 }
 
@@ -8345,13 +8355,20 @@ body {
   }
 }
 
-.mode-chamber {
-  transform: translate(-50%,-50%);
-}
-
 .mode-chamber.active {
   min-width: 190px;
   backdrop-filter: blur(14px);
+  border-radius: 0;
+  display: grid;
+  text-align: center;
+  align-content: center;
+  justify-items: center;
+  z-index: 22;
+  clip-path: polygon(18px 0,100% 0,100% calc(100% - 18px),calc(100% - 18px) 100%,0 100%,0 18px);
+  padding: 10px 12px 12px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .mode-chamber.active::before {
@@ -8407,12 +8424,6 @@ body {
 
 .mode-chamber:not(.active) .mode-chamber-glyph {
   margin: 0 0 5px;
-}
-
-.mode-chamber:not(.active) > b {
-  opacity: 0;
-  height: 0;
-  margin: 0;
 }
 
 .mode-chamber:not(.active):hover,
@@ -9054,11 +9065,6 @@ body {
 
   font: 6.5px ui-monospace,monospace;
 }
-.mode-chamber > b {
-  margin-top: 8px;
-  border: 0;
-  background: transparent;
-}
 
 @media (prefers-reduced-motion: reduce) {
   .mode-chamber.mode-watch::before { animation: none; }
@@ -9194,9 +9200,6 @@ body {
 .world-flow-sample span,
 .world-flow-sample small { color: #96aeba; }
 .start-route-legend { color: #8b8994; }
-.mission-reactor {
-  filter: brightness(1.22);
-}
 .payload-deck::after {
   content: "";
   position: absolute;
@@ -9256,29 +9259,15 @@ body {
 .role-entity-copy > strong {
   color: #f0edf4;
 }
-.role-entity-copy > p { color: #9c98a2; }
 .role-entity-copy > small,
 .role-coordinates span { color: #75727d; }
 .role-entity-runtime span,
 .role-entity-runtime small { color: #77747d; }
-.task-field {
-  background:
-    radial-gradient(circle at 50% 26%,rgba(168,139,255,.055),transparent 32%),
-    linear-gradient(90deg,rgba(255,255,255,.012) 1px,transparent 1px),
-    linear-gradient(rgba(255,255,255,.012) 1px,transparent 1px);
-  background-size: auto,72px 72px,72px 72px;
-}
 .task-role-column { border-color: rgba(168,139,255,.065); }
 .task-crystal { opacity: .82; }
 .task-crystal.selected {
   opacity: 1;
   filter: brightness(1.32);
-}
-.task-runtime-lens {
-  background:
-    linear-gradient(90deg,rgba(168,139,255,.035),transparent),
-    rgba(10,11,17,.36);
-  border-left-color: rgba(168,139,255,.16);
 }
 .task-lens-head strong { color: #d5cfdd; }
 .task-facts > div strong{ color: #b8b4bd; }
@@ -9422,9 +9411,6 @@ body {
 .payload-field input::placeholder,
 .payload-field textarea::placeholder {
   color: #5f5c68;
-}
-.payload-launch strong {
-  color: #e8f4cf;
 }
 .payload-launch small {
   color: #869274;
@@ -10705,16 +10691,6 @@ body {
   border-bottom-color: rgba(255,179,92,.16);
 }
 
-.mode-chamber {
-  transition:
-    width 260ms cubic-bezier(.22,1,.36,1),
-    min-height 260ms cubic-bezier(.22,1,.36,1),
-    padding 260ms cubic-bezier(.22,1,.36,1),
-    filter 180ms ease,
-    opacity 180ms ease,
-    box-shadow 220ms ease;
-}
-
 .mode-chamber:not(.active) {
   display: grid;
   place-items: center;
@@ -10735,8 +10711,7 @@ body {
 }
 
 .mode-chamber:not(.active) > small,
-.mode-chamber:not(.active) > em,
-.mode-chamber:not(.active) > b {
+.mode-chamber:not(.active) > em {
   display: none;
 }
 
@@ -10762,11 +10737,6 @@ body {
   margin-top: 4px;
   color: #8f8999;
   font-size: 7px;
-}
-
-.mode-chamber.active {
-  border-radius: 0;
-  display: grid;
 }
 
 .mode-chamber.active.role-oracle {
@@ -10813,19 +10783,6 @@ body {
   font-size: 8px;
 }
 
-.mode-chamber.active > b {
-  margin-top: 14px;
-  padding-top: 8px;
-  border-top: 1px solid rgba(255,255,255,.06);
-  color: #b4adc1;
-  font-size: 8px;
-  font-weight: 500;
-}
-
-.mode-readout {
-  min-height: 106px;
-}
-
 .payload-deck {
   top: auto;
   overflow: visible;
@@ -10858,10 +10815,6 @@ body {
 
 .payload-deck::after {
   display: none;
-}
-
-.payload-deck-head {
-  margin: 0;
 }
 
 .payload-launch:hover:not(:disabled) {
@@ -11037,14 +10990,6 @@ body {
 .chamber-focus-investigate .mode-chamber.role-argus:not(.active),
 .chamber-focus-watch .mode-chamber.role-argus:not(.active) {
   opacity: .78 !important;
-}
-
-.mode-chamber.active {
-  text-align: center;
-  align-content: center;
-  justify-items: center;
-  z-index: 22;
-  clip-path: polygon(18px 0,100% 0,100% calc(100% - 18px),calc(100% - 18px) 100%,0 100%,0 18px);
 }
 
 .mode-chamber:not(.active) .mode-chamber-glyph {
@@ -12626,25 +12571,8 @@ body {
   font-size: 8px;
 }
 
-.mode-readout {
-
-  border-top: 1px solid rgba(168,139,255,.08);
-
-}
-
-.alchemist-boundary {
-
-  border: 0;
-  border-left: 1px solid rgba(255,179,92,.12);
-  background: transparent;
-}
-
 .payload-deck {
   margin: 0;
-}
-
-.payload-deck-head {
-  padding-inline: 4px;
 }
 
 .payload-field.prompt {
@@ -14359,13 +14287,6 @@ body {
     grid-row: auto;
   }
 }
-.agent-memory-complex {
-  display: block;
-  margin: 46px 2vw 0;
-  padding: 0;
-  border-top: 0;
-  background: transparent;
-}
 
 .skill-codex {
   position: relative;
@@ -15314,13 +15235,6 @@ body .product-shell .observatory-proof .proof-grid .proof-block:nth-child(1)::af
   letter-spacing: -.02em;
 }
 
-.mode-chamber {
-
-  border-radius: 0;
-
-  backdrop-filter: none;
-}
-
 .mode-chamber::before {
   inset: auto 10px 0;
 
@@ -15346,13 +15260,6 @@ body .product-shell .observatory-proof .proof-grid .proof-block:nth-child(1)::af
 .mode-chamber:not(.active).preview {
 
   transform: none;
-}
-
-.mode-chamber.active {
-  padding: 10px 12px 12px;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
 }
 
 .mode-chamber.active::before {
@@ -15424,32 +15331,15 @@ body .product-shell .observatory-proof .proof-grid .proof-block:nth-child(1)::af
   display: none;
 }
 
-.mission-reactor {
-
-  border: 0;
-  background:
-    radial-gradient(circle at 50% 50%,rgba(168,139,255,.13),rgba(11,10,18,.55) 42%,transparent 67%);
-  box-shadow: 0 0 70px rgba(168,139,255,.06);
-}
-
 .mission-reactor.role-oracle {
   background:
     radial-gradient(circle at 50% 50%,rgba(114,215,255,.13),rgba(8,13,18,.55) 42%,transparent 67%);
   box-shadow: 0 0 70px rgba(114,215,255,.06);
 }
 
-.mode-readout {
-
-  padding-top: 14px;
-}
-
 .mode-readout > div {
   margin-top: 11px;
 
-}
-
-.alchemist-boundary {
-  padding: 0 12px 0 0;
 }
 
 .payload-deck::before {
@@ -15467,10 +15357,6 @@ body .product-shell .observatory-proof .proof-grid .proof-block:nth-child(1)::af
 .payload-field textarea {
   resize: none;
   font-size: 11px;
-}
-
-.payload-launch strong {
-  font-size: 13px;
 }
 
 .advanced-toggle {
