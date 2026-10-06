@@ -34,6 +34,20 @@ def _json(base_url: str, path: str) -> dict[str, Any]:
     return payload
 
 
+def _json_list(base_url: str, path: str) -> list[dict[str, Any]]:
+    request = Request(f"{base_url.rstrip('/')}{path}", headers={"Accept": "application/json"})
+    try:
+        with urlopen(request, timeout=8) as response:
+            if response.status >= 400:
+                raise RuntimeError(f"{path} returned {response.status}")
+            payload = json.loads(response.read().decode("utf-8"))
+    except (HTTPError, URLError, TimeoutError) as exc:
+        raise RuntimeError(f"{path} unavailable: {exc}") from exc
+    if not isinstance(payload, list) or any(not isinstance(item, dict) for item in payload):
+        raise RuntimeError(f"{path} did not return an object list")
+    return payload
+
+
 def _html(url: str) -> str:
     try:
         with urlopen(Request(url, headers={"Accept": "text/html"}), timeout=8) as response:
@@ -436,6 +450,32 @@ def run_gate(api_base: str, web_url: str | None) -> list[GateResult]:
             ):
                 raise RuntimeError("task detail missing runtime coordinates")
             results.append(GateResult("task-detail", run_id))
+
+    skills = _json_list(api_base, "/api/v1/agents/skills")
+    experiences = _json_list(api_base, "/api/v1/agents/experiences")
+    if skills:
+        skill_ref = skills[0].get("skill_ref")
+        if not isinstance(skill_ref, str):
+            raise RuntimeError("agent skill collection lost immutable skill_ref")
+        skill = _json(api_base, f"/api/v1/agents/skills/{quote(skill_ref, safe='')}")
+        if skill.get("skill_ref") != skill_ref:
+            raise RuntimeError("agent skill detail coordinate mismatch")
+    if experiences:
+        experience_ref = experiences[0].get("experience_version_id")
+        if not isinstance(experience_ref, str):
+            raise RuntimeError("agent experience collection lost immutable version id")
+        experience = _json(
+            api_base,
+            f"/api/v1/agents/experiences/{quote(experience_ref, safe='')}",
+        )
+        if experience.get("experience_version_id") != experience_ref:
+            raise RuntimeError("agent experience detail coordinate mismatch")
+    results.append(
+        GateResult(
+            "agent-learning",
+            f"{len(skills)} skills · {len(experiences)} experience versions",
+        )
+    )
 
     agent_proof = _json(api_base, "/api/v1/agents/proof")
     suite_ref = agent_proof.get("suite_ref")

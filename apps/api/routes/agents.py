@@ -3,9 +3,15 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query, status
 
 from apps.api.dependencies import SessionDep
+from apps.application.queries.agent_learning import (
+    get_agent_learning_overview,
+    get_product_experience,
+    get_product_skill,
+    list_product_experiences,
+    list_product_skills,
+)
 from apps.application.queries.agents import (
     get_agent_controlled_proof,
-    get_agent_learning_overview,
     get_agent_runtime_overview,
     get_agent_task_detail,
     list_agent_tasks,
@@ -16,6 +22,8 @@ from apps.application.views.agents import (
     AgentRuntimeOverviewView,
     AgentTaskDetailView,
     AgentTaskPageView,
+    ProductExperienceView,
+    ProductSkillView,
 )
 
 router = APIRouter(prefix="/api/v1", tags=["agents"])
@@ -42,6 +50,32 @@ async def agent_runtime(
 @router.get("/agents/learning", response_model=AgentLearningOverviewView)
 async def agent_learning(session: SessionDep) -> AgentLearningOverviewView:
     return await get_agent_learning_overview(session)
+
+
+@router.get("/agents/skills", response_model=list[ProductSkillView])
+async def agent_skills(session: SessionDep) -> list[ProductSkillView]:
+    return await list_product_skills(session)
+
+
+@router.get("/agents/skills/{skill_ref:path}", response_model=ProductSkillView)
+async def agent_skill(skill_ref: str, session: SessionDep) -> ProductSkillView:
+    result = await get_product_skill(session, skill_ref)
+    if result is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="skill not found")
+    return result
+
+
+@router.get("/agents/experiences", response_model=list[ProductExperienceView])
+async def agent_experiences(session: SessionDep) -> list[ProductExperienceView]:
+    return await list_product_experiences(session)
+
+
+@router.get("/agents/experiences/{experience_ref}", response_model=ProductExperienceView)
+async def agent_experience(experience_ref: str, session: SessionDep) -> ProductExperienceView:
+    result = await get_product_experience(session, experience_ref)
+    if result is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="experience not found")
+    return result
 
 
 @router.get("/tasks", response_model=AgentTaskPageView)

@@ -11,7 +11,7 @@ import {
   TimerReset,
   Waypoints,
 } from 'lucide-react'
-import { getAgentControlledProof, getAgentLearning, getAgentRuntime, getAgentTask, getCompetitionProofRun, type AgentRoleRuntime } from '../lib/api'
+import { getAgentControlledProof, getAgentExperiences, getAgentLearning, getAgentRuntime, getAgentSkill, getAgentSkills, getAgentTask, getCompetitionProofRun, type AgentRoleRuntime } from '../lib/api'
 import { ExperienceMemory, SkillFamilyDetail } from '../components/agents/LearningSurfaces'
 import { AgentControlledProof, RuntimeActivityView, TaskCard, TaskDossier, TaskTopology } from '../components/agents/RuntimeSurfaces'
 import { groupSkillFamilies, skillFamilyKeyFromRef } from '../lib/agentLearning'
@@ -207,6 +207,8 @@ export function AgentsPage() {
   const runtime = runtimeQuery.data
   const learningQuery = useQuery({ queryKey: ['agent-learning'], queryFn: getAgentLearning, refetchInterval: 30_000 })
   const learning = learningQuery.data
+  const skillsQuery = useQuery({ queryKey: ['agent-skills'], queryFn: getAgentSkills, refetchInterval: 30_000 })
+  const experiencesQuery = useQuery({ queryKey: ['agent-experiences'], queryFn: getAgentExperiences, refetchInterval: 30_000 })
   const proofQuery = useQuery({ queryKey: ['agent-controlled-proof'], queryFn: getAgentControlledProof, staleTime: 60_000 })
   const proofRunQuery = useQuery({
     queryKey: ['agent-controlled-proof-run', proofQuery.data?.benchmark_run_id],
@@ -221,10 +223,17 @@ export function AgentsPage() {
   const selectedTaskRole = detailQuery.data?.task.role_id
     ?? runtime?.recent_tasks.find((task) => task.run_id === selectedTask)?.role_id
     ?? null
-  const skillFamilies = useMemo(() => groupSkillFamilies(learning?.skills ?? []), [learning?.skills])
+  const skillFamilies = useMemo(() => groupSkillFamilies(skillsQuery.data ?? []), [skillsQuery.data])
   const [selectedSkillFamily, setSelectedSkillFamily] = useState<string | null>(null)
   const focusedRole = roleParam && rolePresentation[roleParam] ? roleParam : null
   const selectedSkill = skillFamilies.find((item) => item.key === (selectedSkillFamily ?? skillFamilies[0]?.key)) ?? null
+  const selectedSkillRef = selectedSkill?.records[0]?.skill_ref ?? null
+  const selectedSkillDetailQuery = useQuery({
+    queryKey: ['agent-skill', selectedSkillRef],
+    queryFn: () => getAgentSkill(selectedSkillRef!),
+    enabled: Boolean(selectedSkillRef),
+    staleTime: 30_000,
+  })
   const visibleTasks = useMemo(
     () => runtime?.recent_tasks.filter((task) => !focusedRole || task.role_id === focusedRole) ?? [],
     [focusedRole, runtime?.recent_tasks],
@@ -297,7 +306,7 @@ export function AgentsPage() {
         </div>
       )}
 
-      {(runtimeQuery.isError || learningQuery.isError) && (
+      {(runtimeQuery.isError || learningQuery.isError || skillsQuery.isError || experiencesQuery.isError) && (
         <div className="agent-seam-fault">
           <TerminalSquare size={14} />
           <div>
@@ -307,7 +316,10 @@ export function AgentsPage() {
               : text('Skill / Experience read 当前不可用；Task Runtime 保持独立可读。', 'Skill / Experience read is unavailable; Task Runtime remains independently readable.')}</strong>
           </div>
           <span>{runtimeQuery.isError ? 'runtime seam' : 'learning seam'}</span>
-          <button className="recovery-action" onClick={() => void (runtimeQuery.isError ? runtimeQuery.refetch() : learningQuery.refetch())}>{runtimeQuery.isError ? text('重试 Runtime read', 'RETRY RUNTIME READ') : text('重试 Learning read', 'RETRY LEARNING READ')}</button>
+          <button className="recovery-action" onClick={() => {
+            if (runtimeQuery.isError) void runtimeQuery.refetch()
+            else void Promise.all([learningQuery.refetch(), skillsQuery.refetch(), experiencesQuery.refetch()])
+          }}>{runtimeQuery.isError ? text('重试 Runtime read', 'RETRY RUNTIME READ') : text('重试 Learning read', 'RETRY LEARNING READ')}</button>
         </div>
       )}
 
@@ -364,7 +376,7 @@ export function AgentsPage() {
 
       <div id="agent-memory-field" className="agent-memory-complex">
         <section id="skill-codex" className="skill-codex">
-          <div className="instrument-section-head"><div><small>{text('SKILL 典藏', 'SKILL CODEX')}</small><strong>{text('持久程序记忆', 'DURABLE PROCEDURAL MEMORY')}</strong></div><span>{text(String(learning?.skills.length ?? 0) + ' 条记录 · ' + String(skillFamilies.length) + ' 个家族', String(learning?.skills.length ?? 0) + ' records · ' + String(skillFamilies.length) + ' families')}</span></div>
+          <div className="instrument-section-head"><div><small>{text('SKILL 典藏', 'SKILL CODEX')}</small><strong>{text('持久程序记忆', 'DURABLE PROCEDURAL MEMORY')}</strong></div><span>{text(String(skillsQuery.data?.length ?? 0) + ' 条记录 · ' + String(skillFamilies.length) + ' 个家族', String(skillsQuery.data?.length ?? 0) + ' records · ' + String(skillFamilies.length) + ' families')}</span></div>
           <div className="skill-codex-body">
             <div className="skill-family-list">
               {skillFamilies.length
@@ -372,14 +384,16 @@ export function AgentsPage() {
                 : <SkillBlueprintList />}
             </div>
             <div className="skill-detail">
-              {selectedSkill ? <SkillFamilyDetail family={selectedSkill} /> : <SkillBlueprintDetail />}
+              {selectedSkill ? <SkillFamilyDetail family={selectedSkill} primaryDetail={selectedSkillDetailQuery.data ?? null} /> : <SkillBlueprintDetail />}
             </div>
           </div>
         </section>
 
         <section className="experience-memory">
-          <div className="instrument-section-head"><div><small>{text('经验记忆', 'EXPERIENCE MEMORY')}</small><strong>TRAJECTORY → EXPERIENCE → SKILL</strong></div><span>{text(`${learning?.experiences.length ?? 0} 条 durable Experience`, `${learning?.experiences.length ?? 0} durable experiences`)}</span></div>
-          {learning ? <ExperienceMemory learning={learning} /> : <ExperienceBlueprint />}
+          <div className="instrument-section-head"><div><small>{text('经验记忆', 'EXPERIENCE MEMORY')}</small><strong>TRAJECTORY → EXPERIENCE → SKILL</strong></div><span>{text(`${experiencesQuery.data?.length ?? 0} 条 durable Experience`, `${experiencesQuery.data?.length ?? 0} durable experiences`)}</span></div>
+          {learning && experiencesQuery.data && skillsQuery.data
+            ? <ExperienceMemory stats={learning} experiences={experiencesQuery.data} skills={skillsQuery.data} />
+            : <ExperienceBlueprint />}
         </section>
       </div>
     </section>

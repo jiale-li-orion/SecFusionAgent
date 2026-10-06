@@ -1,20 +1,24 @@
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { BrainCircuit, ChevronRight, Orbit, Waypoints } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
-import { getAgentLearning } from '../../lib/api'
+import { getAgentExperience, type AgentLearningOverview, type ProductExperience, type ProductSkill } from '../../lib/api'
 import type { SkillFamily } from '../../lib/agentLearning'
 import { useI18n } from '../../lib/i18n'
 
-export function SkillFamilyDetail({ family }: { family: SkillFamily }) {
+export function SkillFamilyDetail({ family, primaryDetail }: { family: SkillFamily; primaryDetail: ProductSkill | null }) {
   const { text } = useI18n()
-  const primary = family.records[0]
+  const primary = primaryDetail ?? family.records[0]
+  const records = primaryDetail
+    ? family.records.map((item) => item.skill_ref === primaryDetail.skill_ref ? primaryDetail : item)
+    : family.records
   return <div className="skill-detail-stack">
     <div className="skill-detail-head">
       <div><small>{text('SKILL 家族', 'SKILL FAMILY')}</small><strong>{family.label}</strong><span className="mono">{primary.skill_ref}</span></div>
-      <div className="skill-status-stack">{family.records.map((item) => <span key={item.skill_ref} className={`skill-status status-${item.status}`}>{item.status}</span>)}</div>
+      <div className="skill-status-stack">{records.map((item) => <span key={item.skill_ref} className={`skill-status status-${item.status}`}>{item.status}</span>)}</div>
     </div>
-    <div className="skill-record-stack">{family.records.map((item) => (
+    <div className="skill-record-stack">{records.map((item) => (
       <article key={item.skill_ref} className={`skill-record status-${item.status}`}>
         <div className="skill-record-title">
           <div><small>{item.source_type}</small><strong>{item.skill_id}@{item.version}</strong><span className="mono">{item.skill_ref}</span></div>
@@ -57,19 +61,28 @@ function SkillGovernanceRef({ label, values, empty }: { label: string; values: s
   )
 }
 
-export function ExperienceMemory({ learning }: { learning: Awaited<ReturnType<typeof getAgentLearning>> | null }) {
+export function ExperienceMemory({ stats, experiences, skills }: { stats: AgentLearningOverview; experiences: ProductExperience[]; skills: ProductSkill[] }) {
   const { text } = useI18n()
   const [selectedExperienceId, setSelectedExperienceId] = useState<string | null>(null)
+  const selectedExperienceRef = selectedExperienceId ?? experiences[0]?.experience_version_id ?? null
+  const detailQuery = useQuery({
+    queryKey: ['agent-experience', selectedExperienceRef],
+    queryFn: () => getAgentExperience(selectedExperienceRef!),
+    enabled: Boolean(selectedExperienceRef),
+    staleTime: 30_000,
+  })
   const stages = [
-    ['Trajectory', learning?.trajectory_count ?? 0],
-    ['Candidate', learning?.experience_candidate_count ?? 0],
-    ['Experience', learning?.experiences.length ?? 0],
-    ['Skill Patch', learning?.skills.filter((item) => item.source_type === 'experience_derived').length ?? 0],
+    ['Trajectory', stats.trajectory_count],
+    ['Candidate', stats.experience_candidate_count],
+    ['Experience', experiences.length],
+    ['Skill Patch', skills.filter((item) => item.source_type === 'experience_derived').length],
   ] as const
-  const selectedExperience = learning?.experiences.find((item) => item.experience_version_id === selectedExperienceId) ?? learning?.experiences[0] ?? null
+  const selectedExperience = detailQuery.data
+    ?? experiences.find((item) => item.experience_version_id === selectedExperienceRef)
+    ?? null
   const supportTrajectories = selectedExperience?.support_records.filter((item) => item.outcome !== 'failure') ?? []
   const counterexampleTrajectories = selectedExperience?.support_records.filter((item) => item.outcome === 'failure') ?? []
-  const linkedSkills = selectedExperience ? (learning?.skills ?? []).filter((skill) => {
+  const linkedSkills = selectedExperience ? skills.filter((skill) => {
     const aliases = new Set([
       selectedExperience.experience_id,
       selectedExperience.experience_version_id,
@@ -80,8 +93,8 @@ export function ExperienceMemory({ learning }: { learning: Awaited<ReturnType<ty
   }) : []
   return <div className="experience-body">
     <div className="experience-pipeline">{stages.map(([label, count], index) => <div key={label} className="experience-stage"><span className="experience-stage-icon"><BrainCircuit size={16} /></span><div><small>STAGE {String(index + 1).padStart(2,'0')}</small><strong>{label}</strong><b>{count}</b></div>{index < stages.length - 1 && <ChevronRight size={14} className="experience-arrow" />}</div>)}</div>
-    {(learning?.experiences.length ?? 0) === 0 ? <div className="experience-empty"><Orbit size={30} /><div><strong>{text('尚无 durable Experience', 'NO DURABLE EXPERIENCE YET')}</strong><p>{text('Trajectory 已进入经验流水线；durable Experience 尚未形成时，界面保持空态，不制造学习结果。', 'Trajectories have entered the learning pipeline. Until a durable Experience is persisted, this surface remains empty rather than inventing a learned result.')}</p></div></div> : <div className="experience-workbench">
-      <div className="experience-list">{learning!.experiences.map((item, index) => <button key={item.experience_version_id} className={item.experience_version_id === selectedExperience?.experience_version_id ? 'selected' : ''} onClick={() => setSelectedExperienceId(item.experience_version_id)}><span>{String(index + 1).padStart(2,'0')}</span><div><small>{item.status} · v{item.version}</small><strong>{item.name}</strong><em>{item.task_signature}</em></div><b>{item.success_count}/{item.failure_count}/{item.partial_count}</b></button>)}</div>
+    {experiences.length === 0 ? <div className="experience-empty"><Orbit size={30} /><div><strong>{text('尚无 durable Experience', 'NO DURABLE EXPERIENCE YET')}</strong><p>{text('Trajectory 已进入经验流水线；durable Experience 尚未形成时，界面保持空态，不制造学习结果。', 'Trajectories have entered the learning pipeline. Until a durable Experience is persisted, this surface remains empty rather than inventing a learned result.')}</p></div></div> : <div className="experience-workbench">
+      <div className="experience-list">{experiences.map((item, index) => <button key={item.experience_version_id} className={item.experience_version_id === selectedExperience?.experience_version_id ? 'selected' : ''} onClick={() => setSelectedExperienceId(item.experience_version_id)}><span>{String(index + 1).padStart(2,'0')}</span><div><small>{item.status} · v{item.version}</small><strong>{item.name}</strong><em>{item.task_signature}</em></div><b>{item.success_count}/{item.failure_count}/{item.partial_count}</b></button>)}</div>
       {selectedExperience && <div className="experience-inspector">
         <div className="experience-inspector-head"><div><small>{text('持久 Experience', 'DURABLE EXPERIENCE')}</small><strong>{selectedExperience.name}</strong><span className="mono">{selectedExperience.experience_version_id}</span></div><div><small>{text('结果历史', 'OUTCOME HISTORY')}</small><strong>{selectedExperience.success_count} / {selectedExperience.failure_count} / {selectedExperience.partial_count}</strong><span>{text('成功 · 失败 · 部分完成', 'success · failure · partial')}</span></div></div>
         <div className="experience-evidence-wall">
@@ -120,7 +133,7 @@ export function ExperienceMemory({ learning }: { learning: Awaited<ReturnType<ty
   </div>
 }
 
-function TrajectoryEvidence({ record, experienceRef }: { record: Awaited<ReturnType<typeof getAgentLearning>>['experiences'][number]['support_records'][number]; experienceRef: string }) {
+function TrajectoryEvidence({ record, experienceRef }: { record: ProductExperience['support_records'][number]; experienceRef: string }) {
   const { text } = useI18n()
   const navigate = useNavigate()
   const casePath = `/investigations?${new URLSearchParams({ case: record.case_id, from: 'experience', experience: experienceRef, trajectory: record.trajectory_id }).toString()}`

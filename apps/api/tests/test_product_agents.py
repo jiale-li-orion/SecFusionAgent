@@ -10,6 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from apps.api.dependencies import database_session
 from apps.api.main import create_app
 from apps.runtime_models import register_runtime_models
+from packages.investigation.skills.storage import SkillVersionModel
+from packages.investigation.storage.models import ExperienceModel, ExperienceVersionModel
 from packages.runtime.model.storage import ModelAttemptModel, ModelRequestModel
 from packages.runtime.storage.models import BudgetAccountModel
 from packages.shared.db import Base
@@ -285,6 +287,106 @@ async def test_product_agent_task_detail_exposes_durable_delegation_neighbors() 
         assert child_body["parent"]["run_id"] == "task-run-1"
         assert child_body["parent"]["role_id"] == "InvestigationRole"
         assert child_body["children"] == []
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_product_agent_learning_exposes_collection_and_exact_detail_reads() -> None:
+    engine, factory = await _database()
+    async with factory() as session, session.begin():
+        session.add(
+            SkillVersionModel(
+                skill_version_id="skill-version-1",
+                skill_id="VerifyFixBoundary",
+                version=1,
+                namespace="investigation",
+                status="active",
+                source_type="seed",
+                manifest_json={
+                    "task_patterns": ["verify_version_fix"],
+                    "evidence_need_patterns": ["fix_remediation"],
+                    "applicable_object_types": ["Vulnerability"],
+                    "applicability_conditions": [],
+                    "required_capability_classes": ["knowledge.read"],
+                    "optional_capability_classes": [],
+                    "expected_outcomes": ["decision_ready"],
+                },
+                procedure_json={
+                    "steps": [{"kind": "inspect"}],
+                    "evidence_expectations": ["fix evidence"],
+                    "failure_guards": [],
+                    "fallbacks": [],
+                    "stop_conditions": ["decision_ready"],
+                },
+                provenance_json={"origin": "seed", "supporting_trajectory_refs": []},
+                content_hash="1" * 64,
+                validation_ref="validation:test",
+                supersedes=None,
+                created_at=NOW,
+            )
+        )
+        session.add(
+            ExperienceModel(
+                experience_id="experience-1",
+                name="Fix boundary recovery",
+                task_signature="verify_version_fix",
+                current_version_id="experience-version-1",
+                created_at=NOW,
+                updated_at=NOW,
+            )
+        )
+        session.add(
+            ExperienceVersionModel(
+                experience_version_id="experience-version-1",
+                experience_id="experience-1",
+                version=1,
+                status="active",
+                scope={},
+                trigger_signals=["missing_fix"],
+                applicable_conditions=[],
+                recommended_actions=["delegate_enrichment"],
+                evidence_expectation=["fix evidence"],
+                failure_modes=[],
+                stop_conditions=["decision_ready"],
+                fallback_actions=[],
+                validation_summary={},
+                success_count=2,
+                failure_count=0,
+                partial_count=0,
+                last_validated_at=NOW,
+                supersedes_version_id=None,
+                source_candidate_id=None,
+                created_at=NOW,
+                activated_at=NOW,
+                deprecated_at=None,
+            )
+        )
+
+    app = create_app()
+
+    async def override_session() -> AsyncIterator[AsyncSession]:
+        async with factory() as session:
+            yield session
+
+    app.dependency_overrides[database_session] = override_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            skills = await client.get("/api/v1/agents/skills")
+            skill = await client.get("/api/v1/agents/skills/skill:VerifyFixBoundary@1")
+            experiences = await client.get("/api/v1/agents/experiences")
+            experience = await client.get("/api/v1/agents/experiences/experience-version-1")
+            missing = await client.get("/api/v1/agents/skills/skill:missing@1")
+
+        assert skills.status_code == 200, skills.text
+        assert [item["skill_ref"] for item in skills.json()] == ["skill:VerifyFixBoundary@1"]
+        assert skill.status_code == 200, skill.text
+        assert skill.json()["validation_ref"] == "validation:test"
+        assert experiences.status_code == 200, experiences.text
+        assert experiences.json()[0]["experience_id"] == "experience-1"
+        assert experience.status_code == 200, experience.text
+        assert experience.json()["recommended_actions"] == ["delegate_enrichment"]
+        assert missing.status_code == 404
     finally:
         await engine.dispose()
 

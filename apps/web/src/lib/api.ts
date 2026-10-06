@@ -937,6 +937,30 @@ export async function getAgentLearning(): Promise<AgentLearningOverview> {
   return response.json() as Promise<AgentLearningOverview>
 }
 
+export async function getAgentSkills(): Promise<ProductSkill[]> {
+  const response = await fetch('/api/v1/agents/skills')
+  if (!response.ok) throw new Error(`Agent skills unavailable (${response.status})`)
+  return response.json() as Promise<ProductSkill[]>
+}
+
+export async function getAgentSkill(skillRef: string): Promise<ProductSkill> {
+  const response = await fetch(`/api/v1/agents/skills/${encodeURIComponent(skillRef)}`)
+  if (!response.ok) throw new Error(response.status === 404 ? 'Skill not found' : `Agent skill unavailable (${response.status})`)
+  return response.json() as Promise<ProductSkill>
+}
+
+export async function getAgentExperiences(): Promise<ProductExperience[]> {
+  const response = await fetch('/api/v1/agents/experiences')
+  if (!response.ok) throw new Error(`Agent experiences unavailable (${response.status})`)
+  return response.json() as Promise<ProductExperience[]>
+}
+
+export async function getAgentExperience(experienceRef: string): Promise<ProductExperience> {
+  const response = await fetch(`/api/v1/agents/experiences/${encodeURIComponent(experienceRef)}`)
+  if (!response.ok) throw new Error(response.status === 404 ? 'Experience not found' : `Agent experience unavailable (${response.status})`)
+  return response.json() as Promise<ProductExperience>
+}
+
 export async function getAgentControlledProof(): Promise<AgentControlledProof> {
   const response = await fetch('/api/v1/agents/proof')
   if (!response.ok) throw new Error(`Agent controlled proof unavailable (${response.status})`)
