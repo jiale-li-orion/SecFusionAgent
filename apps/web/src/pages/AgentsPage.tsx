@@ -26,6 +26,24 @@ const rolePresentation: Record<string, { alias: string; cn: string; tone: string
   EnrichmentRole: { alias: 'ALCHEMIST', cn: '炼证者', tone: 'amber', copy: 'ALCHEMIST 接收 Enrichment 子任务，把缺失维度补成新的 Evidence 与 Knowledge。', copyEn: 'ALCHEMIST receives Enrichment child tasks and turns missing dimensions into new Evidence and Knowledge.' },
 }
 
+function DelegationActivityNode({ parent, children, onTaskSelect }: { parent: AgentTaskSummary | null; children: AgentTaskSummary[]; onTaskSelect: (runId: string) => void }) {
+  const { text } = useI18n()
+  const relationCount = children.length + (parent ? 1 : 0)
+  return (
+    <div className="runtime-activity-node tone-delegation runtime-delegation-node">
+      <span>↳</span>
+      <div>
+        <small>DELEGATION</small>
+        <strong>{text(`${relationCount} 条持久父子关系`, `${relationCount} durable parent/child link${relationCount === 1 ? '' : 's'}`)}</strong>
+        <div className="runtime-delegation-links">
+          {parent && <button type="button" onClick={() => onTaskSelect(parent.run_id)}><b>↑ PARENT</b><span>{rolePresentation[parent.role_id]?.alias ?? parent.role_id} · {shortTaskKind(parent.task_kind)}</span><em>{parent.status}</em></button>}
+          {children.map((child) => <button type="button" key={child.run_id} onClick={() => onTaskSelect(child.run_id)}><b>↓ CHILD</b><span>{rolePresentation[child.role_id]?.alias ?? child.role_id} · {shortTaskKind(child.task_kind)}</span><em>{child.status}</em></button>)}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ModelRuntimeRibbon({ runtime }: { runtime: Awaited<ReturnType<typeof getAgentRuntime>> }) {
   const { text } = useI18n()
   const model = runtime.model_runtime
@@ -343,7 +361,7 @@ export function AgentsPage() {
       </div>
 
       {runtime && <ModelRuntimeRibbon runtime={runtime} />}
-      {detailQuery.data && <RuntimeActivityView detail={detailQuery.data} onSkillSelect={inspectSkillRef} />}
+      {detailQuery.data && <RuntimeActivityView detail={detailQuery.data} onSkillSelect={inspectSkillRef} onTaskSelect={selectTask} />}
       {proofQuery.data && <AgentControlledProof proof={proofQuery.data} detail={proofRunQuery.data ?? null} />}
 
       <div id="agent-runtime-field" className={`agent-runtime-grid ${focusedRole ? `runtime-focus-${focusedRole.toLowerCase()}` : ''}`}>
@@ -501,7 +519,7 @@ function RoleSigil({ role, live }: { role: string; live: boolean }) {
   )
 }
 
-function RuntimeActivityView({ detail, onSkillSelect }: { detail: Awaited<ReturnType<typeof getAgentTask>>; onSkillSelect: (skillRef: string) => void }) {
+function RuntimeActivityView({ detail, onSkillSelect, onTaskSelect }: { detail: Awaited<ReturnType<typeof getAgentTask>>; onSkillSelect: (skillRef: string) => void; onTaskSelect: (runId: string) => void }) {
   const { text } = useI18n()
   const task = detail.task
   const assembly = detail.prompt_assemblies[0] ?? null
@@ -537,6 +555,13 @@ function RuntimeActivityView({ detail, onSkillSelect }: { detail: Awaited<Return
           secondary={task.status}
           tone={activeStatuses.has(task.status) ? 'live' : task.status === 'failed' ? 'failure' : 'stable'}
         />
+        {(detail.parent || detail.children.length > 0) && (
+          <DelegationActivityNode
+            parent={detail.parent}
+            children={detail.children}
+            onTaskSelect={onTaskSelect}
+          />
+        )}
         <div className="runtime-activity-node tone-context">
           <span>03</span>
           <div><small>ASSEMBLY / SKILL</small><strong>{assembly ? text(`${skills.length} 个 materialized Skill`, `${skills.length} materialized skills`) : text('无 PromptAssembly', 'NO PROMPT ASSEMBLY')}</strong></div>

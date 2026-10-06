@@ -49,6 +49,10 @@ body,
 }
 
 @media (max-width: 1100px) {
+  .agents-space .runtime-activity-spine {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+
   .observatory-space .telemetry-charts {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1014,6 +1018,37 @@ body,
 .agents-space .task-runtime-lens,
 .agents-space .task-topology {
   min-width: 0;
+}
+
+.agents-space .runtime-activity-spine {
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+}
+
+.agents-space .runtime-delegation-links {
+  display: grid;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.agents-space .runtime-delegation-links button {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px 6px;
+  align-items: baseline;
+  padding: 4px 0;
+  text-align: left;
+}
+
+.agents-space .runtime-delegation-links button span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agents-space .runtime-delegation-links button em {
+  grid-column: 2;
 }
 
 .agents-space .task-runtime-lens {

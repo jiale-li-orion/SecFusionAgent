@@ -831,6 +831,43 @@
   filter: brightness(1.08) saturate(1.04);
 }
 
+.agents-space .runtime-activity-node.tone-delegation > span {
+  color: var(--violet);
+  border-color: rgba(168, 139, 255, .32);
+  box-shadow: 0 0 18px rgba(168, 139, 255, .09);
+}
+
+.agents-space .runtime-delegation-links button {
+  appearance: none;
+  border: 0;
+  border-bottom: 1px solid rgba(168, 139, 255, .10);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.agents-space .runtime-delegation-links button:hover {
+  border-bottom-color: rgba(168, 139, 255, .34);
+  background: linear-gradient(90deg, rgba(168, 139, 255, .045), transparent);
+}
+
+.agents-space .runtime-delegation-links b {
+  color: #8d80a7;
+  font: 8px ui-monospace, monospace;
+  font-weight: 600;
+}
+
+.agents-space .runtime-delegation-links span {
+  color: #a5a8ad;
+  font-size: 9px;
+}
+
+.agents-space .runtime-delegation-links em {
+  color: #69717a;
+  font: 8px ui-monospace, monospace;
+  font-style: normal;
+}
+
 .agents-space .role-entity.task-owner:not(.role-focused) .role-entity-copy > small {
   color: #8f849f !important;
 }

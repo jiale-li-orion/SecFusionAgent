@@ -669,6 +669,8 @@ export type AgentTaskPage = {
 
 export type AgentTaskDetail = {
   task: AgentTaskSummary
+  parent: AgentTaskSummary | null
+  children: AgentTaskSummary[]
   events: Array<{
     event_id: string
     seq: number

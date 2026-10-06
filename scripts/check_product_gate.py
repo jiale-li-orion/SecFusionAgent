@@ -430,7 +430,10 @@ def run_gate(api_base: str, web_url: str | None) -> list[GateResult]:
         run_id = tasks[0].get("run_id")
         if isinstance(run_id, str) and run_id:
             task = _json(api_base, f"/api/v1/tasks/{quote(run_id, safe='')}")
-            if "task" not in task or "events" not in task or "capabilities" not in task:
+            if any(
+                key not in task
+                for key in ("task", "parent", "children", "events", "capabilities")
+            ):
                 raise RuntimeError("task detail missing runtime coordinates")
             results.append(GateResult("task-detail", run_id))
 

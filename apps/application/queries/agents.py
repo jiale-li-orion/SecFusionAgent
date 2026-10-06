@@ -333,6 +333,22 @@ async def get_agent_task_detail(
     if run is None:
         return None
     summary = (await _task_summaries(session, [run]))[0]
+    related_runs = list(
+        await session.scalars(
+            select(TaskRunModel)
+            .where(
+                (TaskRunModel.run_id == run.parent_run_id)
+                | (TaskRunModel.parent_run_id == run_id)
+            )
+            .order_by(TaskRunModel.created_at)
+        )
+    )
+    related_summaries = await _task_summaries(session, related_runs)
+    parent = next(
+        (item for item in related_summaries if item.run_id == run.parent_run_id),
+        None,
+    )
+    children = [item for item in related_summaries if item.parent_run_id == run_id]
     events = list(
         await session.scalars(
             select(TaskEventModel)
@@ -357,6 +373,8 @@ async def get_agent_task_detail(
     budget = await _budget_snapshot_view(session, run_id)
     return AgentTaskDetailView(
         task=summary,
+        parent=parent,
+        children=children,
         events=[
             AgentTaskEventView(
                 event_id=item.event_id,

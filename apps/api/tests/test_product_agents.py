@@ -235,6 +235,61 @@ async def test_product_agent_runtime_exposes_roles_tasks_and_safe_event_summary(
 
 
 @pytest.mark.asyncio
+async def test_product_agent_task_detail_exposes_durable_delegation_neighbors() -> None:
+    engine, factory = await _database()
+    async with factory() as session, session.begin():
+        session.add(
+            TaskRunModel(
+                run_id="task-run-child",
+                task_contract_version_id="contract-version-1",
+                task_contract_id="contract-1",
+                task_contract_revision=1,
+                context_manifest_version_id="context-version-1",
+                context_id="context-1",
+                context_revision=1,
+                case_id=None,
+                parent_run_id="task-run-1",
+                role_id="EnrichmentRole",
+                role_version="1",
+                status="waiting_dependency",
+                base_context_revision=1,
+                execution_envelope_ref="envelope:child",
+                result_ref=None,
+                stop_reason="awaiting_dependency",
+                created_at=NOW,
+                updated_at=NOW,
+                finished_at=None,
+            )
+        )
+
+    app = create_app()
+
+    async def override_session() -> AsyncIterator[AsyncSession]:
+        async with factory() as session:
+            yield session
+
+    app.dependency_overrides[database_session] = override_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            root = await client.get("/api/v1/tasks/task-run-1")
+            child = await client.get("/api/v1/tasks/task-run-child")
+
+        assert root.status_code == 200, root.text
+        root_body = root.json()
+        assert root_body["parent"] is None
+        assert [item["run_id"] for item in root_body["children"]] == ["task-run-child"]
+        assert root_body["children"][0]["role_id"] == "EnrichmentRole"
+
+        assert child.status_code == 200, child.text
+        child_body = child.json()
+        assert child_body["parent"]["run_id"] == "task-run-1"
+        assert child_body["parent"]["role_id"] == "InvestigationRole"
+        assert child_body["children"] == []
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_product_agent_proof_uses_agent_runtime_controlled_benchmark() -> None:
     app = create_app()
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:

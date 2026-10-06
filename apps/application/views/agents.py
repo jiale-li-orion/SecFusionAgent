@@ -126,6 +126,8 @@ class AgentRuntimeOverviewView(BaseModel):
 
 class AgentTaskDetailView(BaseModel):
     task: AgentTaskSummaryView
+    parent: AgentTaskSummaryView | None = None
+    children: list[AgentTaskSummaryView] = Field(default_factory=list)
     events: list[AgentTaskEventView] = Field(default_factory=list)
     capabilities: list[AgentCapabilityActivityView] = Field(default_factory=list)
     budget: AgentBudgetSnapshotView | None = None
