@@ -183,7 +183,7 @@ body,
 .world-coordinate,
 .graph-coordinate,
 .task-budget-coordinate {
-  font-size: 8.5px !important;
+  font-size: 9.5px !important;
 }
 
 .world-semantic-legend span,
@@ -1270,13 +1270,13 @@ body,
   }
 
   .world-telemetry .telemetry-readout small {
-    font-size: 8px !important;
-    line-height: 1.25;
+    font-size: 9px !important;
+    line-height: 1.3;
   }
 
   .world-telemetry .telemetry-readout span {
-    font-size: 8px !important;
-    line-height: 1.3;
+    font-size: 9px !important;
+    line-height: 1.35;
   }
 
   .world-lens {
@@ -1343,8 +1343,8 @@ body,
   }
 
   .agents-space .agent-runtime-readout small {
-    font-size: 8px !important;
-    line-height: 1.25;
+    font-size: 9px !important;
+    line-height: 1.3;
   }
 
   .agents-space .role-entity {
@@ -1363,8 +1363,44 @@ body,
   .agents-space .agent-model-runtime-flow small,
   .agents-space .agent-model-runtime-flow span,
   .agents-space .agent-control-runtime-line {
-    font-size: 8.5px !important;
-    line-height: 1.3;
+    font-size: 9px !important;
+    line-height: 1.35;
+  }
+
+  .world-space .source-beacon-copy small,
+  .world-space .source-beacon-copy em,
+  .world-space .hot-field-label small,
+  .intelligence-space .enrichment-head small,
+  .intelligence-space .enrichment-head > span,
+  .intelligence-space .enrichment-dimension small,
+  .intelligence-space .enrichment-dimension > span,
+  .intelligence-space .claim-row small,
+  .intelligence-space .graph-toolbar,
+  .intelligence-space .graph-relation-node small,
+  .intelligence-space .graph-relation-node em,
+  .intelligence-space .inspector-head small,
+  .intelligence-space .inspector-block small,
+  .intelligence-space .inspector-block span,
+  .investigations-space .case-card small,
+  .investigations-space .case-card em,
+  .investigations-space .activity-head small,
+  .investigations-space .runtime-event small,
+  .investigations-space .runtime-event em,
+  .agents-space .role-entity-copy small,
+  .agents-space .role-entity-copy p,
+  .agents-space .role-coordinates span,
+  .agents-space .role-entity-runtime small,
+  .agents-space .role-entity-runtime span,
+  .agents-space .task-ledger-title,
+  .agents-space .task-ledger-row small,
+  .agents-space .task-ledger-row em,
+  .observatory-space .chart-head,
+  .observatory-space .spectrum-row small,
+  .observatory-space .agent-spectrum-row small,
+  .observatory-space .proof-block-head small,
+  .observatory-space .proof-number small {
+    font-size: 9px !important;
+    line-height: 1.35;
   }
 
   .observatory-space .observatory-mode-switch {

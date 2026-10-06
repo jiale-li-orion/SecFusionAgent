@@ -338,7 +338,7 @@
 }
 
 .intelligence-space.has-dossier .dossier-masthead p {
-  color: #8b806e !important;
+  color: #6f6659 !important;
   letter-spacing: .08em !important;
 }
 
@@ -347,7 +347,7 @@
 }
 
 .intelligence-space.has-dossier .dossier-masthead > div:first-child > small {
-  color: #746e63 !important;
+  color: #5f5a51 !important;
 }
 
 .intelligence-space.has-dossier .dossier-hero {
@@ -614,18 +614,18 @@
 }
 
 .intelligence-space .dossier-origin small {
-  color: #8a806e !important;
+  color: #6d6455 !important;
   letter-spacing: .08em;
 }
 
 .intelligence-space .dossier-origin strong {
-  color: #5f584d !important;
+  color: #49443c !important;
   font-family: Georgia, "Times New Roman", serif;
   font-weight: 520;
 }
 
 .intelligence-space .dossier-origin span {
-  color: #81796d !important;
+  color: #665f55 !important;
 }
 
 .intelligence-space .dossier-origin button {
@@ -755,7 +755,7 @@
 }
 
 .observatory-space.observatory-proof .observatory-switchboard-heading p {
-  color: #7a7d70 !important;
+  color: #62665a !important;
   letter-spacing: .08em !important;
 }
 
@@ -767,11 +767,11 @@
 }
 
 .observatory-space.observatory-proof .observatory-switchboard-heading h1 span {
-  color: #737966 !important;
+  color: #5e6554 !important;
 }
 
 .observatory-space.observatory-proof .observatory-switchboard-heading > div:first-child > small {
-  color: #666b5f !important;
+  color: #565b50 !important;
 }
 
 .observatory-space.observatory-proof .observatory-mode-switch {
@@ -780,7 +780,40 @@
 }
 
 .observatory-space.observatory-proof .observatory-mode-switch button {
-  color: #797d70;
+  color: #62675b;
+}
+
+.world-space .world-lens small,
+.world-space .world-lens p,
+.world-space .world-lens span,
+.world-space .world-lens em,
+.world-space .telemetry-readout small,
+.world-space .telemetry-readout span {
+  color: #526b7b !important;
+}
+
+.world-space .world-hero-actions button,
+.world-space .world-semantic-legend,
+.world-space .world-focus-hint {
+  color: #4f6879 !important;
+}
+
+.intelligence-space .claim-row small,
+.intelligence-space .graph-toolbar,
+.intelligence-space .graph-relation-node small,
+.intelligence-space .graph-relation-node em,
+.intelligence-space .inspector-head small,
+.intelligence-space .inspector-block small,
+.intelligence-space .inspector-block span {
+  color: #676155 !important;
+}
+
+.observatory-space.observatory-proof .proof-block-head small,
+.observatory-space.observatory-proof .proof-number small,
+.observatory-space.observatory-proof .proof-case-list article em,
+.observatory-space.observatory-proof .proof-case-coordinates,
+.observatory-space.observatory-proof .proof-metric-list article span {
+  color: #62675b !important;
 }
 
 .observatory-space.observatory-proof .observatory-mode-switch button.active {
