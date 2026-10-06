@@ -37,6 +37,11 @@ class AgentTaskSummaryView(BaseModel):
     finished_at: datetime | None = None
 
 
+class AgentTaskPageView(BaseModel):
+    generated_at: datetime
+    items: list[AgentTaskSummaryView] = Field(default_factory=list)
+
+
 class AgentTaskEventView(BaseModel):
     event_id: str
     seq: int
@@ -62,6 +67,31 @@ class AgentCapabilityActivityView(BaseModel):
     raw_artifact_ref: str | None = None
     effect_receipt_ref: str | None = None
     observation_class: str | None = None
+
+
+class AgentModelRuntimeView(BaseModel):
+    scope: str
+    request_limit: int
+    request_count: int = 0
+    attempt_count: int = 0
+    retry_attempt_count: int = 0
+    retry_scheduled_count: int = 0
+    failed_attempt_count: int = 0
+    unknown_after_dispatch_count: int = 0
+    p95_latency_ms: int | None = None
+    provider_counts: dict[str, int] = Field(default_factory=dict)
+    model_counts: dict[str, int] = Field(default_factory=dict)
+    latest_attempt_at: datetime | None = None
+
+
+class AgentControlRuntimeView(BaseModel):
+    scope: str
+    sampled_task_count: int = 0
+    dependency_wake_count: int = 0
+    waiting_event_count: int = 0
+    stop_reason_counts: dict[str, int] = Field(default_factory=dict)
+    wake_latency_ms: int | None = None
+    wake_latency_measurement: str = "unavailable"
 
 
 class AgentPromptAssemblyView(BaseModel):
@@ -90,6 +120,8 @@ class AgentRuntimeOverviewView(BaseModel):
     roles: list[AgentRoleRuntimeView] = Field(default_factory=list)
     recent_tasks: list[AgentTaskSummaryView] = Field(default_factory=list)
     recent_capabilities: list[AgentCapabilityActivityView] = Field(default_factory=list)
+    model_runtime: AgentModelRuntimeView
+    control_runtime: AgentControlRuntimeView
 
 
 class AgentTaskDetailView(BaseModel):

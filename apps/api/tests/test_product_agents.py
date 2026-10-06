@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from apps.api.dependencies import database_session
 from apps.api.main import create_app
 from apps.runtime_models import register_runtime_models
+from packages.runtime.model.storage import ModelAttemptModel, ModelRequestModel
 from packages.runtime.storage.models import BudgetAccountModel
 from packages.shared.db import Base
 from packages.task_runtime.contracts.models import TaskEventType
@@ -92,6 +93,77 @@ async def _database():
             )
         )
         session.add(
+            ModelRequestModel(
+                model_request_id="model-request-1",
+                purpose="investigation.planner",
+                request_owner_ref="task:task-run-1",
+                execution_id=None,
+                task_run_id=run.run_id,
+                case_id=None,
+                processing_run_id=None,
+                prompt_assembly_id=None,
+                prompt_revision="prompt:test@1",
+                request_schema_digest="c" * 64,
+                request_digest="d" * 64,
+                request_artifact_ref=None,
+                requested_model="model:test",
+                provider_policy_ref="provider-policy:test",
+                budget_ref="budget:task-run-1",
+                metadata_json={},
+                created_at=NOW,
+            )
+        )
+        session.add_all(
+            [
+                ModelAttemptModel(
+                    model_attempt_id="model-attempt-1",
+                    model_request_id="model-request-1",
+                    ordinal=1,
+                    provider="test-provider",
+                    adapter_revision="adapter:test@1",
+                    actual_model="model:test",
+                    provider_request_id="provider-request-1",
+                    started_at=NOW,
+                    finished_at=NOW,
+                    status="failed",
+                    failure_class="transient",
+                    failure_detail="fixture",
+                    response_schema_digest="e" * 64,
+                    response_artifact_ref=None,
+                    usage_json={},
+                    cost_json={},
+                    cache_usage_json={},
+                    response_metadata_json={
+                        "retryable": True,
+                        "retry_scheduled": True,
+                        "retry_delay_seconds": 0,
+                    },
+                    latency_ms=120,
+                ),
+                ModelAttemptModel(
+                    model_attempt_id="model-attempt-2",
+                    model_request_id="model-request-1",
+                    ordinal=2,
+                    provider="test-provider",
+                    adapter_revision="adapter:test@1",
+                    actual_model="model:test",
+                    provider_request_id="provider-request-2",
+                    started_at=NOW,
+                    finished_at=NOW,
+                    status="succeeded",
+                    failure_class=None,
+                    failure_detail=None,
+                    response_schema_digest="f" * 64,
+                    response_artifact_ref="artifact:model-response",
+                    usage_json={},
+                    cost_json={},
+                    cache_usage_json={},
+                    response_metadata_json={},
+                    latency_ms=180,
+                ),
+            ]
+        )
+        session.add(
             TaskEventModel(
                 event_id="event-1",
                 task_run_id=run.run_id,
@@ -122,6 +194,10 @@ async def test_product_agent_runtime_exposes_roles_tasks_and_safe_event_summary(
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             overview = await client.get("/api/v1/agents/runtime")
             detail = await client.get("/api/v1/tasks/task-run-1")
+            task_page = await client.get(
+                "/api/v1/tasks",
+                params={"role_id": "InvestigationRole", "status": "running"},
+            )
         assert overview.status_code == 200, overview.text
         body = overview.json()
         role = next(item for item in body["roles"] if item["role_id"] == "InvestigationRole")
@@ -130,6 +206,18 @@ async def test_product_agent_runtime_exposes_roles_tasks_and_safe_event_summary(
         assert body["recent_tasks"][0]["task_kind"] == "verify_version_fix"
         assert body["recent_tasks"][0]["last_event_type"] == "TaskStarted"
         assert overview.json()["recent_capabilities"] == []
+        assert body["model_runtime"]["request_count"] == 1
+        assert body["model_runtime"]["attempt_count"] == 2
+        assert body["model_runtime"]["retry_attempt_count"] == 1
+        assert body["model_runtime"]["retry_scheduled_count"] == 1
+        assert body["model_runtime"]["failed_attempt_count"] == 1
+        assert body["model_runtime"]["p95_latency_ms"] == 180
+        assert body["model_runtime"]["provider_counts"] == {"test-provider": 2}
+        assert body["control_runtime"]["sampled_task_count"] == 1
+        assert body["control_runtime"]["wake_latency_measurement"] == "unavailable"
+
+        assert task_page.status_code == 200, task_page.text
+        assert [item["run_id"] for item in task_page.json()["items"]] == ["task-run-1"]
 
         assert detail.status_code == 200, detail.text
         detail_body = detail.json()

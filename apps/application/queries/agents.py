@@ -10,14 +10,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from apps.application.views.agents import (
     AgentBudgetSnapshotView,
     AgentCapabilityActivityView,
+    AgentControlRuntimeView,
+    AgentModelRuntimeView,
     AgentPromptAssemblyView,
     AgentRoleRuntimeView,
     AgentRuntimeOverviewView,
     AgentTaskDetailView,
     AgentTaskEventView,
+    AgentTaskPageView,
     AgentTaskSummaryView,
 )
-from packages.runtime.model.storage import PromptAssemblyRecordModel
+from packages.runtime.model.storage import (
+    ModelAttemptModel,
+    ModelRequestModel,
+    PromptAssemblyRecordModel,
+)
 from packages.runtime.storage.models import (
     BudgetAccountModel,
     BudgetReservationModel,
@@ -45,6 +52,7 @@ async def get_agent_runtime_overview(
     *,
     task_limit: int = 72,
     capability_limit: int = 48,
+    model_request_limit: int = 64,
 ) -> AgentRuntimeOverviewView:
     runs = list(
         await session.scalars(
@@ -96,12 +104,152 @@ async def get_agent_runtime_overview(
             .limit(capability_limit)
         )
     )
+    model_runtime = await _model_runtime_view(
+        session,
+        request_limit=model_request_limit,
+    )
+    control_runtime = await _control_runtime_view(
+        session,
+        runs,
+    )
     return AgentRuntimeOverviewView(
         generated_at=datetime.now(UTC),
         roles=roles,
         recent_tasks=summaries,
         recent_capabilities=[_capability_view(item) for item in capabilities],
+        model_runtime=model_runtime,
+        control_runtime=control_runtime,
     )
+
+
+async def list_agent_tasks(
+    session: AsyncSession,
+    *,
+    role_id: str | None = None,
+    status: str | None = None,
+    case_id: str | None = None,
+    limit: int = 72,
+) -> AgentTaskPageView:
+    statement = select(TaskRunModel)
+    if role_id:
+        statement = statement.where(TaskRunModel.role_id == role_id)
+    if status:
+        statement = statement.where(TaskRunModel.status == status)
+    if case_id:
+        statement = statement.where(TaskRunModel.case_id == case_id)
+    runs = list(
+        await session.scalars(
+            statement.order_by(TaskRunModel.updated_at.desc()).limit(limit)
+        )
+    )
+    return AgentTaskPageView(
+        generated_at=datetime.now(UTC),
+        items=await _task_summaries(session, runs),
+    )
+
+
+async def _model_runtime_view(
+    session: AsyncSession,
+    *,
+    request_limit: int,
+) -> AgentModelRuntimeView:
+    requests = list(
+        await session.scalars(
+            select(ModelRequestModel)
+            .order_by(ModelRequestModel.created_at.desc())
+            .limit(request_limit)
+        )
+    )
+    if not requests:
+        return AgentModelRuntimeView(
+            scope="latest_persisted_model_requests",
+            request_limit=request_limit,
+        )
+    request_ids = [item.model_request_id for item in requests]
+    attempts = list(
+        await session.scalars(
+            select(ModelAttemptModel)
+            .where(ModelAttemptModel.model_request_id.in_(request_ids))
+            .order_by(ModelAttemptModel.started_at)
+        )
+    )
+    latencies = sorted(
+        int(item.latency_ms)
+        for item in attempts
+        if item.latency_ms is not None
+    )
+    provider_counts = Counter(item.provider for item in attempts)
+    model_counts = Counter(item.actual_model for item in attempts)
+    latest_attempt = max(
+        (item.started_at for item in attempts),
+        default=None,
+    )
+    return AgentModelRuntimeView(
+        scope="latest_persisted_model_requests",
+        request_limit=request_limit,
+        request_count=len(requests),
+        attempt_count=len(attempts),
+        retry_attempt_count=sum(1 for item in attempts if item.ordinal > 1),
+        retry_scheduled_count=sum(
+            1
+            for item in attempts
+            if item.response_metadata_json.get("retry_scheduled") is True
+        ),
+        failed_attempt_count=sum(1 for item in attempts if item.status == "failed"),
+        unknown_after_dispatch_count=sum(
+            1
+            for item in attempts
+            if item.status == "unknown_after_dispatch"
+        ),
+        p95_latency_ms=_nearest_rank_p95(latencies),
+        provider_counts=dict(sorted(provider_counts.items())),
+        model_counts=dict(sorted(model_counts.items())),
+        latest_attempt_at=latest_attempt,
+    )
+
+
+async def _control_runtime_view(
+    session: AsyncSession,
+    runs: list[TaskRunModel],
+) -> AgentControlRuntimeView:
+    if not runs:
+        return AgentControlRuntimeView(scope="recent_task_read_window")
+    run_ids = [item.run_id for item in runs]
+    events = list(
+        await session.scalars(
+            select(TaskEventModel).where(TaskEventModel.task_run_id.in_(run_ids))
+        )
+    )
+    stop_reasons = Counter(
+        item.stop_reason
+        for item in runs
+        if item.stop_reason
+    )
+    return AgentControlRuntimeView(
+        scope="recent_task_read_window",
+        sampled_task_count=len(runs),
+        dependency_wake_count=sum(
+            1
+            for item in events
+            if item.producer == "task-runtime-scheduler"
+            and item.event_type == "TaskPatched"
+        ),
+        waiting_event_count=sum(
+            1
+            for item in events
+            if item.event_type in {"NeedInput", "NeedContext"}
+        ),
+        stop_reason_counts=dict(sorted(stop_reasons.items())),
+        wake_latency_ms=None,
+        wake_latency_measurement="unavailable",
+    )
+
+
+def _nearest_rank_p95(values: list[int]) -> int | None:
+    if not values:
+        return None
+    index = max(0, (95 * len(values) + 99) // 100 - 1)
+    return values[min(index, len(values) - 1)]
 
 
 async def get_agent_task_detail(

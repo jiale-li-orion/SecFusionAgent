@@ -7,11 +7,13 @@ from apps.application.queries.agents import (
     get_agent_learning_overview,
     get_agent_runtime_overview,
     get_agent_task_detail,
+    list_agent_tasks,
 )
 from apps.application.views.agents import (
     AgentLearningOverviewView,
     AgentRuntimeOverviewView,
     AgentTaskDetailView,
+    AgentTaskPageView,
 )
 
 router = APIRouter(prefix="/api/v1", tags=["agents"])
@@ -21,13 +23,35 @@ router = APIRouter(prefix="/api/v1", tags=["agents"])
 async def agent_runtime(
     session: SessionDep,
     task_limit: int = Query(default=72, ge=1, le=200),
+    model_request_limit: int = Query(default=64, ge=1, le=200),
 ) -> AgentRuntimeOverviewView:
-    return await get_agent_runtime_overview(session, task_limit=task_limit)
+    return await get_agent_runtime_overview(
+        session,
+        task_limit=task_limit,
+        model_request_limit=model_request_limit,
+    )
 
 
 @router.get("/agents/learning", response_model=AgentLearningOverviewView)
 async def agent_learning(session: SessionDep) -> AgentLearningOverviewView:
     return await get_agent_learning_overview(session)
+
+
+@router.get("/tasks", response_model=AgentTaskPageView)
+async def tasks(
+    session: SessionDep,
+    role_id: str | None = Query(default=None, max_length=64),
+    status_filter: str | None = Query(default=None, alias="status", max_length=32),
+    case_id: str | None = Query(default=None, max_length=64),
+    limit: int = Query(default=72, ge=1, le=200),
+) -> AgentTaskPageView:
+    return await list_agent_tasks(
+        session,
+        role_id=role_id,
+        status=status_filter,
+        case_id=case_id,
+        limit=limit,
+    )
 
 
 @router.get("/tasks/{run_id}", response_model=AgentTaskDetailView)
