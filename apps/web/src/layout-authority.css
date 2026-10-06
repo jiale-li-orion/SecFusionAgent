@@ -1567,11 +1567,6 @@ body,
       "switch" !important;
   }
 
-  .intelligence-space .dossier-stats {
-
-    width: 100%;
-  }
-
   .intelligence-space .intel-reading-switch {
     justify-self: start;
   }
@@ -1594,6 +1589,8 @@ body,
   }
 
   .intelligence-space .dossier-stats {
+
+    width: 100%;
     min-width: 245px;
     gap: 10px !important;
   }
@@ -1613,16 +1610,6 @@ body,
     width: 100% !important;
     min-width: 0 !important;
     max-width: none !important;
-  }
-
-  .investigations-space .case-workspace-stack {
-
-    grid-template-areas:
-      "hero"
-      "terminal"
-      "states"
-      "decision"
-      "session" !important;
   }
 
   .investigations-space .conversation-shell {
@@ -1672,6 +1659,13 @@ body,
   }
 
   .investigations-space .case-workspace-stack {
+
+    grid-template-areas:
+      "hero"
+      "terminal"
+      "states"
+      "decision"
+      "session" !important;
     grid-template-columns: minmax(0, 1fr) 310px !important;
   }
 
@@ -2147,8 +2141,6 @@ body,
 }
 
 .start-space > .mission-briefing {
-  grid-column: 1 !important;
-  grid-row: 1 !important;
   display: grid !important;
   grid-template-columns: minmax(0, 1fr) auto !important;
   align-items: end;
@@ -2160,19 +2152,7 @@ body,
 
 }
 
-.start-space > .start-theater {
-  grid-column: 1 !important;
-  grid-row: 2 !important;
-
-
-
-
-
-}
-
 .start-space > .payload-deck {
-  grid-column: 1 !important;
-  grid-row: 3 !important;
 
 
 
@@ -3391,6 +3371,8 @@ body,
 }
 
 .start-space > .mission-briefing {
+  grid-row: 1 !important;
+  grid-column: 1 !important;
   grid-area: brief !important;
   position: relative !important;
   inset: auto !important;
@@ -3420,6 +3402,8 @@ body,
 }
 
 .start-space > .start-theater {
+  grid-row: 2 !important;
+  grid-column: 1 !important;
   grid-area: theatre !important;
   position: relative !important;
   inset: auto !important;
@@ -3432,6 +3416,8 @@ body,
 }
 
 .start-space > .payload-deck {
+  grid-column: 1 !important;
+  grid-row: 3 !important;
   grid-area: console !important;
   position: relative !important;
   inset: auto !important;
