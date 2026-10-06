@@ -828,10 +828,33 @@ body,
   justify-content: space-between;
 }
 
+.investigations-space .activity-head-actions {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.investigations-space .rail-density-toggle {
+  flex: 0 0 auto;
+  padding: 3px 5px;
+}
+
+.investigations-space .rail-overflow-note {
+  width: 100%;
+  margin-top: 4px;
+  padding: 7px 5px;
+  text-align: left;
+}
+
 .investigations-space .activity-head > div {
   min-width: 0;
   display: grid;
   gap: 2px;
+}
+
+.investigations-space .activity-head > .activity-head-actions {
+  display: flex;
 }
 
 .investigations-space .activity-head small,

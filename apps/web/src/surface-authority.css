@@ -258,6 +258,34 @@
   }
 }
 
+.investigations-space .rail-density-toggle,
+.investigations-space .rail-overflow-note {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #707881;
+  cursor: pointer;
+  font: 8px ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.investigations-space .rail-density-toggle {
+  border-bottom: 1px solid rgba(168, 139, 255, .18);
+}
+
+.investigations-space .rail-overflow-note {
+  border-top: 1px solid rgba(255, 255, 255, .035);
+}
+
+.investigations-space .rail-density-toggle:hover,
+.investigations-space .rail-density-toggle:focus-visible,
+.investigations-space .rail-overflow-note:hover,
+.investigations-space .rail-overflow-note:focus-visible {
+  color: #aeb6bc;
+  background: linear-gradient(90deg, rgba(168, 139, 255, .04), transparent);
+}
+
 .observatory-space.observatory-proof .proof-block,
 .observatory-space.observatory-proof .proof-number,
 .observatory-space.observatory-proof .proof-targets,

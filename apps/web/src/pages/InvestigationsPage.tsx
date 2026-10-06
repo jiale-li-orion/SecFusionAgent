@@ -60,6 +60,8 @@ export function InvestigationsPage() {
   const [streamConnection, setStreamConnection] = useState<{ caseId: string; state: 'live' | 'retrying' } | null>(null)
   const [selectedEvidence, setSelectedEvidence] = useState<string | null>(evidenceParam)
   const [eventCue, setEventCue] = useState<EventCue | null>(null)
+  const [caseArchiveExpanded, setCaseArchiveExpanded] = useState(false)
+  const [eventHistoryExpanded, setEventHistoryExpanded] = useState(false)
   const events = useMemo(
     () => mergeRuntimeEvents(activityQuery.data?.events ?? [], selectedCase ? streamEvents[selectedCase] ?? [] : []),
     [activityQuery.data?.events, selectedCase, streamEvents],
@@ -101,8 +103,19 @@ export function InvestigationsPage() {
 
   const selected = detailQuery.data
   const sessionId = selected?.continuation_session_id ?? sessionParam
-  const cases = listQuery.data?.items ?? []
+  const cases = useMemo(() => listQuery.data?.items ?? [], [listQuery.data?.items])
   const liveCount = cases.filter((item) => liveStatuses.has(item.status)).length
+  const visibleCases = useMemo(() => {
+    if (caseArchiveExpanded) return cases
+    const selectedItem = cases.find((item) => item.case_id === selectedCase)
+    const ordered = [
+      ...(selectedItem ? [selectedItem] : []),
+      ...cases.filter((item) => item.case_id !== selectedCase && liveStatuses.has(item.status)),
+      ...cases.filter((item) => item.case_id !== selectedCase && !liveStatuses.has(item.status)),
+    ]
+    const seen = new Set<string>()
+    return ordered.filter((item) => !seen.has(item.case_id) && seen.add(item.case_id)).slice(0, 6)
+  }, [caseArchiveExpanded, cases, selectedCase])
 
   function selectCase(caseId: string) {
     setSelectedEvidence(null)
@@ -140,7 +153,12 @@ export function InvestigationsPage() {
 
       <div className="investigation-layout">
         <aside className="case-rail">
-          <div className="case-rail-head"><SearchCheck size={15} /><strong>{text('案件卷宗', 'CASE FILES')}</strong><span>{cases.length}</span></div>
+          <div className="case-rail-head">
+            <SearchCheck size={15} />
+            <strong>{text('案件卷宗', 'CASE FILES')}</strong>
+            <span>{cases.length}</span>
+            {cases.length > 6 && <button type="button" className="rail-density-toggle" aria-expanded={caseArchiveExpanded} onClick={() => setCaseArchiveExpanded((value) => !value)}>{caseArchiveExpanded ? text('聚焦', 'FOCUS') : text('全部', 'ALL')}</button>}
+          </div>
           {listQuery.isError && (
             <div className="case-index-fault" role="alert">
               <CircleAlert size={14} />
@@ -149,13 +167,14 @@ export function InvestigationsPage() {
             </div>
           )}
           <div className="case-list">
-            {cases.map((item) => (
+            {visibleCases.map((item) => (
               <button key={item.case_id} className={`case-card ${item.case_id === selectedCase ? 'selected' : ''} case-${item.status}`} onClick={() => selectCase(item.case_id)}>
                 <span className="case-status-dot" />
                 <span className="case-card-copy"><small>{item.execution_profile ?? item.current_activity.task_kind ?? 'INVESTIGATION'} · {item.origin_scope.toUpperCase()}</small><strong>{item.goal}</strong><em>{item.current_activity.actor_role ?? 'runtime'} · {item.current_activity.phase}</em></span>
                 <span className="case-card-tail"><b>{item.status}</b><small>r{item.revision}</small></span>
               </button>
             ))}
+            {!caseArchiveExpanded && cases.length > visibleCases.length && <button type="button" className="rail-overflow-note" onClick={() => setCaseArchiveExpanded(true)}>+{cases.length - visibleCases.length} {text('历史 Case', 'archived cases')}</button>}
             {listQuery.isLoading && <div className="case-list-empty">{text('加载 durable Cases…', 'Loading durable cases…')}</div>}
             {!listQuery.isLoading && cases.length === 0 && <CaseRailBlueprint />}
           </div>
@@ -181,9 +200,13 @@ export function InvestigationsPage() {
         </main>
 
         <aside className="activity-rail">
-          <div className="activity-head"><div><small>{text('产品事件流', 'PRODUCT EVENT STREAM')}</small><strong>{text('实时活动', 'LIVE ACTIVITY')}</strong></div><span className={`stream-beacon stream-${streamState}`} /></div>
+          <div className="activity-head">
+            <div><small>{text('产品事件流', 'PRODUCT EVENT STREAM')}</small><strong>{text('实时活动', 'LIVE ACTIVITY')}</strong></div>
+            <div className="activity-head-actions"><span className={`stream-beacon stream-${streamState}`} />{events.length > 8 && <button type="button" className="rail-density-toggle" aria-expanded={eventHistoryExpanded} onClick={() => setEventHistoryExpanded((value) => !value)}>{eventHistoryExpanded ? text('最近', 'RECENT') : text('历史', 'HISTORY')}</button>}</div>
+          </div>
           {activityQuery.isError && <div className="activity-fault" role="alert"><CircleAlert size={13} /><span>{text('历史 ProductEvent read 不可用；SSE 会继续尝试连接。', 'Historical ProductEvent read is unavailable; SSE continues reconnect attempts.')}</span><button className="recovery-action" onClick={() => void activityQuery.refetch()}>{text('重试历史事件', 'RETRY EVENT HISTORY')}</button></div>}
-          {events.length ? <RuntimeEventRail events={events} activeEventId={eventCue?.eventId ?? null} onFocus={(event) => { const state = eventState(event.event_type); if (state) setEventCue({ eventId: event.event_id, state }) }} /> : <EventRailBlueprint state={streamState} />}
+          {events.length ? <RuntimeEventRail events={events} limit={eventHistoryExpanded ? 32 : 8} activeEventId={eventCue?.eventId ?? null} onFocus={(event) => { const state = eventState(event.event_type); if (state) setEventCue({ eventId: event.event_id, state }) }} /> : <EventRailBlueprint state={streamState} />}
+          {!eventHistoryExpanded && events.length > 8 && <button type="button" className="rail-overflow-note event-overflow" onClick={() => setEventHistoryExpanded(true)}>+{events.length - 8} {text('更早事件', 'earlier events')}</button>}
         </aside>
       </div>
 
@@ -502,9 +525,9 @@ function DecisionPanel({ investigation, onEvidence }: { investigation: Investiga
   )
 }
 
-function RuntimeEventRail({ events, activeEventId, onFocus }: { events: ProductRuntimeEvent[]; activeEventId: string | null; onFocus: (event: ProductRuntimeEvent) => void }) {
+function RuntimeEventRail({ events, limit, activeEventId, onFocus }: { events: ProductRuntimeEvent[]; limit: number; activeEventId: string | null; onFocus: (event: ProductRuntimeEvent) => void }) {
   const { text } = useI18n()
-  const visible = events.slice(-32).reverse()
+  const visible = events.slice(-limit).reverse()
   return <div className="runtime-event-list">{visible.map((event, index) => <motion.button type="button" key={event.event_id} onClick={() => onFocus(event)} className={`runtime-event event-${event.event_type} ${activeEventId === event.event_id ? 'event-focused' : ''} ${eventState(event.event_type) ? 'event-actionable' : ''}`} initial={{ opacity: 0, x: 18, scale: .98 }} animate={{ opacity: 1, x: 0, scale: 1 }} transition={{ delay: Math.min(index * .015, .18) }}><span className="event-symbol"><EventIcon type={event.event_type} /></span><div><small>{event.role_id ?? event.actor ?? event.source_kind}</small><strong>{event.summary}</strong><em>{event.technical_type} · {new Date(event.occurred_at).toLocaleTimeString()}</em>{event.evidence_refs.length > 0 && <span className="event-evidence">{text(`${event.evidence_refs.length} 条 evidence refs`, `${event.evidence_refs.length} evidence refs`)}</span>}</div></motion.button>)}</div>
 }
 
