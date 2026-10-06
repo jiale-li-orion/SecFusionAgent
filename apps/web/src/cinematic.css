@@ -84,14 +84,22 @@ body {
   display: flex;
   align-items: center;
   cursor: pointer;
-  text-align: left;
+  text-align: left; gap: 9px;
+  flex: 0 0 auto;
+  width: 100%;
+  min-height: 64px;
+  padding: 2px 6px 14px;
+  border: 0;
+  border-bottom: 1px solid rgba(255,255,255,.055);
 }
 
 .brand-sigil {
   position: relative;
   display: grid;
   place-items: center;
-  color: var(--lime);
+  color: var(--lime); border: 0; background: transparent; box-shadow: none;
+  width: 28px;
+  height: 28px;
 }
 
 .brand-sigil::before,
@@ -119,23 +127,55 @@ body {
 }
 
 .brand-copy small {
-  color: #5f6b74;
+  color: #5f6b74; opacity: .52;
+  letter-spacing: .12em;
 }
 
 .instrument-nav {
   grid-template-columns: repeat(5, minmax(90px, 1fr));
+  align-items: stretch;
+  justify-content: center;
+  padding: 0 20px;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 18px;
+  height: auto;
 }
 
 .instrument-nav-item {
   display: flex;
   align-items: center;
   transition: color 180ms ease, background 180ms ease;
+  min-width: auto;
+  text-decoration: none;
+  position: relative;
+  background: transparent !important;
+  border: 0 !important;
+  min-height: 48px;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 0 10px;
+  border-radius: 0;
+  color: #68767d;
+  font-size: 8.5px;
+  letter-spacing: .06em;
 }
 
 .instrument-nav-item::before {
   content: "";
   position: absolute;
   box-shadow: none;
+  transition: left 180ms ease, right 180ms ease, opacity 180ms ease;
+  left: -12px;
+  right: auto;
+  top: 50%;
+  bottom: auto;
+  width: 2px;
+  height: 0;
+  transform: translateY(-50%);
+  background: currentColor;
 }
 
 .instrument-nav-item.active::before {
@@ -160,7 +200,8 @@ body {
   padding: 2px 5px;
   border-radius: 2px;
   color: #65717a;
-  font-size: 7px;
+  font-size: 7px; opacity: .42; border: 0; background: transparent;
+  margin-left: auto;
 }
 
 .runtime-state {
@@ -191,6 +232,15 @@ body {
   gap: 9px;
   cursor: pointer;
   letter-spacing: 0.17em;
+  color: #ecffc4;
+  min-height: 58px;
+  justify-content: center;
+  margin-top: 2px;
+  padding: 0 8px;
+  border: 1px solid rgba(201,244,91,.16);
+  background:
+    radial-gradient(circle at 50% 50%,rgba(201,244,91,.06),transparent 66%),
+    rgba(201,244,91,.015);
 }
 
 .global-start::before {
@@ -2899,10 +2949,6 @@ body {
   background: rgba(114,215,255,.04);
 }
 
-.global-start {
-  color: #ecffc4;
-}
-
 .global-start:hover {
   transform: translateY(-1px);
   text-shadow: 0 0 14px rgba(201,244,91,.22);
@@ -2920,6 +2966,11 @@ body {
   z-index: 70;
   background:
     linear-gradient(90deg, transparent, rgba(114,215,255,.23) 45%, rgba(242,241,234,.44) 50%, rgba(168,139,255,.2) 55%, transparent);
+  transform-origin: left center;
+  inset: 0 0 0 var(--shell-rail);
+  pointer-events: none;
+  overflow: hidden;
+  mix-blend-mode: screen;
 }
 
 .world-hero-actions {
@@ -3095,11 +3146,6 @@ body {
   .case-card:hover {
     transform: none !important;
   }
-}
-.instrument-nav {
-  align-items: stretch;
-  justify-content: center;
-  padding: 0 20px;
 }
 
 .telemetry-readout:nth-child(2),
@@ -3284,25 +3330,11 @@ body {
 .instrument-bar {
   grid-template-columns: 190px minmax(0, 1fr) auto;
 }
-.instrument-brand { gap: 9px; }
-.brand-sigil { border: 0; background: transparent; box-shadow: none; }
-.brand-copy small { opacity: .52; }
-.instrument-nav-item {
-  min-width: auto;
-  text-decoration: none;
-  position: relative;
-  background: transparent !important;
-  border: 0 !important;
-}
-.instrument-nav-item::before {
-  transition: left 180ms ease, right 180ms ease, opacity 180ms ease;
-}
 .command-trigger,
 .global-start {
   height: 30px;
   background: transparent;
 }
-.command-trigger kbd { opacity: .42; border: 0; background: transparent; }
 .global-start-glyph { border: 0; background: transparent; }
 .world-hero-actions button:hover,
 .world-hero-actions button.launch:hover {
@@ -4605,57 +4637,8 @@ body {
   mask-image: none;
 }
 
-.instrument-brand {
-  flex: 0 0 auto;
-  width: 100%;
-  min-height: 64px;
-  padding: 2px 6px 14px;
-  border: 0;
-  border-bottom: 1px solid rgba(255,255,255,.055);
-}
-
-.brand-sigil {
-  width: 28px;
-  height: 28px;
-}
-
 .brand-copy strong {
   letter-spacing: .13em;
-}
-
-.brand-copy small {
-  letter-spacing: .12em;
-}
-
-.instrument-nav {
-  display: flex;
-  flex: 0 0 auto;
-  flex-direction: column;
-  gap: 5px;
-  margin-top: 18px;
-  height: auto;
-}
-
-.instrument-nav-item {
-  min-height: 48px;
-  justify-content: flex-start;
-  gap: 10px;
-  padding: 0 10px;
-  border-radius: 0;
-  color: #68767d;
-  font-size: 8.5px;
-  letter-spacing: .06em;
-}
-
-.instrument-nav-item::before {
-  left: -12px;
-  right: auto;
-  top: 50%;
-  bottom: auto;
-  width: 2px;
-  height: 0;
-  transform: translateY(-50%);
-  background: currentColor;
 }
 
 .instrument-nav-item.active::before,
@@ -4696,10 +4679,6 @@ body {
   gap: 8px;
 }
 
-.command-trigger kbd {
-  margin-left: auto;
-}
-
 .language-switch {
   justify-content: flex-start;
   min-height: 28px;
@@ -4707,17 +4686,6 @@ body {
 
 .runtime-state {
   min-height: 28px;
-}
-
-.global-start {
-  min-height: 58px;
-  justify-content: center;
-  margin-top: 2px;
-  padding: 0 8px;
-  border: 1px solid rgba(201,244,91,.16);
-  background:
-    radial-gradient(circle at 50% 50%,rgba(201,244,91,.06),transparent 66%),
-    rgba(201,244,91,.015);
 }
 
 .global-start::before {
@@ -4733,11 +4701,6 @@ body {
 .product-workspace,
 .route-stage {
   min-height: 100vh;
-}
-
-.route-aperture {
-  transform-origin: left center;
-  inset: 0 0 0 var(--shell-rail);
 }
 .shell-space-world {
   background:
@@ -12322,11 +12285,6 @@ body {
   .start-outcome {
     inset: auto;
   }
-}
-.route-aperture {
-  pointer-events: none;
-  overflow: hidden;
-  mix-blend-mode: screen;
 }
 
 .route-aperture::before,
