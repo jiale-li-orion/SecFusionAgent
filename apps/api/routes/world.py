@@ -109,6 +109,30 @@ async def hot_world(limit: int = Query(default=18, ge=1, le=64)) -> HotBugListVi
     return HotBugListView(items=[_hot_view(entry) for entry in entries])
 
 
+@router.get("/hot/{source_id}/{external_object_id:path}", response_model=HotBugView)
+async def hot_world_detail(
+    source_id: str,
+    external_object_id: str,
+) -> HotBugView:
+    settings = get_settings()
+    redis = Redis.from_url(settings.redis_hot_cache_url)
+    try:
+        entry = await RedisHotBugCache(redis).get_entry(source_id, external_object_id)
+    except RedisError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Hot Bug working set is unavailable",
+        ) from exc
+    finally:
+        await redis.aclose()
+    if entry is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Hot Bug object not found",
+        )
+    return _hot_view(entry)
+
+
 def _load_snapshot() -> dict[str, Any]:
     try:
         return json.loads(_DATA_PLANE_SNAPSHOT.read_text(encoding="utf-8"))

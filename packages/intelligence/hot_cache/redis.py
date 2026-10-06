@@ -27,6 +27,34 @@ class RedisHotBugCache:
             payload = payload.decode("utf-8")
         return HotBugRecord.model_validate_json(payload)
 
+    async def get_entry(
+        self,
+        source_id: str,
+        external_object_id: str,
+    ) -> HotBugCacheEntry | None:
+        key = _bug_key(source_id, external_object_id)
+        pipeline = self._client.pipeline(transaction=False)
+        pipeline.get(key)
+        pipeline.zscore(self.ACCESS_KEY, key)
+        pipeline.zscore(self.UPDATED_KEY, key)
+        pipeline.sismember(self.ACTIVE_KEY, key)
+        pipeline.sismember(self.PINNED_KEY, key)
+        pipeline.ttl(key)
+        payload, access, updated, active, pinned, ttl = await pipeline.execute()
+        if payload is None:
+            return None
+        if isinstance(payload, bytes):
+            payload = payload.decode("utf-8")
+        ttl_value = int(ttl) if ttl is not None and int(ttl) >= 0 else None
+        return HotBugCacheEntry(
+            record=HotBugRecord.model_validate_json(payload),
+            access_count=float(access or 0.0),
+            updated_score=float(updated or 0.0),
+            active=bool(active),
+            pinned=bool(pinned),
+            ttl_seconds=ttl_value,
+        )
+
     async def admit(self, record: HotBugRecord, *, ttl_seconds: int) -> None:
         updated_score = (record.updated_at or record.fetched_at).timestamp()
         pinned = await cast(
