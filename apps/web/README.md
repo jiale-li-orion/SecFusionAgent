@@ -20,6 +20,7 @@ The stylesheet order is intentional and forms a small authority stack:
 
 - `styles.css` owns shared product primitives and low-level defaults.
 - `cinematic.css` owns the default visual language of the six product spaces.
+- `cinematic-seams.css` owns late cross-space product seams and navigational surfaces that must stay after the base cinematic layer but before final authorities.
 - `surface-authority.css` owns the small set of intentional late visual overrides: palette, borders, shadows, typography emphasis, and motion styling.
 - `layout-authority.css` owns geometry, responsive composition, overflow, safe areas, readable type floors, and z-index.
 

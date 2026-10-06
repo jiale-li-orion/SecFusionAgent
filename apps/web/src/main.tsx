@@ -6,6 +6,7 @@ import App from './App'
 import { I18nProvider } from './lib/i18n'
 import './styles.css'
 import './cinematic.css'
+import './cinematic-seams.css'
 import './surface-authority.css'
 import './layout-authority.css'
 
