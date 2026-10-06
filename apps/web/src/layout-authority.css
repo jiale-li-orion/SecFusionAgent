@@ -400,6 +400,60 @@ body,
   z-index: 21;
 }
 
+.world-incident-cluster {
+  position: absolute;
+  left: 57%;
+  bottom: 12%;
+  z-index: 24;
+  width: min(310px, 25vw);
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+}
+
+.world-incident-cluster-head {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.world-incident-cluster-head > span {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+}
+
+.world-incident-cluster-head > div {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.world-incident-cluster button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  padding: 5px 0;
+  text-align: left;
+}
+
+.world-incident-cluster button strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 1180px) {
+  .world-incident-cluster {
+    display: none;
+  }
+}
+
 .hot-crystal {
   z-index: 20;
   width: clamp(138px, 11vw, 160px) !important;

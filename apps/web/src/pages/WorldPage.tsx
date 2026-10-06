@@ -11,8 +11,8 @@ import {
   X,
 } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { getHotWorld, getHotWorldItem, getWorldOverview, type HotBug } from '../lib/api'
-import { HotCrystal, HotLens, PathLens, SourceLens, Telemetry, WorldField2D, WorldIngressFlow, WorldLiveFlow } from '../components/world/WorldSurfaces'
+import { getHotWorld, getHotWorldItem, getWorldOverview, listIncidents, type HotBug } from '../lib/api'
+import { HotCrystal, HotLens, PathLens, SourceLens, Telemetry, WorldField2D, WorldIncidentCluster, WorldIngressFlow, WorldLiveFlow } from '../components/world/WorldSurfaces'
 import { hotIdentity, laneClass, laneSlug, parseHotIdentity, snapshotAge, sourceNarrative, sourceState, sources, supportsWebGL, worldLanePoints, worldWindows, type WorldWindow } from '../components/world/worldModel'
 import { useI18n } from '../lib/i18n'
 
@@ -39,6 +39,7 @@ export function WorldPage() {
   const [world3DReady, setWorld3DReady] = useState(false)
   const worldQuery = useQuery({ queryKey: ['world-overview'], queryFn: getWorldOverview, refetchInterval: 30_000 })
   const hotQuery = useQuery({ queryKey: ['world-hot'], queryFn: () => getHotWorld(6), refetchInterval: 20_000 })
+  const incidentQuery = useQuery({ queryKey: ['world-incidents'], queryFn: () => listIncidents(6), refetchInterval: 30_000 })
   const hotDetailQuery = useQuery({
     queryKey: ['world-hot-detail', focusedHotCoordinate?.sourceId, focusedHotCoordinate?.externalObjectId],
     queryFn: () => getHotWorldItem(focusedHotCoordinate!.sourceId, focusedHotCoordinate!.externalObjectId),
@@ -177,6 +178,13 @@ export function WorldPage() {
             'Eight heterogeneous source families enter Bug Stream, Structured Development Index, Insight Corpus, and Incident Watch. Hot Layer retains active objects while Evidence / Knowledge / Incident / Insight / Experience form the durable inner world.',
           )}</small>
         </div>
+
+        <WorldIncidentCluster
+          incidents={incidentQuery.data?.items ?? []}
+          loading={incidentQuery.isLoading}
+          unavailable={incidentQuery.isError}
+          onOpen={(incidentId) => navigate(`/intelligence?${new URLSearchParams({ incident: incidentId, from: 'world', worldRef: `incident:${incidentId}` }).toString()}`)}
+        />
         <div className="world-hero-actions">
           <button onClick={() => navigate('/observatory')}>{text('查看运行证据', 'OPEN RUNTIME PROOF')} <ArrowUpRight size={13} /></button>
           <button className="launch" onClick={() => navigate('/start')}><Sparkles size={13} /> {text('发起调查', 'START INVESTIGATION')}</button>
@@ -210,6 +218,7 @@ export function WorldPage() {
               freshChanges={oneHour?.fresh_external_changes ?? 0}
               backfillObservations={oneHour?.backfill_observations ?? 0}
               canonicalWrites={oneHour?.canonical_writes ?? 0}
+              durableIncidentCount={incidentQuery.data?.items.length ?? 0}
               focusedSource={focusedSource}
               focusedLane={focusedLane}
               focusedHot={Boolean(focusedHot)}

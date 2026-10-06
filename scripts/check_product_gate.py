@@ -173,6 +173,13 @@ def _static_product_gate(results: list[GateResult]) -> None:
     )
     _require_source(
         results,
+        name="world-durable-incidents",
+        relative_path="apps/web/src/components/world/WorldSurfaces.tsx",
+        needles=("DURABLE INCIDENT WORLD", "DURABLE ROWS ONLY", "signals or candidates are not presented as durable incidents"),
+        detail="WORLD exposes durable Incident rows without promoting provisional signal/candidate state",
+    )
+    _require_source(
+        results,
         name="reduced-motion",
         relative_path="apps/web/src/cinematic.css",
         needles=("@media (prefers-reduced-motion: reduce)",),

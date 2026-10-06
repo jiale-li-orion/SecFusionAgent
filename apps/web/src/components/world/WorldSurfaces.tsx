@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { ArrowUpRight, Flame } from 'lucide-react'
+import { ArrowUpRight, Flame, ShieldAlert } from 'lucide-react'
 
-import type { HotBug, WorldOverview } from '../../lib/api'
+import type { HotBug, IncidentSummary, WorldOverview } from '../../lib/api'
 import { sourceNarrative, sourceState, sources, worldLanePoints } from './worldModel'
 import { useI18n } from '../../lib/i18n'
 
@@ -55,6 +55,28 @@ const hotSlots = [
   { left: '78%', top: '63%' },
   { left: '78%', top: '75%' },
 ]
+
+export function WorldIncidentCluster({ incidents, loading, unavailable, onOpen }: { incidents: IncidentSummary[]; loading: boolean; unavailable: boolean; onOpen: (incidentId: string) => void }) {
+  const { text } = useI18n()
+  return (
+    <div className={`world-incident-cluster ${unavailable ? 'unavailable' : ''}`}>
+      <div className="world-incident-cluster-head">
+        <span><ShieldAlert size={13} /></span>
+        <div><small>{text('持久事件世界', 'DURABLE INCIDENT WORLD')}</small><strong>{loading ? '…' : unavailable ? '—' : incidents.length}</strong></div>
+        <em>{unavailable ? text('读取不可用', 'UNAVAILABLE') : text('仅 durable rows', 'DURABLE ROWS ONLY')}</em>
+      </div>
+      {!loading && !unavailable && incidents.length === 0 && <p>{text('当前没有已 promotion 的 durable Incident；不以 signal / candidate 冒充持久事件。', 'No promoted durable Incident is present; signals or candidates are not presented as durable incidents.')}</p>}
+      {incidents.slice(0, 3).map((incident) => (
+        <button key={incident.incident_id} type="button" onClick={() => onOpen(incident.incident_id)}>
+          <span>{incident.lifecycle.toUpperCase()}</span>
+          <strong>{incident.current_summary ?? incident.incident_type}</strong>
+          <em>{incident.source_diversity_count} src · r{incident.current_revision}</em>
+        </button>
+      ))}
+      <small className="world-incident-boundary">signal → candidate → <b>durable incident</b></small>
+    </div>
+  )
+}
 
 export function WorldIngressFlow({ snapshot, focusedSource, focusedLane, focusedHot, reduceMotion }: { snapshot: WorldOverview | null | undefined; focusedSource: string | null; focusedLane: string | null; focusedHot: boolean; reduceMotion: boolean }) {
   const categoryHealth = new Map((snapshot?.categories ?? []).map((item) => [item.category, item]))
