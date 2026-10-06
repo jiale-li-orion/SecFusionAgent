@@ -743,6 +743,8 @@ export type DecisionView = {
 export type InvestigationView = {
   case_id: string
   continuation_session_id: string | null
+  origin_scope: 'product' | 'benchmark' | 'system' | 'unknown'
+  can_cancel: boolean
   revision: number
   status: string
   execution_profile: string | null
