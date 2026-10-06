@@ -15,6 +15,7 @@ from apps.application.views.world import (
     WorldHealthCountsView,
     WorldOverviewView,
     WorldSeriesPointView,
+    WorldSourceHealthView,
     WorldWindowView,
 )
 from packages.intelligence.hot_cache.contracts import HotBugCacheEntry
@@ -58,6 +59,11 @@ async def world_overview() -> WorldOverviewView:
             )
             for category, states in by_category.items()
         ],
+        sources=[
+            WorldSourceHealthView.model_validate(item)
+            for item in source_health.get("sources", [])
+            if isinstance(item, dict)
+        ],
         windows={
             key: _window_view(rolling[key].get("scheduled_monitoring", {}))
             for key in _WINDOW_KEYS
@@ -67,6 +73,14 @@ async def world_overview() -> WorldOverviewView:
             WorldSeriesPointView.model_validate(item)
             for item in payload.get("hourly_series", [])
         ],
+        category_hourly_series={
+            str(category): [
+                WorldSeriesPointView.model_validate(item)
+                for item in series
+            ]
+            for category, series in payload.get("category_hourly_series", {}).items()
+            if isinstance(series, list)
+        },
         outbox_delivered=int(pipeline_state.get("outbox", {}).get("delivered", 0)),
         lexical_ready_documents=int(
             pipeline_state.get("document_index", {}).get("lexical_ready", 0)

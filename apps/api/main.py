@@ -12,6 +12,7 @@ from apps.api.routes.agents import router as agents_router
 from apps.api.routes.decisions import router as decisions_router
 from apps.api.routes.evidence import router as evidence_router
 from apps.api.routes.health import router as health_router
+from apps.api.routes.incidents import router as incidents_router
 from apps.api.routes.investigations import router as investigations_router
 from apps.api.routes.knowledge import router as knowledge_router
 from apps.api.routes.observatory import router as observatory_router
@@ -40,7 +41,11 @@ def create_app() -> FastAPI:
         openapi_tags=[
             {"name": "agents", "description": "Product-safe Agent runtime and Task reads."},
             {"name": "knowledge", "description": "Stable current-world intelligence reads."},
-            {"name": "observatory", "description": "Live operational and frozen evaluation proof reads."},
+            {"name": "incidents", "description": "Durable incident timeline and source reads."},
+            {
+                "name": "observatory",
+                "description": "Live operational and frozen evaluation proof reads.",
+            },
             {"name": "evidence", "description": "Product-safe Evidence traceability reads."},
             {
                 "name": "investigations",
@@ -69,6 +74,7 @@ def create_app() -> FastAPI:
     app.include_router(a2a_router)
     app.include_router(agents_router)
     app.include_router(investigations_router)
+    app.include_router(incidents_router)
     app.include_router(decisions_router)
     app.include_router(evidence_router)
     app.include_router(questions_router)

@@ -18,6 +18,20 @@ class WorldCategoryHealthView(BaseModel):
     blocked: int = 0
 
 
+class WorldSourceHealthView(BaseModel):
+    source_id: str
+    measurement_category: str
+    health: str
+    latest_scheduled_status: str | None = None
+    consecutive_failures: int = 0
+    backfill_pending: bool = False
+    last_success_at: datetime | None = None
+    next_due_at: datetime | None = None
+    backoff_until: datetime | None = None
+    overdue: bool = False
+    latest_error_code: str | None = None
+
+
 class WorldWindowView(BaseModel):
     observations: int = 0
     fresh_external_changes: int = 0
@@ -56,8 +70,10 @@ class WorldOverviewView(BaseModel):
     overdue_sources: int
     backfill_pending_sources: int
     categories: list[WorldCategoryHealthView] = Field(default_factory=list)
+    sources: list[WorldSourceHealthView] = Field(default_factory=list)
     windows: dict[str, WorldWindowView]
     hourly_series: list[WorldSeriesPointView] = Field(default_factory=list)
+    category_hourly_series: dict[str, list[WorldSeriesPointView]] = Field(default_factory=dict)
     outbox_delivered: int = 0
     lexical_ready_documents: int = 0
     artifact_store_status: str | None = None

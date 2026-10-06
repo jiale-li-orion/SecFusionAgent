@@ -89,6 +89,10 @@ class AskQuestionCommand(BaseModel):
     priority: int = Field(default=50, ge=0, le=100)
     interactive_timeout_seconds: int = Field(default=5, ge=1, le=30)
     retrieval_limit: int = Field(default=8, ge=1, le=20)
+    allow_wait: bool = True
+    investigation_timeout_seconds: int = Field(default=300, ge=30, le=3600)
+    agent_turns: int = Field(default=8, ge=1, le=64)
+    tool_calls: int = Field(default=12, ge=0, le=128)
 
     @model_validator(mode="after")
     def validate_target(self) -> AskQuestionCommand:
@@ -969,6 +973,10 @@ class AskQuestionUseCase:
                     else command.required_source_roles
                 ),
                 priority=priority if priority is not None else command.priority,
+                allow_wait=command.allow_wait,
+                timeout_seconds=command.investigation_timeout_seconds,
+                agent_turns=command.agent_turns,
+                tool_calls=command.tool_calls,
             ),
         )
         return result.investigation
@@ -1006,6 +1014,10 @@ class AskQuestionUseCase:
                     else command.required_source_roles
                 ),
                 priority=priority if priority is not None else command.priority,
+                allow_wait=command.allow_wait,
+                timeout_seconds=command.investigation_timeout_seconds,
+                agent_turns=command.agent_turns,
+                tool_calls=command.tool_calls,
             ),
         )
         return result.investigation

@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import {
   BadgeCheck,
   Binary,
+  BrainCircuit,
   Braces,
   ExternalLink,
   FileSearch,
@@ -13,116 +14,468 @@ import {
   Radar,
   Search,
   ShieldCheck,
+  Telescope,
   X,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
+  evidenceBoundObjectIds,
   getEvidence,
   getHotWorld,
+  getIncident,
+  getKnowledgeObject,
   getVulnerability,
+  listIncidents,
   type EvidenceRef,
+  type IncidentDetail,
   type KnowledgeClaim,
   type HotBug,
   type KnowledgeRelation,
 } from '../lib/api'
+import { useI18n } from '../lib/i18n'
 
 export function IntelligencePage() {
+  const { text } = useI18n()
+  const navigate = useNavigate()
+  const reduceMotion = Boolean(useReducedMotion())
   const [params, setParams] = useSearchParams()
+  const originSpace = params.get('from')
+  const worldRef = params.get('worldRef')
   const paramCve = params.get('cve') ?? ''
+  const paramObject = params.get('object') ?? ''
+  const paramEvidence = params.get('evidence')
+  const paramIncident = params.get('incident') ?? ''
+  const paramView = params.get('view')
   const [inputOverride, setInputOverride] = useState<string | null>(null)
-  const input = inputOverride ?? paramCve
-  const [evidenceRef, setEvidenceRef] = useState<string | null>(null)
+  const input = inputOverride ?? (paramIncident ? `incident:${paramIncident}` : paramObject ? `object:${paramObject}` : paramCve)
+  const evidenceRef = paramEvidence
+  const readingMode: 'dossier' | 'graph' | 'evidence' = paramEvidence || paramView === 'evidence'
+    ? 'evidence'
+    : paramView === 'graph'
+      ? 'graph'
+      : 'dossier'
+  const [returnReadingMode, setReturnReadingMode] = useState<'dossier' | 'graph'>('dossier')
   const hotQuery = useQuery({ queryKey: ['world-hot-intelligence'], queryFn: () => getHotWorld(64), refetchInterval: 20_000 })
+  const incidentListQuery = useQuery({ queryKey: ['incident-index'], queryFn: () => listIncidents(16), staleTime: 20_000 })
+  const incidentQuery = useQuery({
+    queryKey: ['incident', paramIncident],
+    queryFn: () => getIncident(paramIncident),
+    enabled: Boolean(paramIncident),
+  })
+
   const fallbackCve = hotQuery.data?.items[0]?.cve_id ?? ''
-  const selectedCve = paramCve || fallbackCve
+  const selectedCve = paramObject || paramIncident ? '' : (paramCve || fallbackCve)
+  const selectedObjectId = paramIncident ? '' : paramObject
   const hotMatch = hotQuery.data?.items.find((item) => (item.cve_id ?? item.external_object_id).toUpperCase() === selectedCve.toUpperCase()) ?? null
 
   const knowledgeQuery = useQuery({
-    queryKey: ['vulnerability', selectedCve],
-    queryFn: () => getVulnerability(selectedCve),
-    enabled: Boolean(selectedCve),
+    queryKey: ['knowledge-object', selectedObjectId || selectedCve],
+    queryFn: () => selectedObjectId ? getKnowledgeObject(selectedObjectId) : getVulnerability(selectedCve),
+    enabled: !paramIncident && Boolean(selectedObjectId || selectedCve),
   })
   const obj = knowledgeQuery.data
-  const headline = selectedCve || 'SELECT A VULNERABILITY'
+  const incident = incidentQuery.data
+  const displayName = obj?.properties.display_name
+  const headline = incident
+    ? humanize(incident.incident.incident_type)
+    : (typeof displayName === 'string' && displayName) || obj?.external_identifiers.cve?.[0] || obj?.canonical_key || selectedCve || selectedObjectId || text('选择一个对象', 'SELECT AN OBJECT')
 
   function submitSearch(event: React.FormEvent) {
     event.preventDefault()
-    const value = input.trim().toUpperCase()
+    const raw = input.trim()
+    const value = raw.toUpperCase()
     if (!value) return
-    setEvidenceRef(null)
-    setInputOverride(value)
-    setParams({ cve: value })
+    const incidentMatch = raw.match(/^incident:(.+)$/i)
+    const objectMatch = raw.match(/^object:(.+)$/i)
+    setInputOverride(/^CVE-\d{4}-\d+$/i.test(raw) ? value : raw)
+    if (/^CVE-\d{4}-\d+$/.test(value)) setParams({ cve: value })
+    else if (incidentMatch?.[1]?.trim()) setParams({ incident: incidentMatch[1].trim() })
+    else if (objectMatch?.[1]?.trim()) setParams({ object: objectMatch[1].trim() })
+    else setParams({ object: raw })
   }
 
   const groupedClaims = useMemo(() => groupClaims(obj?.claims ?? []), [obj?.claims])
 
+  function selectReadingMode(nextMode: 'dossier' | 'graph' | 'evidence', evidence?: string) {
+    setParams((current) => {
+      const next = new URLSearchParams(current)
+      if (nextMode === 'dossier') next.delete('view')
+      else next.set('view', nextMode)
+      if (nextMode !== 'evidence') next.delete('evidence')
+      else if (evidence) next.set('evidence', evidence)
+      return next
+    }, { replace: true })
+  }
+
+  function openEvidence(ref: string) {
+    if (readingMode !== 'evidence') setReturnReadingMode(readingMode)
+    selectReadingMode('evidence', ref)
+  }
+
+  function closeEvidence() {
+    selectReadingMode(returnReadingMode)
+  }
+
+  function openMission(profile: 'VERIFY' | 'INVESTIGATE') {
+    const mission = new URLSearchParams({ profile })
+    if (selectedCve) mission.set('cve', selectedCve)
+    else if (obj?.object_id) mission.set('object', obj.object_id)
+    mission.set('from', 'intelligence')
+    mission.set('origin', incident
+      ? `incident:${incident.incident.incident_id}`
+      : obj?.object_id
+        ? `object:${obj.object_id}`
+        : selectedCve
+          ? `cve:${selectedCve}`
+          : 'intelligence')
+    const prompt = profile === 'VERIFY'
+      ? text(`核验 ${headline} 的关键 Claims、Relations 与 Evidence 边界。`, `Verify the key Claims, Relations, and Evidence boundaries for ${headline}.`)
+      : text(`调查 ${headline} 的关联证据、冲突、未知与外部上下文。`, `Investigate the related evidence, conflicts, unknowns, and external context for ${headline}.`)
+    mission.set('question', prompt)
+    navigate(`/start?${mission.toString()}`)
+  }
+
   return (
-    <section className="intelligence-space-v3 intelligence-page">
-      <header className="intelligence-hero-v3 intel-heading">
+    <section className={`intelligence-space intelligence-page ${obj || incident ? 'has-dossier' : 'archive-empty'}`}>
+      <header className="dossier-masthead intel-heading">
         <div>
-          <p>CANONICAL KNOWLEDGE / EVIDENCE-ADJACENT / BOUNDED GRAPH</p>
-          <h1>INTELLIGENCE <span>DOSSIER</span></h1>
-          <small>事实、关系、富化维度和来源在同一观察面展开；任何 Evidence capsule 都能回到真实 Observation。</small>
+          <p>{text('让每条 Claim 都面对自己的见证者', 'CALL EVERY CLAIM TO THE WITNESS STAND')}</p>
+          <h1>{text('情报', 'INTELLIGENCE')} <span>{text('档案', 'DOSSIER')}</span></h1>
+          <small>{text(
+            '十二维 enrichment、canonical Claims、bounded Relations 与 Evidence Inspector 在同一 dossier 展开；来源、revision、时间与 locator 保持可追溯。',
+            'Twelve enrichment dimensions, canonical Claims, bounded Relations, and the Evidence Inspector share one dossier. Source, revision, time, and locator remain traceable.',
+          )}</small>
         </div>
         <form className="intel-search" onSubmit={submitSearch}>
           <Search size={15} />
-          <input value={input} onChange={(event) => setInputOverride(event.target.value)} placeholder="CVE-2026-…" />
-          <button type="submit">INSPECT</button>
+          <input value={input} onChange={(event) => setInputOverride(event.target.value)} placeholder="CVE-2026-… / object:<id> / incident:<id>" />
+          <button type="submit">{text('打开档案', 'OPEN DOSSIER')}</button>
         </form>
       </header>
 
-      <div className="intel-layout">
-        <div className="intel-main">
-          <article className="dossier-hero dossier-hero-v3">
+      {originSpace === 'world' && worldRef && (
+        <div className="dossier-origin">
+          <div><small>WORLD → INTELLIGENCE</small><strong>{text('来自 Evidence World 的对象坐标', 'OBJECT COORDINATE FROM EVIDENCE WORLD')}</strong><span className="mono">{worldRef}</span></div>
+          <button onClick={() => navigate('/')}>{text('返回 Evidence World', 'BACK TO EVIDENCE WORLD')}</button>
+        </div>
+      )}
+
+      <div className={`intel-layout reading-${readingMode}`}>
+        <motion.div
+          key={incident?.incident.incident_id ?? obj?.object_id ?? selectedObjectId ?? selectedCve ?? 'archive'}
+          className="intel-main"
+          initial={reduceMotion ? false : { opacity: 0, x: 22, rotateY: -1.8, transformOrigin: 'left center' }}
+          animate={{ opacity: 1, x: 0, rotateY: 0 }}
+          transition={{ duration: reduceMotion ? 0 : .34, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <article className="dossier-hero dossier-hero">
             <div className="dossier-id">
-              <span className="dossier-sigil"><Fingerprint size={30} /></span>
+              <span className={`dossier-sigil ${incident ? 'incident' : ''}`}>{incident ? <Radar size={30} /> : <Fingerprint size={30} />}</span>
               <div>
-                <small>VULNERABILITY / CANONICAL OBJECT</small>
+                <small>{incident ? 'SECURITY INCIDENT / DURABLE WORLD' : `${obj?.object_type?.toUpperCase() ?? (selectedCve ? 'VULNERABILITY' : 'CANONICAL OBJECT')} / CANONICAL OBJECT`}</small>
                 <strong>{headline}</strong>
-                <span className="mono">{obj?.object_id ?? (hotMatch ? `${hotMatch.source_id} · HOT WORKING SET` : knowledgeQuery.isLoading ? 'resolving…' : 'no object loaded')}</span>
+                <span className="mono">{incident?.incident.incident_id ?? obj?.object_id ?? (hotMatch ? `${hotMatch.source_id} · HOT WORKING SET` : (incidentQuery.isLoading || knowledgeQuery.isLoading) ? text('解析中…', 'resolving…') : text('未加载对象', 'no object loaded'))}</span>
               </div>
             </div>
             <div className="dossier-stats">
-              <DossierStat label={obj ? 'CLAIMS' : hotMatch ? 'LAYER' : 'CLAIMS'} value={obj ? String(obj.claims.length) : hotMatch ? 'HOT' : '—'} tone="cyan" />
-              <DossierStat label={obj ? 'RELATIONS' : hotMatch ? 'CHANGED' : 'RELATIONS'} value={obj ? String(obj.relations.length) : hotMatch ? String(hotMatch.changed_fields.length) : '—'} tone="violet" />
-              <DossierStat label={obj ? 'EVIDENCE' : hotMatch ? 'ACCESS' : 'EVIDENCE'} value={obj ? String(countEvidence(obj.claims, obj.relations)) : hotMatch ? String(Math.round(hotMatch.access_count)) : '—'} tone="lime" />
+              {incident ? (
+                <>
+                  <DossierStat label="TIMELINE" value={String(incident.incident.timeline_event_count)} tone="amber" />
+                  <DossierStat label="SOURCES" value={String(incident.incident.source_link_count)} tone="cyan" />
+                  <DossierStat label="DIVERSITY" value={String(incident.incident.source_diversity_count)} tone="lime" />
+                </>
+              ) : (
+                <>
+                  <DossierStat label={obj ? 'CLAIMS' : hotMatch ? 'LAYER' : 'CLAIMS'} value={obj ? String(obj.claims.length) : hotMatch ? 'HOT' : '—'} tone="cyan" />
+                  <DossierStat label={obj ? 'RELATIONS' : hotMatch ? 'CHANGED' : 'RELATIONS'} value={obj ? String(obj.relations.length) : hotMatch ? String(hotMatch.changed_fields.length) : '—'} tone="violet" />
+                  <DossierStat label={obj ? 'EVIDENCE' : hotMatch ? 'ACCESS' : 'EVIDENCE'} value={obj ? String(countEvidence(obj.claims, obj.relations)) : hotMatch ? String(Math.round(hotMatch.access_count)) : '—'} tone="lime" />
+                </>
+              )}
             </div>
+            {obj && (
+              <div className="dossier-mission-actions">
+                <button onClick={() => openMission('VERIFY')}><ShieldCheck size={13} /><span>{text('核验这个对象', 'VERIFY OBJECT')}</span><em>ARGUS · VERIFY</em></button>
+                <button onClick={() => openMission('INVESTIGATE')}><Telescope size={13} /><span>{text('展开调查', 'INVESTIGATE')}</span><em>ARGUS · INVESTIGATE</em></button>
+              </div>
+            )}
+            {obj && (
+              <div className="intel-reading-switch" role="tablist" aria-label={text('情报阅读视角', 'Intelligence reading view')}>
+                <button role="tab" aria-selected={readingMode === 'dossier'} className={readingMode === 'dossier' ? 'active' : ''} onClick={() => { selectReadingMode('dossier'); setReturnReadingMode('dossier') }}><FileSearch size={12} /> {text('档案', 'DOSSIER')}</button>
+                <button role="tab" aria-selected={readingMode === 'graph'} className={readingMode === 'graph' ? 'active' : ''} onClick={() => { selectReadingMode('graph'); setReturnReadingMode('graph') }}><GitBranch size={12} /> {text('关系图谱', 'GRAPH')}</button>
+                <button role="tab" aria-selected={readingMode === 'evidence'} className={readingMode === 'evidence' ? 'active' : ''} onClick={() => selectReadingMode('evidence', evidenceRef ?? undefined)}><Link2 size={12} /> {text('证据', 'EVIDENCE')}</button>
+                <motion.i layoutId="intel-reading-cursor" transition={{ type: 'spring', stiffness: 320, damping: 28 }} className={`cursor-${readingMode}`} />
+              </div>
+            )}
           </article>
 
-          {knowledgeQuery.isError && !hotMatch && <div className="intel-state error-block">{String(knowledgeQuery.error.message)}</div>}
-          {!selectedCve && <div className="intel-state">从 WORLD 选择 Hot CVE，或输入 CVE ID。</div>}
-          {!obj && hotMatch && <HotWorkingSetPanel item={hotMatch} />}
-
-          {obj && (
+          {incident ? (
+            <IncidentDossier incident={incident} onEvidence={openEvidence} />
+          ) : (
             <>
-              <EnrichmentConstellation claims={obj.claims} cveId={selectedCve} />
-              <div className="intel-section-grid">
-                {groupedClaims.map((group) => (
-                  <ClaimGroup key={group.title} title={group.title} claims={group.claims} onEvidence={setEvidenceRef} />
-                ))}
-              </div>
+              {(!obj || obj.object_type === 'Vulnerability')
+                ? <EnrichmentConstellation claims={obj?.claims ?? []} cveId={selectedCve || headline} />
+                : <ObjectFacetField obj={obj} />}
 
-              <FocusedKnowledgeGraph relations={obj.relations} selectedCve={selectedCve} onEvidence={setEvidenceRef} />
+              {knowledgeQuery.isError && !hotMatch && <div className="intel-state error-block"><span>{String(knowledgeQuery.error.message)}</span><button className="recovery-action" onClick={() => void knowledgeQuery.refetch()}>{text('重试 Knowledge read', 'RETRY KNOWLEDGE READ')}</button></div>}
+              {!selectedCve && !selectedObjectId && <IntelligenceArchiveBlueprint />}
+              {!obj && hotMatch && <HotWorkingSetPanel item={hotMatch} />}
+              {!obj && (selectedCve || selectedObjectId) && !hotMatch && <IntelligenceArchiveBlueprint target={selectedCve || selectedObjectId} />}
+
+              {obj && (
+                <div className="intel-reading-deck">
+                  <div className="intel-section-grid">
+                    {groupedClaims.map((group) => (
+                      <ClaimGroup key={group.title} title={group.title} claims={group.claims} onEvidence={openEvidence} />
+                    ))}
+                  </div>
+
+                  <FocusedKnowledgeGraph
+                    relations={obj.relations}
+                    selectedLabel={headline}
+                    objectType={obj.object_type}
+                    onEvidence={openEvidence}
+                    onOpenTarget={(objectId) => {
+                      setInputOverride(null)
+                      setParams({ object: objectId })
+                    }}
+                  />
+                </div>
+              )}
             </>
           )}
-        </div>
+          {incidentQuery.isError && <div className="intel-state error-block" role="alert"><span>{String(incidentQuery.error.message)}</span><button className="recovery-action" onClick={() => void incidentQuery.refetch()}>{text('重试 Incident read', 'RETRY INCIDENT READ')}</button></div>}
+        </motion.div>
 
         <aside className="intel-side">
-          <EvidenceInspector evidenceRef={evidenceRef} onClose={() => setEvidenceRef(null)} />
+          <IncidentArchiveRail
+            items={incidentListQuery.data?.items ?? []}
+            loading={incidentListQuery.isLoading}
+            error={incidentListQuery.isError}
+            activeId={paramIncident}
+            onSelect={(incidentId) => {
+              setInputOverride(null)
+              setParams({ incident: incidentId })
+            }}
+          />
+          <EvidenceInspector evidenceRef={evidenceRef} onClose={closeEvidence} />
         </aside>
       </div>
     </section>
   )
 }
 
+function compactEvidenceObjectRef(value: string) { return value.length > 30 ? `${value.slice(0, 14)}…${value.slice(-8)}` : value }
+
+function evidenceProvenanceClass(role: string, sourceClass: string) {
+  const value = (role + ' ' + sourceClass).toLowerCase()
+  if (/authority|primary|official|vendor/.test(value)) return 'provenance-authority'
+  if (/forensic|incident|telemetry|asset/.test(value)) return 'provenance-forensic'
+  if (/reference|normative|academic|research/.test(value)) return 'provenance-reference'
+  if (/signal|independent|osint/.test(value)) return 'provenance-signal'
+  return 'provenance-general'
+}
+
+function evidenceProvenanceLabel(role: string, sourceClass: string) {
+  const cls = evidenceProvenanceClass(role, sourceClass)
+  if (cls === 'provenance-authority') return 'AUTHORITATIVE TESTIMONY'
+  if (cls === 'provenance-forensic') return 'FORENSIC OBSERVATION'
+  if (cls === 'provenance-reference') return 'REFERENCE RECORD'
+  if (cls === 'provenance-signal') return 'CORROBORATING SIGNAL'
+  return 'EVIDENCE RECORD'
+}
+
+function IncidentDossier({ incident, onEvidence }: { incident: IncidentDetail; onEvidence: (ref: string) => void }) {
+  const { text } = useI18n()
+  const watchEntries = Object.entries(incident.incident.watch_state)
+  return (
+    <section className="incident-dossier">
+      <div className="incident-state">
+        <div className="incident-state-copy">
+          <small>DURABLE INCIDENT / REV {incident.incident.current_revision}</small>
+          <strong>{incident.incident.current_summary ?? text('当前 Incident 尚无摘要。', 'No current Incident summary.')}</strong>
+          <p>{text(
+            `该 Incident 由 ${humanize(incident.incident.promotion_reason)} 提升进入 durable world；生命周期为 ${incident.incident.lifecycle}。`,
+            `Promoted into the durable world by ${humanize(incident.incident.promotion_reason)}; lifecycle is ${incident.incident.lifecycle}.`,
+          )}</p>
+        </div>
+        <div className="incident-state-facts">
+          <div><small>LIFECYCLE</small><strong>{incident.incident.lifecycle}</strong></div>
+          <div><small>PROMOTION</small><strong>{humanize(incident.incident.promotion_reason)}</strong></div>
+          <div><small>CANDIDATE</small><strong className="mono">{incident.incident.candidate_id}</strong></div>
+          <div><small>UPDATED</small><strong>{formatDate(incident.incident.updated_at)}</strong></div>
+        </div>
+        {watchEntries.length > 0 && (
+          <div className="incident-watch">
+            <small>WATCH STATE</small>
+            <div>{watchEntries.map(([key, value]) => <span key={key}><b>{humanize(key)}</b>{formatValue(value)}</span>)}</div>
+          </div>
+        )}
+      </div>
+
+      <div className="incident-reading">
+        <section className="incident-timeline">
+          <div className="incident-section-head">
+            <div><small>INCIDENT TIMELINE</small><strong>{text('事件演进', 'EVENT EVOLUTION')}</strong></div>
+            <span>{incident.timeline.length} durable events</span>
+          </div>
+          <div className="incident-timeline-track">
+            {incident.timeline.map((event, index) => (
+              <article key={event.event_id} className="incident-event">
+                <div className="incident-event-coordinate"><span>{String(index + 1).padStart(2, '0')}</span><i /></div>
+                <div className="incident-event-body">
+                  <div><small>{event.source_role} · REV {event.created_revision}</small><strong>{humanize(event.event_type)}</strong><time>{formatDate(event.event_time)}</time></div>
+                  <p>{event.summary}</p>
+                  <div className="incident-event-refs">
+                    {event.evidence_refs.map((ref) => ref.startsWith('evidence:')
+                      ? <button key={ref} onClick={() => onEvidence(ref)}><BadgeCheck size={11} /> EVIDENCE</button>
+                      : <span key={ref} title={ref}>{typedRefLabel(ref)}</span>)}
+                    {event.claim_refs.map((ref) => <span key={ref} title={ref}>CLAIM</span>)}
+                    {event.supersedes_event_id && <span title={event.supersedes_event_id}>SUPERSEDES</span>}
+                  </div>
+                </div>
+              </article>
+            ))}
+            {incident.timeline.length === 0 && <div className="incident-empty">{text('durable timeline 当前为空。', 'Durable timeline is empty.')}</div>}
+          </div>
+        </section>
+
+        <aside className="incident-sources">
+          <div className="incident-section-head">
+            <div><small>SOURCE CORROBORATION</small><strong>{text('来源独立性', 'SOURCE DIVERSITY')}</strong></div>
+            <span>{incident.incident.source_diversity_count} independent keys</span>
+          </div>
+          <div className="incident-source-list">
+            {incident.sources.map((source) => (
+              <article key={source.source_link_id}>
+                <span className={`incident-source-role role-${source.source_role}`} />
+                <div><small>{source.source_role} · {source.source_family}</small><strong>{source.source_id}</strong><em>{source.upstream_source ?? text('直接来源', 'direct source')}</em></div>
+                <div><small>INDEPENDENCE KEY</small><strong className="mono">{source.independence_key}</strong><span>rev {source.created_revision}</span></div>
+              </article>
+            ))}
+            {incident.sources.length === 0 && <div className="incident-empty">{text('当前没有 durable source link。', 'No durable source links.')}</div>}
+          </div>
+        </aside>
+      </div>
+    </section>
+  )
+}
+
+function typedRefLabel(ref: string) {
+  const prefix = ref.split(':', 1)[0] || 'ref'
+  return prefix.replaceAll('-', ' ').toUpperCase()
+}
+
+function IncidentArchiveRail({
+  items,
+  loading,
+  error,
+  activeId,
+  onSelect,
+}: {
+  items: Awaited<ReturnType<typeof listIncidents>>['items']
+  loading: boolean
+  error: boolean
+  activeId: string
+  onSelect: (incidentId: string) => void
+}) {
+  const { text } = useI18n()
+  return (
+    <section className="incident-archive-rail">
+      <div className="incident-archive-head">
+        <div><small>DURABLE INCIDENTS</small><strong>{text('事件档案', 'INCIDENT ARCHIVE')}</strong></div>
+        <span>{items.length}</span>
+      </div>
+      {loading ? (
+        <div className="incident-archive-state">{text('解析 Incident 索引…', 'RESOLVING INCIDENT INDEX…')}</div>
+      ) : error ? (
+        <div className="incident-archive-state error-block" role="alert">{text('Incident read 当前不可用。', 'Incident read is unavailable.')}</div>
+      ) : items.length === 0 ? (
+        <div className="incident-archive-state">
+          <Radar size={18} />
+          <strong>{text('当前 durable Incident 为 0', '0 DURABLE INCIDENTS')}</strong>
+          <span>{text('Incident promotion 持久化真实 row 后，这里自动出现 timeline-first dossier。', 'A timeline-first dossier appears here when Incident promotion persists a real row.')}</span>
+        </div>
+      ) : (
+        <div className="incident-archive-list">
+          {items.map((item) => (
+            <button key={item.incident_id} className={item.incident_id === activeId ? 'active' : ''} onClick={() => onSelect(item.incident_id)}>
+              <span className={`incident-archive-state-dot state-${item.lifecycle}`} />
+              <div><small>{humanize(item.incident_type)}</small><strong>{item.current_summary ?? item.incident_id}</strong><em>{item.timeline_event_count} events · {item.source_diversity_count} independent</em></div>
+            </button>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function IntelligenceArchiveBlueprint({ target }: { target?: string }) {
+  const { text } = useI18n()
+  const groups = ['IDENTITY & SEVERITY', 'AFFECTED & FIX', 'EXPLOIT & LIKELIHOOD', 'SOURCE & TIMELINE']
+  const nodes = [
+    { x: 18, y: 28, label: 'Product / Version' },
+    { x: 81, y: 25, label: 'Advisory / Fix' },
+    { x: 77, y: 72, label: 'Incident / Exploit' },
+    { x: 22, y: 74, label: 'Research / Asset' },
+  ]
+  return (
+    <section className="intel-blueprint">
+      <div className="intel-blueprint-claims">
+        {groups.map((group, index) => (
+          <div key={group}>
+            <span>{String(index + 1).padStart(2, '0')}</span>
+            <small>{text('CLAIM 分组', 'CLAIM GROUP')}</small>
+            <strong>{group}</strong>
+            <i />
+            <i />
+          </div>
+        ))}
+      </div>
+      <div className="intel-blueprint-graph">
+        <div className="instrument-section-head">
+          <div><small>{text('聚焦知识图谱', 'FOCUSED KNOWLEDGE GRAPH')}</small><strong>{text('关系邻域', 'RELATION NEIGHBORHOOD')}</strong></div>
+          <span>{text('目标解析后显示 canonical edges', 'canonical edges appear here when target resolves')}</span>
+        </div>
+        <div className="intel-blueprint-graph-stage">
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            {nodes.map((node) => <path key={node.label} d={`M 50 50 Q 50 42 ${node.x} ${node.y}`} />)}
+          </svg>
+          <div className="intel-blueprint-core">
+            <Fingerprint size={22} />
+            <strong>{target ?? 'CANONICAL OBJECT'}</strong>
+            <small>VULNERABILITY</small>
+          </div>
+          {nodes.map((node) => (
+            <div
+              key={node.label}
+              className="intel-blueprint-node"
+              style={{ left: `${node.x}%`, top: `${node.y}%` }}
+            >
+              <GitBranch size={12} />
+              <span><small>{text('关系槽位', 'RELATION SLOT')}</small><strong>{node.label}</strong></span>
+            </div>
+          ))}
+          <div className="intel-blueprint-caption">TARGET → CLAIM → RELATION → EVIDENCE</div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 function HotWorkingSetPanel({ item }: { item: HotBug }) {
+  const { text } = useI18n()
   return (
     <section className="hot-dossier">
       <div className="hot-dossier-head">
         <div>
-          <small>HOT WORKING SET · NOT YET PROMOTED</small>
+          <small>{text('HOT WORKING SET · 尚未 promotion', 'HOT WORKING SET · NOT YET PROMOTED')}</small>
           <strong>{item.cve_id ?? item.external_object_id}</strong>
-          <p>这个对象已经被 Data Plane 捕获并进入 Redis Hot Layer，但当前 durable Knowledge 中还没有 canonical object。它会保持 Hot 状态，直到 promotion / retention policy 把它推进 Evidence Core。</p>
+          <p>{text(
+            '对象已被 Data Plane 捕获并进入 Redis Hot Layer；canonical Knowledge 等待 promotion / retention policy 推进至 Evidence Core。',
+            'The Data Plane has captured this object into the Redis Hot Layer. Canonical Knowledge remains pending until promotion / retention policy advances it into the Evidence Core.',
+          )}</p>
         </div>
         <span className={`hot-status ${item.pinned ? 'pinned' : item.active ? 'active' : ''}`}>{item.pinned ? 'PINNED' : item.active ? 'ACTIVE' : 'HOT'}</span>
       </div>
@@ -134,11 +487,11 @@ function HotWorkingSetPanel({ item }: { item: HotBug }) {
         <HotFact label="TTL" value={item.ttl_seconds != null ? `${Math.round(item.ttl_seconds / 60)} min` : item.pinned ? 'persisted' : '—'} />
         <HotFact label="FETCHED" value={formatDate(item.fetched_at)} />
       </div>
-      {item.title && <div className="hot-text"><small>TITLE</small><strong>{item.title}</strong></div>}
-      {item.description && <div className="hot-text"><small>DESCRIPTION</small><p>{item.description}</p></div>}
+      {item.title && <div className="hot-text"><small>{text('标题', 'TITLE')}</small><strong>{item.title}</strong></div>}
+      {item.description && <div className="hot-text"><small>{text('描述', 'DESCRIPTION')}</small><p>{item.description}</p></div>}
       <div className="hot-signal-row">
-        <div><small>CHANGED FIELDS</small><span>{item.changed_fields.length ? item.changed_fields.join(' · ') : 'none'}</span></div>
-        <div><small>PRIORITY SIGNALS</small><span>{item.priority_signals.length ? item.priority_signals.join(' · ') : 'none'}</span></div>
+        <div><small>{text('变化字段', 'CHANGED FIELDS')}</small><span>{item.changed_fields.length ? item.changed_fields.join(' · ') : text('无', 'none')}</span></div>
+        <div><small>{text('优先级信号', 'PRIORITY SIGNALS')}</small><span>{item.priority_signals.length ? item.priority_signals.join(' · ') : text('无', 'none')}</span></div>
       </div>
     </section>
   )
@@ -146,6 +499,33 @@ function HotWorkingSetPanel({ item }: { item: HotBug }) {
 
 function HotFact({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
   return <div className="hot-fact"><small>{label}</small><strong className={mono ? 'mono' : ''}>{value}</strong></div>
+}
+
+function ObjectFacetField({ obj }: { obj: Awaited<ReturnType<typeof getKnowledgeObject>> }) {
+  const { text } = useI18n()
+  const identifiers = Object.entries(obj.external_identifiers)
+  const properties = Object.entries(obj.properties).filter(([, value]) => value != null).slice(0, 10)
+  return (
+    <section className="object-facet-field">
+      <div className="enrichment-head">
+        <div><small>{text('规范对象切面', 'CANONICAL OBJECT FACETS')}</small><strong>{obj.object_type.toUpperCase()}</strong></div>
+        <span>{text(`${identifiers.length} 个 identifier namespace · ${properties.length} 个可见属性`, `${identifiers.length} identifier namespaces · ${properties.length} visible properties`)}</span>
+      </div>
+      <div className="object-facet-body">
+        <div className="object-identifier-field">
+          {identifiers.map(([namespace, values]) => (
+            <div key={namespace}><small>{namespace}</small><strong>{values.join(' · ')}</strong></div>
+          ))}
+          {identifiers.length === 0 && <div><small>IDENTIFIERS</small><strong>{text('无持久化标识', 'none persisted')}</strong></div>}
+        </div>
+        <div className="object-property-field">
+          {properties.map(([key, value]) => (
+            <div key={key}><small>{humanize(key)}</small><strong>{formatValue(value)}</strong></div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
 }
 
 const enrichmentDimensions = [
@@ -164,25 +544,30 @@ const enrichmentDimensions = [
 ] as const
 
 function EnrichmentConstellation({ claims, cveId }: { claims: KnowledgeClaim[]; cveId: string }) {
+  const { text } = useI18n()
+  const [focusedDimension, setFocusedDimension] = useState<string | null>(null)
   const dimensions = enrichmentDimensions.map((dimension, index) => {
-    const count = claims.filter((claim) => dimension.test.test(claim.predicate)).length
+    const matchedClaims = claims.filter((claim) => dimension.test.test(claim.predicate))
+    const count = matchedClaims.length
     const angle = -Math.PI / 2 + (index / enrichmentDimensions.length) * Math.PI * 2
     return {
       ...dimension,
       count,
+      matchedClaims,
       x: 50 + Math.cos(angle) * 40,
       y: 50 + Math.sin(angle) * 37,
     }
   })
   const known = dimensions.filter((item) => item.count > 0).length
+  const focused = dimensions.find((item) => item.key === focusedDimension) ?? null
 
   return (
-    <section className="enrichment-constellation-v3">
-      <div className="enrichment-head-v3">
+    <section className={`enrichment-constellation ${focused ? 'dimension-focused' : ''}`}>
+      <div className="enrichment-head">
         <div><small>ENRICHMENT-V1</small><strong>12-DIMENSION EVIDENCE CONSTELLATION</strong></div>
         <span>{known}/12 dimensions populated by current canonical claims</span>
       </div>
-      <div className="enrichment-orbit-v3">
+      <div className="enrichment-orbit">
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
           {dimensions.map((item) => (
             <line
@@ -195,25 +580,47 @@ function EnrichmentConstellation({ claims, cveId }: { claims: KnowledgeClaim[]; 
             />
           ))}
         </svg>
-        <div className="enrichment-core-v3">
+        <button className="enrichment-core" onClick={() => setFocusedDimension(null)}>
           <small>CANONICAL</small>
-          <strong>{cveId}</strong>
-          <span>{claims.length} claims</span>
-        </div>
+          <strong>{focused ? focused.label : cveId}</strong>
+          <span>{focused ? text(`${focused.count} 条匹配 Claim`, `${focused.count} matching claims`) : text(`${claims.length} 条 Claims`, `${claims.length} claims`)}</span>
+        </button>
         {dimensions.map((item, index) => (
-          <motion.div
+          <motion.button
             key={item.key}
-            className={`enrichment-dimension-v3 ${item.count > 0 ? 'known' : 'unknown'}`}
+            className={`enrichment-dimension ${item.count > 0 ? 'known' : 'unknown'} ${focusedDimension === item.key ? 'selected' : ''} ${focused && focusedDimension !== item.key ? 'dimmed' : ''}`}
             style={{ left: `${item.x}%`, top: `${item.y}%` }}
+            onClick={() => setFocusedDimension((current) => current === item.key ? null : item.key)}
             initial={{ opacity: 0, scale: .82 }}
-            animate={{ opacity: 1, scale: 1 }}
+            animate={{ opacity: focused && focusedDimension !== item.key ? .18 : 1, scale: focusedDimension === item.key ? 1.08 : 1 }}
             transition={{ delay: index * .025 }}
           >
             <span>{String(index + 1).padStart(2, '0')}</span>
             <strong>{item.label}</strong>
-            <small>{item.count > 0 ? `${item.count} claims` : 'unknown'}</small>
-          </motion.div>
+            <small>{item.count > 0 ? text(`${item.count} 条 Claims`, `${item.count} claims`) : text('未知', 'unknown')}</small>
+          </motion.button>
         ))}
+        <AnimatePresence>
+          {focused && (
+            <motion.aside
+              className="enrichment-dimension-lens"
+              initial={{ opacity: 0, x: 18 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 12 }}
+            >
+              <small>{focused.key.toUpperCase()} / ENRICHMENT DIMENSION</small>
+              <strong>{focused.label}</strong>
+              <span>{text(`${focused.count} 条 canonical Claims`, `${focused.count} canonical claims`)}</span>
+              <div>
+                {focused.matchedClaims.slice(0, 4).map((claim) => (
+                  <p key={claim.claim_id}><b>{humanize(claim.predicate)}</b>{formatValue(claim.value)}</p>
+                ))}
+                {focused.count === 0 && <p><b>{text('没有 canonical Claim', 'NO CANONICAL CLAIM')}</b>{text('当前 dossier 在这一维度没有已填充的值。', 'current dossier has no populated value in this dimension')}</p>}
+              </div>
+              <em>{text('再次点击该维度以退出聚焦', 'CLICK DIMENSION AGAIN TO RELEASE FOCUS')}</em>
+            </motion.aside>
+          )}
+        </AnimatePresence>
       </div>
     </section>
   )
@@ -239,28 +646,38 @@ function ClaimGroup({ title, claims, onEvidence }: { title: string; claims: Know
   )
 }
 
-function FocusedKnowledgeGraph({ relations, selectedCve, onEvidence }: { relations: KnowledgeRelation[]; selectedCve: string; onEvidence: (ref: string) => void }) {
+function FocusedKnowledgeGraph({ relations, selectedLabel, objectType, onEvidence, onOpenTarget }: { relations: KnowledgeRelation[]; selectedLabel: string; objectType: string; onEvidence: (ref: string) => void; onOpenTarget: (objectId: string) => void }) {
+  const { text } = useI18n()
   const layers = useMemo(() => ['ALL', ...Array.from(new Set(relations.map((item) => item.target.object_type))).sort()], [relations])
   const [layer, setLayer] = useState('ALL')
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const visible = relations.filter((item) => layer === 'ALL' || item.target.object_type === layer).slice(0, 10)
+  const [zoom, setZoom] = useState(1)
+  const [evidenceOnly, setEvidenceOnly] = useState(false)
+  const semanticRelations = relations.filter((item) => (layer === 'ALL' || item.target.object_type === layer) && (!evidenceOnly || item.evidence.length > 0))
+  const visible = semanticRelations.slice(0, 10)
   const selectedCandidate = relations.find((item) => item.relation_id === selectedId) ?? null
-  const selected = selectedCandidate && (layer === 'ALL' || selectedCandidate.target.object_type === layer) ? selectedCandidate : null
+  const selected = selectedCandidate && semanticRelations.some((item) => item.relation_id === selectedCandidate.relation_id) ? selectedCandidate : null
 
   return (
     <section className={`relation-section graph-mode ${selected ? 'graph-focused' : ''}`}>
       <div className="section-title-row">
         <div><small>FOCUSED KNOWLEDGE GRAPH</small><strong>RELATION NEIGHBORHOOD</strong></div>
-        <span>{relations.length} canonical edges · {visible.length} visible</span>
+        <span>{text(`${relations.length} 条 canonical edges · ${visible.length} 条可见`, `${relations.length} canonical edges · ${visible.length} visible`)}</span>
       </div>
       <div className="graph-toolbar">
         <div className="graph-layers">
           {layers.map((item) => <button key={item} className={layer === item ? 'active' : ''} onClick={() => setLayer(item)}>{item}</button>)}
         </div>
-        {selected && <button className="graph-reset" onClick={() => setSelectedId(null)}>RESET FOCUS</button>}
+        <div className="graph-camera">
+          <button className={evidenceOnly ? 'active' : ''} onClick={() => setEvidenceOnly((value) => !value)}><BadgeCheck size={11} /> {text('证据', 'EVIDENCE')}</button>
+          <button onClick={() => setZoom((value) => Math.max(.78, Number((value - .1).toFixed(2))))} aria-label={text('缩小图谱', 'Zoom out')}><ZoomOut size={12} /></button>
+          <span>{Math.round(zoom * 100)}%</span>
+          <button onClick={() => setZoom((value) => Math.min(1.32, Number((value + .1).toFixed(2))))} aria-label={text('放大图谱', 'Zoom in')}><ZoomIn size={12} /></button>
+          {(selected || zoom !== 1 || evidenceOnly) && <button className="graph-reset" onClick={() => { setSelectedId(null); setZoom(1); setEvidenceOnly(false) }}>{text('重置', 'RESET')}</button>}
+        </div>
       </div>
-      <div className="focused-graph-stage">
-        <motion.div className="graph-world" animate={{ scale: selected ? 1.045 : 1, x: selected ? -36 : 0 }} transition={{ type: 'spring', stiffness: 180, damping: 24 }}>
+      <div className="focused-graph-stage" onWheel={(event) => { if (!event.ctrlKey && !event.metaKey) return; event.preventDefault(); setZoom((value) => Math.max(.78, Math.min(1.32, Number((value + (event.deltaY < 0 ? .06 : -.06)).toFixed(2))))) }}>
+        <motion.div className="graph-world" animate={{ scale: (selected ? 1.045 : 1) * zoom, x: selected ? -36 : 0 }} transition={{ type: 'spring', stiffness: 180, damping: 24 }}>
           <svg className="graph-edges" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
             {visible.map((relation, index) => {
               const point = graphPoint(index, visible.length)
@@ -268,19 +685,20 @@ function FocusedKnowledgeGraph({ relations, selectedCve, onEvidence }: { relatio
               return <path key={relation.relation_id} className={selected ? active ? 'active' : 'dimmed' : ''} d={`M 50 50 Q ${(50 + point.x) / 2} ${(50 + point.y) / 2 - 4} ${point.x} ${point.y}`} />
             })}
           </svg>
-          <div className="graph-core-node"><ShieldCheck size={23} /><strong>{selectedCve}</strong><small>Vulnerability</small></div>
+          <div className="graph-core-node"><ShieldCheck size={23} /><strong>{selectedLabel}</strong><small>{objectType}</small></div>
           {visible.map((relation, index) => {
             const point = graphPoint(index, visible.length)
             const active = relation.relation_id === selectedId
             const dimmed = Boolean(selected && !active)
             return <GraphRelationNode key={relation.relation_id} relation={relation} point={point} active={active} dimmed={dimmed} onSelect={() => setSelectedId(active ? null : relation.relation_id)} />
           })}
-          {visible.length === 0 && <div className="graph-empty">No canonical relation in this semantic layer.</div>}
+          {visible.length === 0 && <div className="graph-empty">{text('当前语义层没有 canonical Relation。', 'No canonical relation in this semantic layer.')}</div>}
         </motion.div>
+        <span className="graph-zoom-hint">{text('CTRL / ⌘ + 滚轮 · 缩放', 'CTRL / ⌘ + WHEEL · ZOOM')}</span>
 
         <AnimatePresence>
           {selected && <motion.aside className="graph-relation-dossier" initial={{ opacity: 0, x: 28 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 18 }} transition={{ type: 'spring', stiffness: 230, damping: 27 }}>
-            <button onClick={() => setSelectedId(null)} className="graph-dossier-close" aria-label="Close relation focus"><X size={15} /></button>
+            <button onClick={() => setSelectedId(null)} className="graph-dossier-close" aria-label={text('关闭关系聚焦', 'Close relation focus')}><X size={15} /></button>
             <small>CANONICAL RELATION</small>
             <strong>{humanize(selected.relation_type)}</strong>
             <RelationTargetIdentity relation={selected} />
@@ -290,6 +708,7 @@ function FocusedKnowledgeGraph({ relations, selectedCve, onEvidence }: { relatio
               <div><small>TARGET TYPE</small><strong>{selected.target.object_type}</strong></div>
             </div>
             <div className="graph-evidence-block"><small>EVIDENCE</small><EvidenceCapsules evidence={selected.evidence} onEvidence={onEvidence} /></div>
+            <button className="graph-open-target" onClick={() => onOpenTarget(selected.target.object_id)}>{text('打开目标档案', 'OPEN TARGET DOSSIER')} <ExternalLink size={12} /></button>
             <div className="graph-coordinate mono">{selected.relation_id}</div>
           </motion.aside>}
         </AnimatePresence>
@@ -329,7 +748,8 @@ function graphPoint(index: number, count: number) {
 }
 
 function EvidenceCapsules({ evidence, onEvidence, compact = false }: { evidence: EvidenceRef[]; onEvidence: (ref: string) => void; compact?: boolean }) {
-  if (evidence.length === 0) return <span className="no-evidence">NO EVIDENCE</span>
+  const { text } = useI18n()
+  if (evidence.length === 0) return <span className="no-evidence">{text('无 Evidence', 'NO EVIDENCE')}</span>
   return (
     <div className={`evidence-capsules ${compact ? 'compact' : ''}`}>
       {evidence.slice(0, compact ? 2 : 4).map((item) => (
@@ -343,27 +763,35 @@ function EvidenceCapsules({ evidence, onEvidence, compact = false }: { evidence:
 }
 
 function EvidenceInspector({ evidenceRef, onClose }: { evidenceRef: string | null; onClose: () => void }) {
+  const { text } = useI18n()
+  const navigate = useNavigate()
   const query = useQuery({ queryKey: ['evidence', evidenceRef], queryFn: () => getEvidence(evidenceRef!), enabled: Boolean(evidenceRef) })
   const item = query.data
+  const objectIds = item ? evidenceBoundObjectIds(item) : []
   return (
     <div className={`evidence-inspector ${evidenceRef ? 'active' : ''}`}>
       <div className="inspector-head">
-        <div><small>EVIDENCE INSPECTOR</small><strong>{item?.source.source_id ?? 'Select evidence'}</strong></div>
-        {evidenceRef && <button onClick={onClose} aria-label="Close evidence inspector"><X size={16} /></button>}
+        <div><small>EVIDENCE INSPECTOR</small><strong>{item?.source.source_id ?? text('选择 Evidence', 'Select evidence')}</strong></div>
+        {evidenceRef && <button onClick={onClose} aria-label={text('关闭证据镜片', 'Close evidence inspector')}><X size={16} /></button>}
       </div>
       <AnimatePresence mode="wait">
         {!evidenceRef ? (
           <motion.div key="empty" className="inspector-empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <FileSearch size={36} strokeWidth={1.3} />
-            <strong>证据不会藏在脚注里</strong>
-            <p>点击 dossier 或 relation 上的 Evidence capsule，检查来源、版本、时间和 locator。</p>
+            <strong>{text('证据站在事实旁边', 'EVIDENCE STAYS BESIDE THE CLAIM')}</strong>
+            <p>{text('点击 dossier 或 relation 上的 Evidence capsule，展开来源、版本、时间与 locator。', 'Open an Evidence capsule beside a dossier fact or Relation to inspect source, revision, time, and locator.')}</p>
           </motion.div>
         ) : query.isLoading ? (
-          <motion.div key="loading" className="inspector-empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}><Radar size={30} /> resolving evidence…</motion.div>
+          <motion.div key="loading" className="inspector-empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}><Radar size={30} /> {text('解析 Evidence…', 'resolving evidence…')}</motion.div>
         ) : query.isError ? (
           <motion.div key="error" className="inspector-empty error-block" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>{String(query.error.message)}</motion.div>
         ) : item ? (
-          <motion.div key={item.evidence_ref} className="inspector-body" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }}>
+          <motion.div key={item.evidence_ref} className={'inspector-body evidence-manuscript ' + evidenceProvenanceClass(item.source.source_role, item.source.source_class)} initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }}>
+            <div className="evidence-provenance-stamp">
+              <small>PROVENANCE</small>
+              <strong>{evidenceProvenanceLabel(item.source.source_role, item.source.source_class)}</strong>
+              <span>{item.source.source_role} · {item.source.source_class}</span>
+            </div>
             <div className="evidence-authority">
               <span className="signal-icon lime"><ShieldCheck size={17} /></span>
               <div><small>{item.source.source_role} / {item.source.source_class}</small><strong>{item.source.source_id}</strong><span>{item.source.source_family}</span></div>
@@ -374,9 +802,10 @@ function EvidenceInspector({ evidenceRef, onClose }: { evidenceRef: string | nul
             {item.artifact && <InspectorBlock icon={Fingerprint} label="IMMUTABLE ARTIFACT" value={item.artifact.media_type} detail={`${item.artifact.trust_class} · ${item.artifact.content_hash.slice(0, 14)}…`} mono />}
             <div className="authority-scope">
               <small>AUTHORITY SCOPE</small>
-              <div>{item.source.authority_scope.length ? item.source.authority_scope.map((scope) => <span key={scope}>{scope}</span>) : <span>unspecified</span>}</div>
+              <div>{item.source.authority_scope.length ? item.source.authority_scope.map((scope) => <span key={scope}>{scope}</span>) : <span>{text('未指定', 'unspecified')}</span>}</div>
             </div>
-            {item.observation.canonical_url && <a className="source-link" href={item.observation.canonical_url} target="_blank" rel="noreferrer">OPEN CANONICAL SOURCE <ExternalLink size={13} /></a>}
+            {objectIds.length > 0 && <div className="evidence-object-links"><small>{text('绑定对象', 'BOUND OBJECTS')}</small><div>{objectIds.map((objectId, index) => <button key={objectId} onClick={() => navigate(`/intelligence?object=${encodeURIComponent(objectId)}&from=evidence`)}><BrainCircuit size={11} /> {index === 0 ? text('打开主体档案', 'OPEN SUBJECT DOSSIER') : text('打开关系对象', 'OPEN RELATED OBJECT')}<span className="mono">{compactEvidenceObjectRef(objectId)}</span></button>)}</div></div>}
+            {item.observation.canonical_url && <a className="source-link" href={item.observation.canonical_url} target="_blank" rel="noreferrer">{text('打开规范来源', 'OPEN CANONICAL SOURCE')} <ExternalLink size={13} /></a>}
             <div className="evidence-ref mono">{item.evidence_ref}</div>
           </motion.div>
         ) : null}

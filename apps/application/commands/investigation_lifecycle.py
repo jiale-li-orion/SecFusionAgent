@@ -11,8 +11,8 @@ from packages.investigation.cases.service import CaseService
 from packages.investigation.state.contracts import CaseLifecycle
 from packages.investigation.storage.models import InvestigationCaseModel
 from packages.task_runtime.contracts.models import (
-    CancellationSemantics,
     TERMINAL_TASK_RUN_STATUSES,
+    CancellationSemantics,
     TaskRunStatus,
 )
 from packages.task_runtime.storage.models import TaskRunModel

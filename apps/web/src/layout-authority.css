@@ -1,0 +1,3897 @@
+/*
+ * LAYOUT AUTHORITY
+ * ----------------
+ * This file loads after cinematic.css and owns:
+ * page geometry, safe areas, overflow, readable type floors and z-index.
+ * Visual semantics stay in cinematic.css.
+ */
+
+html,
+body,
+#root {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 100%;
+  margin: 0;
+  overflow-x: hidden;
+}
+
+.observatory-space.observatory-proof .proof-seal {
+  grid-template-columns: 80px minmax(0, 1fr) minmax(300px, .62fr) !important;
+  gap: 22px !important;
+  min-width: 0;
+}
+
+.intelligence-space .claim-group,
+.intelligence-space .claim-row,
+.intelligence-space .relation-section,
+.intelligence-space .evidence-inspector,
+.intelligence-space .object-facet-field,
+.intelligence-space .incident-archive-rail {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+.intelligence-space .claim-group {
+  border: 0 !important;
+  border-bottom: 1px solid rgba(72, 64, 52, .08) !important;
+}
+
+.intelligence-space .claim-row {
+  border: 0 !important;
+  border-bottom: 1px solid rgba(72, 64, 52, .055) !important;
+}
+
+.observatory-space.observatory-proof .proof-seal-copy,
+.observatory-space.observatory-proof .proof-seal-stats {
+  min-width: 0;
+}
+
+.observatory-space.observatory-proof .proof-seal-copy strong,
+.observatory-space.observatory-proof .proof-seal-copy .mono {
+  overflow-wrap: anywhere;
+}
+
+.observatory-space.observatory-proof .proof-run-body {
+  display: grid !important;
+  grid-template-columns: minmax(300px, .9fr) minmax(0, 1.1fr) !important;
+  gap: 30px !important;
+  min-width: 0;
+}
+
+.observatory-space.observatory-proof .proof-case-list,
+.observatory-space.observatory-proof .proof-case-inspector,
+.observatory-space.observatory-proof .proof-metric-list,
+.observatory-space.observatory-proof .proof-run-coordinate,
+.observatory-space.observatory-proof .proof-freeze-fingerprint {
+  min-width: 0;
+}
+
+.observatory-space.observatory-proof .proof-case-list article {
+  grid-template-columns: 8px minmax(0, 1fr) minmax(86px, auto) !important;
+  gap: 10px !important;
+  min-width: 0;
+}
+
+.observatory-space.observatory-proof .proof-case-coordinates {
+  min-width: 0;
+  max-width: 150px;
+}
+
+.observatory-space.observatory-proof .proof-metric-list article {
+  min-width: 0;
+}
+
+.observatory-space.observatory-proof .proof-run-coordinate strong,
+.observatory-space.observatory-proof .proof-case-list article strong,
+.observatory-space.observatory-proof .proof-metric-list article strong,
+.observatory-space.observatory-proof .proof-case-freeze-grid strong {
+  font-size: 9.5px !important;
+}
+
+.observatory-space.observatory-proof .proof-case-list article em,
+.observatory-space.observatory-proof .proof-case-coordinates,
+.observatory-space.observatory-proof .proof-metric-list article span {
+  font-size: 9px !important;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+.product-shell,
+.product-workspace,
+.route-stage,
+.world-space,
+.start-space,
+.intelligence-space,
+.investigations-space,
+.agents-space,
+.observatory-space {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.product-shell,
+.product-workspace,
+.route-stage {
+  width: 100%;
+}
+
+.product-workspace,
+.route-stage {
+  width: 100%;
+  overflow-x: clip;
+}
+
+.route-stage {
+  isolation: isolate;
+}
+
+/* Readability floor. Micro coordinates are allowed to remain smaller explicitly. */
+.product-shell small {
+  font-size: 10px !important;
+  line-height: 1.45;
+}
+
+.product-shell em {
+  font-size: 9.5px !important;
+  line-height: 1.45;
+}
+
+.product-shell kbd {
+  font-size: 8px !important;
+}
+
+.product-shell button,
+.product-shell input,
+.product-shell textarea {
+  font-size: 11px;
+}
+
+.product-shell input,
+.product-shell textarea {
+  line-height: 1.5;
+}
+
+.mono,
+.world-coordinate,
+.graph-coordinate,
+.task-budget-coordinate {
+  font-size: 8.5px !important;
+}
+
+.world-semantic-legend span,
+.world-focus-hint,
+.processing-lanes button,
+.world-start-portal span,
+.world-start-portal em {
+  font-size: 9.5px !important;
+}
+
+.hot-crystal em,
+.hot-crystal small {
+  font-size: 9.5px !important;
+}
+
+.instrument-nav-item .nav-copy strong {
+  font-size: 10.5px !important;
+}
+
+.instrument-nav-item .nav-copy small {
+  font-size: 9px !important;
+}
+
+.brand-copy strong {
+  font-size: 12px !important;
+}
+
+.brand-copy small {
+  font-size: 9px !important;
+}
+
+.command-trigger,
+.story-trigger,
+.language-switch,
+.runtime-state,
+.global-start {
+  font-size: 10px !important;
+}
+
+/* =========================================================
+   WORLD — top control plane / panoramic field / live flow
+   ========================================================= */
+
+.world-space {
+  position: relative;
+  display: grid !important;
+  grid-template-columns: minmax(360px, .86fr) minmax(620px, 1.14fr);
+  grid-template-rows: auto auto minmax(610px, 1fr) 126px;
+  grid-template-areas:
+    "title locator"
+    "title telemetry"
+    "stage stage"
+    "flow flow";
+  column-gap: 34px;
+  row-gap: 10px;
+  width: 100%;
+  min-height: 100vh;
+  padding: 62px 28px 0 32px !important;
+  overflow: hidden !important;
+}
+
+.world-title-lockup {
+  grid-area: title;
+  position: relative !important;
+  inset: auto !important;
+  z-index: 30;
+  width: auto !important;
+  max-width: 620px;
+  min-height: 174px;
+  margin: 0 !important;
+  padding: 8px 0 12px !important;
+}
+
+.world-title-lockup h1 {
+  max-width: 100%;
+  margin: 0;
+  font-size: clamp(54px, 5vw, 78px) !important;
+  line-height: .88 !important;
+}
+
+.world-title-lockup > div:first-child > small {
+  display: block;
+  max-width: 590px !important;
+  margin-top: 10px;
+  font-size: 11px !important;
+  line-height: 1.55;
+}
+
+.world-title-lockup .world-hero-actions {
+  position: static !important;
+  inset: auto !important;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  width: auto;
+  margin: 14px 0 0 !important;
+}
+
+.world-locator {
+  grid-area: locator;
+  position: relative !important;
+  inset: auto !important;
+  z-index: 31;
+  align-self: end;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 680px !important;
+  margin: 0 0 4px auto !important;
+  transform: none !important;
+}
+
+.investigations-space .case-card {
+  border: 0 !important;
+  border-left: 1px solid rgba(255, 179, 92, .08) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, .035) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.investigations-space .case-card.selected {
+  border-left: 2px solid rgba(255, 179, 92, .48) !important;
+  background: linear-gradient(90deg, rgba(255, 179, 92, .045), transparent 82%) !important;
+  box-shadow: none !important;
+}
+
+.investigations-space .state-column,
+.investigations-space .decision-panel,
+.investigations-space .conversation-shell,
+.investigations-space .case-wait-boundary,
+.investigations-space .case-resume-boundary {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.world-telemetry {
+  grid-area: telemetry;
+  position: relative !important;
+  inset: auto !important;
+  z-index: 29;
+  display: grid !important;
+  grid-template-columns: 90px repeat(5, minmax(0, 1fr)) !important;
+  align-self: start;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  min-height: 100px !important;
+  margin: 0 !important;
+  overflow: hidden;
+}
+
+.world-time-lens,
+.world-telemetry .telemetry-readout {
+  min-width: 0 !important;
+  min-height: 100px !important;
+  transform: none !important;
+}
+
+.world-telemetry .telemetry-readout {
+  padding: 13px 12px 10px !important;
+}
+
+.world-telemetry .telemetry-readout strong {
+  font-size: clamp(20px, 1.6vw, 28px) !important;
+  line-height: 1.02;
+  white-space: nowrap !important;
+  overflow-wrap: normal !important;
+}
+
+.world-stage {
+  grid-area: stage;
+  position: relative !important;
+  inset: auto !important;
+  z-index: 10;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  min-height: 610px !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  border-top: 1px solid rgba(55, 84, 105, .07);
+}
+
+.world-webgl,
+.world-depth-mask,
+.world-ingress-flow,
+.world-2d-fallback {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.source-beacon {
+  width: clamp(160px, 13vw, 188px) !important;
+  min-height: 56px;
+  z-index: 18;
+  border: 0 !important;
+  border-left: 1px solid rgba(47, 84, 109, .14) !important;
+  border-bottom: 1px solid rgba(47, 84, 109, .07) !important;
+  background: linear-gradient(90deg, rgba(247, 251, 253, .54), transparent 86%) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.source-beacon.selected {
+  border-left-color: rgba(54, 130, 180, .48) !important;
+  background: linear-gradient(90deg, rgba(255, 255, 255, .78), rgba(223, 239, 249, .18) 78%, transparent) !important;
+  box-shadow: none !important;
+}
+
+.source-beacon-copy strong {
+  font-size: 11px !important;
+}
+
+.source-beacon-copy small,
+.source-beacon-copy em {
+  font-size: 9px !important;
+}
+
+.processing-lanes {
+  left: 29% !important;
+  right: 29% !important;
+  top: 8% !important;
+  bottom: auto !important;
+  z-index: 19;
+}
+
+.durable-core-label {
+  left: 51% !important;
+  top: 43% !important;
+  z-index: 22;
+  min-width: 260px;
+  transform: translate(-50%, -50%) !important;
+}
+
+.hot-field-label {
+  top: 19% !important;
+  right: 4.5% !important;
+  z-index: 21;
+}
+
+.hot-crystal {
+  z-index: 20;
+  width: clamp(138px, 11vw, 160px) !important;
+  min-height: 58px !important;
+  border: 0 !important;
+  border-left: 1px solid rgba(154, 93, 56, .18) !important;
+  border-bottom: 1px solid rgba(154, 93, 56, .08) !important;
+  background: linear-gradient(90deg, rgba(255, 247, 239, .62), rgba(255, 247, 239, .08)) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.hot-crystal.selected {
+  border-left-color: rgba(172, 86, 49, .48) !important;
+  background: linear-gradient(90deg, rgba(255, 249, 243, .92), rgba(247, 226, 210, .22)) !important;
+  box-shadow: none !important;
+}
+
+.world-start-portal {
+  left: 51% !important;
+  top: 61% !important;
+  right: auto !important;
+  bottom: auto !important;
+  z-index: 23;
+  transform: translate(-50%, -50%);
+}
+
+.world-semantic-legend {
+  left: 27% !important;
+  right: 27% !important;
+  bottom: 24px !important;
+  z-index: 19;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px 18px;
+  width: auto !important;
+}
+
+.world-focus-hint {
+  right: 4% !important;
+  bottom: 24px !important;
+  z-index: 20;
+}
+
+.world-lens {
+  position: absolute !important;
+  top: 8% !important;
+  right: 16px !important;
+  bottom: 8% !important;
+  left: auto !important;
+  z-index: 70;
+  width: min(360px, 29%) !important;
+  max-width: 360px;
+  overflow: auto;
+}
+
+.world-live-flow {
+  grid-area: flow;
+  position: relative !important;
+  inset: auto !important;
+  z-index: 25;
+  width: calc(100% + 60px) !important;
+  min-width: 0 !important;
+  min-height: 126px !important;
+  margin: 0 -28px 0 -32px !important;
+  padding: 14px 30px 12px 32px !important;
+}
+
+.world-live-flow-track {
+  display: grid !important;
+  grid-template-columns: none !important;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(96px, 1fr);
+  min-width: 0 !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+
+/* =========================================================
+   START — chamber / payload split, no cross-column overlap
+   ========================================================= */
+
+.start-space {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 410px !important;
+  grid-template-rows: auto minmax(0, 1fr) !important;
+  gap: 18px 26px !important;
+  width: 100%;
+  min-height: 100vh;
+  padding: 58px 28px 28px 32px !important;
+  overflow: hidden !important;
+}
+
+.start-space > .mission-briefing {
+  grid-column: 1 / -1 !important;
+  grid-row: 1 !important;
+  position: relative !important;
+  inset: auto !important;
+  display: grid !important;
+  grid-template-columns: minmax(520px, 1fr) auto !important;
+  align-items: end;
+  gap: 28px;
+  width: 100% !important;
+  min-height: 94px !important;
+  max-width: none !important;
+  margin: 0 !important;
+}
+
+.start-space > .mission-briefing h1 {
+  white-space: nowrap;
+}
+
+.start-space > .start-theater {
+  grid-column: 1 !important;
+  grid-row: 2 !important;
+  position: relative !important;
+  inset: auto !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 640px !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+}
+
+.start-space > .payload-deck {
+  grid-column: 2 !important;
+  grid-row: 2 !important;
+  position: relative !important;
+  inset: auto !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  max-height: calc(100vh - 178px);
+  margin: 0 !important;
+  overflow: auto;
+}
+
+.start-space .mode-chamber {
+  width: 146px !important;
+  min-height: 118px !important;
+  max-width: 146px;
+  padding: 10px 10px 9px !important;
+}
+
+.start-space .mode-chamber.active {
+  width: 184px !important;
+  min-height: 146px !important;
+  max-width: 184px;
+}
+
+.start-space .mission-reactor {
+  left: 50% !important;
+  top: 55% !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: 126px !important;
+  height: 126px !important;
+  transform: translate(-50%, -50%) !important;
+}
+
+.start-space .mode-readout {
+  left: 50% !important;
+  right: auto !important;
+  bottom: 2.5% !important;
+  width: min(600px, 72%) !important;
+  transform: translateX(-50%) !important;
+}
+
+.start-space .mode-readout > strong {
+  display: block;
+  max-width: 560px;
+  margin-inline: auto;
+  line-height: 1.45;
+}
+
+.start-space .start-role-gate.oracle {
+  left: 2.5% !important;
+  top: 48% !important;
+}
+
+.start-space .start-role-gate.argus {
+  right: 2.5% !important;
+  top: 48% !important;
+}
+
+.start-space .alchemist-boundary {
+  top: 8% !important;
+  right: 3% !important;
+  bottom: auto !important;
+  max-width: 220px;
+}
+
+.start-space .payload-grid,
+.start-space .mission-advanced {
+  min-width: 0;
+}
+
+/* =========================================================
+   INTELLIGENCE — document field + evidence margin
+   ========================================================= */
+
+.intelligence-space {
+  width: 100%;
+  min-height: 100vh;
+  padding: 64px 34px 42px !important;
+  overflow-x: hidden !important;
+}
+
+.intelligence-space .dossier-masthead {
+  position: relative !important;
+  inset: auto !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 470px);
+  align-items: end;
+  gap: 36px;
+  width: 100% !important;
+  min-width: 0;
+  min-height: 176px;
+  margin: 0 0 28px !important;
+  padding: 10px 0 18px !important;
+  overflow: visible;
+  border-top: 1px solid rgba(72, 64, 52, .10) !important;
+  border-bottom: 1px solid rgba(72, 64, 52, .08) !important;
+  border-left: 2px solid rgba(126, 105, 73, .22) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.intelligence-space .dossier-masthead h1 {
+  margin: 0;
+  max-width: 820px;
+  font-size: clamp(54px, 5.7vw, 86px) !important;
+  line-height: .88 !important;
+}
+
+.intelligence-space .dossier-masthead > div:first-child > small {
+  display: block;
+  max-width: 760px;
+  margin-top: 12px;
+  font-size: 11px !important;
+  line-height: 1.6;
+}
+
+.intelligence-space .intel-search {
+  position: relative !important;
+  inset: auto !important;
+  align-self: end;
+  width: 100% !important;
+  min-width: 0;
+  max-width: none !important;
+  margin: 0 0 7px !important;
+}
+
+.intelligence-space .dossier-masthead,
+.intelligence-space .intelligence-hero,
+.intelligence-space .intel-layout {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+}
+
+.observatory-space .telemetry-panel,
+.observatory-space .live-metric,
+.observatory-space .spectrum-row,
+.observatory-space .agent-spectrum-row,
+.observatory-space .system-fact {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+.observatory-space .spectrum-row,
+.observatory-space .agent-spectrum-row,
+.observatory-space .system-fact {
+  border: 0 !important;
+  border-bottom: 1px solid rgba(114, 215, 255, .045) !important;
+}
+
+.observatory-space.observatory-proof .proof-block,
+.observatory-space.observatory-proof .proof-number,
+.observatory-space.observatory-proof .proof-targets,
+.observatory-space.observatory-proof .proof-boundary,
+.observatory-space.observatory-proof .proof-case-list article,
+.observatory-space.observatory-proof .proof-metric-list article {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+.observatory-space .live-command-strip {
+  display: grid !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  gap: 0 !important;
+  overflow: hidden;
+}
+
+.observatory-space .live-metric {
+  min-width: 0;
+  min-height: 96px;
+  padding: 12px 14px;
+}
+
+.observatory-space .live-metric > div {
+  min-width: 0;
+}
+
+.observatory-space .live-metric strong {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.observatory-space .live-metric span {
+  overflow-wrap: anywhere;
+}
+
+.intelligence-space .intel-layout {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 320px !important;
+  gap: 38px !important;
+  padding: 0 !important;
+  overflow: visible !important;
+}
+
+.intelligence-space .intel-main,
+.intelligence-space .intel-reading-deck,
+.intelligence-space .relation-section,
+.intelligence-space .intel-side {
+  min-width: 0;
+}
+
+.intelligence-space .dossier-hero {
+  position: relative !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "identity stats"
+    "actions switch";
+  align-items: center;
+  gap: 14px 28px;
+  width: 100%;
+  min-width: 0;
+  min-height: 136px;
+  padding: 18px 0 18px 18px !important;
+  overflow: visible;
+}
+
+.intelligence-space .dossier-id {
+  grid-area: identity;
+  min-width: 0;
+}
+
+.intelligence-space .dossier-id strong,
+.intelligence-space .dossier-id .mono {
+  overflow-wrap: anywhere;
+}
+
+.intelligence-space .dossier-stats {
+  grid-area: stats;
+  position: relative !important;
+  inset: auto !important;
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(82px, 1fr));
+  gap: 16px !important;
+  min-width: 280px;
+}
+
+.intelligence-space .dossier-mission-actions {
+  grid-area: actions;
+  position: relative !important;
+  inset: auto !important;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+}
+
+.intelligence-space .intel-reading-switch {
+  grid-area: switch;
+  position: relative !important;
+  inset: auto !important;
+  align-self: end;
+  justify-self: end;
+  margin: 0 !important;
+}
+
+.intelligence-space .intel-reading-deck {
+  grid-template-columns: minmax(320px, .8fr) minmax(420px, 1.2fr) !important;
+  gap: 32px !important;
+}
+
+.intelligence-space .intel-side {
+  position: sticky !important;
+  top: 64px !important;
+  width: 100% !important;
+  max-width: 320px;
+}
+
+.intelligence-space .incident-dossier,
+.intelligence-space .incident-state,
+.intelligence-space .incident-reading,
+.intelligence-space .incident-timeline,
+.intelligence-space .incident-sources {
+  min-width: 0;
+}
+
+.intelligence-space .incident-state {
+  grid-template-columns: minmax(0, 1fr) minmax(250px, .7fr) !important;
+  gap: 22px 30px !important;
+}
+
+.intelligence-space .incident-reading {
+  grid-template-columns: minmax(0, 1.35fr) minmax(260px, .65fr) !important;
+  gap: 34px !important;
+}
+
+.intelligence-space .incident-sources {
+  position: sticky !important;
+  top: 72px !important;
+  align-self: start;
+  max-height: calc(100vh - 96px);
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.intelligence-space .incident-event-body p,
+.intelligence-space .incident-state-copy p,
+.intelligence-space .incident-archive-state span {
+  font-size: 10px !important;
+  line-height: 1.55;
+}
+
+.intelligence-space .incident-event-body strong,
+.intelligence-space .incident-source-list strong,
+.intelligence-space .incident-archive-list strong {
+  font-size: 10.5px !important;
+}
+
+/* =========================================================
+   INVESTIGATIONS — docket / case / activity
+   ========================================================= */
+
+.investigations-space {
+  width: 100%;
+  min-height: 100vh;
+  padding: 58px 24px 38px !important;
+  overflow-x: hidden !important;
+}
+
+.investigations-space .case-docket-heading {
+  position: relative !important;
+  inset: auto !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 34px;
+  width: 100% !important;
+  min-width: 0;
+  min-height: 118px;
+  margin: 0 0 16px !important;
+  padding: 8px 0 16px !important;
+}
+
+.investigations-space .case-docket-heading h1 {
+  margin: 0;
+  font-size: clamp(38px, 4vw, 58px) !important;
+  line-height: .9 !important;
+}
+
+.investigations-space .case-docket-heading > div:first-child > small {
+  display: block;
+  max-width: 780px;
+  margin-top: 8px;
+  font-size: 10.5px !important;
+  line-height: 1.55;
+}
+
+.investigations-space .investigation-stats {
+  position: relative !important;
+  inset: auto !important;
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  align-self: end;
+  gap: 14px;
+  min-width: 0;
+  margin: 0 0 4px;
+}
+
+.investigations-space .investigation-layout {
+  display: grid !important;
+  grid-template-columns: 220px minmax(0, 1fr) 278px !important;
+  gap: 20px !important;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+}
+
+.investigations-space .case-rail,
+.investigations-space .case-workspace,
+.investigations-space .activity-rail,
+.investigations-space .case-workspace-stack,
+.investigations-space .conversation-shell {
+  min-width: 0;
+  transform: none !important;
+}
+
+.investigations-space .case-rail {
+  padding-right: 8px;
+}
+
+.investigations-space .activity-rail {
+  padding-left: 10px;
+}
+
+.investigations-space .case-state-grid {
+  min-width: 0;
+}
+
+.investigations-space .case-workspace-stack {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 350px !important;
+  grid-template-areas:
+    "hero hero"
+    "terminal terminal"
+    "states session"
+    "decision session";
+  gap: 16px 22px !important;
+  align-items: start;
+  width: 100%;
+}
+
+.investigations-space .case-hero {
+  grid-area: hero;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 24px;
+  min-height: 116px;
+  padding: 16px 0 !important;
+  min-width: 0;
+}
+
+.investigations-space .case-hero-main {
+  min-width: 0;
+}
+
+.investigations-space .case-hero-main > div {
+  min-width: 0;
+}
+
+.investigations-space .case-hero-main strong {
+  display: block;
+  max-width: 760px;
+  overflow-wrap: anywhere;
+  line-height: 1.3;
+}
+
+.investigations-space .case-hero-state {
+  position: relative !important;
+  inset: auto !important;
+  min-width: 170px;
+  justify-self: end;
+}
+
+.investigations-space .case-terminal {
+  grid-area: terminal;
+}
+
+.investigations-space .case-state-grid {
+  grid-area: states;
+}
+
+.investigations-space .decision-focus-wrap {
+  grid-area: decision;
+}
+
+.investigations-space .conversation-shell {
+  grid-area: session;
+  position: sticky !important;
+  top: 64px !important;
+  width: 100%;
+  min-height: 600px;
+  max-height: calc(100vh - 90px);
+  overflow: auto;
+}
+
+/* =========================================================
+   AGENTS — theatre / topology / dossier
+   ========================================================= */
+
+.agents-space {
+  width: 100%;
+  min-height: 100vh;
+  padding: 56px 28px 42px !important;
+  overflow-x: hidden !important;
+}
+
+.agents-space .runtime-stage-caption {
+  position: relative !important;
+  inset: auto !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 34px;
+  width: 100%;
+  min-width: 0;
+  min-height: 112px;
+  margin: 0 0 8px !important;
+  padding: 8px 0 16px !important;
+}
+
+.agents-space .runtime-stage-caption h1 {
+  margin: 0;
+  font-size: clamp(38px, 4vw, 58px) !important;
+  line-height: .9 !important;
+}
+
+.agents-space .runtime-stage-caption > div:first-child > small {
+  display: block;
+  max-width: 760px;
+  margin-top: 8px;
+  font-size: 10.5px !important;
+  line-height: 1.55;
+}
+
+.agents-space .agent-runtime-readout {
+  position: relative !important;
+  inset: auto !important;
+  align-self: end;
+  min-width: 340px;
+  margin: 0 0 3px;
+}
+
+.agents-space .role-theater,
+.agents-space .agent-runtime-grid,
+.agents-space .agent-memory-complex {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+.agents-space .role-theater {
+  position: relative !important;
+  height: 410px !important;
+  min-height: 410px !important;
+  overflow: hidden !important;
+}
+
+.agents-space .role-entity {
+  min-width: 0;
+  max-width: 31%;
+}
+
+.agents-space .role-entity-copy {
+  min-width: 0;
+}
+
+.agents-space .role-entity-copy strong {
+  white-space: nowrap;
+}
+
+.agents-space .role-entity-copy p {
+  display: -webkit-box;
+  max-height: 4.7em;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.agents-space .role-coordinates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+
+.agents-space .role-entity:nth-of-type(1) {
+  left: 34.5% !important;
+  top: 38px !important;
+}
+
+.agents-space .role-entity:nth-of-type(2) {
+  left: 2% !important;
+  top: 128px !important;
+}
+
+.agents-space .role-entity:nth-of-type(3) {
+  left: auto !important;
+  right: 2% !important;
+  top: 136px !important;
+}
+
+.agents-space .agent-runtime-grid {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 330px !important;
+  gap: 24px !important;
+}
+
+.agents-space .task-field,
+.agents-space .task-runtime-lens,
+.agents-space .task-topology {
+  min-width: 0;
+}
+
+.agents-space .task-runtime-lens {
+  position: sticky !important;
+  top: 64px !important;
+  width: 100%;
+}
+
+.agents-space .task-ledger {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, .9fr) !important;
+  gap: 26px !important;
+  min-width: 0;
+}
+
+.agents-space .task-ledger-column {
+  min-width: 0;
+}
+
+.agents-space .task-ledger-row,
+.agents-space .task-card,
+.agents-space .skill-family-list button,
+.agents-space .experience-list button {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+.agents-space .task-ledger-row {
+  border: 0 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, .04) !important;
+}
+
+.agents-space .task-ledger-row.selected {
+  border-left: 2px solid rgba(168, 139, 255, .38) !important;
+  background: linear-gradient(90deg, rgba(168, 139, 255, .04), transparent 78%) !important;
+}
+
+.agents-space .skill-codex .skill-codex-body {
+  display: grid !important;
+  grid-template-columns: 250px minmax(0, 1fr) !important;
+  gap: 44px !important;
+  min-width: 0;
+}
+
+.agents-space .skill-family-list,
+.agents-space .skill-detail,
+.agents-space .skill-record-stack,
+.agents-space .skill-record,
+.agents-space .skill-record-body,
+.agents-space .skill-procedure-pane,
+.agents-space .skill-governance {
+  min-width: 0;
+}
+
+.agents-space .skill-record-body {
+  grid-template-columns: minmax(0, 1.28fr) minmax(240px, .72fr) !important;
+  gap: 30px !important;
+}
+
+.agents-space .experience-memory .experience-pipeline {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+}
+
+.agents-space .experience-workbench {
+  grid-template-columns: 210px minmax(0, 1fr) !important;
+  gap: 40px !important;
+  min-width: 0;
+}
+
+.agents-space .experience-list,
+.agents-space .experience-inspector,
+.agents-space .experience-evidence-wall {
+  min-width: 0;
+}
+
+.agents-space .experience-evidence-wall {
+  grid-template-columns: minmax(0, 1fr) 240px minmax(0, 1fr) !important;
+  gap: 30px !important;
+}
+
+.agents-space .instrument-section-head strong {
+  font-size: clamp(18px, 1.7vw, 28px) !important;
+  line-height: 1.05;
+}
+
+/* =========================================================
+   OBSERVATORY — instrument field / proof archive
+   ========================================================= */
+
+.observatory-space {
+  width: 100%;
+  min-height: 100vh;
+  padding: 58px 30px 40px !important;
+  overflow-x: hidden !important;
+}
+
+.observatory-space .observatory-switchboard-heading {
+  position: relative !important;
+  inset: auto !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 34px;
+  width: 100%;
+  min-width: 0;
+  min-height: 118px;
+  margin: 0 0 16px !important;
+  padding: 8px 0 16px !important;
+}
+
+.observatory-space .observatory-switchboard-heading h1 {
+  margin: 0;
+  font-size: clamp(40px, 4.3vw, 62px) !important;
+  line-height: .9 !important;
+}
+
+.observatory-space .observatory-switchboard-heading > div:first-child > small {
+  display: block;
+  max-width: 780px;
+  margin-top: 8px;
+  font-size: 10.5px !important;
+  line-height: 1.55;
+}
+
+.observatory-space .observatory-mode-switch {
+  position: relative !important;
+  inset: auto !important;
+  align-self: end;
+  width: 260px;
+  margin: 0 0 4px;
+}
+
+.observatory-space .live-command-strip,
+.observatory-space .live-window-row,
+.observatory-space .observatory-live-grid,
+.observatory-space .proof-seal,
+.observatory-space .proof-run-ledger,
+.observatory-space .proof-grid,
+.observatory-space .proof-lower-grid {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+}
+
+.observatory-space .observatory-live-grid {
+  grid-template-columns: minmax(0, 1fr) 320px !important;
+  gap: 22px 30px !important;
+}
+
+.observatory-space .telemetry-panel,
+.observatory-space .telemetry-charts,
+.observatory-space .telemetry-chart,
+.observatory-space .source-spectrum,
+.observatory-space .agent-spectrum {
+  min-width: 0;
+}
+
+.observatory-space.observatory-proof .proof-run-ledger {
+  grid-template-columns: 220px minmax(0, 1fr) !important;
+}
+
+/* =========================================================
+   Desktop compression
+   ========================================================= */
+
+@media (max-width: 1380px) {
+  .world-space {
+    grid-template-columns: 340px minmax(0, 1fr);
+    column-gap: 22px;
+    padding-inline: 24px !important;
+  }
+
+  .intelligence-space .incident-state,
+  .intelligence-space .incident-reading,
+  .agents-space .task-ledger,
+  .agents-space .skill-codex .skill-codex-body,
+  .agents-space .experience-workbench,
+  .agents-space .experience-evidence-wall,
+  .observatory-space.observatory-proof .proof-seal,
+  .observatory-space.observatory-proof .proof-run-body {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .intelligence-space .incident-sources {
+    position: relative !important;
+    top: auto !important;
+    max-height: none;
+  }
+
+  .intelligence-space .dossier-hero {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-areas:
+      "identity"
+      "stats"
+      "actions"
+      "switch" !important;
+  }
+
+  .intelligence-space .dossier-stats {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .intelligence-space .intel-reading-switch {
+    justify-self: start;
+  }
+
+  .investigations-space .case-hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .investigations-space .case-hero-state {
+    justify-self: start;
+  }
+
+  .observatory-space .live-command-strip {
+    display: flex !important;
+    overflow-x: auto;
+  }
+
+  .observatory-space .live-metric {
+    flex: 0 0 180px;
+  }
+
+  .intelligence-space .dossier-stats {
+    min-width: 245px;
+    gap: 10px !important;
+  }
+
+  .intelligence-space .dossier-masthead,
+  .investigations-space .case-docket-heading,
+  .agents-space .runtime-stage-caption,
+  .observatory-space .observatory-switchboard-heading {
+    grid-template-columns: minmax(0, 1fr) !important;
+    min-height: 0;
+  }
+
+  .intelligence-space .intel-search,
+  .investigations-space .investigation-stats,
+  .agents-space .agent-runtime-readout,
+  .observatory-space .observatory-mode-switch {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+  }
+
+  .investigations-space .case-workspace-stack {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-areas:
+      "hero"
+      "terminal"
+      "states"
+      "decision"
+      "session" !important;
+  }
+
+  .investigations-space .conversation-shell {
+    position: relative !important;
+    top: auto !important;
+    max-height: none;
+  }
+
+  .world-title-lockup h1 {
+    font-size: clamp(50px, 4.7vw, 68px) !important;
+  }
+
+  .world-title-lockup > div:first-child > small {
+    font-size: 10px !important;
+  }
+
+  .world-telemetry {
+    grid-template-columns: 82px repeat(5, minmax(0, 1fr)) !important;
+  }
+
+  .world-telemetry .telemetry-readout {
+    padding-inline: 9px !important;
+  }
+
+  .world-telemetry .telemetry-readout strong {
+    font-size: 19px !important;
+  }
+
+  .source-beacon {
+    width: 160px !important;
+  }
+
+  .start-space {
+    grid-template-columns: minmax(0, 1fr) 370px !important;
+  }
+
+  .intelligence-space .intel-layout {
+    grid-template-columns: minmax(0, 1fr) 285px !important;
+  }
+
+  .intelligence-space .intel-reading-deck {
+    grid-template-columns: minmax(280px, .72fr) minmax(360px, 1.28fr) !important;
+  }
+
+  .investigations-space .investigation-layout {
+    grid-template-columns: 200px minmax(0, 1fr) 250px !important;
+  }
+
+  .investigations-space .case-workspace-stack {
+    grid-template-columns: minmax(0, 1fr) 310px !important;
+  }
+
+  .agents-space .agent-runtime-grid {
+    grid-template-columns: minmax(0, 1fr) 300px !important;
+  }
+
+  .agents-space .skill-codex .skill-codex-body {
+    grid-template-columns: 220px minmax(0, 1fr) !important;
+    gap: 30px !important;
+  }
+
+  .agents-space .skill-record-body {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .agents-space .experience-evidence-wall {
+    grid-template-columns: minmax(0, 1fr) 210px minmax(0, 1fr) !important;
+    gap: 22px !important;
+  }
+
+  .observatory-space .observatory-live-grid {
+    grid-template-columns: minmax(0, 1fr) 290px !important;
+  }
+
+  .observatory-space.observatory-proof .proof-run-body {
+    grid-template-columns: 300px minmax(0, 1fr) !important;
+  }
+}
+
+/* =========================================================
+   Mid / compact authority
+   ========================================================= */
+
+@media (max-width: 1100px) {
+  .world-space,
+  .start-space,
+  .intelligence-space,
+  .investigations-space,
+  .agents-space,
+  .observatory-space {
+    display: block !important;
+    width: 100% !important;
+    padding: 52px 18px 72px !important;
+    overflow-x: hidden !important;
+  }
+
+  .world-title-lockup,
+  .world-locator,
+  .world-telemetry,
+  .world-stage,
+  .world-live-flow,
+  .start-space > .mission-briefing,
+  .start-space > .start-theater,
+  .start-space > .payload-deck,
+  .intelligence-space .intel-layout,
+  .investigations-space .investigation-layout,
+  .agents-space .agent-runtime-grid,
+  .observatory-space .observatory-live-grid,
+  .observatory-space.observatory-proof .proof-run-ledger {
+    position: relative !important;
+    inset: auto !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    transform: none !important;
+  }
+
+  .world-locator,
+  .world-telemetry {
+    margin-top: 10px !important;
+  }
+
+  .world-telemetry {
+    display: flex !important;
+    overflow-x: auto !important;
+  }
+
+  .world-time-lens {
+    flex: 0 0 90px;
+  }
+
+  .world-telemetry .telemetry-readout {
+    flex: 0 0 150px;
+  }
+
+  .world-stage {
+    height: 700px !important;
+    min-height: 700px !important;
+    margin-top: 12px !important;
+  }
+
+  .world-live-flow {
+    width: 100% !important;
+    margin: 0 !important;
+  }
+
+  .start-space > .payload-deck {
+    max-height: none;
+    margin-top: 18px !important;
+    overflow: visible;
+  }
+
+  .intelligence-space .intel-layout,
+  .intelligence-space .intel-reading-deck,
+  .investigations-space .investigation-layout,
+  .agents-space .agent-runtime-grid,
+  .observatory-space .observatory-live-grid,
+  .observatory-space.observatory-proof .proof-run-ledger {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .intelligence-space .intel-side,
+  .agents-space .task-runtime-lens {
+    position: relative !important;
+    top: auto !important;
+    max-width: none;
+  }
+
+  .investigations-space .case-rail,
+  .investigations-space .activity-rail {
+    width: 100%;
+    border-left: 0;
+    border-right: 0;
+  }
+
+  .agents-space .role-theater {
+    height: 470px !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .product-shell small {
+    font-size: 9.5px !important;
+  }
+
+  .world-stage {
+    height: 760px !important;
+    min-height: 760px !important;
+  }
+
+  .world-semantic-legend {
+    left: 14px !important;
+    right: 14px !important;
+    grid-template-columns: 1fr;
+  }
+
+  .world-lens {
+    position: fixed !important;
+    left: 12px !important;
+    right: 12px !important;
+    top: auto !important;
+    bottom: 82px !important;
+    width: auto !important;
+    max-width: none !important;
+    max-height: 62vh;
+  }
+}
+
+/* =========================================================
+   Short desktop / projector authority
+   1366×768 and similar demo surfaces keep the protagonist visible.
+   ========================================================= */
+
+@media (min-width: 1101px) and (max-height: 820px) {
+  .product-shell {
+    --shell-rail: 150px !important;
+  }
+
+  .instrument-bar {
+    padding: 12px 9px 10px !important;
+  }
+
+  .instrument-brand {
+    min-height: 52px !important;
+    padding-bottom: 9px !important;
+  }
+
+  .instrument-nav {
+    margin-top: 10px !important;
+    gap: 2px !important;
+  }
+
+  .instrument-nav-item {
+    min-height: 39px !important;
+    padding-inline: 8px !important;
+  }
+
+  .instrument-actions {
+    gap: 6px !important;
+    padding-top: 8px !important;
+  }
+
+  .command-trigger,
+  .story-trigger,
+  .language-switch,
+  .runtime-state {
+    min-height: 28px !important;
+  }
+
+  .global-start {
+    min-height: 46px !important;
+  }
+
+  .narrative-compass {
+    top: 9px !important;
+  }
+
+  /* WORLD keeps title, live readings, field and recent flow inside one glance. */
+  .world-space {
+    grid-template-rows: auto auto minmax(440px, 1fr) 104px !important;
+    padding-top: 48px !important;
+  }
+
+  .world-title-lockup {
+    min-height: 134px !important;
+  }
+
+  .world-title-lockup h1 {
+    font-size: clamp(46px, 4.6vw, 64px) !important;
+  }
+
+  .world-title-lockup > div:first-child > small {
+    max-width: 540px !important;
+    font-size: 9.75px !important;
+    line-height: 1.42 !important;
+  }
+
+  .world-title-lockup .world-hero-actions {
+    margin-top: 9px !important;
+  }
+
+  .world-telemetry,
+  .world-time-lens,
+  .world-telemetry .telemetry-readout {
+    min-height: 82px !important;
+  }
+
+  .world-stage {
+    min-height: 440px !important;
+  }
+
+  .world-live-flow {
+    min-height: 104px !important;
+    padding-top: 9px !important;
+    padding-bottom: 8px !important;
+  }
+
+  /* START: execution chamber remains the first-screen protagonist. */
+  .start-space {
+    grid-template-columns: minmax(0, 1fr) 360px !important;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+    gap: 10px 22px !important;
+    padding: 48px 22px 18px 26px !important;
+  }
+
+  .start-space > .mission-briefing {
+    min-height: 72px !important;
+  }
+
+  .start-space > .mission-briefing h1 {
+    font-size: clamp(36px, 3.7vw, 52px) !important;
+  }
+
+  .start-space > .mission-briefing > div:first-child > small {
+    max-width: 720px !important;
+    margin-top: 4px !important;
+    font-size: 9.75px !important;
+  }
+
+  .start-space > .start-theater {
+    min-height: 500px !important;
+    height: 500px !important;
+  }
+
+  .start-space > .payload-deck {
+    max-height: calc(100vh - 126px) !important;
+  }
+
+  .start-space .mode-chamber {
+    width: 132px !important;
+    min-height: 102px !important;
+  }
+
+  .start-space .mode-chamber.active {
+    width: 170px !important;
+    min-height: 132px !important;
+  }
+
+  .start-space .mission-reactor {
+    width: 108px !important;
+    height: 108px !important;
+  }
+
+  /* INTELLIGENCE becomes a compact reading spread, not a tall landing page. */
+  .intelligence-space {
+    padding-top: 48px !important;
+    padding-bottom: 26px !important;
+  }
+
+  .intelligence-space .dossier-masthead {
+    min-height: 126px !important;
+  }
+
+  .intelligence-space .dossier-masthead h1 {
+    font-size: clamp(44px, 5vw, 66px) !important;
+  }
+
+  .intelligence-space .dossier-masthead > div:first-child > small {
+    font-size: 9.75px !important;
+    line-height: 1.45 !important;
+  }
+
+  /* CASE room keeps docket, state field and session visible before scrolling. */
+  .investigations-space {
+    padding-top: 48px !important;
+    padding-bottom: 24px !important;
+  }
+
+  .investigations-space .case-docket-heading {
+    min-height: 78px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .investigations-space .case-docket-heading h1 {
+    font-size: clamp(34px, 3.4vw, 48px) !important;
+  }
+
+  .investigations-space .investigation-layout {
+    gap: 14px 20px !important;
+  }
+
+  .investigations-space .state-column.tone-lime {
+    min-height: 320px !important;
+  }
+
+  .investigations-space .conversation-shell {
+    min-height: 470px !important;
+  }
+
+  /* AGENTS keeps all three actors plus the beginning of runtime topology in frame. */
+  .agents-space {
+    padding-top: 46px !important;
+    padding-bottom: 28px !important;
+  }
+
+  .agents-space .runtime-stage-caption {
+    min-height: 82px !important;
+    margin-bottom: 2px !important;
+  }
+
+  .agents-space .runtime-stage-caption h1 {
+    font-size: clamp(34px, 3.5vw, 48px) !important;
+  }
+
+  .agents-space .role-theater {
+    height: 320px !important;
+    min-height: 320px !important;
+  }
+
+  .agents-space .role-entity:nth-of-type(1) {
+    top: 10px !important;
+  }
+
+  .agents-space .role-entity:nth-of-type(2) {
+    top: 78px !important;
+  }
+
+  .agents-space .role-entity:nth-of-type(3) {
+    top: 86px !important;
+  }
+
+  .agents-space .role-entity .role-sigil {
+    transform: scale(.88);
+    transform-origin: center;
+  }
+
+  /* OBSERVATORY keeps mode switch and first measurement scene visible. */
+  .observatory-space {
+    padding-top: 46px !important;
+    padding-bottom: 26px !important;
+  }
+
+  .observatory-space .observatory-switchboard-heading {
+    min-height: 82px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .observatory-space .observatory-switchboard-heading h1 {
+    font-size: clamp(34px, 3.6vw, 48px) !important;
+  }
+
+  .observatory-space .live-metric {
+    min-height: 72px !important;
+  }
+
+  .observatory-space .telemetry-wide {
+    min-height: 480px !important;
+  }
+
+  .observatory-space.observatory-proof .proof-seal {
+    min-height: 150px !important;
+    margin-top: 12px !important;
+  }
+}
+
+/* =========================================================
+   Recoverable read seams
+   ========================================================= */
+
+.runtime-state {
+  appearance: none;
+  cursor: pointer;
+}
+
+.recovery-action {
+  appearance: none;
+  width: max-content;
+  min-height: 28px;
+  margin-top: 8px;
+  padding: 4px 0 3px;
+  border: 0;
+  border-bottom: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 9px !important;
+  font-weight: 620;
+  letter-spacing: .045em;
+  cursor: pointer;
+  opacity: .78;
+}
+
+.recovery-action:hover,
+.recovery-action:focus-visible {
+  opacity: 1;
+  transform: translateX(2px);
+}
+
+.case-index-fault,
+.case-detail-fault,
+.activity-fault,
+.world-hot-fault,
+.agent-seam-fault,
+.intel-state.error-block,
+.proof-run-loading.error-block,
+.proof-evidence-state.error-block {
+  align-content: start;
+}
+
+.proof-run-loading.error-block,
+.proof-evidence-state.error-block {
+  gap: 10px;
+}
+
+.proof-run-loading.error-block .recovery-action,
+.proof-evidence-state.error-block .recovery-action {
+  justify-self: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recovery-action:hover,
+  .recovery-action:focus-visible {
+    transform: none;
+  }
+}
+
+/* =========================================================
+   SPACE IDENTITY AUTHORITY V2
+   One product system, six different spatial grammars.
+   These rules intentionally override earlier safety layouts.
+   ========================================================= */
+
+/* START — one launch chamber. Payload is a dock, never a permanent right pane. */
+.start-space {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: auto minmax(620px, 1fr) auto !important;
+  gap: 12px !important;
+  padding: 58px 28px 24px 32px !important;
+  overflow: hidden !important;
+}
+
+.start-space > .mission-briefing {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: end;
+  gap: 26px;
+  min-height: 96px !important;
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 0 12px !important;
+  border-right: 0 !important;
+}
+
+.start-space > .mission-briefing > div:first-child {
+  max-width: 820px;
+}
+
+.start-space > .mission-briefing h1 {
+  max-width: none !important;
+  white-space: normal !important;
+}
+
+.start-space > .start-theater {
+  grid-column: 1 !important;
+  grid-row: 2 !important;
+  width: 100% !important;
+  min-height: 620px !important;
+  height: auto !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+}
+
+.start-space > .payload-deck {
+  grid-column: 1 !important;
+  grid-row: 3 !important;
+  position: relative !important;
+  inset: auto !important;
+  width: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  overflow: visible !important;
+}
+
+.start-space .payload-grid {
+  display: grid !important;
+  grid-template-columns: minmax(220px, .62fr) minmax(420px, 1.8fr) 210px !important;
+  grid-template-areas: "target prompt launch" !important;
+  gap: 16px !important;
+}
+
+.start-space .mode-chamber {
+  width: 150px !important;
+  min-height: 150px !important;
+  max-width: 150px !important;
+  padding: 0 !important;
+}
+
+.start-space .mode-chamber.active {
+  width: 150px !important;
+  min-height: 150px !important;
+  max-width: 150px !important;
+}
+
+.start-space .mission-reactor {
+  left: 55% !important;
+  top: 46% !important;
+  width: 196px !important;
+  height: 196px !important;
+}
+
+.start-space .mode-readout {
+  left: 35% !important;
+  right: auto !important;
+  bottom: 8% !important;
+  width: min(720px, 52vw) !important;
+  transform: none !important;
+}
+
+.start-space .start-role-gate.oracle {
+  left: 24% !important;
+  top: 50% !important;
+}
+
+.start-space .start-role-gate.argus {
+  right: 3.5% !important;
+  top: 50% !important;
+}
+
+.start-space .alchemist-boundary {
+  top: auto !important;
+  right: 3% !important;
+  bottom: 11% !important;
+}
+
+/* AGENTS — role theatre is the protagonist; topology begins beneath it. */
+.agents-space .role-theater {
+  height: 430px !important;
+  min-height: 430px !important;
+  overflow: visible !important;
+}
+
+.agents-space .role-entity {
+  width: 30% !important;
+  max-width: 30% !important;
+}
+
+.agents-space .role-entity:nth-of-type(1) {
+  left: 35% !important;
+  top: 30px !important;
+}
+
+.agents-space .role-entity:nth-of-type(2) {
+  left: 2.5% !important;
+  top: 132px !important;
+}
+
+.agents-space .role-entity:nth-of-type(3) {
+  left: auto !important;
+  right: 2.5% !important;
+  top: 142px !important;
+}
+
+.agents-space .agent-runtime-grid {
+  grid-template-columns: minmax(0, 1.45fr) 330px !important;
+  gap: 26px !important;
+}
+
+/* OBSERVATORY LIVE — measurement wall, not generic two-column content. */
+.observatory-space:not(.observatory-proof) .observatory-live-grid {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1.65fr) minmax(300px, .55fr) !important;
+  grid-template-areas:
+    "world sources"
+    "world agents"
+    "system system" !important;
+  gap: 22px 34px !important;
+}
+
+.observatory-space:not(.observatory-proof) .telemetry-wide {
+  grid-area: world !important;
+}
+
+.observatory-space:not(.observatory-proof) .source-spectrum {
+  grid-area: sources !important;
+}
+
+.observatory-space:not(.observatory-proof) .agent-spectrum {
+  grid-area: agents !important;
+}
+
+.observatory-space:not(.observatory-proof) .system-status-panel {
+  grid-area: system !important;
+}
+
+/* PROOF — frozen archive: vertical run index feeding one evidence sheet. */
+.observatory-space.observatory-proof .proof-run-ledger {
+  display: grid !important;
+  grid-template-columns: 220px minmax(0, 1fr) !important;
+  grid-template-areas:
+    "head head"
+    "rail detail" !important;
+  gap: 16px 30px !important;
+}
+
+.observatory-space.observatory-proof .proof-run-ledger-head {
+  grid-area: head !important;
+}
+
+.observatory-space.observatory-proof .proof-run-rail {
+  grid-area: rail !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  overflow: visible !important;
+}
+
+.observatory-space.observatory-proof .proof-run-detail {
+  grid-area: detail !important;
+}
+
+/* Short desktops keep the distinct compositions instead of collapsing to a common template. */
+@media (min-width: 1101px) and (max-height: 820px) {
+  .start-space {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: auto 500px auto !important;
+    gap: 8px !important;
+    padding: 48px 22px 18px 26px !important;
+  }
+
+  .start-space > .start-theater {
+    height: 500px !important;
+    min-height: 500px !important;
+  }
+
+  .start-space > .payload-deck {
+    max-height: none !important;
+  }
+
+  .start-space .mission-reactor {
+    width: 132px !important;
+    height: 132px !important;
+  }
+
+  .agents-space .role-theater {
+    height: 340px !important;
+    min-height: 340px !important;
+  }
+}
+
+@media (max-width: 1100px) {
+  .start-space .payload-grid {
+    grid-template-columns: 1fr !important;
+    grid-template-areas:
+      "target"
+      "prompt"
+      "launch" !important;
+  }
+
+  .start-space .mode-readout {
+    left: 18px !important;
+    right: 18px !important;
+    bottom: 20px !important;
+    width: auto !important;
+  }
+
+  .observatory-space:not(.observatory-proof) .observatory-live-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-areas:
+      "world"
+      "sources"
+      "agents"
+      "system" !important;
+  }
+}
+
+/* =========================================================
+   OBJECT-LED ENTRY STATES
+   When real product data is present, the object replaces the generic hero.
+   ========================================================= */
+
+/* INTELLIGENCE — once a dossier resolves, the archive masthead becomes a folio strip. */
+.intelligence-space.has-dossier {
+  padding-top: 52px !important;
+}
+
+.intelligence-space.has-dossier .dossier-masthead {
+  min-height: 74px !important;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 390px) !important;
+  align-items: center !important;
+  margin-bottom: 12px !important;
+  padding: 6px 0 8px 14px !important;
+  border-top: 0 !important;
+  border-left-width: 1px !important;
+}
+
+.intelligence-space.has-dossier .dossier-masthead > div:first-child {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "eyebrow title"
+    "eyebrow copy";
+  column-gap: 14px;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.intelligence-space.has-dossier .dossier-masthead p {
+  grid-area: eyebrow;
+  align-self: start;
+  margin: 3px 0 0 !important;
+  writing-mode: vertical-rl;
+  color: #8b806e !important;
+  font-size: 8.5px !important;
+  letter-spacing: .08em !important;
+  white-space: nowrap;
+}
+
+.intelligence-space.has-dossier .dossier-masthead h1 {
+  grid-area: title;
+  margin: 0 !important;
+  font-size: clamp(24px, 2.2vw, 34px) !important;
+  line-height: .95 !important;
+  letter-spacing: -.035em !important;
+}
+
+.intelligence-space.has-dossier .dossier-masthead > div:first-child > small {
+  grid-area: copy;
+  max-width: 680px !important;
+  margin-top: 4px !important;
+  font-size: 9.5px !important;
+  line-height: 1.42 !important;
+  color: #746e63 !important;
+}
+
+.intelligence-space.has-dossier .intel-search {
+  margin: 0 !important;
+}
+
+.intelligence-space.has-dossier .dossier-hero {
+  min-height: 160px !important;
+  margin-top: 2px;
+  padding-top: 22px !important;
+  padding-bottom: 22px !important;
+  border-top: 1px solid rgba(72, 64, 52, .08);
+}
+
+.intelligence-space.has-dossier .dossier-id strong {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(28px, 3.2vw, 48px) !important;
+  line-height: .96;
+  letter-spacing: -.035em;
+}
+
+/* INVESTIGATIONS — selected Case becomes the page title; product heading collapses to docket chrome. */
+.investigations-space.has-case {
+  padding-top: 48px !important;
+}
+
+.investigations-space.has-case .case-docket-heading {
+  min-height: 58px !important;
+  margin-bottom: 8px !important;
+  padding: 4px 0 8px !important;
+  border-bottom: 1px solid rgba(255, 179, 92, .065);
+}
+
+.investigations-space.has-case .case-docket-heading > div:first-child {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+}
+
+.investigations-space.has-case .case-docket-heading p {
+  order: 2;
+  margin: 0 !important;
+  color: #7e7469 !important;
+  font-size: 9px !important;
+  white-space: nowrap;
+}
+
+.investigations-space.has-case .case-docket-heading h1 {
+  order: 1;
+  margin: 0 !important;
+  font-size: 22px !important;
+  line-height: 1 !important;
+  letter-spacing: -.025em !important;
+  white-space: nowrap;
+}
+
+.investigations-space.has-case .case-docket-heading > div:first-child > small {
+  display: none !important;
+}
+
+.investigations-space.has-case .investigation-stats {
+  margin: 0 !important;
+}
+
+.investigations-space.has-case .case-hero {
+  min-height: 138px !important;
+  padding: 18px 0 20px !important;
+  border-top: 1px solid rgba(255, 179, 92, .06);
+  border-bottom: 1px solid rgba(255, 255, 255, .035);
+}
+
+.investigations-space.has-case .case-hero-main strong {
+  max-width: 900px;
+  font-size: clamp(22px, 2vw, 32px) !important;
+  line-height: 1.18 !important;
+  letter-spacing: -.025em;
+}
+
+.investigations-space.has-case .case-hero-main .mono {
+  margin-top: 6px;
+}
+
+/* AGENTS — real runtime makes the theatre the first-screen protagonist. */
+.agents-space.runtime-loaded {
+  position: relative;
+  padding-top: 44px !important;
+}
+
+.agents-space.runtime-loaded .runtime-stage-caption {
+  min-height: 58px !important;
+  margin-bottom: 0 !important;
+  padding: 4px 0 6px !important;
+  border-bottom: 0;
+}
+
+.agents-space.runtime-loaded .runtime-stage-caption > div:first-child {
+  display: flex;
+  align-items: baseline;
+  gap: 11px;
+  min-width: 0;
+}
+
+.agents-space.runtime-loaded .runtime-stage-caption p {
+  order: 2;
+  margin: 0 !important;
+  color: #686977 !important;
+  font-size: 9px !important;
+  white-space: nowrap;
+}
+
+.agents-space.runtime-loaded .runtime-stage-caption h1 {
+  order: 1;
+  margin: 0 !important;
+  font-size: 22px !important;
+  line-height: 1 !important;
+  letter-spacing: -.025em !important;
+  white-space: nowrap;
+}
+
+.agents-space.runtime-loaded .runtime-stage-caption > div:first-child > small {
+  display: none !important;
+}
+
+.agents-space.runtime-loaded .agent-runtime-readout {
+  min-width: 330px;
+  margin: 0 !important;
+}
+
+.agents-space.runtime-loaded .role-theater {
+  min-height: 470px !important;
+  height: 470px !important;
+  margin-top: 4px !important;
+  border-top: 1px solid rgba(168, 139, 255, .045);
+}
+
+.agents-space.runtime-loaded .role-entity:nth-of-type(1) {
+  top: 24px !important;
+}
+
+.agents-space.runtime-loaded .role-entity:nth-of-type(2) {
+  top: 146px !important;
+}
+
+.agents-space.runtime-loaded .role-entity:nth-of-type(3) {
+  top: 152px !important;
+}
+
+/* Route cue becomes edge annotation in object-led spaces. */
+.shell-space-intelligence .narrative-compass,
+.shell-space-investigations .narrative-compass,
+.shell-space-agents .narrative-compass,
+.shell-space-observatory .narrative-compass {
+  top: auto !important;
+  bottom: 12px !important;
+  left: calc(var(--shell-rail) + 18px) !important;
+  right: 18px !important;
+  min-height: 26px !important;
+  opacity: .52;
+}
+
+.shell-space-intelligence .narrative-copy strong,
+.shell-space-investigations .narrative-copy strong,
+.shell-space-agents .narrative-copy strong,
+.shell-space-observatory .narrative-copy strong {
+  max-width: 560px;
+  font-size: 9px !important;
+}
+
+.shell-space-intelligence .narrative-copy small,
+.shell-space-investigations .narrative-copy small,
+.shell-space-agents .narrative-copy small,
+.shell-space-observatory .narrative-copy small {
+  font-size: 8px !important;
+}
+
+@media (max-width: 1380px) {
+  .intelligence-space.has-dossier .dossier-masthead,
+  .investigations-space.has-case .case-docket-heading,
+  .agents-space.runtime-loaded .runtime-stage-caption {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .investigations-space.has-case .case-docket-heading > div:first-child,
+  .agents-space.runtime-loaded .runtime-stage-caption > div:first-child {
+    flex-wrap: wrap;
+  }
+
+  .investigations-space.has-case .case-docket-heading p,
+  .agents-space.runtime-loaded .runtime-stage-caption p {
+    white-space: normal;
+  }
+}
+
+@media (max-width: 1100px) {
+  .intelligence-space.has-dossier .dossier-masthead > div:first-child {
+    display: block;
+  }
+
+  .intelligence-space.has-dossier .dossier-masthead p {
+    writing-mode: horizontal-tb;
+    margin-bottom: 4px !important;
+  }
+
+  .shell-space-intelligence .narrative-compass,
+  .shell-space-investigations .narrative-compass,
+  .shell-space-agents .narrative-compass,
+  .shell-space-observatory .narrative-compass {
+    position: relative !important;
+    inset: auto !important;
+    margin: 4px 14px 0;
+  }
+}
+
+/* Accessibility authority — visible keyboard focus without flattening page identity. */
+.product-skip-link {
+  position: fixed;
+  z-index: 400;
+  left: 18px;
+  top: 12px;
+  transform: translateY(-160%);
+  padding: 8px 12px;
+  border: 1px solid rgba(201, 244, 91, .32);
+  background: #0a0d11;
+  color: #eaf3e8;
+  text-decoration: none;
+  font-size: 11px;
+  letter-spacing: .03em;
+  transition: transform 140ms ease;
+}
+
+.product-skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+.product-workspace:focus {
+  outline: none;
+}
+
+[role="tab"]:focus-visible,
+[role="button"]:focus-visible,
+.instrument-nav-item:focus-visible,
+.world-start-portal:focus-visible,
+.mode-chamber:focus-visible,
+.runtime-event:focus-visible,
+.case-card:focus-visible,
+.proof-run-rail button:focus-visible,
+.graph-relation-node:focus-visible {
+  outline: 2px solid currentColor !important;
+  outline-offset: 3px !important;
+}
+
+.observatory-space .system-status-panel[role="button"],
+.investigations-space .decision-focus-wrap[role="button"],
+.observatory-space .proof-case-list article[role="button"] {
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .product-skip-link {
+    transition: none;
+  }
+}
+
+.guided-story-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 10px 0 8px;
+  padding: 3px;
+  border: 1px solid rgba(255,255,255,.055);
+  background: rgba(255,255,255,.012);
+}
+
+.guided-story-mode button {
+  min-height: 28px;
+  padding: 0 9px;
+  border: 0;
+  background: transparent;
+  color: #647177;
+  font-size: 9px;
+  letter-spacing: .05em;
+  cursor: pointer;
+}
+
+.guided-story-mode button.active {
+  color: #dfe8e3;
+  background: linear-gradient(180deg,rgba(114,215,255,.07),rgba(168,139,255,.035));
+}
+
+.guided-story-mode button[aria-selected="true"]:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+.story-space-world .guided-story-mode,
+.story-space-intelligence .guided-story-mode {
+  border-color: rgba(44,64,78,.10);
+  background: rgba(255,255,255,.24);
+}
+
+.story-space-world .guided-story-mode button,
+.story-space-intelligence .guided-story-mode button {
+  color: #71828e;
+}
+
+.story-space-world .guided-story-mode button.active,
+.story-space-intelligence .guided-story-mode button.active {
+  color: #29485f;
+  background: rgba(73,116,148,.08);
+}
+
+/* =========================================================
+   START MISSION LOAD RAIL
+   Payload is a launch rail; execution bounds expand as a secondary layer.
+   ========================================================= */
+.start-space > .payload-deck {
+  position: relative !important;
+  display: grid !important;
+  grid-template-columns: 178px minmax(0, 1fr) !important;
+  grid-template-areas:
+    "head payload"
+    "advanced advanced"
+    "outcome outcome";
+  align-items: stretch;
+  gap: 0 18px !important;
+  min-height: 92px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-top: 1px solid rgba(168, 139, 255, .10) !important;
+  background:
+    linear-gradient(180deg, rgba(168, 139, 255, .018), transparent 72%) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.start-space > .payload-deck::before {
+  content: "MISSION LOAD RAIL";
+  position: absolute !important;
+  left: 0 !important;
+  top: -16px !important;
+  right: auto !important;
+  color: #555765 !important;
+  font: 7px ui-monospace, monospace !important;
+  letter-spacing: .13em;
+}
+
+.start-space > .payload-deck::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  left: 190px;
+  right: 16px;
+  top: 50%;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    rgba(114, 215, 255, .04),
+    rgba(168, 139, 255, .12) 52%,
+    rgba(201, 244, 91, .06)
+  );
+}
+
+.start-space > .start-theater.is-launching ~ .payload-deck::after {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(168, 139, 255, .12) 18%,
+    rgba(201, 244, 91, .72) 50%,
+    rgba(168, 139, 255, .12) 82%,
+    transparent 100%
+  );
+  background-size: 220% 100%;
+  animation: mission-load-rail 900ms linear infinite;
+}
+
+@keyframes mission-load-rail {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
+.start-space .payload-deck-head {
+  grid-area: head;
+  position: relative;
+  z-index: 2;
+  display: grid !important;
+  align-content: center;
+  align-items: center;
+  gap: 8px;
+  min-height: 92px !important;
+  padding: 10px 16px 10px 0 !important;
+  border-right: 1px solid rgba(255, 255, 255, .045);
+}
+
+.start-space .payload-deck-head > div {
+  display: grid;
+  gap: 3px;
+}
+
+.start-space .payload-deck-head > div > small {
+  color: #686a78 !important;
+  font-size: 8px !important;
+  letter-spacing: .09em;
+}
+
+.start-space .payload-deck-head > div > strong {
+  color: #d6d6df !important;
+  font-size: 11px !important;
+  font-weight: 600;
+}
+
+.start-space .advanced-toggle {
+  width: max-content;
+  min-height: 26px;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(168, 139, 255, .14) !important;
+  background: transparent !important;
+  color: #797989 !important;
+}
+
+.start-space .payload-grid {
+  grid-area: payload;
+  position: relative;
+  z-index: 2;
+  display: grid !important;
+  grid-template-columns: minmax(210px, .58fr) minmax(360px, 1.72fr) 210px !important;
+  grid-template-areas: "target prompt launch" !important;
+  gap: 0 !important;
+  min-height: 92px;
+  align-items: stretch;
+}
+
+.start-space .payload-field {
+  min-height: 92px !important;
+  padding: 13px 16px 9px !important;
+  border: 0 !important;
+  border-right: 1px solid rgba(255, 255, 255, .045) !important;
+  border-left: 0 !important;
+  background: transparent !important;
+}
+
+.start-space .payload-field > span {
+  color: #666875 !important;
+  font-size: 8px !important;
+  letter-spacing: .07em;
+}
+
+.start-space .payload-field input,
+.start-space .payload-field textarea {
+  margin-top: 5px;
+  border: 0 !important;
+  background: transparent !important;
+  color: #dddde4 !important;
+  box-shadow: none !important;
+}
+
+.start-space .payload-field input {
+  min-height: 34px;
+}
+
+.start-space .payload-field textarea {
+  min-height: 42px !important;
+  height: 42px;
+  resize: none;
+  line-height: 1.42;
+}
+
+.start-space .payload-field:focus-within {
+  background: linear-gradient(180deg, rgba(168, 139, 255, .035), transparent) !important;
+}
+
+.start-space .payload-launch {
+  min-height: 92px !important;
+  border: 0 !important;
+  background:
+    radial-gradient(circle at 48% 48%, rgba(168, 139, 255, .07), transparent 62%) !important;
+  box-shadow: none !important;
+}
+
+.start-space .payload-launch.role-oracle {
+  background:
+    radial-gradient(circle at 48% 48%, rgba(114, 215, 255, .07), transparent 62%) !important;
+}
+
+.start-space .payload-launch:not(:disabled):hover {
+  background:
+    radial-gradient(circle at 48% 48%, rgba(168, 139, 255, .14), transparent 66%) !important;
+}
+
+.start-space .payload-launch.role-oracle:not(:disabled):hover {
+  background:
+    radial-gradient(circle at 48% 48%, rgba(114, 215, 255, .14), transparent 66%) !important;
+}
+
+.start-space .mission-advanced {
+  grid-area: advanced;
+  position: relative !important;
+  inset: auto !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 16px 0 12px 196px !important;
+  border: 0 !important;
+  border-top: 1px solid rgba(168, 139, 255, .08) !important;
+  background:
+    linear-gradient(180deg, rgba(168, 139, 255, .025), transparent) !important;
+  box-shadow: none !important;
+}
+
+.start-space .start-outcome {
+  grid-area: outcome;
+  position: relative !important;
+  inset: auto !important;
+  width: 100% !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  border-top: 1px solid rgba(255, 255, 255, .055);
+}
+
+@media (max-width: 1180px) {
+  .start-space > .payload-deck {
+    grid-template-columns: 150px minmax(0, 1fr) !important;
+  }
+
+  .start-space .payload-grid {
+    grid-template-columns: 190px minmax(280px, 1fr) 180px !important;
+  }
+
+  .start-space .mission-advanced {
+    padding-left: 168px !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .start-space > .payload-deck {
+    display: block !important;
+  }
+
+  .start-space > .payload-deck::after {
+    display: none;
+  }
+
+  .start-space .payload-deck-head {
+    min-height: 68px !important;
+    border-right: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, .045);
+  }
+
+  .start-space .payload-grid {
+    grid-template-columns: 1fr !important;
+    grid-template-areas:
+      "target"
+      "prompt"
+      "launch" !important;
+  }
+
+  .start-space .payload-field {
+    min-height: 72px !important;
+    border-right: 0 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, .045) !important;
+  }
+
+  .start-space .mission-advanced {
+    padding-left: 0 !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .start-space > .start-theater.is-launching ~ .payload-deck::after {
+    animation: none;
+  }
+}
+
+/* =========================================================
+   CROSS-SPACE HANDOFFS
+   Same coordinate continuity, different spatial language per destination.
+   ========================================================= */
+
+/* INTELLIGENCE receives WORLD objects as an archival margin annotation. */
+.intelligence-space .dossier-origin {
+  position: relative !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  width: calc(100% - 18px) !important;
+  min-height: 48px;
+  margin: -2px 0 14px 18px !important;
+  padding: 7px 0 7px 15px !important;
+  border: 0 !important;
+  border-left: 1px solid rgba(113, 91, 57, .28) !important;
+  background: transparent !important;
+}
+
+.intelligence-space .dossier-origin::before {
+  content: "↳";
+  position: absolute;
+  left: -20px;
+  top: 10px;
+  color: rgba(113, 91, 57, .42);
+  font: 14px Georgia, serif;
+}
+
+.intelligence-space .dossier-origin > div {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "label title"
+    "label ref";
+  align-items: baseline;
+  gap: 1px 10px;
+}
+
+.intelligence-space .dossier-origin small {
+  grid-area: label;
+  align-self: center;
+  writing-mode: vertical-rl;
+  color: #8a806e !important;
+  letter-spacing: .08em;
+}
+
+.intelligence-space .dossier-origin strong {
+  grid-area: title;
+  color: #5f584d !important;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 11px !important;
+  font-weight: 520;
+}
+
+.intelligence-space .dossier-origin span {
+  grid-area: ref;
+  color: #81796d !important;
+}
+
+.intelligence-space .dossier-origin button {
+  justify-self: end;
+  color: #76664c !important;
+}
+
+/* START receives any upstream object as a launch-source coordinate. */
+.start-space .mission-origin {
+  position: relative !important;
+  display: flex !important;
+  align-items: center;
+  gap: 16px;
+  width: 100% !important;
+  min-height: 42px;
+  margin: -2px 0 2px !important;
+  padding: 0 12px 0 0 !important;
+  border: 0 !important;
+  border-top: 1px solid rgba(168, 139, 255, .055) !important;
+  border-bottom: 1px solid rgba(168, 139, 255, .055) !important;
+  background: linear-gradient(90deg, rgba(168, 139, 255, .025), transparent 62%) !important;
+}
+
+.start-space .mission-origin::before {
+  content: "";
+  width: 28px;
+  height: 1px;
+  flex: 0 0 28px;
+  background: linear-gradient(90deg, var(--violet), transparent);
+  opacity: .55;
+}
+
+.start-space .mission-origin > div {
+  display: flex !important;
+  align-items: baseline;
+  min-width: 0;
+  gap: 10px;
+}
+
+.start-space .mission-origin small {
+  color: #6c6879 !important;
+}
+
+.start-space .mission-origin strong {
+  color: #b5adca !important;
+  font-size: 9px !important;
+}
+
+.start-space .mission-origin span {
+  min-width: 0;
+  color: #777384 !important;
+}
+
+.start-space .mission-origin button {
+  margin-left: auto;
+  color: #998fad !important;
+}
+
+/* INVESTIGATIONS receives a Task as a tab attached to the case docket. */
+.investigations-space .investigation-origin {
+  position: relative !important;
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: min(620px, 74%) !important;
+  min-height: 38px;
+  margin: -2px 0 8px 220px !important;
+  padding: 0 0 0 12px !important;
+  border: 0 !important;
+  border-left: 2px solid rgba(255, 179, 92, .28) !important;
+  background: linear-gradient(90deg, rgba(255, 179, 92, .035), transparent 76%) !important;
+}
+
+.investigations-space .investigation-origin > span {
+  color: #9d8061 !important;
+  font-size: 8px !important;
+  letter-spacing: .08em;
+}
+
+.investigations-space .investigation-origin > strong {
+  overflow: hidden;
+  color: #81776d !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.investigations-space .investigation-origin > button {
+  color: #a38668 !important;
+}
+
+/* AGENTS receives Case/Proof coordinates as a runtime tether, not a banner. */
+.agents-space .agent-origin {
+  position: relative !important;
+  display: grid !important;
+  grid-template-columns: 120px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: min(760px, 72%) !important;
+  min-height: 42px;
+  margin: 0 auto 4px !important;
+  padding: 0 12px !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.agents-space .agent-origin::before,
+.agents-space .agent-origin::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  height: 1px;
+  pointer-events: none;
+}
+
+.agents-space .agent-origin::before {
+  right: 100%;
+  width: 12vw;
+  background: linear-gradient(90deg, transparent, rgba(168, 139, 255, .28));
+}
+
+.agents-space .agent-origin::after {
+  left: 100%;
+  width: 12vw;
+  background: linear-gradient(90deg, rgba(168, 139, 255, .28), transparent);
+}
+
+.agents-space .agent-origin > span {
+  color: #817694 !important;
+  font-size: 8px !important;
+  letter-spacing: .08em;
+}
+
+.agents-space .agent-origin > strong,
+.agents-space .agent-origin > em {
+  overflow: hidden;
+  color: #7d7688 !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agents-space .agent-origin > button {
+  color: #9a8cab !important;
+}
+
+.agents-space .agent-origin.case-origin::before,
+.agents-space .agent-origin.case-origin::after {
+  background: linear-gradient(90deg, transparent, rgba(255, 179, 92, .23));
+}
+
+.agents-space .agent-origin.case-origin::after {
+  background: linear-gradient(90deg, rgba(255, 179, 92, .23), transparent);
+}
+
+.agents-space .agent-origin.case-origin > span,
+.agents-space .agent-origin.case-origin > button {
+  color: #a18468 !important;
+}
+
+@media (max-width: 1100px) {
+  .intelligence-space .dossier-origin,
+  .start-space .mission-origin,
+  .investigations-space .investigation-origin,
+  .agents-space .agent-origin {
+    width: 100% !important;
+    margin: 6px 0 10px !important;
+  }
+
+  .intelligence-space .dossier-origin > div,
+  .start-space .mission-origin > div {
+    display: grid !important;
+    grid-template-columns: 1fr;
+    grid-template-areas: none;
+  }
+
+  .intelligence-space .dossier-origin small {
+    writing-mode: horizontal-tb;
+  }
+
+  .agents-space .agent-origin::before,
+  .agents-space .agent-origin::after {
+    display: none;
+  }
+}
+
+/* Context trace sits above page geometry and never owns layout height. */
+.context-trace {
+  max-width: calc(100vw - var(--shell-rail) - 48px);
+}
+
+.context-trace-chain,
+.context-trace-node,
+.context-trace-node button,
+.context-trace-node > span,
+.context-trace-node strong {
+  min-width: 0;
+}
+
+.context-trace-node button,
+.context-trace-node > span {
+  max-width: min(250px, 22vw);
+}
+
+.context-trace-node.current button,
+.context-trace-node.current > span {
+  max-width: min(320px, 28vw);
+}
+
+/* =========================================================
+   OBSERVATORY MODE-SPECIFIC SWITCHBOARD
+   LIVE reads like an instrument bezel; PROOF reads like an archive cover.
+   ========================================================= */
+.observatory-space.observatory-live .observatory-switchboard-heading {
+  min-height: 70px !important;
+  grid-template-columns: minmax(0, 1fr) 260px !important;
+  align-items: center !important;
+  padding: 6px 0 9px !important;
+  border-bottom: 1px solid rgba(114, 215, 255, .075) !important;
+}
+
+.observatory-space.observatory-live .observatory-switchboard-heading > div:first-child {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  grid-template-areas: "eyebrow title copy";
+  align-items: baseline;
+  gap: 0 14px;
+  min-width: 0;
+}
+
+.observatory-space.observatory-live .observatory-switchboard-heading p {
+  grid-area: eyebrow;
+  margin: 0 !important;
+  color: #69838d !important;
+  font: 8px ui-monospace, monospace !important;
+  letter-spacing: .09em !important;
+  white-space: nowrap;
+}
+
+.observatory-space.observatory-live .observatory-switchboard-heading h1 {
+  grid-area: title;
+  margin: 0 !important;
+  color: #d6e5e9 !important;
+  font: 600 20px/1 ui-monospace, monospace !important;
+  letter-spacing: -.025em !important;
+  white-space: nowrap;
+}
+
+.observatory-space.observatory-live .observatory-switchboard-heading h1 span {
+  color: #7799a5 !important;
+}
+
+.observatory-space.observatory-live .observatory-switchboard-heading > div:first-child > small {
+  grid-area: copy;
+  overflow: hidden;
+  max-width: 760px !important;
+  margin: 0 !important;
+  color: #66777e !important;
+  font-size: 9px !important;
+  line-height: 1.35 !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.observatory-space.observatory-live .observatory-mode-switch {
+  justify-self: end;
+  min-width: 240px !important;
+  border: 1px solid rgba(114, 215, 255, .08);
+  background: rgba(114, 215, 255, .012);
+}
+
+/* Frozen proof opens like a report cover, not the same control room header. */
+.observatory-space.observatory-proof .observatory-switchboard-heading {
+  position: relative;
+  min-height: 142px !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: end !important;
+  margin-bottom: 22px !important;
+  padding: 28px 0 18px 22px !important;
+  border: 0 !important;
+  border-left: 2px solid rgba(86, 92, 74, .22) !important;
+  background:
+    linear-gradient(90deg, rgba(86, 92, 74, .035), transparent 44%) !important;
+}
+
+.observatory-space.observatory-proof .observatory-switchboard-heading::after {
+  content: "FROZEN RECORD";
+  position: absolute;
+  right: 0;
+  top: 16px;
+  color: rgba(78, 83, 69, .42);
+  font: 7px ui-monospace, monospace;
+  letter-spacing: .18em;
+}
+
+.observatory-space.observatory-proof .observatory-switchboard-heading > div:first-child {
+  display: block;
+  max-width: 900px;
+}
+
+.observatory-space.observatory-proof .observatory-switchboard-heading p {
+  margin: 0 0 5px !important;
+  color: #7a7d70 !important;
+  font: 8px ui-monospace, monospace !important;
+  letter-spacing: .08em !important;
+}
+
+.observatory-space.observatory-proof .observatory-switchboard-heading h1 {
+  margin: 0 !important;
+  color: #2b3028 !important;
+  font-family: Georgia, "Times New Roman", serif !important;
+  font-size: clamp(36px, 4vw, 58px) !important;
+  font-weight: 520 !important;
+  line-height: .88 !important;
+  letter-spacing: -.045em !important;
+}
+
+.observatory-space.observatory-proof .observatory-switchboard-heading h1 span {
+  color: #737966 !important;
+}
+
+.observatory-space.observatory-proof .observatory-switchboard-heading > div:first-child > small {
+  display: block;
+  max-width: 820px !important;
+  margin-top: 12px !important;
+  color: #666b5f !important;
+  font-size: 10px !important;
+  line-height: 1.55 !important;
+}
+
+.observatory-space.observatory-proof .observatory-mode-switch {
+  align-self: end;
+  min-width: 230px !important;
+  margin-bottom: 2px;
+  border: 1px solid rgba(70, 75, 62, .12);
+  background: rgba(255, 255, 249, .22);
+}
+
+.observatory-space.observatory-proof .observatory-mode-switch button {
+  color: #797d70;
+}
+
+.observatory-space.observatory-proof .observatory-mode-switch button.active {
+  color: #30352d;
+}
+
+@media (max-width: 1200px) {
+  .observatory-space.observatory-live .observatory-switchboard-heading > div:first-child {
+    grid-template-columns: auto auto;
+    grid-template-areas:
+      "eyebrow title"
+      "copy copy";
+    row-gap: 5px;
+  }
+
+  .observatory-space.observatory-live .observatory-switchboard-heading > div:first-child > small {
+    white-space: normal;
+  }
+
+  .observatory-space.observatory-proof .observatory-switchboard-heading {
+    grid-template-columns: 1fr !important;
+    gap: 14px;
+  }
+
+  .observatory-space.observatory-proof .observatory-mode-switch {
+    justify-self: start;
+  }
+}
+
+/* Selected Task ownership is visible without forcing an explicit Role filter. */
+.agents-space .role-entity.task-owner:not(.role-focused) {
+  filter: brightness(1.08) saturate(1.04);
+}
+
+.agents-space .role-entity.task-owner:not(.role-focused) .role-sigil {
+  transform: scale(1.035);
+}
+
+.agents-space .role-entity.task-owner:not(.role-focused) .role-entity-copy > small {
+  color: #8f849f !important;
+}
+
+.agents-space .role-entity.role-decisionrole.task-owner:not(.role-focused) .role-sigil {
+  filter: drop-shadow(0 0 22px rgba(114, 215, 255, .15));
+}
+
+.agents-space .role-entity.role-investigationrole.task-owner:not(.role-focused) .role-sigil {
+  filter: drop-shadow(0 0 22px rgba(168, 139, 255, .16));
+}
+
+.agents-space .role-entity.role-enrichmentrole.task-owner:not(.role-focused) .role-sigil {
+  filter: drop-shadow(0 0 22px rgba(255, 179, 92, .14));
+}
+
+/* Semantic microcopy stays compact, but never drops to decorative-pixel size. */
+.agents-space .role-coordinates span,
+.agents-space .role-entity-runtime span,
+.agents-space .task-budget-coordinate,
+.world-space .hot-change-count,
+.world-space .hot-access-count,
+.world-space .hot-pin-state,
+.agents-space .trajectory-runtime-coordinate,
+.start-space .start-decision-next button::before {
+  font-size: 8.5px !important;
+  line-height: 1.35;
+}
+
+.agents-space .role-entity-runtime span {
+  color: #777f86;
+}
+
+.agents-space .role-coordinates span {
+  padding-block: 4px;
+}
+
+/* =========================================================
+   PROOF RUN CONTRAST
+   Comparison is a frozen lab sheet: coordinate first, delta second.
+   ========================================================= */
+.observatory-space.observatory-proof .proof-run-contrast {
+  position: relative;
+  display: grid;
+  gap: 16px;
+  margin: 0 0 20px;
+  padding: 18px 20px 20px;
+  border: 1px solid rgba(72, 76, 64, .11);
+  border-left: 2px solid rgba(112, 118, 92, .30);
+  background:
+    linear-gradient(90deg, rgba(99, 105, 83, .035), transparent 38%),
+    rgba(255, 255, 249, .18);
+}
+
+.observatory-space.observatory-proof .proof-run-contrast::before {
+  content: "CONTROLLED CONTRAST";
+  position: absolute;
+  right: 18px;
+  top: 10px;
+  color: rgba(72, 76, 64, .34);
+  font: 7px ui-monospace, monospace;
+  letter-spacing: .16em;
+}
+
+.proof-run-contrast-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+  padding-right: 150px;
+}
+
+.proof-run-contrast-head > div {
+  display: grid;
+  gap: 3px;
+}
+
+.proof-run-contrast-head small,
+.proof-run-metric-contrast-head small {
+  color: #777c6d !important;
+  font: 8px ui-monospace, monospace !important;
+  letter-spacing: .08em;
+}
+
+.proof-run-contrast-head strong {
+  color: #363b32;
+  font: 520 20px/1.08 Georgia, "Times New Roman", serif;
+  letter-spacing: -.02em;
+}
+
+.proof-run-contrast-head > span {
+  flex: 0 0 auto;
+  padding: 4px 7px;
+  border: 1px solid rgba(72, 76, 64, .10);
+  color: #707568;
+  font: 8px ui-monospace, monospace;
+  letter-spacing: .055em;
+}
+
+.proof-run-contrast-head > span.coordinate-shift {
+  border-color: rgba(178, 112, 55, .20);
+  color: #8c6746;
+  background: rgba(178, 112, 55, .035);
+}
+
+.proof-run-contrast-axis {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 56px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid rgba(72, 76, 64, .07);
+  border-bottom: 1px solid rgba(72, 76, 64, .07);
+}
+
+.run-contrast-coordinate {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) minmax(118px, auto);
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.run-contrast-coordinate > span {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 1px solid rgba(72, 76, 64, .14);
+  border-radius: 50%;
+  color: #555b4d;
+  font: 600 9px ui-monospace, monospace;
+}
+
+.run-contrast-coordinate > div {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.run-contrast-coordinate small {
+  color: #777b6f !important;
+}
+
+.run-contrast-coordinate strong {
+  overflow: hidden;
+  color: #3d4338;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.run-contrast-coordinate em {
+  color: #7e8276;
+  font-style: normal;
+}
+
+.run-contrast-coordinate > b {
+  overflow: hidden;
+  color: #777c6d;
+  font-weight: 500;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.proof-run-contrast-spine {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 5px;
+}
+
+.proof-run-contrast-spine span {
+  height: 1px;
+  background: rgba(72, 76, 64, .13);
+}
+
+.proof-run-contrast-spine b {
+  color: #737867;
+  font: 500 13px Georgia, serif;
+}
+
+.proof-run-contrast-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid rgba(72, 76, 64, .06);
+  border-bottom: 1px solid rgba(72, 76, 64, .06);
+}
+
+.proof-run-contrast-facts > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 10px 14px 10px 0;
+  border-right: 1px solid rgba(72, 76, 64, .06);
+}
+
+.proof-run-contrast-facts > div + div {
+  padding-left: 14px;
+}
+
+.proof-run-contrast-facts > div:last-child {
+  border-right: 0;
+}
+
+.proof-run-contrast-facts small {
+  color: #818578 !important;
+  letter-spacing: .06em;
+}
+
+.proof-run-contrast-facts strong {
+  color: #3a4035;
+  font: 520 20px/1 Georgia, serif;
+}
+
+.proof-run-contrast-facts span {
+  overflow: hidden;
+  color: #777c70;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.proof-run-deployment-diff {
+  display: grid;
+  gap: 4px;
+}
+
+.proof-run-deployment-diff > div {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) 18px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  padding: 5px 0;
+  border-bottom: 1px dotted rgba(72, 76, 64, .09);
+}
+
+.proof-run-deployment-diff small {
+  color: #85897d !important;
+  letter-spacing: .06em;
+}
+
+.proof-run-deployment-diff span {
+  overflow: hidden;
+  color: #656b5d;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.proof-run-deployment-diff i {
+  color: #9b9e94;
+  font-style: normal;
+  text-align: center;
+}
+
+.proof-run-metric-contrast {
+  display: grid;
+  gap: 0;
+}
+
+.proof-run-metric-contrast-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 2px 0 7px;
+}
+
+.proof-run-metric-contrast-head > span {
+  color: #868a7f;
+  font-size: 8.5px;
+}
+
+.proof-run-metric-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 116px 108px 116px;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 7px 0;
+  border-top: 1px solid rgba(72, 76, 64, .065);
+}
+
+.proof-run-metric-row > div {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.proof-run-metric-row > div small {
+  overflow: hidden;
+  color: #8a8d82 !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.proof-run-metric-row > div strong {
+  overflow: hidden;
+  color: #4b5145;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.proof-run-metric-row > div span {
+  overflow: hidden;
+  color: #888c80;
+  font-size: 8.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.proof-run-metric-row > b {
+  color: #51584b;
+  font: 500 10px ui-monospace, monospace;
+  text-align: right;
+}
+
+.proof-run-metric-row > em {
+  color: #7b8074;
+  font: 500 9px ui-monospace, monospace;
+  font-style: normal;
+  text-align: center;
+}
+
+.proof-run-metric-row > em.delta-positive { color: #627247; }
+.proof-run-metric-row > em.delta-negative { color: #936552; }
+.proof-run-metric-row > em.delta-zero { color: #8a8d83; }
+
+.proof-run-metric-empty {
+  padding: 16px 0 4px;
+  color: #808478;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+@media (max-width: 1080px) {
+  .proof-run-contrast-head {
+    display: grid;
+    padding-right: 0;
+  }
+
+  .proof-run-contrast-axis {
+    grid-template-columns: 1fr;
+  }
+
+  .proof-run-contrast-spine {
+    grid-template-columns: 1fr auto 1fr;
+  }
+
+  .proof-run-contrast-facts {
+    grid-template-columns: 1fr;
+  }
+
+  .proof-run-contrast-facts > div,
+  .proof-run-contrast-facts > div + div {
+    padding: 9px 0;
+    border-right: 0;
+    border-bottom: 1px solid rgba(72, 76, 64, .06);
+  }
+
+  .proof-run-metric-row {
+    grid-template-columns: minmax(0, 1fr) 96px 92px 96px;
+  }
+}
+
+/* =========================================================
+   START FINAL GEOMETRY AUTHORITY
+   One orbit theatre + one execution console. No dashboard stack.
+   ========================================================= */
+.start-space {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1.35fr) minmax(360px, .65fr) !important;
+  grid-template-rows: auto auto minmax(640px, 1fr) !important;
+  grid-template-areas:
+    "brief console"
+    "origin console"
+    "theatre console" !important;
+  column-gap: 28px !important;
+  row-gap: 10px !important;
+  width: 100%;
+  min-height: 100vh;
+  padding: 58px 28px 28px 32px !important;
+  overflow: hidden !important;
+}
+
+.start-space > .mission-briefing {
+  grid-area: brief !important;
+  position: relative !important;
+  inset: auto !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-height: 104px !important;
+  margin: 0 !important;
+  padding: 0 0 10px !important;
+  border: 0 !important;
+}
+
+.start-space > .mission-briefing > div:first-child {
+  max-width: 820px;
+}
+
+.start-space > .mission-briefing h1 {
+  white-space: normal !important;
+}
+
+.start-space > .mission-origin {
+  grid-area: origin !important;
+  width: 100% !important;
+  margin: 0 !important;
+}
+
+.start-space:not(.has-origin) > .start-theater {
+  margin-top: 0 !important;
+}
+
+.start-space > .start-theater {
+  grid-area: theatre !important;
+  position: relative !important;
+  inset: auto !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 640px !important;
+  height: 100% !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+}
+
+.start-space > .payload-deck {
+  grid-area: console !important;
+  position: relative !important;
+  inset: auto !important;
+  align-self: stretch !important;
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  grid-template-areas:
+    "head"
+    "payload"
+    "advanced"
+    "outcome" !important;
+  align-content: start;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  max-height: calc(100vh - 88px) !important;
+  margin: 0 !important;
+  padding: 12px 0 18px 20px !important;
+  overflow-y: auto !important;
+  overflow-x: clip !important;
+  border: 0 !important;
+  border-left: 1px solid rgba(168, 139, 255, .09) !important;
+  border-top: 0 !important;
+  background:
+    linear-gradient(90deg, rgba(168,139,255,.018), transparent 58%) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  scrollbar-width: thin;
+}
+
+.start-space > .payload-deck::before {
+  content: "EXECUTION CONSOLE" !important;
+  position: static !important;
+  grid-area: head;
+  justify-self: end;
+  align-self: start;
+  margin-bottom: -14px;
+  color: #555764 !important;
+  font: 7px ui-monospace, monospace !important;
+  letter-spacing: .14em;
+  pointer-events: none;
+}
+
+.start-space > .payload-deck::after {
+  display: none !important;
+}
+
+.start-space .payload-deck-head {
+  grid-area: head !important;
+  position: sticky !important;
+  top: 0;
+  z-index: 4;
+  min-height: 72px !important;
+  padding: 8px 0 12px !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(255,255,255,.045) !important;
+  background:
+    linear-gradient(180deg, rgba(5,7,11,.98), rgba(5,7,11,.88) 78%, transparent) !important;
+}
+
+.start-space .payload-grid {
+  grid-area: payload !important;
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  grid-template-areas:
+    "target"
+    "prompt"
+    "launch" !important;
+  gap: 0 !important;
+  min-height: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.start-space .payload-field {
+  min-height: 0 !important;
+  padding: 16px 0 15px !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(255,255,255,.05) !important;
+  background: transparent !important;
+}
+
+.start-space .payload-field > span {
+  font-size: 8.5px !important;
+}
+
+.start-space .payload-field input,
+.start-space .payload-field textarea {
+  width: 100%;
+  margin-top: 7px;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.start-space .payload-field input {
+  min-height: 38px;
+}
+
+.start-space .payload-field textarea {
+  min-height: 126px !important;
+  height: 126px;
+  resize: vertical;
+}
+
+.start-space .payload-launch {
+  min-height: 120px !important;
+  margin-top: 18px;
+  border: 1px solid rgba(168,139,255,.12) !important;
+}
+
+.start-space.role-oracle .payload-launch {
+  border-color: rgba(114,215,255,.13) !important;
+}
+
+.start-space .mission-advanced {
+  grid-area: advanced !important;
+  position: relative !important;
+  inset: auto !important;
+  width: 100% !important;
+  margin: 18px 0 0 !important;
+  padding: 16px 0 10px !important;
+  grid-template-columns: 1fr !important;
+  gap: 14px !important;
+  border: 0 !important;
+  border-top: 1px solid rgba(168,139,255,.07) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.start-space .start-outcome {
+  grid-area: outcome !important;
+  position: relative !important;
+  inset: auto !important;
+  width: 100% !important;
+  margin: 18px 0 0 !important;
+}
+
+.start-space .mode-chamber {
+  width: 142px !important;
+  min-height: 142px !important;
+  max-width: 142px !important;
+}
+
+.start-space .mode-chamber.active {
+  width: 156px !important;
+  min-height: 156px !important;
+  max-width: 156px !important;
+}
+
+.start-space .mission-reactor {
+  left: 56% !important;
+  top: 46% !important;
+  width: 188px !important;
+  height: 188px !important;
+}
+
+.start-space .mode-readout {
+  left: 31% !important;
+  right: auto !important;
+  bottom: 6% !important;
+  width: min(650px, 58%) !important;
+  transform: none !important;
+  text-align: left !important;
+}
+
+.start-space .mode-readout > div {
+  justify-content: flex-start !important;
+}
+
+.start-space .start-role-gate.oracle {
+  left: 2.5% !important;
+  top: 48% !important;
+}
+
+.start-space .start-role-gate.argus {
+  right: 2.5% !important;
+  top: 48% !important;
+}
+
+.start-space .alchemist-boundary {
+  right: 3% !important;
+  bottom: 8% !important;
+}
+
+/* Profile changes move the spatial emphasis, not the page skeleton. */
+.start-space.profile-direct .mission-reactor,
+.start-space.profile-retrieve .mission-reactor {
+  left: 48% !important;
+}
+
+.start-space.profile-verify .mission-reactor {
+  left: 55% !important;
+}
+
+.start-space.profile-investigate .mission-reactor {
+  left: 59% !important;
+  top: 48% !important;
+}
+
+.start-space.profile-watch .mission-reactor {
+  left: 62% !important;
+  top: 45% !important;
+}
+
+@media (max-width: 1280px) {
+  .start-space {
+    grid-template-columns: minmax(0, 1.1fr) minmax(330px, .9fr) !important;
+    column-gap: 20px !important;
+    padding-inline: 24px !important;
+  }
+
+  .start-space .mode-chamber {
+    width: 126px !important;
+    min-height: 132px !important;
+  }
+
+  .start-space .mode-chamber.active {
+    width: 138px !important;
+    min-height: 144px !important;
+  }
+
+  .start-space .mode-readout {
+    left: 24% !important;
+    width: 66% !important;
+  }
+}
+
+@media (max-width: 980px) {
+  .start-space {
+    display: block !important;
+    padding: 54px 20px 30px !important;
+    overflow: auto !important;
+  }
+
+  .start-space > .mission-briefing,
+  .start-space > .mission-origin,
+  .start-space > .start-theater,
+  .start-space > .payload-deck {
+    width: 100% !important;
+    max-width: none !important;
+    margin-inline: 0 !important;
+  }
+
+  .start-space > .start-theater {
+    min-height: 650px !important;
+  }
+
+  .start-space > .payload-deck {
+    max-height: none !important;
+    margin-top: 18px !important;
+    padding-left: 0 !important;
+    border-left: 0 !important;
+    border-top: 1px solid rgba(168,139,255,.08) !important;
+    overflow: visible !important;
+  }
+}

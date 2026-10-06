@@ -2,19 +2,27 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from datetime import UTC, datetime
+from decimal import Decimal
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.application.views.agents import (
+    AgentBudgetSnapshotView,
     AgentCapabilityActivityView,
+    AgentPromptAssemblyView,
     AgentRoleRuntimeView,
     AgentRuntimeOverviewView,
     AgentTaskDetailView,
     AgentTaskEventView,
     AgentTaskSummaryView,
 )
-from packages.runtime.storage.models import CapabilityInvocationModel
+from packages.runtime.model.storage import PromptAssemblyRecordModel
+from packages.runtime.storage.models import (
+    BudgetAccountModel,
+    BudgetReservationModel,
+    CapabilityInvocationModel,
+)
 from packages.task_runtime.contracts.models import TaskRunStatus
 from packages.task_runtime.contracts.roles import canonical_roles
 from packages.task_runtime.storage.models import (
@@ -118,6 +126,14 @@ async def get_agent_task_detail(
             .order_by(CapabilityInvocationModel.started_at)
         )
     )
+    prompt_assemblies = list(
+        await session.scalars(
+            select(PromptAssemblyRecordModel)
+            .where(PromptAssemblyRecordModel.task_run_id == run_id)
+            .order_by(PromptAssemblyRecordModel.created_at.desc())
+        )
+    )
+    budget = await _budget_snapshot_view(session, run_id)
     return AgentTaskDetailView(
         task=summary,
         events=[
@@ -131,6 +147,70 @@ async def get_agent_task_detail(
             for item in events
         ],
         capabilities=[_capability_view(item) for item in capabilities],
+        budget=budget,
+        prompt_assemblies=[
+            AgentPromptAssemblyView(
+                assembly_id=item.assembly_id,
+                execution_id=item.execution_id,
+                context_manifest_ref=item.context_manifest_ref,
+                role_revision=item.role_revision,
+                execution_profile_revision=item.execution_profile_revision,
+                materialized_skill_refs=list(item.materialized_skill_refs_json),
+                materialized_capability_view_refs=list(
+                    item.materialized_capability_view_refs_json
+                ),
+                percept_refs=list(item.percept_refs_json),
+                materialized_ref_set_digest=item.materialized_ref_set_digest,
+                created_at=item.created_at,
+            )
+            for item in prompt_assemblies
+        ],
+    )
+
+
+async def _budget_snapshot_view(
+    session: AsyncSession,
+    run_id: str,
+) -> AgentBudgetSnapshotView | None:
+    account = await session.scalar(
+        select(BudgetAccountModel).where(BudgetAccountModel.task_run_id == run_id)
+    )
+    if account is None:
+        return None
+    rows = list(
+        await session.scalars(
+            select(BudgetReservationModel).where(
+                BudgetReservationModel.account_id == account.account_id
+            )
+        )
+    )
+    limits = {key: Decimal(value) for key, value in account.limits.items()}
+    reserved: dict[str, Decimal] = {}
+    committed: dict[str, Decimal] = {}
+    for row in rows:
+        if row.status == "reserved":
+            reserved[row.resource_type] = reserved.get(
+                row.resource_type, Decimal("0")
+            ) + Decimal(row.amount_reserved)
+        elif row.status == "committed":
+            committed[row.resource_type] = committed.get(
+                row.resource_type, Decimal("0")
+            ) + Decimal(row.amount_committed)
+    remaining = {
+        resource: max(
+            Decimal("0"),
+            limit
+            - reserved.get(resource, Decimal("0"))
+            - committed.get(resource, Decimal("0")),
+        )
+        for resource, limit in limits.items()
+    }
+    return AgentBudgetSnapshotView(
+        account_id=account.account_id,
+        limits={key: float(value) for key, value in limits.items()},
+        reserved={key: float(value) for key, value in reserved.items()},
+        committed={key: float(value) for key, value in committed.items()},
+        remaining={key: float(value) for key, value in remaining.items()},
     )
 
 
@@ -200,6 +280,7 @@ def _task_summary(
 
 
 def _capability_view(item: CapabilityInvocationModel) -> AgentCapabilityActivityView:
+    result = item.result_json or {}
     return AgentCapabilityActivityView(
         invocation_id=item.invocation_id,
         task_run_id=item.task_run_id,
@@ -211,7 +292,17 @@ def _capability_view(item: CapabilityInvocationModel) -> AgentCapabilityActivity
         started_at=item.started_at,
         finished_at=item.finished_at,
         failure_code=item.failure_code,
+        failure_detail=item.failure_detail,
+        policy_decision_ref=item.policy_decision_ref,
+        canonical_output_ref=_optional_string(result.get("canonical_output_ref")),
+        raw_artifact_ref=_optional_string(result.get("raw_artifact_ref")),
+        effect_receipt_ref=_optional_string(result.get("effect_receipt_ref")),
+        observation_class=_optional_string(result.get("observation_class")),
     )
+
+
+def _optional_string(value: object) -> str | None:
+    return value if isinstance(value, str) and value else None
 
 
 async def get_agent_learning_overview(session: AsyncSession):
@@ -219,6 +310,7 @@ async def get_agent_learning_overview(session: AsyncSession):
 
     from apps.application.views.agents import (
         AgentLearningOverviewView,
+        ProductExperienceSupportView,
         ProductExperienceView,
         ProductSkillView,
     )
@@ -226,6 +318,7 @@ async def get_agent_learning_overview(session: AsyncSession):
     from packages.investigation.storage.models import (
         ExperienceCandidateModel,
         ExperienceModel,
+        ExperienceSupportModel,
         ExperienceVersionModel,
         InvestigationTrajectoryModel,
     )
@@ -272,7 +365,9 @@ async def get_agent_learning_overview(session: AsyncSession):
                 stop_conditions=list(procedure.get("stop_conditions", [])),
                 provenance_origin=str(provenance.get("origin", "unknown")),
                 supporting_trajectory_refs=list(provenance.get("supporting_trajectory_refs", [])),
-                supporting_experience_pattern_refs=list(provenance.get("supporting_experience_pattern_refs", [])),
+                supporting_experience_pattern_refs=list(
+                    provenance.get("supporting_experience_pattern_refs", [])
+                ),
                 validation_case_refs=list(provenance.get("validation_case_refs", [])),
                 promotion_history=list(provenance.get("promotion_history", [])),
             )
@@ -281,10 +376,63 @@ async def get_agent_learning_overview(session: AsyncSession):
     experience_rows = (
         await session.execute(
             select(ExperienceVersionModel, ExperienceModel)
-            .join(ExperienceModel, ExperienceModel.experience_id == ExperienceVersionModel.experience_id)
+            .join(
+                ExperienceModel,
+                ExperienceModel.experience_id == ExperienceVersionModel.experience_id,
+            )
             .order_by(ExperienceModel.updated_at.desc(), ExperienceVersionModel.version.desc())
         )
     ).all()
+    experience_version_ids = [version.experience_version_id for version, _ in experience_rows]
+    support_rows = (
+        list(
+            await session.scalars(
+                select(ExperienceSupportModel)
+                .where(ExperienceSupportModel.experience_version_id.in_(experience_version_ids))
+                .order_by(
+                    ExperienceSupportModel.created_at,
+                    ExperienceSupportModel.trajectory_id,
+                )
+            )
+        )
+        if experience_version_ids
+        else []
+    )
+    support_trajectory_ids = sorted({row.trajectory_id for row in support_rows})
+    support_trajectories = (
+        list(
+            await session.scalars(
+                select(InvestigationTrajectoryModel).where(
+                    InvestigationTrajectoryModel.trajectory_id.in_(support_trajectory_ids)
+                )
+            )
+        )
+        if support_trajectory_ids
+        else []
+    )
+    support_trajectory_by_id = {item.trajectory_id: item for item in support_trajectories}
+    supports_by_version: dict[str, list[ProductExperienceSupportView]] = defaultdict(list)
+    for row in support_rows:
+        trajectory = support_trajectory_by_id.get(row.trajectory_id)
+        if trajectory is None:
+            continue
+        supports_by_version[row.experience_version_id].append(
+            ProductExperienceSupportView(
+                trajectory_id=row.trajectory_id,
+                case_id=trajectory.case_id,
+                trajectory_status=trajectory.status,
+                trajectory_outcome=trajectory.outcome,
+                latency_ms=trajectory.latency_ms,
+                tool_calls=trajectory.tool_calls,
+                started_at=trajectory.started_at,
+                finished_at=trajectory.finished_at,
+                outcome=row.outcome,
+                evaluation=dict(row.evaluation),
+                evaluator=row.evaluator,
+                created_at=row.created_at,
+            )
+        )
+
     experiences = [
         ProductExperienceView(
             experience_id=model.experience_id,
@@ -303,6 +451,7 @@ async def get_agent_learning_overview(session: AsyncSession):
             success_count=version.success_count,
             failure_count=version.failure_count,
             partial_count=version.partial_count,
+            support_records=supports_by_version.get(version.experience_version_id, []),
         )
         for version, model in experience_rows
     ]

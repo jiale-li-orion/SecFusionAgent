@@ -27,6 +27,23 @@ async def test_world_overview_exposes_product_safe_data_plane_snapshot() -> None
         "assets",
         "incidents",
     }
+    assert payload["sources"]
+    source = payload["sources"][0]
+    assert source["source_id"]
+    assert source["measurement_category"] in {
+        "vulnerability",
+        "development",
+        "academic",
+        "vendor",
+        "independent",
+        "normative",
+        "assets",
+        "incidents",
+    }
+    assert source["health"] in {"healthy", "degraded", "blocked"}
+    assert "last_success_at" in source
+    assert "next_due_at" in source
+    assert "latest_error_code" in source
     assert isinstance(payload["hourly_series"], list)
 
 

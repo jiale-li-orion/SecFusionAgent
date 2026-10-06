@@ -29,3 +29,4 @@ logs/
 
 # Local long-running execution worker pool (machine-local, never versioned)
 /worker_pool/
+deploy/secrets/

@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from apps.api.dependencies import database_session
 from apps.api.main import create_app
 from apps.runtime_models import register_runtime_models
+from packages.runtime.storage.models import BudgetAccountModel
 from packages.shared.db import Base
 from packages.task_runtime.contracts.models import TaskEventType
 from packages.task_runtime.storage.models import (
@@ -80,6 +81,17 @@ async def _database():
         )
         session.add(run)
         session.add(
+            BudgetAccountModel(
+                account_id="budget:task-run-1",
+                parent_account_id=None,
+                task_run_id=run.run_id,
+                limits={"wall_seconds": "300", "agent_turns": "8", "tool_calls": "12"},
+                status="active",
+                created_at=NOW,
+                closed_at=None,
+            )
+        )
+        session.add(
             TaskEventModel(
                 event_id="event-1",
                 task_run_id=run.run_id,
@@ -122,6 +134,12 @@ async def test_product_agent_runtime_exposes_roles_tasks_and_safe_event_summary(
         assert detail.status_code == 200, detail.text
         detail_body = detail.json()
         assert detail_body["events"][0]["event_type"] == "TaskStarted"
+        assert detail_body["budget"]["limits"] == {
+            "agent_turns": 8.0,
+            "tool_calls": 12.0,
+            "wall_seconds": 300.0,
+        }
+        assert detail_body["budget"]["remaining"]["agent_turns"] == 8.0
         assert "payload_ref" not in detail.text
         assert "idempotency_key" not in detail.text
     finally:

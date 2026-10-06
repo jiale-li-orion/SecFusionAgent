@@ -56,6 +56,33 @@ class AgentCapabilityActivityView(BaseModel):
     started_at: datetime
     finished_at: datetime | None = None
     failure_code: str | None = None
+    failure_detail: str | None = None
+    policy_decision_ref: str | None = None
+    canonical_output_ref: str | None = None
+    raw_artifact_ref: str | None = None
+    effect_receipt_ref: str | None = None
+    observation_class: str | None = None
+
+
+class AgentPromptAssemblyView(BaseModel):
+    assembly_id: str
+    execution_id: str
+    context_manifest_ref: str
+    role_revision: str
+    execution_profile_revision: str
+    materialized_skill_refs: list[str] = Field(default_factory=list)
+    materialized_capability_view_refs: list[str] = Field(default_factory=list)
+    percept_refs: list[str] = Field(default_factory=list)
+    materialized_ref_set_digest: str
+    created_at: datetime
+
+
+class AgentBudgetSnapshotView(BaseModel):
+    account_id: str
+    limits: dict[str, float] = Field(default_factory=dict)
+    reserved: dict[str, float] = Field(default_factory=dict)
+    committed: dict[str, float] = Field(default_factory=dict)
+    remaining: dict[str, float] = Field(default_factory=dict)
 
 
 class AgentRuntimeOverviewView(BaseModel):
@@ -69,6 +96,8 @@ class AgentTaskDetailView(BaseModel):
     task: AgentTaskSummaryView
     events: list[AgentTaskEventView] = Field(default_factory=list)
     capabilities: list[AgentCapabilityActivityView] = Field(default_factory=list)
+    budget: AgentBudgetSnapshotView | None = None
+    prompt_assemblies: list[AgentPromptAssemblyView] = Field(default_factory=list)
 
 
 class ProductSkillView(BaseModel):
@@ -117,6 +146,22 @@ class ProductExperienceView(BaseModel):
     success_count: int = 0
     failure_count: int = 0
     partial_count: int = 0
+    support_records: list[ProductExperienceSupportView] = Field(default_factory=list)
+
+
+class ProductExperienceSupportView(BaseModel):
+    trajectory_id: str
+    case_id: str
+    trajectory_status: str
+    trajectory_outcome: str | None = None
+    latency_ms: int | None = None
+    tool_calls: int = 0
+    started_at: datetime
+    finished_at: datetime | None = None
+    outcome: str
+    evaluation: dict[str, object] = Field(default_factory=dict)
+    evaluator: str
+    created_at: datetime
 
 
 class AgentLearningOverviewView(BaseModel):

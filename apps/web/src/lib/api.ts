@@ -11,16 +11,7 @@ export type QuestionResult = {
   turn_index: number
   mode: 'completed' | 'accepted'
   execution_profile: 'DIRECT' | 'RETRIEVE' | 'VERIFY' | 'INVESTIGATE' | 'WATCH' | string
-  decision?: {
-    decision_id: string
-    answer?: string | null
-    recommendation?: string | null
-    conclusions?: unknown[]
-    citations?: string[]
-    conflicts?: unknown[]
-    unknowns?: unknown[]
-    [key: string]: unknown
-  } | null
+  decision?: DecisionView | null
   investigation?: {
     case_id: string
     status: string
@@ -30,11 +21,108 @@ export type QuestionResult = {
   } | null
 }
 
+export function evidenceBoundObjectIds(item: EvidenceDetail): string[] {
+  const refs: string[] = []
+  if (item.target.target_kind === 'object') refs.push(item.target.target_id)
+  const detail = item.target.detail
+  const subjectId = typeof detail.subject_id === 'string' ? detail.subject_id : null
+  const sourceObjectId = typeof detail.source_object_id === 'string' ? detail.source_object_id : null
+  const targetObjectId = typeof detail.target_object_id === 'string' ? detail.target_object_id : null
+  if (subjectId) refs.push(subjectId)
+  if (sourceObjectId) refs.push(sourceObjectId)
+  if (targetObjectId) refs.push(targetObjectId)
+  return [...new Set(refs)]
+}
+
+export async function getKnowledgeObject(objectId: string): Promise<KnowledgeObject> {
+  const response = await fetch(`/api/v1/objects/${encodeURIComponent(objectId)}`)
+  if (!response.ok) throw new Error(response.status === 404 ? 'Knowledge object not found' : `Knowledge object unavailable (${response.status})`)
+  return response.json() as Promise<KnowledgeObject>
+}
+
+export type ProofRunSummary = {
+  benchmark_run_id: string
+  suite_ref: string
+  deployment_revision_id: string
+  world_snapshot_ref: string | null
+  status: string
+  execution_mode: string
+  environment: string
+  started_at: string
+  finished_at: string | null
+  case_count: number
+  passed_case_count: number
+}
+
+export type ProofCaseRun = {
+  case_run_id: string
+  case_ref: string
+  target_refs: string[]
+  execution_profile: string | null
+  status: string
+  failure_class: string | null
+  task_run_id: string | null
+  execution_id: string | null
+  decision_ref: string | null
+  replay_checkpoint_ref: string | null
+  artifact_refs: string[]
+  started_at: string
+  finished_at: string | null
+}
+
+export type ProofMetricObservation = {
+  metric_observation_id: string
+  metric_name: string
+  value: number
+  unit: string | null
+  direction: string
+  measurement_source: string
+  case_run_id: string
+  subject_ref: string | null
+  evidence_refs: string[]
+  created_at: string
+}
+
+export type ProofRunDetail = {
+  run: ProofRunSummary
+  deployment: {
+    deployment_revision_id: string
+    git_commit: string
+    container_image_digest: string | null
+    schema_revision: string
+    source_inventory_hash: string
+    vocabulary_revision: string
+    policy_revision: string
+    capability_registry_revision: string
+    skill_registry_revision: string | null
+    model_provider_revision: string
+    configuration_digest: string
+    created_at: string
+  }
+  cases: ProofCaseRun[]
+  metrics: ProofMetricObservation[]
+}
+
+export async function getCompetitionProofRun(runId: string): Promise<ProofRunDetail> {
+  const response = await fetch(`/api/v1/observatory/proof/runs/${encodeURIComponent(runId)}`)
+  if (!response.ok) throw new Error(response.status === 404 ? 'Benchmark run not found' : `Benchmark run unavailable (${response.status})`)
+  return response.json() as Promise<ProofRunDetail>
+}
+
 export async function askQuestion(input: {
   question: string
   cveId?: string
+  objectId?: string
   sessionId?: string
   taskKind: TaskKind
+  requiredSourceRoles?: string[]
+  priority?: number
+  interactiveTimeoutSeconds?: number
+  retrievalLimit?: number
+  allowWait?: boolean
+  investigationTimeoutSeconds?: number
+  agentTurns?: number
+  toolCalls?: number
 }): Promise<QuestionResult> {
   const response = await fetch('/api/v1/questions', {
     method: 'POST',
@@ -45,8 +133,17 @@ export async function askQuestion(input: {
     body: JSON.stringify({
       question: input.question,
       cve_id: input.cveId || undefined,
+      object_id: input.objectId || undefined,
       session_id: input.sessionId || undefined,
       task_kind: input.taskKind,
+      required_source_roles: input.requiredSourceRoles ?? [],
+      priority: input.priority ?? 50,
+      interactive_timeout_seconds: input.interactiveTimeoutSeconds ?? 5,
+      retrieval_limit: input.retrievalLimit ?? 8,
+      allow_wait: input.allowWait ?? true,
+      investigation_timeout_seconds: input.investigationTimeoutSeconds ?? 300,
+      agent_turns: input.agentTurns ?? 8,
+      tool_calls: input.toolCalls ?? 12,
     }),
   })
 
@@ -67,6 +164,19 @@ export type WorldOverview = {
   overdue_sources: number
   backfill_pending_sources: number
   categories: Array<{ category: string; healthy: number; degraded: number; blocked: number }>
+  sources: Array<{
+    source_id: string
+    measurement_category: string
+    health: string
+    latest_scheduled_status: string | null
+    consecutive_failures: number
+    backfill_pending: boolean
+    last_success_at: string | null
+    next_due_at: string | null
+    backoff_until: string | null
+    overdue: boolean
+    latest_error_code: string | null
+  }>
   windows: Record<string, {
     observations: number
     fresh_external_changes: number
@@ -82,6 +192,7 @@ export type WorldOverview = {
     evidence_integrity_rate: number | null
   }>
   hourly_series: Array<Record<string, number | string | null>>
+  category_hourly_series: Record<string, Array<Record<string, number | string | null>>>
   outbox_delivered: number
   lexical_ready_documents: number
   artifact_store_status: string | null
@@ -221,6 +332,65 @@ export async function getEvidence(evidenceRef: string): Promise<EvidenceDetail> 
   return response.json() as Promise<EvidenceDetail>
 }
 
+export type IncidentSummary = {
+  incident_id: string
+  candidate_id: string
+  incident_type: string
+  lifecycle: string
+  promotion_reason: string
+  current_summary: string | null
+  watch_state: Record<string, unknown>
+  current_revision: number
+  timeline_event_count: number
+  source_link_count: number
+  source_diversity_count: number
+  created_at: string
+  updated_at: string
+}
+
+export type IncidentTimelineEvent = {
+  event_id: string
+  signal_id: string
+  event_time: string
+  observed_at: string
+  event_type: string
+  summary: string
+  source_role: string
+  claim_refs: string[]
+  evidence_refs: string[]
+  supersedes_event_id: string | null
+  created_revision: number
+}
+
+export type IncidentSourceLink = {
+  source_link_id: string
+  observation_id: string
+  source_id: string
+  source_family: string
+  upstream_source: string | null
+  independence_key: string
+  source_role: string
+  created_revision: number
+}
+
+export type IncidentDetail = {
+  incident: IncidentSummary
+  timeline: IncidentTimelineEvent[]
+  sources: IncidentSourceLink[]
+}
+
+export async function listIncidents(limit = 20): Promise<{ items: IncidentSummary[] }> {
+  const response = await fetch(`/api/v1/incidents?limit=${limit}`)
+  if (!response.ok) throw new Error(`Incidents unavailable (${response.status})`)
+  return response.json() as Promise<{ items: IncidentSummary[] }>
+}
+
+export async function getIncident(incidentId: string): Promise<IncidentDetail> {
+  const response = await fetch(`/api/v1/incidents/${encodeURIComponent(incidentId)}`)
+  if (!response.ok) throw new Error(response.status === 404 ? 'Incident not found' : `Incident unavailable (${response.status})`)
+  return response.json() as Promise<IncidentDetail>
+}
+
 export type AgentRoleRuntime = {
   role_id: string
   version: string
@@ -264,6 +434,12 @@ export type AgentCapabilityActivity = {
   started_at: string
   finished_at: string | null
   failure_code: string | null
+  failure_detail: string | null
+  policy_decision_ref: string | null
+  canonical_output_ref: string | null
+  raw_artifact_ref: string | null
+  effect_receipt_ref: string | null
+  observation_class: string | null
 }
 
 export type AgentRuntimeOverview = {
@@ -283,6 +459,25 @@ export type AgentTaskDetail = {
     emitted_at: string
   }>
   capabilities: AgentCapabilityActivity[]
+  budget: {
+    account_id: string
+    limits: Record<string, number>
+    reserved: Record<string, number>
+    committed: Record<string, number>
+    remaining: Record<string, number>
+  } | null
+  prompt_assemblies: Array<{
+    assembly_id: string
+    execution_id: string
+    context_manifest_ref: string
+    role_revision: string
+    execution_profile_revision: string
+    materialized_skill_refs: string[]
+    materialized_capability_view_refs: string[]
+    percept_refs: string[]
+    materialized_ref_set_digest: string
+    created_at: string
+  }>
 }
 
 export async function getAgentRuntime(): Promise<AgentRuntimeOverview> {
@@ -414,6 +609,7 @@ export type CompetitionProof = {
     comparator: string
     status: string
   }>
+  runs: ProofRunSummary[]
 }
 
 export async function getCompetitionProof(): Promise<CompetitionProof> {
@@ -468,6 +664,20 @@ export type ProductExperience = {
   success_count: number
   failure_count: number
   partial_count: number
+  support_records: Array<{
+    trajectory_id: string
+    case_id: string
+    trajectory_status: string
+    trajectory_outcome: string | null
+    latency_ms: number | null
+    tool_calls: number
+    started_at: string
+    finished_at: string | null
+    outcome: string
+    evaluation: Record<string, unknown>
+    evaluator: string
+    created_at: string
+  }>
 }
 
 export type AgentLearningOverview = {

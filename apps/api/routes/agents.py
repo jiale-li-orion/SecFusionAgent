@@ -3,8 +3,16 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query, status
 
 from apps.api.dependencies import SessionDep
-from apps.application.queries.agents import get_agent_learning_overview, get_agent_runtime_overview, get_agent_task_detail
-from apps.application.views.agents import AgentLearningOverviewView, AgentRuntimeOverviewView, AgentTaskDetailView
+from apps.application.queries.agents import (
+    get_agent_learning_overview,
+    get_agent_runtime_overview,
+    get_agent_task_detail,
+)
+from apps.application.views.agents import (
+    AgentLearningOverviewView,
+    AgentRuntimeOverviewView,
+    AgentTaskDetailView,
+)
 
 router = APIRouter(prefix="/api/v1", tags=["agents"])
 

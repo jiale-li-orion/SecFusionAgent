@@ -8,8 +8,23 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import func, select
 
 from apps.api.dependencies import SessionDep
-from apps.application.views.observatory import CompetitionProofView, ProofMetricView, ProofTargetView
-from packages.evaluation.benchmark.storage import BenchmarkCaseRunModel, BenchmarkRunModel
+from apps.application.views.observatory import (
+    CompetitionProofView,
+    ProofCaseRunView,
+    ProofDeploymentRevisionView,
+    ProofMetricObservationView,
+    ProofMetricView,
+    ProofRunDetailView,
+    ProofRunSummaryView,
+    ProofTargetView,
+)
+from packages.evaluation.benchmark.storage import (
+    BenchmarkCaseModel,
+    BenchmarkCaseRunModel,
+    BenchmarkRunModel,
+    DeploymentRevisionModel,
+    MetricObservationModel,
+)
 
 router = APIRouter(prefix="/api/v1/observatory", tags=["observatory"])
 
@@ -66,6 +81,27 @@ async def competition_proof(session: SessionDep) -> CompetitionProofView:
     )
 
     groups = list(infra.get("metric_groups", []))
+    run_models = list(
+        await session.scalars(
+            select(BenchmarkRunModel)
+            .where(BenchmarkRunModel.benchmark_run_id.in_(run_ids))
+            .order_by(BenchmarkRunModel.started_at)
+        )
+    )
+    case_models = list(
+        await session.scalars(
+            select(BenchmarkCaseRunModel).where(
+                BenchmarkCaseRunModel.benchmark_run_id.in_(run_ids)
+            )
+        )
+    )
+    case_counts: dict[str, tuple[int, int]] = {}
+    for item in case_models:
+        count, passed = case_counts.get(item.benchmark_run_id, (0, 0))
+        case_counts[item.benchmark_run_id] = (
+            count + 1,
+            passed + (1 if item.status == "passed" else 0),
+        )
     return CompetitionProofView(
         report_id=str(report["report_id"]),
         report_digest=str(report["report_digest"]),
@@ -105,6 +141,140 @@ async def competition_proof(session: SessionDep) -> CompetitionProofView:
             )
             for item in report.get("target_checks", [])
         ],
+        runs=[
+            _proof_run_summary(
+                model,
+                case_count=case_counts.get(model.benchmark_run_id, (0, 0))[0],
+                passed_case_count=case_counts.get(model.benchmark_run_id, (0, 0))[1],
+            )
+            for model in run_models
+        ],
+    )
+
+
+@router.get("/proof/runs/{run_id}", response_model=ProofRunDetailView)
+async def competition_proof_run(run_id: str, session: SessionDep) -> ProofRunDetailView:
+    run = await session.get(BenchmarkRunModel, run_id)
+    if run is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="benchmark run not found")
+    deployment = await session.get(DeploymentRevisionModel, run.deployment_revision_id)
+    if deployment is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="benchmark run deployment revision missing",
+        )
+    cases = list(
+        await session.scalars(
+            select(BenchmarkCaseRunModel)
+            .where(BenchmarkCaseRunModel.benchmark_run_id == run_id)
+            .order_by(BenchmarkCaseRunModel.started_at)
+        )
+    )
+    case_versions = (
+        list(
+            await session.scalars(
+                select(BenchmarkCaseModel).where(
+                    BenchmarkCaseModel.case_version_id.in_(
+                        [item.case_version_id for item in cases]
+                    )
+                )
+            )
+        )
+        if cases
+        else []
+    )
+    case_by_version = {item.case_version_id: item for item in case_versions}
+    case_ids = [item.case_run_id for item in cases]
+    metrics = (
+        list(
+            await session.scalars(
+                select(MetricObservationModel)
+                .where(MetricObservationModel.case_run_id.in_(case_ids))
+                .order_by(MetricObservationModel.created_at, MetricObservationModel.metric_name)
+            )
+        )
+        if case_ids
+        else []
+    )
+    passed = sum(1 for item in cases if item.status == "passed")
+    return ProofRunDetailView(
+        run=_proof_run_summary(run, case_count=len(cases), passed_case_count=passed),
+        deployment=ProofDeploymentRevisionView(
+            deployment_revision_id=deployment.deployment_revision_id,
+            git_commit=deployment.git_commit,
+            container_image_digest=deployment.container_image_digest,
+            schema_revision=deployment.schema_revision,
+            source_inventory_hash=deployment.source_inventory_hash,
+            vocabulary_revision=deployment.vocabulary_revision,
+            policy_revision=deployment.policy_revision,
+            capability_registry_revision=deployment.capability_registry_revision,
+            skill_registry_revision=deployment.skill_registry_revision,
+            model_provider_revision=deployment.model_provider_revision,
+            configuration_digest=deployment.configuration_digest,
+            created_at=deployment.created_at,
+        ),
+        cases=[
+            ProofCaseRunView(
+                case_run_id=item.case_run_id,
+                case_ref=item.case_ref,
+                target_refs=list(
+                    case_by_version[item.case_version_id].target_refs_json
+                )
+                if item.case_version_id in case_by_version
+                else [],
+                execution_profile=(
+                    case_by_version[item.case_version_id].execution_profile
+                    if item.case_version_id in case_by_version
+                    else None
+                ),
+                status=item.status,
+                failure_class=item.failure_class,
+                task_run_id=item.task_run_id,
+                execution_id=item.execution_id,
+                decision_ref=item.decision_ref,
+                replay_checkpoint_ref=item.replay_checkpoint_ref,
+                artifact_refs=list(item.artifact_refs_json),
+                started_at=item.started_at,
+                finished_at=item.finished_at,
+            )
+            for item in cases
+        ],
+        metrics=[
+            ProofMetricObservationView(
+                metric_observation_id=item.metric_observation_id,
+                metric_name=item.metric_name,
+                value=item.value,
+                unit=item.unit,
+                direction=item.direction,
+                measurement_source=item.measurement_source,
+                case_run_id=item.case_run_id,
+                subject_ref=item.subject_ref,
+                evidence_refs=list(item.evidence_refs_json),
+                created_at=item.created_at,
+            )
+            for item in metrics
+        ],
+    )
+
+
+def _proof_run_summary(
+    model: BenchmarkRunModel,
+    *,
+    case_count: int,
+    passed_case_count: int,
+) -> ProofRunSummaryView:
+    return ProofRunSummaryView(
+        benchmark_run_id=model.benchmark_run_id,
+        suite_ref=model.suite_ref,
+        deployment_revision_id=model.deployment_revision_id,
+        world_snapshot_ref=model.world_snapshot_ref,
+        status=model.status,
+        execution_mode=model.execution_mode,
+        environment=model.environment,
+        started_at=model.started_at,
+        finished_at=model.finished_at,
+        case_count=case_count,
+        passed_case_count=passed_case_count,
     )
 
 
