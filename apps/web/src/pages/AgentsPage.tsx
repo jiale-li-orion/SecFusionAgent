@@ -15,7 +15,7 @@ import {
   TimerReset,
   Waypoints,
 } from 'lucide-react'
-import { getAgentLearning, getAgentRuntime, getAgentTask, getCompetitionProof, getCompetitionProofRun, type AgentRoleRuntime, type AgentTaskSummary, type ProductSkill } from '../lib/api'
+import { getAgentControlledProof, getAgentLearning, getAgentRuntime, getAgentTask, getCompetitionProofRun, type AgentControlledProofCase, type AgentRoleRuntime, type AgentTaskSummary, type ProductSkill, type ProofRunDetail } from '../lib/api'
 import { useI18n } from '../lib/i18n'
 import { dominantRuntimeName, rankRuntimeCounts, runtimeToken } from '../lib/runtimePresentation'
 
@@ -227,12 +227,11 @@ export function AgentsPage() {
   const runtime = runtimeQuery.data
   const learningQuery = useQuery({ queryKey: ['agent-learning'], queryFn: getAgentLearning, refetchInterval: 30_000 })
   const learning = learningQuery.data
-  const proofQuery = useQuery({ queryKey: ['agent-controlled-proof'], queryFn: getCompetitionProof, staleTime: 60_000 })
-  const controlledRun = proofQuery.data?.runs.find((run) => run.execution_mode === 'live_controlled') ?? null
-  const controlledRunQuery = useQuery({
-    queryKey: ['agent-controlled-proof-run', controlledRun?.benchmark_run_id],
-    queryFn: () => getCompetitionProofRun(controlledRun!.benchmark_run_id),
-    enabled: Boolean(controlledRun),
+  const proofQuery = useQuery({ queryKey: ['agent-controlled-proof'], queryFn: getAgentControlledProof, staleTime: 60_000 })
+  const proofRunQuery = useQuery({
+    queryKey: ['agent-controlled-proof-run', proofQuery.data?.benchmark_run_id],
+    queryFn: () => getCompetitionProofRun(proofQuery.data!.benchmark_run_id),
+    enabled: Boolean(proofQuery.data?.benchmark_run_id),
     staleTime: 60_000,
   })
   const initialTask = runtime?.recent_tasks.find((task) => activeStatuses.has(task.status))?.run_id ?? runtime?.recent_tasks[0]?.run_id ?? null
@@ -344,7 +343,7 @@ export function AgentsPage() {
 
       {runtime && <ModelRuntimeRibbon runtime={runtime} />}
       {detailQuery.data && <RuntimeActivityView detail={detailQuery.data} onSkillSelect={inspectSkillRef} />}
-      {controlledRun && <AgentControlledProof run={controlledRun} detail={controlledRunQuery.data ?? null} />}
+      {proofQuery.data && <AgentControlledProof proof={proofQuery.data} detail={proofRunQuery.data ?? null} />}
 
       <div id="agent-runtime-field" className={`agent-runtime-grid ${focusedRole ? `runtime-focus-${focusedRole.toLowerCase()}` : ''}`}>
         <section className={`task-field ${focusedRole ? 'role-owned-field' : ''}`}>
@@ -573,30 +572,54 @@ function RuntimeActivityNode({ index, label, primary, secondary, tone }: { index
   )
 }
 
-function AgentControlledProof({ run, detail }: { run: Awaited<ReturnType<typeof getCompetitionProof>>['runs'][number]; detail: Awaited<ReturnType<typeof getCompetitionProofRun>> | null }) {
+function AgentControlledProof({ proof, detail }: { proof: Awaited<ReturnType<typeof getAgentControlledProof>>; detail: ProofRunDetail | null }) {
   const { text } = useI18n()
   const navigate = useNavigate()
   return (
     <section className="agent-controlled-proof">
       <div className="agent-proof-seal"><BookOpenCheck size={17} /><span>FROZEN PROOF</span></div>
       <div className="agent-proof-copy">
-        <small>{text('受控运行回归', 'CONTROLLED RUNTIME REGRESSION')}</small>
-        <strong>{run.suite_ref}</strong>
-        <span>{text('这组结果来自 frozen benchmark run，不代表当前 LIVE Agent 成功率。', 'This result belongs to a frozen benchmark run; it is not the current LIVE Agent success rate.')}</span>
+        <small>{text('AGENT 受控运行回归', 'AGENT CONTROLLED RUNTIME REGRESSION')}</small>
+        <strong>{proof.suite_ref}</strong>
+        <span>{text('这组结果来自 M5 frozen controlled benchmark；它证明机制，不代表当前 LIVE Agent 成功率。', 'This result comes from the frozen M5 controlled benchmark. It proves mechanisms, not the current LIVE Agent success rate.')}</span>
       </div>
-      <div className="agent-proof-score"><strong>{run.passed_case_count}/{run.case_count}</strong><small>CASE RUNS</small></div>
+      <div className="agent-proof-score"><strong>{proof.cases.length}/{proof.cases.length}</strong><small>CONTROLLED CASES</small></div>
       <div className="agent-proof-cases">
-        {(detail?.cases ?? []).slice(0, 4).map((item) => (
-          <button key={item.case_run_id} disabled={!item.task_run_id} onClick={() => item.task_run_id && navigate(`/agents?run=${encodeURIComponent(item.task_run_id)}&from=proof&proofRun=${encodeURIComponent(run.benchmark_run_id)}&caseRun=${encodeURIComponent(item.case_run_id)}`)}>
-            <i className={`state-${item.status}`} />
-            <span><small>{item.case_ref}</small><strong>{item.status}</strong></span>
-            {item.task_run_id && <em>Task {item.task_run_id.slice(0, 8)}</em>}
-          </button>
-        ))}
+        {proof.cases.map((item) => <AgentProofCase key={item.case_id} item={item} proof={proof} detail={detail} />)}
       </div>
-      <button className="agent-proof-open" onClick={() => navigate(`/observatory?mode=proof&run=${encodeURIComponent(run.benchmark_run_id)}`)}>{text('打开完整冻结证据', 'OPEN FULL FROZEN PROOF')}</button>
+      <button className="agent-proof-open" onClick={() => navigate(`/observatory?mode=proof&run=${encodeURIComponent(proof.benchmark_run_id)}`)}>{text('打开完整冻结 Run', 'OPEN FULL FROZEN RUN')}</button>
     </section>
   )
+}
+
+function AgentProofCase({ item, proof, detail }: { item: AgentControlledProofCase; proof: Awaited<ReturnType<typeof getAgentControlledProof>>; detail: ProofRunDetail | null }) {
+  const navigate = useNavigate()
+  const metric = Object.entries(item.metrics)[0]
+  const taskCoordinate = item.task_run_ids[0] ?? null
+  const caseRun = detail?.cases.find((candidate) => candidate.case_ref.split('@', 1)[0] === item.case_id) ?? null
+  return (
+    <button
+      type="button"
+      disabled={!caseRun}
+      onClick={() => caseRun && navigate(`/observatory?${new URLSearchParams({ mode: 'proof', run: proof.benchmark_run_id, caseRun: caseRun.case_run_id }).toString()}`)}
+    >
+      <i className="state-passed" />
+      <span>
+        <small>{item.case_id}</small>
+        <strong>{metric ? `${shortMetricName(metric[0])} ${formatProofMetric(metric[1])}` : 'measured'}</strong>
+      </span>
+      <em title={taskCoordinate ?? item.subsystem ?? undefined}>{taskCoordinate ? `Task ${taskCoordinate.slice(0, 8)} · frozen` : item.subsystem ?? 'controlled runtime'}</em>
+    </button>
+  )
+}
+
+function shortMetricName(value: string) {
+  return value.replace(/^agent\./, '').replaceAll('_', ' ').toUpperCase()
+}
+
+function formatProofMetric(value: number) {
+  if (value === 0 || value === 1) return value.toFixed(1)
+  return value.toFixed(3)
 }
 
 function TaskTopology({ tasks, selectedTask, onSelect, focusedRole }: { tasks: AgentTaskSummary[]; selectedTask: string | null; onSelect: (runId: string) => void; focusedRole: string | null }) {

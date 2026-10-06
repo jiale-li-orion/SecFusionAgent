@@ -4,12 +4,14 @@ from fastapi import APIRouter, HTTPException, Query, status
 
 from apps.api.dependencies import SessionDep
 from apps.application.queries.agents import (
+    get_agent_controlled_proof,
     get_agent_learning_overview,
     get_agent_runtime_overview,
     get_agent_task_detail,
     list_agent_tasks,
 )
 from apps.application.views.agents import (
+    AgentControlledProofView,
     AgentLearningOverviewView,
     AgentRuntimeOverviewView,
     AgentTaskDetailView,
@@ -17,6 +19,11 @@ from apps.application.views.agents import (
 )
 
 router = APIRouter(prefix="/api/v1", tags=["agents"])
+
+
+@router.get("/agents/proof", response_model=AgentControlledProofView)
+async def agent_controlled_proof() -> AgentControlledProofView:
+    return get_agent_controlled_proof()
 
 
 @router.get("/agents/runtime", response_model=AgentRuntimeOverviewView)

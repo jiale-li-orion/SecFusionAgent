@@ -863,10 +863,36 @@ export type AgentLearningOverview = {
   completed_trajectory_count: number
 }
 
+export type AgentControlledProofCase = {
+  case_id: string
+  subsystem: string | null
+  metrics: Record<string, number>
+  diagnostics: Record<string, unknown>
+  task_run_ids: string[]
+  evidence_refs: string[]
+  capability_invocation_ids: string[]
+}
+
+export type AgentControlledProof = {
+  schema_version: string
+  benchmark_run_id: string
+  deployment_revision_id: string
+  suite_ref: string
+  execution_mode: string
+  scope: string
+  cases: AgentControlledProofCase[]
+}
+
 export async function getAgentLearning(): Promise<AgentLearningOverview> {
   const response = await fetch('/api/v1/agents/learning')
   if (!response.ok) throw new Error(`Agent learning unavailable (${response.status})`)
   return response.json() as Promise<AgentLearningOverview>
+}
+
+export async function getAgentControlledProof(): Promise<AgentControlledProof> {
+  const response = await fetch('/api/v1/agents/proof')
+  if (!response.ok) throw new Error(`Agent controlled proof unavailable (${response.status})`)
+  return response.json() as Promise<AgentControlledProof>
 }
 
 export async function cancelInvestigation(caseId: string): Promise<InvestigationView> {

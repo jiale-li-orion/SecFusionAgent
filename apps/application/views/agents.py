@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, JsonValue
 
 
 class AgentRoleRuntimeView(BaseModel):
@@ -202,3 +202,23 @@ class AgentLearningOverviewView(BaseModel):
     experience_candidate_count: int = 0
     trajectory_count: int = 0
     completed_trajectory_count: int = 0
+
+
+class AgentControlledProofCaseView(BaseModel):
+    case_id: str
+    subsystem: str | None = None
+    metrics: dict[str, float] = Field(default_factory=dict)
+    diagnostics: dict[str, JsonValue] = Field(default_factory=dict)
+    task_run_ids: list[str] = Field(default_factory=list)
+    evidence_refs: list[str] = Field(default_factory=list)
+    capability_invocation_ids: list[str] = Field(default_factory=list)
+
+
+class AgentControlledProofView(BaseModel):
+    schema_version: str
+    benchmark_run_id: str
+    deployment_revision_id: str
+    suite_ref: str
+    execution_mode: str
+    scope: str
+    cases: list[AgentControlledProofCaseView] = Field(default_factory=list)

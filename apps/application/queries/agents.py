@@ -1,15 +1,21 @@
 from __future__ import annotations
 
+import json
 from collections import Counter, defaultdict
 from datetime import UTC, datetime
 from decimal import Decimal
+from pathlib import Path
+from typing import cast
 
+from pydantic import JsonValue
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.application.views.agents import (
     AgentBudgetSnapshotView,
     AgentCapabilityActivityView,
+    AgentControlledProofCaseView,
+    AgentControlledProofView,
     AgentControlRuntimeView,
     AgentModelRuntimeView,
     AgentPromptAssemblyView,
@@ -45,6 +51,73 @@ _ACTIVE_STATUSES = {
     TaskRunStatus.WAITING_INPUT.value,
     TaskRunStatus.WAITING_DEPENDENCY.value,
 }
+_AGENT_RUNTIME_PROOF = Path("benchmarks/agent-runtime/current.json")
+
+
+def get_agent_controlled_proof() -> AgentControlledProofView:
+    payload = json.loads(_AGENT_RUNTIME_PROOF.read_text(encoding="utf-8"))
+    raw_cases = payload.get("cases", {})
+    cases: list[AgentControlledProofCaseView] = []
+    if isinstance(raw_cases, dict):
+        for case_id, raw_case in raw_cases.items():
+            if not isinstance(case_id, str) or not isinstance(raw_case, dict):
+                continue
+            diagnostics_raw = raw_case.get("diagnostics", {})
+            diagnostics = (
+                cast(dict[str, JsonValue], diagnostics_raw)
+                if isinstance(diagnostics_raw, dict)
+                else {}
+            )
+            metrics_raw = raw_case.get("metrics", {})
+            metrics = {
+                str(name): float(value)
+                for name, value in metrics_raw.items()
+                if isinstance(name, str) and isinstance(value, int | float)
+            } if isinstance(metrics_raw, dict) else {}
+            cases.append(
+                AgentControlledProofCaseView(
+                    case_id=case_id,
+                    subsystem=_optional_string(diagnostics.get("subsystem")),
+                    metrics=metrics,
+                    diagnostics=diagnostics,
+                    task_run_ids=_diagnostic_refs(diagnostics, suffix="_run_id"),
+                    evidence_refs=_diagnostic_list_refs(diagnostics, contains="evidence_ref"),
+                    capability_invocation_ids=_diagnostic_list_refs(
+                        diagnostics,
+                        contains="capability_invocation_id",
+                    ),
+                )
+            )
+    return AgentControlledProofView(
+        schema_version=str(payload.get("schema_version", "unknown")),
+        benchmark_run_id=str(payload["benchmark_run_id"]),
+        deployment_revision_id=str(payload["deployment_revision_id"]),
+        suite_ref=str(payload["suite_ref"]),
+        execution_mode=str(payload["execution_mode"]),
+        scope=str(payload["scope"]),
+        cases=cases,
+    )
+
+
+def _diagnostic_refs(values: dict[str, JsonValue], *, suffix: str) -> list[str]:
+    refs = {
+        value
+        for key, value in values.items()
+        if key.endswith(suffix) and isinstance(value, str) and value
+    }
+    return sorted(refs)
+
+
+def _diagnostic_list_refs(values: dict[str, JsonValue], *, contains: str) -> list[str]:
+    refs: set[str] = set()
+    for key, value in values.items():
+        if contains not in key:
+            continue
+        if isinstance(value, str) and value:
+            refs.add(value)
+        elif isinstance(value, list):
+            refs.update(item for item in value if isinstance(item, str) and item)
+    return sorted(refs)
 
 
 async def get_agent_runtime_overview(

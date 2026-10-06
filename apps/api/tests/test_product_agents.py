@@ -232,3 +232,23 @@ async def test_product_agent_runtime_exposes_roles_tasks_and_safe_event_summary(
         assert "idempotency_key" not in detail.text
     finally:
         await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_product_agent_proof_uses_agent_runtime_controlled_benchmark() -> None:
+    app = create_app()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/v1/agents/proof")
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["suite_ref"].startswith("m5-agent-runtime-controlled-v1@")
+    assert body["scope"] == "controlled_runtime_regression_not_live_external_agent_score"
+    delegated = next(
+        item for item in body["cases"] if item["case_id"] == "agent-delegated-enrichment-resume"
+    )
+    assert delegated["subsystem"] == (
+        "InvestigationRole->EnrichmentRole->TaskEvent->DependencyWake->Perception->StatePatch"
+    )
+    assert len(delegated["task_run_ids"]) == 2
+    assert delegated["metrics"]["agent.delegation_precision"] == 1.0

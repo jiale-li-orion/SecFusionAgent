@@ -387,6 +387,33 @@ def run_gate(api_base: str, web_url: str | None) -> list[GateResult]:
                 raise RuntimeError("task detail missing runtime coordinates")
             results.append(GateResult("task-detail", run_id))
 
+    agent_proof = _json(api_base, "/api/v1/agents/proof")
+    suite_ref = agent_proof.get("suite_ref")
+    proof_cases = agent_proof.get("cases", [])
+    if not isinstance(suite_ref, str) or not suite_ref.startswith(
+        "m5-agent-runtime-controlled-v1@"
+    ):
+        raise RuntimeError("Agent proof is not bound to the controlled M5 runtime suite")
+    if not isinstance(proof_cases, list):
+        raise RuntimeError("Agent controlled proof cases malformed")
+    delegated = next(
+        (
+            item
+            for item in proof_cases
+            if isinstance(item, dict)
+            and item.get("case_id") == "agent-delegated-enrichment-resume"
+        ),
+        None,
+    )
+    if delegated is None or not delegated.get("task_run_ids"):
+        raise RuntimeError("Agent proof lost delegated enrichment runtime coordinates")
+    results.append(
+        GateResult(
+            "agent-proof",
+            f"{suite_ref} · {len(proof_cases)} controlled cases",
+        )
+    )
+
     system = _json(api_base, "/api/v1/observatory/system")
     dependencies = system.get("dependencies", [])
     if not isinstance(dependencies, list):
