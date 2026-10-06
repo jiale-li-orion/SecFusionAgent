@@ -174,10 +174,14 @@ def _static_product_gate(results: list[GateResult]) -> None:
         needles=(
             "params.get('focus')",
             "params.get('evidence')",
+            "continuation_session_id",
             "normalizeCaseFocus",
             "useState<CaseStateFocus | null>(initialFocus)",
         ),
-        detail="Case focus/evidence survive direct URL entry",
+        detail=(
+            "Case focus/evidence survive direct URL entry and owned sessions "
+            "resume the durable Case"
+        ),
     )
     _require_source(
         results,

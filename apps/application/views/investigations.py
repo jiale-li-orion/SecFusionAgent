@@ -59,6 +59,7 @@ class DecisionView(BaseModel):
 
 class InvestigationView(BaseModel):
     case_id: str
+    continuation_session_id: str | None = None
     revision: int
     status: str
     execution_profile: str | None = None

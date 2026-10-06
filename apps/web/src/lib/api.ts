@@ -2,8 +2,18 @@ export type TaskKind =
   | 'lookup'
   | 'retrieve'
   | 'verify_version_fix'
+  | 'resolve_conflict'
+  | 'investigate_relation'
   | 'investigate_incident'
   | 'watch_incident'
+  | 'assess_normative_applicability'
+  | 'observe_live_asset'
+
+const PRODUCT_PRINCIPAL = 'user:product-demo'
+
+function productHeaders(extra: Record<string, string> = {}) {
+  return { 'X-Principal': PRODUCT_PRINCIPAL, ...extra }
+}
 
 export type QuestionResult = {
   request_id: string
@@ -272,10 +282,7 @@ export async function askQuestion(input: {
 }): Promise<QuestionResult> {
   const response = await fetch('/api/v1/questions', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Principal': 'user:product-demo',
-    },
+    headers: productHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({
       question: input.question,
       cve_id: input.cveId || undefined,
@@ -735,6 +742,7 @@ export type DecisionView = {
 
 export type InvestigationView = {
   case_id: string
+  continuation_session_id: string | null
   revision: number
   status: string
   execution_profile: string | null
@@ -775,13 +783,13 @@ export type ProductRuntimeEvent = {
 }
 
 export async function listInvestigations(limit = 40): Promise<{ items: InvestigationView[]; next_cursor: string | null; has_more: boolean }> {
-  const response = await fetch(`/api/v1/investigations?limit=${limit}`)
+  const response = await fetch(`/api/v1/investigations?limit=${limit}`, { headers: productHeaders() })
   if (!response.ok) throw new Error(`Investigations unavailable (${response.status})`)
   return response.json()
 }
 
 export async function getInvestigation(caseId: string): Promise<InvestigationView> {
-  const response = await fetch(`/api/v1/investigations/${encodeURIComponent(caseId)}`)
+  const response = await fetch(`/api/v1/investigations/${encodeURIComponent(caseId)}`, { headers: productHeaders() })
   if (!response.ok) throw new Error(response.status === 404 ? 'Investigation not found' : `Investigation unavailable (${response.status})`)
   return response.json()
 }
@@ -934,7 +942,7 @@ export async function getAgentControlledProof(): Promise<AgentControlledProof> {
 export async function cancelInvestigation(caseId: string): Promise<InvestigationView> {
   const response = await fetch(`/api/v1/investigations/${encodeURIComponent(caseId)}/cancel`, {
     method: 'POST',
-    headers: { 'X-Principal': 'user:product-demo' },
+    headers: productHeaders(),
   })
   const body = await response.json().catch(() => null)
   if (!response.ok) {

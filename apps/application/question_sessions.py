@@ -224,6 +224,30 @@ class QuestionSessionStore:
         )
         return _turn_view(row) if row is not None else None
 
+    async def latest_session_id_for_investigation(
+        self,
+        session: AsyncSession,
+        *,
+        investigation_ref: str,
+        principal: str,
+    ) -> str | None:
+        return await session.scalar(
+            select(QuestionSessionTurnModel.session_id)
+            .join(
+                QuestionSessionModel,
+                QuestionSessionModel.session_id == QuestionSessionTurnModel.session_id,
+            )
+            .where(
+                QuestionSessionTurnModel.investigation_ref == investigation_ref,
+                QuestionSessionModel.principal == principal,
+            )
+            .order_by(
+                QuestionSessionTurnModel.created_at.desc(),
+                QuestionSessionTurnModel.turn_index.desc(),
+            )
+            .limit(1)
+        )
+
 
 def _require_principal(model: QuestionSessionModel, principal: str) -> None:
     if model.principal != principal:

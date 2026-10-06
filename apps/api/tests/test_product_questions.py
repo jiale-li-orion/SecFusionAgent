@@ -160,6 +160,20 @@ async def test_product_question_session_continues_existing_investigation_case() 
         first = first_response.json()
         case_id = first["investigation"]["case_id"]
 
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            owned_case = await client.get(
+                f"/api/v1/investigations/{case_id}",
+                headers={"X-Principal": "user:test"},
+            )
+            foreign_case = await client.get(
+                f"/api/v1/investigations/{case_id}",
+                headers={"X-Principal": "user:other"},
+            )
+        assert owned_case.status_code == 200, owned_case.text
+        assert owned_case.json()["continuation_session_id"] == first["session_id"]
+        assert foreign_case.status_code == 200, foreign_case.text
+        assert foreign_case.json()["continuation_session_id"] is None
+
         async with factory() as session, session.begin():
             run = await session.scalar(
                 select(TaskRunModel).where(

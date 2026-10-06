@@ -95,6 +95,7 @@ async def start_investigation(
 @router.get("", response_model=InvestigationPage)
 async def list_investigations(
     session: SessionDep,
+    context: RequestContextDep,
     limit: int = Query(default=50, ge=1, le=100),
     cursor: str | None = None,
     investigation_status: str | None = Query(default=None, alias="status"),
@@ -104,6 +105,7 @@ async def list_investigations(
         limit=limit,
         cursor=cursor,
         status=investigation_status,
+        principal=context.principal,
     )
 
 
@@ -112,8 +114,12 @@ async def list_investigations(
     response_model=InvestigationView,
     responses={404: {"model": ProblemDetail}},
 )
-async def get_investigation(case_id: str, session: SessionDep) -> InvestigationView:
-    return await InvestigationQueries().get(session, case_id)
+async def get_investigation(
+    case_id: str,
+    session: SessionDep,
+    context: RequestContextDep,
+) -> InvestigationView:
+    return await InvestigationQueries().get(session, case_id, principal=context.principal)
 
 
 @router.get(

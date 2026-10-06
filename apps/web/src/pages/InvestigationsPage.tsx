@@ -47,7 +47,7 @@ export function InvestigationsPage() {
   const queryClient = useQueryClient()
   const listQuery = useQuery({ queryKey: ['investigations'], queryFn: () => listInvestigations(48), refetchInterval: 20_000 })
   const preferredCase = params.get('case')
-  const sessionId = params.get('session')
+  const sessionParam = params.get('session')
   const origin = params.get('from')
   const originRun = params.get('run')
   const focusParam = params.get('focus')
@@ -100,6 +100,7 @@ export function InvestigationsPage() {
   }, [queryClient, selectedCase])
 
   const selected = detailQuery.data
+  const sessionId = selected?.continuation_session_id ?? sessionParam
   const cases = listQuery.data?.items ?? []
   const liveCount = cases.filter((item) => liveStatuses.has(item.status)).length
 
@@ -580,7 +581,15 @@ function mergeRuntimeEvents(initial: ProductRuntimeEvent[], streamed: ProductRun
 }
 
 function continuationTaskKind(value: string | null): TaskKind {
-  if (value === 'verify_version_fix' || value === 'investigate_incident' || value === 'watch_incident') return value
+  if (
+    value === 'verify_version_fix'
+    || value === 'resolve_conflict'
+    || value === 'investigate_relation'
+    || value === 'investigate_incident'
+    || value === 'watch_incident'
+    || value === 'assess_normative_applicability'
+    || value === 'observe_live_asset'
+  ) return value
   return 'investigate_incident'
 }
 

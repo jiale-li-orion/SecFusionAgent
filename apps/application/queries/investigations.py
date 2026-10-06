@@ -9,6 +9,7 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.application.errors import ResourceNotFoundError
+from apps.application.question_sessions import QuestionSessionStore
 from apps.application.views.investigations import (
     DecisionCitationView,
     DecisionConclusionView,
@@ -28,17 +29,28 @@ from packages.task_runtime.storage.models import TaskContractVersionModel, TaskR
 
 
 class InvestigationQueries:
-    def __init__(self, state_service: InvestigationStateService | None = None) -> None:
+    def __init__(
+        self,
+        state_service: InvestigationStateService | None = None,
+        session_store: QuestionSessionStore | None = None,
+    ) -> None:
         self._state_service = state_service or InvestigationStateService()
+        self._session_store = session_store or QuestionSessionStore()
 
-    async def get(self, session: AsyncSession, case_id: str) -> InvestigationView:
+    async def get(
+        self,
+        session: AsyncSession,
+        case_id: str,
+        *,
+        principal: str | None = None,
+    ) -> InvestigationView:
         case = await session.get(InvestigationCaseModel, case_id)
         if case is None:
             raise ResourceNotFoundError(
                 "investigation not found",
                 context={"case_id": case_id},
             )
-        return await self._view(session, case)
+        return await self._view(session, case, principal=principal)
 
     async def list(
         self,
@@ -47,6 +59,7 @@ class InvestigationQueries:
         limit: int = 50,
         cursor: str | None = None,
         status: str | None = None,
+        principal: str | None = None,
     ) -> InvestigationPage:
         bounded_limit = min(max(limit, 1), 100)
         stmt = select(InvestigationCaseModel)
@@ -70,7 +83,7 @@ class InvestigationQueries:
         models = list(await session.scalars(stmt))
         has_more = len(models) > bounded_limit
         visible = models[:bounded_limit]
-        items = [await self._view(session, item) for item in visible]
+        items = [await self._view(session, item, principal=principal) for item in visible]
         next_cursor = None
         if has_more and visible:
             tail = visible[-1]
@@ -81,6 +94,8 @@ class InvestigationQueries:
         self,
         session: AsyncSession,
         case: InvestigationCaseModel,
+        *,
+        principal: str | None = None,
     ) -> InvestigationView:
         state = await self._state_service.get_state(session, case.case_id)
         needs = await self._state_service.list_evidence_needs(
@@ -124,8 +139,16 @@ class InvestigationQueries:
             effective_status = _effective_status(case.status, run.status)
 
         decision = decision_view(state.current_decision, state.updated_at)
+        continuation_session_id = None
+        if principal is not None:
+            continuation_session_id = await self._session_store.latest_session_id_for_investigation(
+                session,
+                investigation_ref=f"case:{case.case_id}",
+                principal=principal,
+            )
         return InvestigationView(
             case_id=case.case_id,
+            continuation_session_id=continuation_session_id,
             revision=state.case_revision,
             status=effective_status,
             execution_profile=execution_profile,
