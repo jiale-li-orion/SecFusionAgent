@@ -532,6 +532,10 @@ body,
 
 
   transform: translate(-50%, -50%) !important;
+  left: 56% !important;
+  top: 46% !important;
+  width: 188px !important;
+  height: 188px !important;
 }
 
 .start-space .mode-readout > strong {
@@ -547,6 +551,8 @@ body,
 
   max-width: 220px;
   top: auto !important;
+  right: 3% !important;
+  bottom: 8% !important;
 }
 
 .start-space .payload-grid,
@@ -573,7 +579,6 @@ body,
   align-items: end;
   gap: 36px;
   width: 100% !important;
-  min-width: 0;
   min-height: 176px;
   margin: 0 0 28px !important;
   padding: 10px 0 18px !important;
@@ -603,6 +608,7 @@ body,
   min-width: 0;
   max-width: none !important;
   margin: 0 0 7px !important;
+  overflow: visible;
 }
 
 .intelligence-space .dossier-masthead,
@@ -918,6 +924,7 @@ body,
 
 .investigations-space .case-state-grid {
   min-width: 0;
+  grid-area: states;
 }
 
 .investigations-space .case-workspace-stack {
@@ -974,10 +981,6 @@ body,
 
 .investigations-space .case-terminal {
   grid-area: terminal;
-}
-
-.investigations-space .case-state-grid {
-  grid-area: states;
 }
 
 .investigations-space .decision-focus-wrap {
@@ -1054,6 +1057,8 @@ body,
 .agents-space .role-theater {
   position: relative !important;
   height: 430px !important;
+  min-height: 430px !important;
+  overflow: visible !important;
 
 
 
@@ -1062,6 +1067,7 @@ body,
 .agents-space .role-entity {
   min-width: 0;
   max-width: 30% !important;
+  width: 30% !important;
 
 }
 
@@ -1089,6 +1095,8 @@ body,
 
 .agents-space .agent-runtime-grid {
   display: grid !important;
+  grid-template-columns: minmax(0, 1.45fr) 330px !important;
+  gap: 26px !important;
 
 
 }
@@ -2122,6 +2130,8 @@ body,
   grid-row: 1 !important;
   grid-column: 1 !important;
   grid-area: brief !important;
+  position: relative !important;
+  inset: auto !important;
 }
 
 .start-space > .mission-briefing h1 {
@@ -2145,6 +2155,9 @@ body,
     "advanced"
     "outcome" !important;
   max-height: calc(100vh - 88px) !important;
+  grid-column: 1 !important;
+  grid-row: 3 !important;
+  align-content: start;
 }
 
 .start-space .mode-chamber {
@@ -2155,14 +2168,6 @@ body,
 }
 
 /* AGENTS — role theatre is the protagonist; topology begins beneath it. */
-.agents-space .role-theater {
-  min-height: 430px !important;
-  overflow: visible !important;
-}
-
-.agents-space .role-entity {
-  width: 30% !important;
-}
 
 .agents-space .role-entity:nth-of-type(1) {
   left: 35% !important;
@@ -2178,11 +2183,6 @@ body,
   left: auto !important;
   right: 2.5% !important;
   top: 142px !important;
-}
-
-.agents-space .agent-runtime-grid {
-  grid-template-columns: minmax(0, 1.45fr) 330px !important;
-  gap: 26px !important;
 }
 
 /* OBSERVATORY LIVE — measurement wall, not generic two-column content. */
@@ -2591,6 +2591,10 @@ body,
   align-content: center;
   align-items: center;
   gap: 8px;
+  position: sticky !important;
+  top: 0;
+  z-index: 4;
+  min-height: 72px !important;
 }
 
 .start-space .payload-deck-head > div {
@@ -2627,6 +2631,7 @@ body,
     "target"
     "prompt"
     "launch" !important;
+  min-height: 0 !important;
 }
 
 .start-space .payload-field textarea {
@@ -2643,6 +2648,8 @@ body,
 
 
   min-height: 0 !important;
+  position: relative !important;
+  inset: auto !important;
 }
 
 @media (max-width: 1180px) {
@@ -3314,8 +3321,6 @@ body,
 }
 
 .start-space > .mission-briefing {
-  position: relative !important;
-  inset: auto !important;
   width: 100% !important;
   max-width: none !important;
   min-height: 104px !important;
@@ -3352,14 +3357,11 @@ body,
 }
 
 .start-space > .payload-deck {
-  grid-column: 1 !important;
-  grid-row: 3 !important;
   grid-area: console !important;
   position: relative !important;
   inset: auto !important;
   display: grid !important;
   grid-template-columns: 1fr !important;
-  align-content: start;
   width: 100% !important;
   min-width: 0 !important;
   max-width: none !important;
@@ -3384,10 +3386,6 @@ body,
 
 .start-space .payload-deck-head {
   grid-area: head !important;
-  position: sticky !important;
-  top: 0;
-  z-index: 4;
-  min-height: 72px !important;
   padding: 8px 0 12px !important;
 }
 
@@ -3396,7 +3394,6 @@ body,
   display: grid !important;
   grid-template-columns: 1fr !important;
   gap: 0 !important;
-  min-height: 0 !important;
 }
 
 .start-space .payload-field {
@@ -3442,8 +3439,6 @@ body,
 
 .start-space .start-outcome {
   grid-area: outcome !important;
-  position: relative !important;
-  inset: auto !important;
   width: 100% !important;
   margin: 18px 0 0 !important;
 }
@@ -3458,13 +3453,6 @@ body,
   width: 156px !important;
   min-height: 156px !important;
   max-width: 156px !important;
-}
-
-.start-space .mission-reactor {
-  left: 56% !important;
-  top: 46% !important;
-  width: 188px !important;
-  height: 188px !important;
 }
 
 .start-space .mode-readout {
@@ -3488,11 +3476,6 @@ body,
 .start-space .start-role-gate.argus {
   right: 2.5% !important;
   top: 48% !important;
-}
-
-.start-space .alchemist-boundary {
-  right: 3% !important;
-  bottom: 8% !important;
 }
 
 /* Profile changes move the spatial emphasis, not the page skeleton. */
@@ -3567,10 +3550,6 @@ body,
 }
 
 /* Intelligence object search — Product-level canonical index, not ID-only lookup. */
-.intelligence-space .intel-search {
-  position: relative;
-  overflow: visible;
-}
 
 .intel-object-search-results {
   position: absolute;

@@ -233,14 +233,7 @@ body {
   cursor: pointer;
   letter-spacing: 0.17em;
   color: #ecffc4;
-  min-height: 58px;
-  justify-content: center;
   margin-top: 2px;
-  padding: 0 8px;
-  border: 1px solid rgba(201,244,91,.16);
-  background:
-    radial-gradient(circle at 50% 50%,rgba(201,244,91,.06),transparent 66%),
-    rgba(201,244,91,.015);
 }
 
 .global-start::before {
@@ -865,7 +858,6 @@ body {
   gap: 2px;
   padding-left: 12px;
   border-left: 2px solid rgba(190,91,61,.35);
-  color: #6e402b;
   border-left-color: rgba(184,95,54,.5);
 }
 
@@ -1679,7 +1671,6 @@ body {
   background: transparent !important;
   color: inherit;
   font: inherit;
-  transition: filter 220ms ease, opacity 220ms ease, transform 260ms cubic-bezier(.22,1,.36,1);
   display: grid;
   grid-template-columns: 132px minmax(0,1fr);
   align-items: center;
@@ -2258,7 +2249,6 @@ body {
 
 .intelligence-space .dossier-stat strong {
   font-weight: 650; font-size: 24px;
-  color: #383b34;
 }
 
 .enrichment-head {
