@@ -16,6 +16,8 @@ import {
   Telescope,
 } from 'lucide-react'
 import { askQuestion, type QuestionResult, type TaskKind } from '../lib/api'
+import { AdvancedRange, ModeFact, ModeInstrument } from '../components/start/MissionControls'
+import { compactOutcomeRef, missionTargetDossierPath, missionTargetEvidencePath, modeDescriptionEn, modeTitleEn, originToIntelligence, parseMissionTarget, summarizeDecision } from '../lib/startMissionPresentation'
 import { useI18n } from '../lib/i18n'
 
 const sourceRoles = ['primary', 'authority', 'forensic', 'reference', 'telemetry', 'signal'] as const
@@ -454,60 +456,6 @@ export function StartPage() {
   )
 }
 
-function missionTargetDossierPath(raw: string, requestId: string) {
-  const target = parseMissionTarget(raw)
-  if (!target) return null
-  const params = new URLSearchParams({ from: 'start', request: requestId })
-  params.set(target.kind === 'cve' ? 'cve' : 'object', target.value)
-  return `/intelligence?${params.toString()}`
-}
-
-function missionTargetEvidencePath(raw: string, evidenceRef: string, requestId: string) {
-  const dossier = missionTargetDossierPath(raw, requestId)
-  if (!dossier) return null
-  const [path, query = ''] = dossier.split('?', 2)
-  const params = new URLSearchParams(query)
-  params.set('evidence', evidenceRef)
-  return `${path}?${params.toString()}`
-}
-
-function compactOutcomeRef(value: string) { return value.length > 26 ? `${value.slice(0, 12)}…${value.slice(-7)}` : value }
-
-function ModeInstrument({ mode, active }: { mode: string; active: boolean }) {
-  if (mode === 'DIRECT') {
-    return <span className={'mode-instrument direct ' + (active ? 'active' : '')} aria-hidden="true"><i /><i /><b /></span>
-  }
-  if (mode === 'RETRIEVE') {
-    return <span className={'mode-instrument retrieve ' + (active ? 'active' : '')} aria-hidden="true"><i /><i /><i /><b /></span>
-  }
-  if (mode === 'VERIFY') {
-    return <span className={'mode-instrument verify ' + (active ? 'active' : '')} aria-hidden="true"><i /><i /><b /></span>
-  }
-  if (mode === 'INVESTIGATE') {
-    return <span className={'mode-instrument investigate ' + (active ? 'active' : '')} aria-hidden="true"><i /><i /><i /><i /><b /></span>
-  }
-  return <span className={'mode-instrument watch ' + (active ? 'active' : '')} aria-hidden="true"><i /><i /><b /></span>
-}
-
-function parseMissionTarget(raw: string): { kind: 'cve' | 'object'; value: string } | null {
-  const value = raw.trim()
-  if (!value) return null
-  const canonical = value.toUpperCase()
-  if (/^CVE-\d{4}-\d+$/.test(canonical)) return { kind: 'cve', value: canonical }
-  if (/^object:/i.test(value)) {
-    const objectId = value.replace(/^object:/i, '').trim()
-    if (objectId) return { kind: 'object', value: objectId }
-  }
-  return null
-}
-
-function originToIntelligence(originRef: string) {
-  if (originRef.startsWith('cve:')) return `/intelligence?cve=${encodeURIComponent(originRef.slice(4))}`
-  if (originRef.startsWith('object:')) return `/intelligence?object=${encodeURIComponent(originRef.slice(7))}`
-  if (originRef.startsWith('incident:')) return `/intelligence?incident=${encodeURIComponent(originRef.slice(9))}`
-  return '/intelligence'
-}
-
 function missionChamberSlot(index: number, activeModeId: string) {
   const activeIndex = modes.findIndex((mode) => mode.id === activeModeId)
   const activeSlots: Record<string, { left: number; top: number }> = {
@@ -562,53 +510,10 @@ function missionChamberSlot(index: number, activeModeId: string) {
   return argusRailSlots[Math.max(0, roleIndex)] ?? argusRailSlots[0]
 }
 
-function AdvancedRange({ label, value, min, max, step, onChange, suffix }: { label: string; value: number; min: number; max: number; step: number; onChange: (value: number) => void; suffix: string }) {
-  return (
-    <label className="advanced-range">
-      <span><small>{label}</small><strong>{value}{suffix}</strong></span>
-      <input type="range" min={min} max={max} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))} />
-    </label>
-  )
-}
-
-function modeTitleEn(id: string) {
-  return ({ DIRECT: 'QUICK ANSWER', RETRIEVE: 'EVIDENCE RETRIEVAL', VERIFY: 'TARGETED VERIFICATION', INVESTIGATE: 'DEEP INVESTIGATION', WATCH: 'CONTINUOUS WATCH' } as Record<string, string>)[id] ?? id
-}
-
-function modeDescriptionEn(id: string) {
-  return ({
-    DIRECT: 'Current Evidence World is sufficient. ORACLE closes directly from the bounded context.',
-    RETRIEVE: 'Expand the local retrieval window and bring additional Evidence into the current context.',
-    VERIFY: 'Open a durable Case around version, fix-boundary, applicability, or source conflict; ARGUS advances by EvidenceNeed.',
-    INVESTIGATE: 'Enter multi-step execution where Skill, Capability, and delegated Enrichment follow task state.',
-    WATCH: 'Keep the Case waiting and resume a new episode when the external world or a dependency changes.',
-  } as Record<string, string>)[id] ?? id
-}
-
-function ModeFact({ label, value }: { label: string; value: string }) {
-  return <span><small>{label}</small><strong>{value}</strong></span>
-}
-
 function missionRoute(index: number, role: string, activeModeId: string) {
   const slot = missionChamberSlot(index, activeModeId)
   const routeY = Math.max(12, Math.min(50, slot.top * .58))
   const gateX = role === 'ORACLE' ? 8 : 92
   const bendX = role === 'ORACLE' ? 38 : 62
   return `M ${slot.left} ${routeY} C ${slot.left} ${routeY - 5}, ${bendX} 30, 50 31 C ${50} 36, ${gateX} 37, ${gateX} 45`
-}
-
-function summarizeDecision(result: QuestionResult) {
-  const decision = result.decision
-  if (!decision) return 'Decision returned.'
-  const answerItems = Object.entries(decision.answer ?? {}).slice(0, 4)
-  if (answerItems.length) return answerItems.map(([key, value]) => `${key}: ${formatDecisionAnswerValue(value)}`).join(' · ')
-  const conclusion = decision.conclusions?.[0]?.statement
-  if (conclusion) return conclusion
-  return `Decision ${decision.decision_id ?? ''} completed.`
-}
-
-function formatDecisionAnswerValue(value: unknown) {
-  if (value == null) return '—'
-  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return String(value)
-  return JSON.stringify(value)
 }
