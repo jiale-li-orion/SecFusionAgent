@@ -9,6 +9,34 @@ const cinematicFiles = [
   path.resolve('src/cinematic.css'),
   path.resolve('src/cinematic-seams.css'),
 ]
+const shorthandExpansion = new Map(Object.entries({
+  margin: ['margin-top', 'margin-right', 'margin-bottom', 'margin-left'],
+  padding: ['padding-top', 'padding-right', 'padding-bottom', 'padding-left'],
+  inset: ['top', 'right', 'bottom', 'left'],
+  overflow: ['overflow-x', 'overflow-y'],
+  border: [
+    'border-top', 'border-right', 'border-bottom', 'border-left',
+    'border-top-color', 'border-right-color', 'border-bottom-color', 'border-left-color',
+    'border-top-style', 'border-right-style', 'border-bottom-style', 'border-left-style',
+    'border-top-width', 'border-right-width', 'border-bottom-width', 'border-left-width',
+  ],
+  background: [
+    'background-color', 'background-image', 'background-position', 'background-size',
+    'background-repeat', 'background-origin', 'background-clip', 'background-attachment',
+  ],
+  font: ['font-style', 'font-variant', 'font-weight', 'font-stretch', 'font-size', 'line-height', 'font-family'],
+  flex: ['flex-grow', 'flex-shrink', 'flex-basis'],
+  transition: ['transition-property', 'transition-duration', 'transition-timing-function', 'transition-delay'],
+  animation: [
+    'animation-name', 'animation-duration', 'animation-timing-function', 'animation-delay',
+    'animation-iteration-count', 'animation-direction', 'animation-fill-mode', 'animation-play-state',
+  ],
+}))
+
+function declarationCovers(laterProperty, earlierProperty) {
+  return laterProperty === earlierProperty
+    || shorthandExpansion.get(laterProperty)?.includes(earlierProperty)
+}
 const visualProperties = new Set([
   'accent-color',
   'appearance',
@@ -84,8 +112,12 @@ function findDeadCinematicDeclarations() {
       const selectors = rule.selectors.map((selector) => selector.trim())
       for (const declaration of rule.nodes.filter((node) => node.type === 'decl')) {
         const fullyOverridden = selectors.every((selector) => authorityIndexes.some((index) => {
-          const later = index.get(`${context}\n${selector}`)?.get(declaration.prop)
-          return later && (!declaration.important || later.important)
+          const laterDeclarations = index.get(`${context}\n${selector}`)
+          if (!laterDeclarations) return false
+          return [...laterDeclarations.entries()].some(([laterProperty, later]) => (
+            declarationCovers(laterProperty, declaration.prop)
+            && (!declaration.important || later.important)
+          ))
         }))
         if (!fullyOverridden) continue
         violations.push({
