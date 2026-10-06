@@ -171,8 +171,11 @@ async def test_product_question_session_continues_existing_investigation_case() 
             )
         assert owned_case.status_code == 200, owned_case.text
         assert owned_case.json()["continuation_session_id"] == first["session_id"]
+        assert owned_case.json()["origin_scope"] == "product"
+        assert owned_case.json()["can_cancel"] is True
         assert foreign_case.status_code == 200, foreign_case.text
         assert foreign_case.json()["continuation_session_id"] is None
+        assert foreign_case.json()["can_cancel"] is False
 
         async with factory() as session, session.begin():
             run = await session.scalar(

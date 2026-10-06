@@ -137,13 +137,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
     : location.pathname.split('/').filter(Boolean)[0] ?? 'world'
   const contextTrace = buildContextTrace(location.pathname, location.search, text)
   const storyHotCve = storyHot.data?.items.find((item) => item.cve_id)?.cve_id ?? null
-  const storyCase = storyCases.data?.items.find((item) => storyHotCve && item.goal.toUpperCase().includes(storyHotCve))
-    ?? storyCases.data?.items.find((item) => item.status === 'active' || item.status === 'waiting')
-    ?? storyCases.data?.items[0]
+  const liveCases = storyCases.data?.items.filter((item) => item.origin_scope !== 'benchmark') ?? []
+  const storyCase = liveCases.find((item) => storyHotCve && item.goal.toUpperCase().includes(storyHotCve))
+    ?? liveCases.find((item) => item.status === 'active' || item.status === 'waiting')
+    ?? liveCases[0]
     ?? null
-  const storyTask = storyAgents.data?.recent_tasks.find((item) => storyCase && item.case_id === storyCase.case_id)
-    ?? storyAgents.data?.recent_tasks[0]
-    ?? null
+  const storyTask = storyCase
+    ? storyAgents.data?.recent_tasks.find((item) => item.case_id === storyCase.case_id) ?? null
+    : null
   const storyEvidence = storyCase?.latest_decision?.citations[0]?.evidence_ref
     ?? storyCase?.confirmed_findings.find((item) => item.evidence_refs.length > 0)?.evidence_refs[0]
     ?? storyCase?.conflicts.find((item) => item.evidence_refs.length > 0)?.evidence_refs[0]

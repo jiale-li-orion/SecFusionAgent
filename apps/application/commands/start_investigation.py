@@ -322,7 +322,11 @@ class StartInvestigationUseCase:
         await self._case_service.activate(session, case.case_id)
         await session.commit()
         return StartInvestigationResult(
-            investigation=await self._queries.get(session, case.case_id)
+            investigation=await self._queries.get(
+                session,
+                case.case_id,
+                principal=command.principal,
+            )
         )
 
 
@@ -428,7 +432,11 @@ class ContinueInvestigationUseCase:
         await self._cases.activate(session, command.case_id)
         await session.commit()
         return StartInvestigationResult(
-            investigation=await self._queries.get(session, command.case_id)
+            investigation=await self._queries.get(
+                session,
+                command.case_id,
+                principal=command.principal,
+            )
         )
 
 

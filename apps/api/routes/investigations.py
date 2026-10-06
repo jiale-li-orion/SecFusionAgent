@@ -9,6 +9,10 @@ from pydantic import BaseModel, Field, model_validator
 
 from apps.api.dependencies import RequestContextDep, SessionDep
 from apps.api.errors import ProblemDetail
+from apps.application.commands.investigation_lifecycle import (
+    CancelInvestigationCommand,
+    CancelInvestigationUseCase,
+)
 from apps.application.commands.start_investigation import (
     StartInvestigationCommand,
     StartInvestigationUseCase,
@@ -120,6 +124,33 @@ async def get_investigation(
     context: RequestContextDep,
 ) -> InvestigationView:
     return await InvestigationQueries().get(session, case_id, principal=context.principal)
+
+
+@router.post(
+    "/{case_id}/cancel",
+    response_model=InvestigationView,
+    responses={
+        403: {"model": ProblemDetail},
+        404: {"model": ProblemDetail},
+        409: {"model": ProblemDetail},
+    },
+)
+async def cancel_investigation(
+    case_id: str,
+    session: SessionDep,
+    context: RequestContextDep,
+) -> InvestigationView:
+    settings = get_settings()
+    return await CancelInvestigationUseCase(
+        task_event_stream_name=settings.task_event_stream_name,
+    ).execute(
+        session,
+        CancelInvestigationCommand(
+            principal=context.principal,
+            request_id=context.request_id,
+            case_id=case_id,
+        ),
+    )
 
 
 @router.get(

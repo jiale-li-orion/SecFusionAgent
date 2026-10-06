@@ -152,7 +152,7 @@ export function InvestigationsPage() {
             {cases.map((item) => (
               <button key={item.case_id} className={`case-card ${item.case_id === selectedCase ? 'selected' : ''} case-${item.status}`} onClick={() => selectCase(item.case_id)}>
                 <span className="case-status-dot" />
-                <span className="case-card-copy"><small>{item.execution_profile ?? item.current_activity.task_kind ?? 'INVESTIGATION'}</small><strong>{item.goal}</strong><em>{item.current_activity.actor_role ?? 'runtime'} · {item.current_activity.phase}</em></span>
+                <span className="case-card-copy"><small>{item.execution_profile ?? item.current_activity.task_kind ?? 'INVESTIGATION'} · {item.origin_scope.toUpperCase()}</small><strong>{item.goal}</strong><em>{item.current_activity.actor_role ?? 'runtime'} · {item.current_activity.phase}</em></span>
                 <span className="case-card-tail"><b>{item.status}</b><small>r{item.revision}</small></span>
               </button>
             ))}
@@ -335,9 +335,9 @@ function CaseWorkspace({ investigation, events, eventCue, initialFocus, onEviden
       <article className="case-hero">
         <div className="case-hero-main">
           <span className="case-hero-sigil"><Radar size={25} /></span>
-          <div><small>CASE / {investigation.execution_profile ?? 'RUNTIME'}</small><strong>{investigation.goal}</strong><span className="mono">{investigation.case_id}</span></div>
+          <div><small>CASE / {investigation.execution_profile ?? 'RUNTIME'} / {investigation.origin_scope.toUpperCase()}</small><strong>{investigation.goal}</strong><span className="mono">{investigation.case_id}</span></div>
         </div>
-        <div className="case-hero-state"><span className={`case-state-badge state-${investigation.status}`}>{investigation.status}</span><strong>REV {investigation.revision}</strong><small>{investigation.current_activity.actor_role ?? 'runtime'} · {investigation.current_activity.phase}</small>{liveStatuses.has(investigation.status) && <button className="case-cancel-button" onClick={() => void cancelCase()} disabled={cancelBusy}><OctagonX size={12} /> {cancelBusy ? text('取消中…', 'CANCELLING…') : text('取消 Case', 'CANCEL CASE')}</button>}{cancelError && <em className="case-cancel-error">{cancelError}</em>}</div>
+        <div className="case-hero-state"><span className={`case-state-badge state-${investigation.status}`}>{investigation.status}</span><strong>REV {investigation.revision}</strong><small>{investigation.current_activity.actor_role ?? 'runtime'} · {investigation.current_activity.phase}</small>{investigation.can_cancel && <button className="case-cancel-button" onClick={() => void cancelCase()} disabled={cancelBusy}><OctagonX size={12} /> {cancelBusy ? text('取消中…', 'CANCELLING…') : text('取消 Case', 'CANCEL CASE')}</button>}{cancelError && <em className="case-cancel-error">{cancelError}</em>}</div>
       </article>
       {investigation.target_object_ids.length > 0 && (
         <div className="case-target-strip">

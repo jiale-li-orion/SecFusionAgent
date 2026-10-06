@@ -4,7 +4,11 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apps.application.errors import LifecycleConflictError, ResourceNotFoundError
+from apps.application.errors import (
+    LifecycleConflictError,
+    PermissionDeniedError,
+    ResourceNotFoundError,
+)
 from apps.application.queries.investigations import InvestigationQueries
 from apps.application.views.investigations import InvestigationView
 from packages.investigation.cases.service import CaseService
@@ -56,8 +60,32 @@ class CancelInvestigationUseCase:
                 "investigation not found",
                 context={"case_id": command.case_id},
             )
+        controller = await session.scalar(
+            select(TaskRunModel)
+            .where(
+                TaskRunModel.case_id == command.case_id,
+                TaskRunModel.role_id == "InvestigationRole",
+            )
+            .order_by(TaskRunModel.created_at.desc(), TaskRunModel.run_id.desc())
+            .limit(1)
+        )
+        if controller is None:
+            raise LifecycleConflictError(
+                "investigation has no controller TaskRun",
+                context={"case_id": command.case_id},
+            )
+        controller_contract = await get_task_contract_for_run(session, controller.run_id)
+        if controller_contract.principal != command.principal:
+            raise PermissionDeniedError(
+                "investigation belongs to another principal",
+                context={"case_id": command.case_id},
+            )
         if case.status == CaseLifecycle.CANCELLED.value:
-            return await self._queries.get(session, command.case_id)
+            return await self._queries.get(
+                session,
+                command.case_id,
+                principal=command.principal,
+            )
         if case.status in {CaseLifecycle.RESOLVED.value, CaseLifecycle.CLOSED.value}:
             raise LifecycleConflictError(
                 "terminal investigation cannot be cancelled",
@@ -103,4 +131,8 @@ class CancelInvestigationUseCase:
 
         await self._cases.cancel(session, command.case_id)
         await session.commit()
-        return await self._queries.get(session, command.case_id)
+        return await self._queries.get(
+            session,
+            command.case_id,
+            principal=command.principal,
+        )

@@ -121,8 +121,10 @@ class InvestigationQueries:
             execution_profile = None
             terminal_reason = None
             effective_status = case.status
+            owner_principal = None
         else:
             run, contract, execution = latest
+            owner_principal = contract.principal
             execution_profile = None
             if execution is not None:
                 execution_profile = (
@@ -149,6 +151,12 @@ class InvestigationQueries:
         return InvestigationView(
             case_id=case.case_id,
             continuation_session_id=continuation_session_id,
+            origin_scope=_origin_scope(owner_principal),
+            can_cancel=(
+                principal is not None
+                and owner_principal == principal
+                and effective_status in {"active", "waiting"}
+            ),
             revision=state.case_revision,
             status=effective_status,
             execution_profile=execution_profile,
@@ -176,6 +184,16 @@ class InvestigationQueries:
             updated_at=state.updated_at,
             closed_at=case.closed_at,
         )
+
+
+def _origin_scope(principal: str | None) -> str:
+    if principal is None:
+        return "unknown"
+    if principal.startswith("system:benchmark"):
+        return "benchmark"
+    if principal.startswith("user:"):
+        return "product"
+    return "system"
 
 
 def _finding_view(item: InvestigationStateItem) -> InvestigationFindingView:

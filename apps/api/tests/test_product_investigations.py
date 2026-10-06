@@ -75,6 +75,8 @@ async def test_product_investigation_http_contract() -> None:
             payload = response.json()
             assert payload["status"] == "active"
             assert payload["execution_profile"] == "VERIFY"
+            assert payload["origin_scope"] == "product"
+            assert payload["can_cancel"] is True
             assert response.headers["location"] == (f"/api/v1/investigations/{payload['case_id']}")
             assert response.headers["x-request-id"] == "product-http-1"
 
@@ -87,6 +89,26 @@ async def test_product_investigation_http_contract() -> None:
             page = await client.get("/api/v1/investigations", params={"limit": 1})
             assert page.status_code == 200
             assert page.json()["items"][0]["case_id"] == payload["case_id"]
+
+            foreign_cancel = await client.post(
+                f"/api/v1/investigations/{payload['case_id']}/cancel",
+                headers={
+                    "X-Request-ID": "product-http-foreign-cancel",
+                    "X-Principal": "user:other",
+                },
+            )
+            assert foreign_cancel.status_code == 403, foreign_cancel.text
+
+            cancelled = await client.post(
+                f"/api/v1/investigations/{payload['case_id']}/cancel",
+                headers={
+                    "X-Request-ID": "product-http-cancel",
+                    "X-Principal": "user:test",
+                },
+            )
+            assert cancelled.status_code == 200, cancelled.text
+            assert cancelled.json()["status"] == "cancelled"
+            assert cancelled.json()["can_cancel"] is False
     finally:
         await engine.dispose()
 
