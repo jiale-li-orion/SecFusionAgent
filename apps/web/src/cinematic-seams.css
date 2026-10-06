@@ -3,9 +3,6 @@
 /* START — five instruments, not five cards. */
 .start-space {
   position: relative;
-  min-height: 100vh;
-  overflow: hidden;
-  padding: 0 0 190px;
   background:
     radial-gradient(circle at 55% 44%,rgba(168,139,255,.12),transparent 17%),
     radial-gradient(circle at 31% 48%,rgba(114,215,255,.035),transparent 22%),
@@ -309,7 +306,6 @@
 }
 
 .context-trace-chain {
-  min-width: 0;
   display: flex;
   align-items: center;
   gap: 0;
@@ -317,7 +313,6 @@
 }
 
 .context-trace-node {
-  min-width: 0;
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -332,7 +327,6 @@
 
 .context-trace-node button,
 .context-trace-node > span {
-  min-width: 0;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: baseline;
@@ -357,7 +351,6 @@
 }
 
 .context-trace-node strong {
-  min-width: 0;
   overflow: hidden;
   color: #859298;
   font: 8.5px ui-monospace, monospace;

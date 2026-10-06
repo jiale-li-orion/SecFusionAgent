@@ -5,6 +5,10 @@ import postcss from 'postcss'
 
 const layoutFile = path.resolve('src/layout-authority.css')
 const surfaceFile = path.resolve('src/surface-authority.css')
+const cinematicFiles = [
+  path.resolve('src/cinematic.css'),
+  path.resolve('src/cinematic-seams.css'),
+]
 const visualProperties = new Set([
   'accent-color',
   'appearance',
@@ -39,6 +43,61 @@ const visualProperties = new Set([
 
 function canonicalProperty(property) {
   return property.replace(/^-(?:webkit|moz|ms|o)-/, '')
+}
+
+function atRuleContext(node) {
+  const context = []
+  for (let parent = node.parent; parent && parent.type !== 'root'; parent = parent.parent) {
+    if (parent.type === 'atrule') context.push(`@${parent.name} ${parent.params}`)
+  }
+  return context.reverse().join(' > ')
+}
+
+function declarationIndex(file) {
+  const root = postcss.parse(fs.readFileSync(file, 'utf8'), { from: file })
+  const index = new Map()
+  root.walkRules((rule) => {
+    const context = atRuleContext(rule)
+    for (const selector of rule.selectors) {
+      const key = `${context}\n${selector.trim()}`
+      let properties = index.get(key)
+      if (!properties) {
+        properties = new Map()
+        index.set(key, properties)
+      }
+      for (const declaration of rule.nodes.filter((node) => node.type === 'decl')) {
+        properties.set(declaration.prop, { important: declaration.important })
+      }
+    }
+  })
+  return index
+}
+
+function findDeadCinematicDeclarations() {
+  const authorityIndexes = [declarationIndex(surfaceFile), declarationIndex(layoutFile)]
+  const violations = []
+
+  for (const file of cinematicFiles) {
+    const root = postcss.parse(fs.readFileSync(file, 'utf8'), { from: file })
+    root.walkRules((rule) => {
+      const context = atRuleContext(rule)
+      const selectors = rule.selectors.map((selector) => selector.trim())
+      for (const declaration of rule.nodes.filter((node) => node.type === 'decl')) {
+        const fullyOverridden = selectors.every((selector) => authorityIndexes.some((index) => {
+          const later = index.get(`${context}\n${selector}`)?.get(declaration.prop)
+          return later && (!declaration.important || later.important)
+        }))
+        if (!fullyOverridden) continue
+        violations.push({
+          file,
+          line: declaration.source?.start?.line ?? 0,
+          property: declaration.prop,
+          selector: rule.selector,
+        })
+      }
+    })
+  }
+  return violations
 }
 
 function ownsVisualSemantics(property) {
@@ -112,9 +171,10 @@ function findViolations(file, predicate) {
 
 const layoutViolations = findViolations(layoutFile, ownsVisualSemantics)
 const surfaceViolations = findViolations(surfaceFile, ownsGeometry)
+const deadCinematicDeclarations = findDeadCinematicDeclarations()
 
-if (layoutViolations.length === 0 && surfaceViolations.length === 0) {
-  console.log('CSS authority: layout owns geometry; surface owns visual semantics.')
+if (layoutViolations.length === 0 && surfaceViolations.length === 0 && deadCinematicDeclarations.length === 0) {
+  console.log('CSS authority: layout owns geometry; surface owns visual semantics; cinematic carries no exact dead authority overrides.')
   process.exit(0)
 }
 
@@ -129,6 +189,13 @@ if (surfaceViolations.length > 0) {
   console.error('CSS authority violation: move geometry out of surface-authority.css.')
   for (const violation of surfaceViolations) {
     console.error(`  src/surface-authority.css:${violation.line} ${violation.selector} -> ${violation.property}`)
+  }
+}
+
+if (deadCinematicDeclarations.length > 0) {
+  console.error('CSS authority violation: cinematic contains declarations fully shadowed by final authority layers.')
+  for (const violation of deadCinematicDeclarations) {
+    console.error(`  ${path.relative(process.cwd(), violation.file)}:${violation.line} ${violation.selector} -> ${violation.property}`)
   }
 }
 process.exit(1)

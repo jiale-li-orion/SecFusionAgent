@@ -145,7 +145,7 @@ def _static_product_gate(results: list[GateResult]) -> None:
     _require_source(
         results,
         name="world-fallback",
-        relative_path="apps/web/src/pages/WorldPage.tsx",
+        relative_path="apps/web/src/components/world/WorldSurfaces.tsx",
         needles=("WorldField2D", "world-2d-fallback"),
         detail="2D evidence-world fallback present",
     )
@@ -156,11 +156,20 @@ def _static_product_gate(results: list[GateResult]) -> None:
         needles=(
             "provider_boundary_failure_rate",
             "runtime_owned_failure_rate",
-            "taxonomy-map + runtime-overlay",
             "provider-boundary failure rate",
             "runtime-owned failure rate",
         ),
-        detail="WORLD motion distinguishes measured runtime failure from taxonomy route mapping",
+        detail="WORLD motion distinguishes measured provider/runtime failure channels",
+    )
+    _require_source(
+        results,
+        name="world-route-semantics",
+        relative_path="apps/web/src/components/world/WorldSurfaces.tsx",
+        needles=("taxonomy-map + runtime-overlay", "CATEGORY ROUTE / RUNTIME OVERLAY"),
+        detail=(
+            "WORLD path lens remains an explicit taxonomy projection, "
+            "not fabricated execution telemetry"
+        ),
     )
     _require_source(
         results,
@@ -172,7 +181,7 @@ def _static_product_gate(results: list[GateResult]) -> None:
     _require_source(
         results,
         name="evidence-drilldown",
-        relative_path="apps/web/src/pages/InvestigationsPage.tsx",
+        relative_path="apps/web/src/components/investigations/CaseSurfaces.tsx",
         needles=("EvidenceOverlay", "getEvidence(", "EvidenceButtons"),
         detail="Case findings drill into Evidence",
     )
@@ -205,7 +214,7 @@ def _static_product_gate(results: list[GateResult]) -> None:
             "params.get('evidence')",
             "continuation_session_id",
             "normalizeCaseFocus",
-            "useState<CaseStateFocus | null>(initialFocus)",
+            "<CaseWorkspace",
         ),
         detail=(
             "Case focus/evidence survive direct URL entry and owned sessions "
