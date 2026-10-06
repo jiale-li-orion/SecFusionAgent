@@ -14,6 +14,17 @@ The Product App is independent from:
 
 The Product browser must use stable Product/Application routes and Product-safe read models. It must not query internal persistence models or depend on Workbench responses.
 
+## Styling ownership
+
+The stylesheet order is intentional and forms a small authority stack:
+
+- `styles.css` owns shared product primitives and low-level defaults.
+- `cinematic.css` owns the default visual language of the six product spaces.
+- `surface-authority.css` owns the small set of intentional late visual overrides: palette, borders, shadows, typography emphasis, and motion styling.
+- `layout-authority.css` owns geometry, responsive composition, overflow, safe areas, readable type floors, and z-index.
+
+Do not fix layout by appending visual overrides to `layout-authority.css`, or fix visual semantics by moving geometry into `surface-authority.css`. `npm run lint:css-authority` enforces this boundary. Page-specific composition should stay page-specific; avoid introducing a generic page shell that collapses WORLD, INTELLIGENCE, INVESTIGATIONS, AGENTS, OBSERVATORY, and START into the same layout.
+
 ## Product spaces
 
 ```text

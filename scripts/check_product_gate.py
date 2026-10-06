@@ -90,13 +90,19 @@ def _static_product_gate(results: list[GateResult]) -> None:
         relative_path="apps/web/src/main.tsx",
         needles=(
             "import './cinematic.css'",
+            "import './surface-authority.css'",
             "import './layout-authority.css'",
         ),
-        detail="cinematic semantics + final geometry authority",
+        detail="cinematic semantics + visual authority + final geometry authority",
     )
     main = _read_source("apps/web/src/main.tsx")
-    if main.index("import './layout-authority.css'") < main.index("import './cinematic.css'"):
-        raise RuntimeError("layout-authority.css must load after cinematic.css")
+    cinematic_index = main.index("import './cinematic.css'")
+    surface_index = main.index("import './surface-authority.css'")
+    layout_index = main.index("import './layout-authority.css'")
+    if not cinematic_index < surface_index < layout_index:
+        raise RuntimeError(
+            "stylesheet authority order must be cinematic -> surface -> layout"
+        )
 
     _require_source(
         results,
