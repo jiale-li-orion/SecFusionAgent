@@ -4,9 +4,9 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
-from fastapi.staticfiles import StaticFiles
 
 from apps.api.errors import install_error_handlers
+from apps.api.product_web import ProductStaticFiles
 from apps.api.routes.a2a import router as a2a_router
 from apps.api.routes.agents import router as agents_router
 from apps.api.routes.decisions import router as decisions_router
@@ -85,7 +85,7 @@ def create_app() -> FastAPI:
     if product_web_root.is_dir():
         app.mount(
             "/product",
-            StaticFiles(directory=product_web_root, html=True),
+            ProductStaticFiles(directory=product_web_root, html=True),
             name="product-web",
         )
 
