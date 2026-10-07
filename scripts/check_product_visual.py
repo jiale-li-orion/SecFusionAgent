@@ -226,6 +226,15 @@ def _check_page(
     if main_width < max(280, inner_width * .68):
         errors.append(f"product main collapsed to {main_width:.0f}px")
 
+    if space.name == "world" and "hot=" in space.path:
+        boundary_count = page.locator(".world-enrichment-boundary").count()
+        preview_count = page.locator(".world-enrichment-preview").count()
+        if boundary_count + preview_count != 1:
+            errors.append(
+                "focused Hot object must expose exactly one canonical enrichment "
+                "preview or explicit read boundary"
+            )
+
     compact = viewport.width <= 1100
     for landmark in space.landmarks:
         width = _box_width(page, landmark.selector)

@@ -910,6 +910,83 @@
   opacity: .72;
 }
 
+.world-space .world-enrichment-preview {
+  border-top: 1px solid rgba(71, 104, 126, .13);
+  border-bottom: 1px solid rgba(71, 104, 126, .10);
+}
+
+.world-space .world-enrichment-head small,
+.world-space .world-enrichment-head > span,
+.world-space .world-enrichment-core small,
+.world-space .world-enrichment-ledger span,
+.world-space .world-enrichment-boundary small {
+  color: #667b89;
+  font-size: 7px;
+  letter-spacing: .08em;
+}
+
+.world-space .world-enrichment-head strong {
+  color: #415d70;
+  font-size: 10px;
+  font-weight: 620;
+}
+
+.world-space .world-enrichment-radial > svg circle {
+  fill: none;
+  stroke: rgba(62, 91, 111, .13);
+  stroke-width: .45;
+}
+
+.world-space .world-enrichment-radial > svg circle.inner {
+  stroke-dasharray: 1.2 2.2;
+  opacity: .65;
+}
+
+.world-space .world-enrichment-radial > svg line {
+  stroke-width: .48;
+  opacity: .38;
+}
+
+.world-space .world-enrichment-radial .status-resolved,
+.world-space .world-enrichment-ledger .status-resolved { color: #557f70; stroke: #557f70; }
+.world-space .world-enrichment-radial .status-conflict,
+.world-space .world-enrichment-ledger .status-conflict { color: #9b6e3f; stroke: #9b6e3f; }
+.world-space .world-enrichment-radial .status-unknown,
+.world-space .world-enrichment-ledger .status-unknown { color: #75668d; stroke: #75668d; }
+.world-space .world-enrichment-radial .status-missing,
+.world-space .world-enrichment-ledger .status-missing { color: #89949a; stroke: #89949a; }
+
+.world-space .world-enrichment-node > i {
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 9%, transparent);
+}
+
+.world-space .world-enrichment-core small { color: #7e8d94; }
+.world-space .world-enrichment-core strong {
+  color: #3d596b;
+  font-size: 8px;
+  font-weight: 620;
+}
+
+.world-space .world-enrichment-ledger span {
+  text-align: center;
+}
+
+.world-space .world-enrichment-boundary {
+  border-top: 1px solid rgba(71, 104, 126, .11);
+  border-bottom: 1px solid rgba(71, 104, 126, .08);
+}
+
+.world-space .world-enrichment-boundary span {
+  color: #6e7a80;
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.world-space .world-enrichment-boundary.hot-only small { color: #987147; }
+.world-space .world-enrichment-boundary.unavailable small { color: #876b72; }
+
 .intelligence-space .claim-row small,
 .intelligence-space .graph-toolbar,
 .intelligence-space .graph-relation-node small,

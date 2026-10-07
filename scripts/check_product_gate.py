@@ -212,6 +212,29 @@ def _static_product_gate(results: list[GateResult]) -> None:
     )
     _require_source(
         results,
+        name="world-hot-enrichment-boundary",
+        relative_path="apps/web/src/components/world/HotEnrichmentPreview.tsx",
+        needles=(
+            "getVulnerability(cveId!)",
+            "getIntelligenceEnrichment(object!.object_id)",
+            "HOT ONLY / KNOWLEDGE UNAVAILABLE",
+            "status-${dimension.status}",
+            "WORLD REV {state.world_revision}",
+        ),
+        detail=(
+            "WORLD resolves 12D enrichment only through canonical Knowledge and "
+            "keeps Hot-only objects explicitly outside that boundary"
+        ),
+    )
+    _require_source(
+        results,
+        name="world-hot-enrichment-wiring",
+        relative_path="apps/web/src/components/world/WorldSurfaces.tsx",
+        needles=("<HotEnrichmentPreview cveId={item.cve_id} />",),
+        detail="Hot focus lens mounts the canonical enrichment boundary without fabricating state",
+    )
+    _require_source(
+        results,
         name="reduced-motion",
         relative_path="apps/web/src/cinematic.css",
         needles=("@media (prefers-reduced-motion: reduce)",),

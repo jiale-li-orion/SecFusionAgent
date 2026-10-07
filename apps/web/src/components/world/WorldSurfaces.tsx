@@ -3,8 +3,9 @@ import { AnimatePresence, motion } from 'motion/react'
 import { ArrowUpRight, Flame, ShieldAlert } from 'lucide-react'
 
 import type { HotBug, IncidentSummary, WorldOverview } from '../../lib/api'
-import { sourceNarrative, sourceState, sources, worldLanePoints } from './worldModel'
 import { useI18n } from '../../lib/i18n'
+import { HotEnrichmentPreview } from './HotEnrichmentPreview'
+import { sourceNarrative, sourceState, sources, worldLanePoints } from './worldModel'
 
 function shortDateTime(value: string) {
   const date = new Date(value)
@@ -406,6 +407,7 @@ export function HotLens({ item, onInspect }: { item: HotBug; onInspect: () => vo
       </div>
       <div className="lens-signal"><small>{text('变化字段', 'CHANGED FIELDS')}</small><span>{item.changed_fields.length ? item.changed_fields.join(' · ') : text('无已报告字段', 'none reported')}</span></div>
       <div className="lens-signal"><small>{text('优先级信号', 'PRIORITY SIGNALS')}</small><span>{item.priority_signals.length ? item.priority_signals.join(' · ') : text('无已报告信号', 'none reported')}</span></div>
+      <HotEnrichmentPreview cveId={item.cve_id} />
       <button className="lens-primary" onClick={onInspect}>{text('打开情报档案', 'OPEN INTELLIGENCE DOSSIER')} <ArrowUpRight size={13} /></button>
       <div className="lens-coordinate mono">{item.source_id}:{item.external_object_id}</div>
     </div>
