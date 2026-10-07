@@ -350,15 +350,6 @@
   opacity: 1;
 }
 
-.start-space > .mission-briefing {
-
-
-
-
-
-  border-right: 0 !important;
-}
-
 .intelligence-space.has-dossier .dossier-masthead {
   border-top: 0 !important;
   border-left-width: 1px !important;
@@ -527,12 +518,6 @@
   to { background-position: -100% 0; }
 }
 
-.start-space .payload-deck-head {
-
-
-  border-right: 1px solid rgba(255, 255, 255, .045);
-}
-
 .start-space .payload-deck-head > div > small {
   color: #686a78 !important;
   letter-spacing: .09em;
@@ -550,40 +535,14 @@
   color: #797989 !important;
 }
 
-.start-space .payload-field {
-
-
-
-  border-right: 1px solid rgba(255, 255, 255, .045) !important;
-  border-left: 0 !important;
-
-}
-
 .start-space .payload-field > span {
   color: #666875 !important;
 
   letter-spacing: .07em;
 }
 
-.start-space .payload-field input,
-.start-space .payload-field textarea {
-
-
-
-  color: #dddde4 !important;
-
-}
-
 .start-space .payload-field:focus-within {
   background: linear-gradient(180deg, rgba(168, 139, 255, .035), transparent) !important;
-}
-
-.start-space .payload-launch {
-
-
-  background:
-    radial-gradient(circle at 48% 48%, rgba(168, 139, 255, .07), transparent 62%) !important;
-  box-shadow: none !important;
 }
 
 .start-space .payload-launch.role-oracle {
@@ -607,16 +566,6 @@
 }
 
 @media (max-width: 900px) {
-
-  .start-space .payload-deck-head {
-    border-right: 0;
-    border-bottom: 1px solid rgba(255, 255, 255, .045);
-  }
-
-  .start-space .payload-field {
-    border-right: 0 !important;
-    border-bottom: 1px solid rgba(255, 255, 255, .045) !important;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1168,12 +1117,21 @@
 
 .start-space .payload-field input,
 .start-space .payload-field textarea {
+
+
+
+  color: #dddde4 !important;
   border: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
 }
 
 .start-space .payload-launch {
+  box-shadow: none !important;
+
+
+  background:
+    radial-gradient(circle at 48% 48%, rgba(168, 139, 255, .07), transparent 62%) !important;
   border: 1px solid rgba(168,139,255,.12) !important;
 }
 
