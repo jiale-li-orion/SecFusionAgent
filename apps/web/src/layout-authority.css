@@ -48,6 +48,73 @@ body,
   white-space: nowrap;
 }
 
+.investigations-space .case-injection-coordinate {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  padding: 0 12px 9px;
+}
+
+.investigations-space .case-injection-glyph {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+}
+
+.investigations-space .case-injection-coordinate > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.investigations-space .case-injection-coordinate > em {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.investigations-space .case-injection-channel {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px 7px;
+}
+
+.investigations-space .case-injection-channel i {
+  display: block;
+  height: 1px;
+}
+
+.investigations-space .case-injection-input {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(132px, 180px);
+  align-items: stretch;
+}
+
+.investigations-space .case-injection-contract {
+  display: block;
+  padding: 8px 12px 2px;
+}
+
+@media (max-width: 760px) {
+  .investigations-space .case-injection-coordinate {
+    grid-template-columns: 26px minmax(0, 1fr);
+  }
+
+  .investigations-space .case-injection-coordinate > em {
+    grid-column: 2;
+    max-width: 100%;
+  }
+
+  .investigations-space .case-injection-input {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 1100px) {
   .agents-space .runtime-activity-spine {
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));

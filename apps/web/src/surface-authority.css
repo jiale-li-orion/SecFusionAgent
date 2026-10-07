@@ -54,6 +54,45 @@
   font-weight: 500;
 }
 
+.investigations-space .case-injection-coordinate {
+  border-bottom: 1px solid rgba(168, 139, 255, .10);
+}
+
+.investigations-space .case-injection-glyph {
+  color: var(--violet);
+  border: 1px solid rgba(168, 139, 255, .18);
+  background: rgba(168, 139, 255, .035);
+}
+
+.investigations-space .case-injection-coordinate small,
+.investigations-space .case-injection-coordinate em,
+.investigations-space .case-injection-contract,
+.investigations-space .case-injection-channel span {
+  color: #6f7480;
+  font-size: 7px;
+  letter-spacing: .08em;
+  font-style: normal;
+}
+
+.investigations-space .case-injection-coordinate strong {
+  color: #c6c0cf;
+  font-size: 9px;
+  font-weight: 560;
+}
+
+.investigations-space .case-injection-channel i {
+  background: linear-gradient(90deg, transparent, rgba(168, 139, 255, .20));
+}
+
+.investigations-space .case-injection-channel i:last-child {
+  background: linear-gradient(90deg, rgba(168, 139, 255, .20), transparent);
+}
+
+.investigations-space .case-injection-input button {
+  color: #cbe89a;
+  letter-spacing: .07em;
+}
+
 /* Product read additions introduced by the current data seams. */
 
 .intelligence-space .enrichment-orbit > svg line.status-resolved {

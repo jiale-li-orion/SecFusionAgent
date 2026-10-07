@@ -25,6 +25,7 @@ export function CaseWorkspace({ investigation, events, eventCue, initialFocus, o
   }, [eventCue])
 
   const latestTaskRunId = [...events].reverse().find((event) => event.task_run_id)?.task_run_id ?? null
+  const continuationKind = continuationTaskKind(investigation.current_activity.task_kind)
 
   async function sendFollowUp() {
     const question = followUp.trim()
@@ -33,7 +34,7 @@ export function CaseWorkspace({ investigation, events, eventCue, initialFocus, o
     setSessionTurns((current) => [...current, { kind: 'user', text: question }])
     setFollowUp('')
     try {
-      const result = await askQuestion({ question, sessionId, taskKind: continuationTaskKind(investigation.current_activity.task_kind) })
+      const result = await askQuestion({ question, sessionId, taskKind: continuationKind })
       setSessionTurns((current) => [...current, { kind: 'system', text: followUpNarrative(result, text) }])
       onFollowUpComplete()
     } catch (error) {
@@ -159,8 +160,20 @@ export function CaseWorkspace({ investigation, events, eventCue, initialFocus, o
           <div className="system-message"><Sparkles size={14} /><ProgressiveReveal text={latestNarrative(events, investigation)} /></div>
           {sessionTurns.map((turn, index) => <motion.div key={`${turn.kind}:${index}`} className={`session-turn turn-${turn.kind}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}><small>{turn.kind === 'user' ? 'YOU' : 'SECFUSION'}</small><p>{turn.text}</p></motion.div>)}
           <div id="case-session-composer" className={`case-session-composer ${sessionId ? 'enabled' : 'disabled'}`}>
-            <input id="case-followup-input" value={followUp} onChange={(event) => setFollowUp(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void sendFollowUp() } }} disabled={!sessionId || followUpBusy} placeholder={sessionId ? text('继续当前调查…', 'Continue this investigation…') : text('从 START 进入调查后即可持续追问', 'Launch from START to bind a continuous session')} />
-            <button onClick={() => void sendFollowUp()} disabled={!sessionId || !followUp.trim() || followUpBusy}>{followUpBusy ? text('发送中…', 'SENDING…') : text('发送', 'SEND')}</button>
+            <div className="case-injection-coordinate">
+              <span className="case-injection-glyph"><TerminalSquare size={13} /></span>
+              <div>
+                <small>{text('下一次 CASE EPISODE / 任务注入', 'NEXT CASE EPISODE / TASK INJECTION')}</small>
+                <strong>{investigation.current_activity.actor_role ?? 'InvestigationRole'} · {continuationKind}</strong>
+              </div>
+              <em className="mono">REV {investigation.revision} · {sessionId ? `SESSION ${sessionId.slice(0, 8)}` : 'SESSION UNBOUND'}</em>
+            </div>
+            <div className="case-injection-channel" aria-hidden="true"><i /><span>{text('同一 durable Case', 'SAME DURABLE CASE')}</span><i /></div>
+            <div className="case-injection-input">
+              <input id="case-followup-input" aria-describedby="case-injection-contract" value={followUp} onChange={(event) => setFollowUp(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void sendFollowUp() } }} disabled={!sessionId || followUpBusy} placeholder={sessionId ? text('写入下一步调查意图…', 'Inject the next investigation intent…') : text('从 START 进入调查后绑定 durable session', 'Launch from START to bind a durable session')} />
+              <button onClick={() => void sendFollowUp()} disabled={!sessionId || !followUp.trim() || followUpBusy}>{followUpBusy ? text('准入中…', 'ADMITTING…') : text('注入下一轮', 'INJECT NEXT EPISODE')}</button>
+            </div>
+            <small id="case-injection-contract" className="case-injection-contract">{text('提交沿用当前 session 与任务类型；后续状态仍由真实 ProductEvent / SSE 驱动。', 'Submission reuses the current session and task kind; subsequent state remains driven by real ProductEvent / SSE.')}</small>
           </div>
         </div>
       </section>

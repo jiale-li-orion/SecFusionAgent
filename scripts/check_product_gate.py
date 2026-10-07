@@ -253,6 +253,22 @@ def _static_product_gate(results: list[GateResult]) -> None:
     )
     _require_source(
         results,
+        name="case-task-injection",
+        relative_path="apps/web/src/components/investigations/CaseSurfaces.tsx",
+        needles=(
+            "const continuationKind = continuationTaskKind",
+            "askQuestion({ question, sessionId, taskKind: continuationKind })",
+            "NEXT CASE EPISODE / TASK INJECTION",
+            "SAME DURABLE CASE",
+            "subsequent state remains driven by real ProductEvent / SSE",
+        ),
+        detail=(
+            "Case follow-up is presented as a same-session next episode injection, "
+            "while persisted ProductEvent/SSE remains the state authority"
+        ),
+    )
+    _require_source(
+        results,
         name="proof-evidence-drilldown",
         relative_path="apps/web/src/components/observatory/ObservatoryProof.tsx",
         needles=("getEvidence(", "METRIC → EVIDENCE", "getCompetitionProofRun"),
