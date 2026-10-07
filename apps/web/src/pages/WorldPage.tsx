@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import {
@@ -12,12 +12,10 @@ import {
 } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { getHotWorld, getHotWorldItem, getWorldIncidentCandidates, getWorldKnowledgeChanges, getWorldOverview, listIncidents, type HotBug } from '../lib/api'
-import { HotCrystal, HotLens, PathLens, SourceLens, Telemetry, WorldField2D, WorldIncidentCluster, WorldIngressFlow, WorldLiveFlow } from '../components/world/WorldSurfaces'
+import { HotLens, PathLens, SourceLens, Telemetry, WorldField2D, WorldIncidentCluster, WorldLiveFlow } from '../components/world/WorldSurfaces'
 import { KnowledgeChangeRail } from '../components/world/KnowledgeChangeRail'
-import { hotIdentity, laneClass, laneSlug, parseHotIdentity, snapshotAge, sourceNarrative, sourceState, sources, supportsWebGL, worldLanePoints, worldWindows, type WorldWindow } from '../components/world/worldModel'
+import { hotIdentity, laneClass, laneSlug, parseHotIdentity, snapshotAge, sourceNarrative, sourceState, sources, worldLanePoints, worldWindows, type WorldWindow } from '../components/world/worldModel'
 import { useI18n } from '../lib/i18n'
-
-const WorldField3D = lazy(() => import('../components/world/WorldField3D').then((module) => ({ default: module.WorldField3D })))
 
 export function WorldPage() {
   const { text } = useI18n()
@@ -27,7 +25,6 @@ export function WorldPage() {
   const laneParam = params.get('lane')
   const hotParam = params.get('hot')
   const reduceMotion = Boolean(useReducedMotion())
-  const webglAvailable = useMemo(() => supportsWebGL(), [])
   const focusedSource = sourceParam && sources.some((source) => source.key === sourceParam) ? sourceParam : null
   const focusedLane = laneParam && Object.hasOwn(worldLanePoints, laneParam) ? laneParam : null
   const focusedHotKey = hotParam
@@ -38,8 +35,6 @@ export function WorldPage() {
   const [clockNow, setClockNow] = useState(() => Date.now())
   const [knowledgePulseRevision, setKnowledgePulseRevision] = useState<number | null>(null)
   const lastKnowledgeRevision = useRef<number | null>(null)
-  const [compactViewport, setCompactViewport] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 860px), (max-height: 680px)').matches)
-  const [world3DReady, setWorld3DReady] = useState(false)
   const worldQuery = useQuery({ queryKey: ['world-overview'], queryFn: getWorldOverview, refetchInterval: 30_000 })
   const hotQuery = useQuery({ queryKey: ['world-hot'], queryFn: () => getHotWorld(6), refetchInterval: 20_000 })
   const incidentQuery = useQuery({ queryKey: ['world-incidents'], queryFn: () => listIncidents(6), refetchInterval: 30_000 })
@@ -61,18 +56,6 @@ export function WorldPage() {
     return series.slice(-Math.min(requestedHours, series.length))
   }, [requestedHours, snapshot?.hourly_series])
   const categoryHealth = useMemo(() => new Map(snapshot?.categories.map((item) => [item.category, item]) ?? []), [snapshot?.categories])
-  const categoryActivityMap = useMemo(() => Object.fromEntries(sources.map((source) => {
-    const latest = snapshot?.category_hourly_series?.[source.key]?.at(-1)
-    return [source.key, {
-      fresh: Number(latest?.fresh_external_changes ?? 0),
-      backfill: Number(latest?.backfill_observations ?? 0),
-      runs: Number(latest?.scheduled_runs ?? 0),
-      observations: Number(latest?.observations ?? 0),
-      successRate: typeof latest?.scheduled_run_success_rate === 'number' ? latest.scheduled_run_success_rate : null,
-      providerFailure: typeof latest?.provider_boundary_failure_rate === 'number' ? latest.provider_boundary_failure_rate : null,
-      runtimeFailure: typeof latest?.runtime_owned_failure_rate === 'number' ? latest.runtime_owned_failure_rate : null,
-    }]
-  })), [snapshot?.category_hourly_series])
   const hotItems = useMemo(() => hotQuery.data?.items ?? [], [hotQuery.data?.items])
   const focusedHot = hotDetailQuery.data
     ?? hotItems.find((item) => hotIdentity(item) === focusedHotKey)
@@ -102,20 +85,6 @@ export function WorldPage() {
     }, 6_500)
     return () => window.clearTimeout(timer)
   }, [latestKnowledgeChange])
-
-  useEffect(() => {
-    if (reduceMotion || !webglAvailable || compactViewport) return
-    const timer = window.setTimeout(() => setWorld3DReady(true), 650)
-    return () => window.clearTimeout(timer)
-  }, [compactViewport, reduceMotion, webglAvailable])
-
-  useEffect(() => {
-    const query = window.matchMedia('(max-width: 860px), (max-height: 680px)')
-    const onChange = () => setCompactViewport(query.matches)
-    onChange()
-    query.addEventListener('change', onChange)
-    return () => query.removeEventListener('change', onChange)
-  }, [])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -260,162 +229,91 @@ export function WorldPage() {
             <em>{snapshotAge(snapshot.generated_at)} · {new Date(snapshot.generated_at).toLocaleString()}</em>
           </div>
         )}
-        {!reduceMotion && webglAvailable && !compactViewport && world3DReady ? (
-          <Suspense fallback={<WorldField2D freshChanges={oneHour?.fresh_external_changes ?? 0} backfillObservations={oneHour?.backfill_observations ?? 0} canonicalWrites={oneHour?.canonical_writes ?? 0} knowledgeChangeActive={knowledgeChangeActive} />}>
-            <WorldField3D
-              categories={snapshot?.categories ?? []}
-              categoryActivity={categoryActivityMap}
-              freshChanges={oneHour?.fresh_external_changes ?? 0}
-              backfillObservations={oneHour?.backfill_observations ?? 0}
-              canonicalWrites={oneHour?.canonical_writes ?? 0}
-              knowledgeChangeActive={knowledgeChangeActive}
-              incidents={incidentQuery.data?.items ?? []}
-              incidentCandidates={incidentCandidateQuery.data?.items ?? []}
-              focusedSource={focusedSource}
-              focusedLane={focusedLane}
-              focusedHot={Boolean(focusedHot)}
-              reduceMotion={!snapshotFresh}
-              onSourceFocus={focusSource}
-              onIncidentOpen={openIncident}
-            />
-          </Suspense>
-        ) : (
-          <WorldField2D
-            freshChanges={oneHour?.fresh_external_changes ?? 0}
-            backfillObservations={oneHour?.backfill_observations ?? 0}
-            canonicalWrites={oneHour?.canonical_writes ?? 0}
-            knowledgeChangeActive={knowledgeChangeActive}
-          />
-        )}
-
-        <div className="world-depth-mask" />
-        <div className="world-coordinate north">N / SOURCE TAXONOMY</div>
-        <div className="world-coordinate west">M1 · MONITORING</div>
-        <div className="world-coordinate east">M2 · EVIDENCE</div>
-
-        <div className="durable-core-label">
-          <small>DURABLE INNER WORLD</small>
-          <strong>EVIDENCE CORE</strong>
-          <span>Evidence · Knowledge · Incident · Insight · Experience</span>
-          {latestKnowledgeChange ? (
-            <>
-              <b className="world-change-coordinate mono">
-                REV {latestKnowledgeChange.revision} · O{latestKnowledgeChange.object_ids.length} / C{latestKnowledgeChange.claim_ids.length} / R{latestKnowledgeChange.relation_ids.length}
-              </b>
-              <em className="world-change-cause mono">
-                {latestKnowledgeChange.cause_processing_run_id ? `PROC ${latestKnowledgeChange.cause_processing_run_id.slice(0, 12)}` : 'PROC —'}
-                {' · '}
-                {latestKnowledgeChange.cause_observation_id ? `OBS ${latestKnowledgeChange.cause_observation_id.slice(0, 12)}` : 'OBS —'}
-              </em>
-            </>
-          ) : (
-            <b className="world-change-coordinate unavailable">{knowledgeChangeQuery.isError ? 'KNOWLEDGE CHANGE UNAVAILABLE' : 'NO DURABLE KNOWLEDGE CHANGE'}</b>
-          )}
-          <i className={knowledgeChangeActive ? 'active' : ''} />
-        </div>
-
-        <KnowledgeChangeRail
-          changes={knowledgeChangeQuery.data?.items ?? []}
-          loading={knowledgeChangeQuery.isLoading}
-          unavailable={knowledgeChangeQuery.isError}
-          onOpenObject={openKnowledgeObject}
-        />
-
-        <div className="processing-lanes" aria-label="Category route projections">
-          {Object.keys(worldLanePoints).map((lane) => (
-            <button
-              type="button"
-              key={lane}
-              className={`${laneSlug(lane)} ${laneClass(focusedSourceMeta, focusedLane, lane)}`}
-              onClick={() => focusLane(lane)}
-            >
-              {lane === 'ASSET OBSERVATION' ? 'ASSET OBSERVATION / ON-DEMAND' : lane}
-            </button>
-          ))}
-        </div>
-
-        <WorldIngressFlow snapshot={snapshot} focusedSource={focusedSource} focusedLane={focusedLane} focusedHot={Boolean(focusedHot)} reduceMotion={reduceMotion} />
-
-        {sources.map(({ key, label, labelZh, sub, icon: Icon, x, y }, index) => {
-          const health = categoryHealth.get(key)
-          const selected = focusedSource === key
-          const belongsToLane = !focusedLane || sourceNarrative[key].lane === focusedLane
-          const dimmed = Boolean((focusedSource && !selected) || focusedHot || !belongsToLane)
-          const state = sourceState(health)
-          return (
-            <motion.button
-              key={key}
-              className={`source-beacon state-${state} ${selected ? 'selected' : ''} ${dimmed ? 'dimmed' : ''}`}
-              style={{ left: `${x}%`, top: `${y}%` }}
-              onClick={() => focusSource(key)}
-              initial={{ opacity: 0, scale: .88 }}
-              animate={{ opacity: dimmed ? .22 : 1, scale: selected ? 1.08 : 1 }}
-              transition={{ delay: reduceMotion ? 0 : index * .035, duration: .2 }}
-            >
-              <span className="source-beacon-glyph"><Icon size={15} /></span>
-              <span className="source-beacon-copy">
-                <small>{String(index + 1).padStart(2, '0')} / {state.toUpperCase()}</small>
-                <strong>{text(labelZh, label)}</strong>
-                <em>{health ? `${health.healthy}H · ${health.degraded}D · ${health.blocked}B` : sub}</em>
-              </span>
-              <i />
-            </motion.button>
-          )
-        })}
-
-        <div className="hot-field" aria-label="Hot Bug working set">
-          <div className="hot-field-label">
-            <Flame size={12} />
-            <span>{text('热点工作集', 'HOT WORKING SET')}</span>
-            <small>{hotQuery.isLoading ? text('连接中', 'CONNECTING') : hotQuery.isError ? text('不可用', 'UNAVAILABLE') : text(`${hotItems.length} 个对象`, `${hotItems.length} OBJECTS`)}</small>
-          </div>
-          {hotItems.slice(0, 5).map((item, index) => (
-            <HotCrystal
-              key={hotIdentity(item)}
-              item={item}
-              index={index}
-              selected={focusedHotKey === hotIdentity(item)}
-              dimmed={Boolean(focusedSource || (focusedHotKey && focusedHotKey !== hotIdentity(item)))}
-              reduceMotion={reduceMotion}
-              onOpen={() => focusHot(item)}
-            />
-          ))}
-          {hotQuery.isError && (
-            <div className="world-hot-fault">
-              <ShieldAlert size={14} />
-              <div><small>{text('HOT 读取降级', 'HOT READ SEAM DEGRADED')}</small><strong>{text('Redis Hot Layer 当前不可读；Evidence Core 与 source monitoring 继续可用。', 'Redis Hot Layer is unreadable; Evidence Core and source monitoring remain available.')}</strong></div>
-              <button className="recovery-action" onClick={() => void hotQuery.refetch()}>{text('重试 Hot read', 'RETRY HOT READ')}</button>
+        <div className="world-overview-grid">
+          <section className="world-source-panel">
+            <div className="world-panel-head"><div><small>SOURCE FAMILIES</small><strong>{text('八类来源', 'EIGHT SOURCE FAMILIES')}</strong></div><span>{snapshot?.categories.length ?? 0}</span></div>
+            <div className="processing-lanes" aria-label="Category route projections">
+              {Object.keys(worldLanePoints).map((lane) => (
+                <button type="button" key={lane} className={`${laneSlug(lane)} ${laneClass(focusedSourceMeta, focusedLane, lane)}`} onClick={() => focusLane(lane)}>
+                  {lane === 'ASSET OBSERVATION' ? 'ASSET / ON-DEMAND' : lane}
+                </button>
+              ))}
             </div>
-          )}
+            <div className="world-source-list">
+              {sources.map(({ key, label, labelZh, sub, icon: Icon }, index) => {
+                const health = categoryHealth.get(key)
+                const selected = focusedSource === key
+                const belongsToLane = !focusedLane || sourceNarrative[key].lane === focusedLane
+                const dimmed = Boolean((focusedSource && !selected) || focusedHot || !belongsToLane)
+                const state = sourceState(health)
+                return (
+                  <motion.button
+                    key={key}
+                    className={`source-beacon state-${state} ${selected ? 'selected' : ''} ${dimmed ? 'dimmed' : ''}`}
+                    onClick={() => focusSource(key)}
+                    animate={{ opacity: dimmed ? .38 : 1 }}
+                    transition={{ duration: .16 }}
+                  >
+                    <span className="source-beacon-glyph"><Icon size={16} /></span>
+                    <span className="source-beacon-copy">
+                      <small>{String(index + 1).padStart(2, '0')} · {state.toUpperCase()}</small>
+                      <strong>{text(labelZh, label)}</strong>
+                      <em>{health ? `${health.healthy} healthy · ${health.degraded} degraded · ${health.blocked} blocked` : sub}</em>
+                    </span>
+                  </motion.button>
+                )
+              })}
+            </div>
+          </section>
+
+          <section className="world-core-panel">
+            <div className="world-panel-head"><div><small>DURABLE INNER WORLD</small><strong>EVIDENCE CORE</strong></div><span>{latestKnowledgeChange ? `REV ${latestKnowledgeChange.revision}` : 'NO WRITE'}</span></div>
+            <div className="world-core-visual">
+              <WorldField2D freshChanges={oneHour?.fresh_external_changes ?? 0} backfillObservations={oneHour?.backfill_observations ?? 0} canonicalWrites={oneHour?.canonical_writes ?? 0} knowledgeChangeActive={knowledgeChangeActive} />
+              <div className="world-core-summary">
+                <div className="durable-core-label">
+                  <small>DURABLE INNER WORLD</small>
+                  <strong>EVIDENCE CORE</strong>
+                  <span>Evidence · Knowledge · Incident · Insight · Experience</span>
+                  {latestKnowledgeChange ? (
+                    <>
+                      <b className="world-change-coordinate mono">REV {latestKnowledgeChange.revision} · O{latestKnowledgeChange.object_ids.length} · C{latestKnowledgeChange.claim_ids.length} · R{latestKnowledgeChange.relation_ids.length}</b>
+                      <em className="world-change-cause mono">{latestKnowledgeChange.cause_processing_run_id ? `PROC ${latestKnowledgeChange.cause_processing_run_id.slice(0, 12)}` : 'PROC —'}</em>
+                    </>
+                  ) : <b className="world-change-coordinate unavailable">{knowledgeChangeQuery.isError ? 'KNOWLEDGE CHANGE UNAVAILABLE' : 'NO DURABLE KNOWLEDGE CHANGE'}</b>}
+                </div>
+                <div className="world-core-kpis">
+                  <div><small>{text('新增变化', 'FRESH CHANGES')}</small><strong>{oneHour?.fresh_external_changes ?? '—'}</strong><span>1H</span></div>
+                  <div><small>{text('回填观测', 'BACKFILL')}</small><strong>{oneHour?.backfill_observations ?? '—'}</strong><span>1H</span></div>
+                  <div><small>{text('规范写入', 'CANONICAL WRITES')}</small><strong>{oneHour?.canonical_writes ?? '—'}</strong><span>1H</span></div>
+                </div>
+              </div>
+            </div>
+            <div className="world-semantic-legend">
+              <span><i className="fresh" />{text('1h 新增变化', '1h fresh changes')}</span>
+              <span><i className="ghost" />{text('1h 回填', '1h backfill')}</span>
+              <span><i className="write" />{text('1h canonical writes', '1h canonical writes')}</span>
+              <span><i className="degraded" />{text('来源健康', 'source health')}</span>
+            </div>
+            {!hasFocus && <div className="world-focus-hint"><Crosshair size={12} /> {text('选择来源、路径或热点对象查看证据', 'SELECT A SOURCE, ROUTE, OR HOT OBJECT TO INSPECT')}</div>}
+          </section>
+
+          <aside className="world-activity-panel">
+            <section className="world-hot-panel">
+              <div className="world-panel-head"><div><small>HOT WORKING SET</small><strong>{text('热点对象', 'HOT OBJECTS')}</strong></div><span>{hotItems.length}</span></div>
+              <div className="world-hot-list">
+                {hotItems.slice(0, 5).map((item) => {
+                  const identity = item.cve_id ?? item.external_object_id
+                  const selected = focusedHotKey === hotIdentity(item)
+                  return <button key={hotIdentity(item)} className={selected ? 'selected' : ''} onClick={() => focusHot(item)}><span><Flame size={13} /><strong>{identity}</strong></span><small>{item.changed_fields.length} changes · {item.source_id}</small></button>
+                })}
+                {!hotQuery.isLoading && !hotQuery.isError && hotItems.length === 0 && <p>{text('当前没有热点对象。', 'No hot objects right now.')}</p>}
+              </div>
+              {hotQuery.isError && <div className="world-hot-fault"><ShieldAlert size={14} /><strong>{text('Hot Layer 当前不可读', 'HOT LAYER UNAVAILABLE')}</strong><button className="recovery-action" onClick={() => void hotQuery.refetch()}>{text('重试', 'RETRY')}</button></div>}
+            </section>
+            <KnowledgeChangeRail changes={knowledgeChangeQuery.data?.items ?? []} loading={knowledgeChangeQuery.isLoading} unavailable={knowledgeChangeQuery.isError} onOpenObject={openKnowledgeObject} />
+          </aside>
         </div>
-
-        <AnimatePresence>
-          {focusedHot && (
-            <motion.div
-              className="world-hot-corridor"
-              initial={{ opacity: 0, scaleX: .72 }}
-              animate={{ opacity: 1, scaleX: 1 }}
-              exit={{ opacity: 0, scaleX: .8 }}
-              transition={{ duration: .28, ease: [0.22, 1, 0.36, 1] }}
-              aria-hidden="true"
-            >
-              <svg viewBox="0 0 100 40" preserveAspectRatio="none">
-                <path d="M 2 22 C 28 20, 44 18, 61 12 C 72 8, 82 9, 98 15" />
-                <path className="echo" d="M 3 25 C 30 23, 49 21, 64 16 C 78 12, 87 13, 98 18" />
-              </svg>
-              <span>CORE → HOT WORKING OBJECT</span>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <div className="world-semantic-legend">
-          <span><i className="fresh" />{text('粒子密度 = 1h fresh changes', 'particle density = 1h fresh changes')}</span>
-          <span><i className="ghost" />{text('幽灵轨迹 = 1h backfill', 'ghost transit = 1h backfill')}</span>
-          <span><i className="write" />{text('核心波纹 = 1h canonical writes', 'core ripple = 1h canonical writes')}</span>
-          <span><i className="degraded" />{text('节点健康色 = source health 聚合', 'node health color = source health aggregate')}</span>
-        </div>
-
-        {!hasFocus && <div className="world-focus-hint"><Crosshair size={12} /> {text('聚焦来源 / Hot Object', 'FOCUS SOURCE / HOT OBJECT')}</div>}
 
         <AnimatePresence>
           {hasFocus && (

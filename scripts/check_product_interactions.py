@@ -49,10 +49,10 @@ def _visible_hit_failures(page: Page) -> list[str]:
             if (
               rect.width < 8
               || rect.height < 8
-              || rect.bottom <= 0
-              || rect.right <= 0
-              || rect.top >= innerHeight
-              || rect.left >= innerWidth
+              || rect.top < 0
+              || rect.left < 0
+              || rect.bottom > innerHeight
+              || rect.right > innerWidth
             ) continue;
             const x = Math.max(1, Math.min(innerWidth - 2, rect.left + rect.width / 2));
             const y = Math.max(1, Math.min(innerHeight - 2, rect.top + rect.height / 2));

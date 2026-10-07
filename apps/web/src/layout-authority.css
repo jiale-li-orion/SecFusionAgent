@@ -70,11 +70,11 @@ body,
 }
 
 .world-space .world-change-rail {
-  position: absolute;
-  left: 57%;
-  top: 47%;
-  z-index: 23;
-  width: min(300px, 24vw);
+  position: relative;
+  left: auto;
+  top: auto;
+  z-index: auto;
+  width: 100%;
   display: grid;
   gap: 5px;
   padding: 9px 11px;
@@ -525,60 +525,129 @@ body,
   width: 100% !important;
   min-width: 0 !important;
   max-width: none !important;
-  min-height: 650px !important;
+  min-height: 560px !important;
   height: auto !important;
   margin: 0 !important;
   padding: 0 !important;
-  overflow: hidden !important;
+  overflow: visible !important;
 }
 
-.world-webgl,
-.world-depth-mask,
-.world-ingress-flow,
-.world-2d-fallback {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+.world-overview-grid {
+  display: grid;
+  grid-template-columns: minmax(230px, 270px) minmax(420px, 1fr) minmax(270px, 320px);
+  gap: 16px;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.world-source-panel,
+.world-core-panel,
+.world-activity-panel {
+  min-width: 0;
+}
+
+.world-source-panel,
+.world-core-panel,
+.world-hot-panel,
+.world-activity-panel {
+  display: grid;
+  align-content: start;
+}
+
+.world-source-panel,
+.world-core-panel,
+.world-hot-panel {
+  padding: 16px;
+}
+
+.world-activity-panel {
+  gap: 14px;
+}
+
+.world-panel-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+}
+
+.world-panel-head > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.world-panel-head strong,
+.world-panel-head small {
+  display: block;
+}
+
+.world-source-list,
+.world-hot-list {
+  display: grid;
+  gap: 6px;
 }
 
 .source-beacon {
-  width: clamp(160px, 13vw, 188px) !important;
-  min-height: 56px;
-  z-index: 18;
+  position: relative !important;
+  inset: auto !important;
+  left: auto !important;
+  top: auto !important;
+  width: 100% !important;
+  min-height: 62px;
+  z-index: auto;
+  transform: none !important;
+  display: grid !important;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px !important;
+  text-align: left;
 }
 
 .source-beacon-copy strong {
-  font-size: 11px !important;
+  font-size: 12px !important;
 }
 
 .source-beacon-copy small,
 .source-beacon-copy em {
-  font-size: 9px !important;
+  font-size: 10px !important;
 }
 
 .processing-lanes {
-  left: 29% !important;
-  right: 29% !important;
-  top: 8% !important;
+  position: relative !important;
+  inset: auto !important;
+  left: auto !important;
+  right: auto !important;
+  top: auto !important;
   bottom: auto !important;
-  z-index: 19;
+  z-index: auto;
   display: grid !important;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
+  margin-bottom: 12px;
   transform: none !important;
 }
 
 .processing-lanes button {
   pointer-events: auto;
+  min-height: 40px;
+  padding: 7px 8px;
 }
 
 .durable-core-label {
-  left: 51% !important;
-  top: 43% !important;
+  position: relative !important;
+  left: auto !important;
+  top: auto !important;
   z-index: 22;
-  min-width: 260px;
-  transform: translate(-50%, -50%) !important;
+  width: 100%;
+  min-width: 0;
+  transform: none !important;
+  padding: 18px 20px;
+  justify-items: start;
 }
 
 .world-space .world-change-coordinate,
@@ -588,12 +657,6 @@ body,
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.hot-field-label {
-  top: 19% !important;
-  right: 4.5% !important;
-  z-index: 21;
 }
 
 .world-incident-cluster {
@@ -684,43 +747,76 @@ body,
   white-space: nowrap;
 }
 
-@media (max-width: 1180px) {
-  .world-incident-cluster,
-  .world-space .world-change-rail {
-    display: none;
-  }
+.world-core-visual {
+  position: relative;
+  min-height: 390px;
+  overflow: hidden;
 }
 
-.hot-crystal {
-  z-index: 20;
-  width: clamp(138px, 11vw, 160px) !important;
-  min-height: 58px !important;
+.world-core-visual .world-2d-fallback {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 
-.world-start-portal {
-  left: 51% !important;
-  top: 61% !important;
-  right: auto !important;
-  bottom: auto !important;
-  z-index: 23;
-  transform: translate(-50%, -50%);
+.world-core-summary {
+  position: absolute;
+  inset: 30px;
+  display: grid;
+  align-content: center;
+  gap: 16px;
+  z-index: 4;
+}
+
+.world-core-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.world-core-kpis > div {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 3px 8px;
+  padding: 12px 13px;
+}
+
+.world-core-kpis small {
+  grid-column: 1 / -1;
+}
+
+.world-core-kpis strong {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.world-core-kpis span {
+  align-self: end;
 }
 
 .world-semantic-legend {
-  left: 29% !important;
-  right: 29% !important;
-  bottom: 18px !important;
-  z-index: 19;
+  position: relative !important;
+  inset: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  z-index: auto;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  width: auto !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 14px;
+  width: 100% !important;
+  margin-top: 12px;
 }
 
 .world-focus-hint {
-  right: 4% !important;
-  bottom: 24px !important;
-  z-index: 20;
+  position: relative !important;
+  inset: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  z-index: auto;
+  margin-top: 14px;
 }
 
 .world-lens {
@@ -740,11 +836,44 @@ body,
   position: relative !important;
   inset: auto !important;
   z-index: 25;
-  width: calc(100% + 60px) !important;
+  width: 100% !important;
   min-width: 0 !important;
   min-height: 126px !important;
-  margin: 0 -28px 0 -32px !important;
-  padding: 14px 30px 12px 32px !important;
+  margin: 0 !important;
+  padding: 14px 16px 12px !important;
+}
+
+.world-hot-list button {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  padding: 10px 8px;
+  text-align: left;
+}
+
+.world-hot-list button > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.world-hot-list button strong,
+.world-hot-list button small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 1180px) {
+  .world-overview-grid {
+    grid-template-columns: minmax(220px, .8fr) minmax(0, 1.2fr);
+  }
+
+  .world-activity-panel {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .world-live-flow-track {
