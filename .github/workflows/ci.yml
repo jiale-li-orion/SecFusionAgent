@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -13,28 +14,131 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  quality:
-    name: Python quality gate
+  lint:
+    name: Lint and formatting
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
 
       - name: Install dependencies
         run: uv sync --dev --frozen
 
-      - name: Run repository gate
-        run: make check
+      - name: Run lint gate
+        run: make lint
 
-      - name: Validate Compose configuration
+  typecheck:
+    name: Static analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --dev --frozen
+
+      - name: Run typecheck gate
+        run: make typecheck
+
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --dev --frozen
+
+      - name: Run test gate
+        run: make test
+
+  deployment:
+    name: Deployment contract
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Validate development Compose configuration
         run: docker compose -f deploy/docker-compose.yml config --quiet
+
+      - name: Validate production Compose configuration
+        env:
+          # `config` only interpolates the model; the fail-closed production
+          # gate still requires both variables to resolve before it renders.
+          SECFUSION_DEMO_HTPASSWD_PATH: ./secrets/product.htpasswd
+          SECFUSION_POSTGRES_PASSWORD: ci-validation-only
+        run: docker compose -f deploy/docker-compose.production.yml config --quiet
+
+  product-web:
+    name: Product web
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          # deploy/product-web/Dockerfile builds on node:22-alpine.
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install web dependencies
+        working-directory: apps/web
+        run: npm ci --no-audit --no-fund
+
+      - name: Lint web sources
+        working-directory: apps/web
+        run: npm run lint
+
+      - name: Build web app
+        working-directory: apps/web
+        run: npm run build
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Verify Product surface contract
+        run: python3 scripts/check_product_gate.py --static-only
+
+      - name: Verify Product deploy contract
+        run: python3 scripts/check_product_deploy.py
+
+      # scripts/check_product_visual.py and scripts/check_product_interactions.py
+      # read a running Product stack at 127.0.0.1:8000, so they stay on the
+      # live gate rather than this static change gate.

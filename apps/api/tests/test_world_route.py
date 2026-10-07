@@ -36,7 +36,7 @@ async def test_world_overview_exposes_live_product_data_plane_projection(monkeyp
             "incidents",
         )
     }
-    live_payload = {
+    live_payload: dict[str, object] = {
         "schema_version": "1",
         "generated_at": NOW.isoformat(),
         "source_health": {

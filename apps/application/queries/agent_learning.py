@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Sequence
+from typing import Any, cast
 
-from sqlalchemy import func, select
+from sqlalchemy import Row, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.application.views.agents import (
@@ -116,10 +118,21 @@ async def get_agent_learning_overview(session: AsyncSession) -> AgentLearningOve
     )
 
 
+def _json_object(source: dict[str, object]) -> dict[str, Any]:
+    """Read a persisted JSON column as an untyped mapping.
+
+    The SQLAlchemy column type cannot express the stored schema, so the stored
+    payload reaches the view constructor as ``object``. ``ProductSkillView``
+    validates each extracted field, which keeps this cast at the storage
+    boundary instead of widening the column type for every consumer.
+    """
+    return cast("dict[str, Any]", source)
+
+
 def _skill_view(row: SkillVersionModel) -> ProductSkillView:
-    manifest = row.manifest_json
-    procedure = row.procedure_json
-    provenance = row.provenance_json
+    manifest = _json_object(row.manifest_json)
+    procedure = _json_object(row.procedure_json)
+    provenance = _json_object(row.provenance_json)
     return ProductSkillView(
         skill_ref=f"skill:{row.skill_id}@{row.version}",
         skill_id=row.skill_id,
@@ -154,7 +167,7 @@ def _skill_view(row: SkillVersionModel) -> ProductSkillView:
 
 async def _experience_views(
     session: AsyncSession,
-    rows: list[tuple[ExperienceVersionModel, ExperienceModel]],
+    rows: Sequence[Row[ExperienceVersionModel, ExperienceModel]],
 ) -> list[ProductExperienceView]:
     version_ids = [version.experience_version_id for version, _ in rows]
     if not version_ids:

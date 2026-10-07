@@ -5,6 +5,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, JsonValue
 
+InvestigationOriginScope = Literal["product", "benchmark", "system", "unknown"]
+
 
 class InvestigationFindingView(BaseModel):
     proposition: str
@@ -60,7 +62,7 @@ class DecisionView(BaseModel):
 class InvestigationView(BaseModel):
     case_id: str
     continuation_session_id: str | None = None
-    origin_scope: Literal["product", "benchmark", "system", "unknown"] = "unknown"
+    origin_scope: InvestigationOriginScope = "unknown"
     can_cancel: bool = False
     revision: int
     status: str
