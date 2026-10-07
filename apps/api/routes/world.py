@@ -23,9 +23,9 @@ from apps.application.views.world import (
     WorldSourceHealthView,
     WorldWindowView,
 )
-from packages.intelligence.incident.contracts import IncidentCandidate
 from packages.intelligence.hot_cache.contracts import HotBugCacheEntry
 from packages.intelligence.hot_cache.redis import RedisHotBugCache
+from packages.intelligence.incident.contracts import IncidentCandidate
 from packages.monitoring.data_plane_status import data_plane_status
 from packages.shared.config import get_settings
 
