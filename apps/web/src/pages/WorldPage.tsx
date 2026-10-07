@@ -209,6 +209,10 @@ export function WorldPage() {
           )}</small>
         </div>
 
+        <div className="world-hero-actions">
+          <button onClick={() => navigate('/observatory')}>{text('查看运行证据', 'OPEN RUNTIME PROOF')} <ArrowUpRight size={13} /></button>
+          <button className="launch" onClick={() => navigate('/start')}><Sparkles size={13} /> {text('发起调查', 'START INVESTIGATION')}</button>
+        </div>
         <WorldIncidentCluster
           incidents={incidentQuery.data?.items ?? []}
           candidates={incidentCandidateQuery.data?.items ?? []}
@@ -222,10 +226,6 @@ export function WorldPage() {
           candidateUnavailable={incidentCandidateQuery.isError}
           onOpen={openIncident}
         />
-        <div className="world-hero-actions">
-          <button onClick={() => navigate('/observatory')}>{text('查看运行证据', 'OPEN RUNTIME PROOF')} <ArrowUpRight size={13} /></button>
-          <button className="launch" onClick={() => navigate('/start')}><Sparkles size={13} /> {text('发起调查', 'START INVESTIGATION')}</button>
-        </div>
       </header>
 
       <form className="world-locator" onSubmit={locateObject}>

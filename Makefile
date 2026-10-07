@@ -1,4 +1,4 @@
-.PHONY: sync lint format typecheck test check site-check site-status dev-up dev-runtime-up dev-runtime-down runtime-status runtime-config-check data-plane-up data-plane-down data-plane-status data-plane-logs data-plane-metrics data-plane-metrics-render data-plane-metrics-check data-plane-site data-plane-site-check dev-down migrate sync-sources sync-skills worker worker-collection scheduler task-event-dispatcher task-event-scheduler probe-nvd promote-hot product-web-check product-check product-live-gate product-visual-check model-provider-probe qa-live qa-live-preflight benchmark-query m1-doc m1-render-doc m1-doc-check m2-diagnostics m2-diagnostics-render m2-diagnostics-check qa-preflight qa-preflight-doc-check investigation-readiness investigation-readiness-doc-check investigation-probe evaluation-infra-status evaluation-infra-render evaluation-infra-check retrieval-benchmark retrieval-benchmark-render retrieval-benchmark-check agent-runtime-benchmark agent-runtime-render agent-runtime-check security-benchmark security-benchmark-render security-benchmark-check security-adversarial-benchmark security-adversarial-render security-adversarial-check fault-recovery fault-recovery-doc-check competition-report competition-render-doc competition-doc-check readme-evidence readme-evidence-check evidence-doc evidence-doc-check
+.PHONY: sync lint format typecheck test check site-check site-status dev-up dev-runtime-up dev-runtime-down runtime-status runtime-config-check data-plane-up data-plane-down data-plane-status data-plane-logs data-plane-metrics data-plane-metrics-render data-plane-metrics-check data-plane-site data-plane-site-check dev-down migrate sync-sources sync-skills worker worker-collection scheduler task-event-dispatcher task-event-scheduler probe-nvd promote-hot product-web-check product-check product-live-gate product-visual-check product-interaction-check model-provider-probe qa-live qa-live-preflight benchmark-query m1-doc m1-render-doc m1-doc-check m2-diagnostics m2-diagnostics-render m2-diagnostics-check qa-preflight qa-preflight-doc-check investigation-readiness investigation-readiness-doc-check investigation-probe evaluation-infra-status evaluation-infra-render evaluation-infra-check retrieval-benchmark retrieval-benchmark-render retrieval-benchmark-check agent-runtime-benchmark agent-runtime-render agent-runtime-check security-benchmark security-benchmark-render security-benchmark-check security-adversarial-benchmark security-adversarial-render security-adversarial-check fault-recovery fault-recovery-doc-check competition-report competition-render-doc competition-doc-check readme-evidence readme-evidence-check evidence-doc evidence-doc-check
 
 WIKI_PATH ?= ../SecFusionAgent.wiki
 SITE_STATUS_OUTPUT ?= $(WIKI_PATH)/site/project-status.json
@@ -74,6 +74,9 @@ product-live-gate:
 
 product-visual-check:
 	uv run python scripts/check_product_visual.py
+
+product-interaction-check:
+	uv run python scripts/check_product_interactions.py
 
 site-check: data-plane-site-check
 	python3 scripts/validate_site.py --site $(WIKI_PATH)/site

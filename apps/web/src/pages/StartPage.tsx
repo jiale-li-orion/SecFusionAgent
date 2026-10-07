@@ -246,7 +246,7 @@ export function StartPage() {
                 top: `${slot.top}%`,
                 y: active ? 0 : slot.top > 50 ? 3 : -3,
                 scale: active ? 1.08 : .92,
-                opacity: active ? 1 : .76,
+                opacity: active ? 1 : .86,
                 rotate: active ? 0 : slot.left < 50 ? -1.2 : 1.2,
               }}
               transition={{ type: 'spring', stiffness: 190, damping: 24, mass: .82 }}

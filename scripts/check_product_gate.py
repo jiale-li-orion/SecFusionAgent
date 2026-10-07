@@ -245,9 +245,10 @@ def _static_product_gate(results: list[GateResult]) -> None:
         name="world-durable-incidents",
         relative_path="apps/web/src/components/world/WorldSurfaces.tsx",
         needles=(
-            "DURABLE INCIDENT WORLD",
-            "DURABLE ROWS ONLY",
-            "signals or candidates are not presented as durable incidents",
+            "candidate.promotion_state.toUpperCase()",
+            "incidents.slice(0, 3).map((incident)",
+            "onOpen(incident.incident_id)",
+            "signal → candidate → <b>durable incident</b>",
         ),
         detail=(
             "WORLD exposes durable Incident rows without promoting provisional "

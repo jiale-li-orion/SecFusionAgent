@@ -389,6 +389,8 @@ body,
   position: relative !important;
   inset: auto !important;
   z-index: 30;
+  display: grid;
+  align-content: start;
   width: auto !important;
   max-width: 620px;
   min-height: 174px;
@@ -539,6 +541,14 @@ body,
   top: 8% !important;
   bottom: auto !important;
   z-index: 19;
+  display: grid !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  transform: none !important;
+}
+
+.processing-lanes button {
+  pointer-events: auto;
 }
 
 .durable-core-label {
@@ -565,13 +575,14 @@ body,
 }
 
 .world-incident-cluster {
-  position: absolute;
-  left: 57%;
-  bottom: 12%;
+  position: relative;
+  left: auto;
+  bottom: auto;
   z-index: 24;
-  width: min(310px, 25vw);
+  width: min(100%, 590px);
   display: grid;
   gap: 6px;
+  margin-top: 14px;
   padding: 10px 12px;
 }
 
@@ -802,17 +813,14 @@ body,
    ========================================================= */
 
 .start-space .mission-reactor {
-
-
   right: auto !important;
   bottom: auto !important;
-
-
   transform: translate(-50%, -50%) !important;
   left: 56% !important;
   top: 46% !important;
-  width: 188px !important;
-  height: 188px !important;
+  width: 156px !important;
+  height: 156px !important;
+  pointer-events: none;
 }
 
 .start-space .mode-readout > strong {
@@ -823,13 +831,14 @@ body,
 }
 
 .start-space .alchemist-boundary {
-
-
-
-  max-width: 220px;
+  max-width: 190px;
   top: auto !important;
-  right: 3% !important;
-  bottom: 8% !important;
+  right: 2% !important;
+  bottom: 5% !important;
+}
+
+.start-space .alchemist-boundary.runtime-dormant {
+  pointer-events: none;
 }
 
 .start-space .alchemist-runtime-link {
@@ -1203,7 +1212,7 @@ body,
 
 .investigations-space .investigation-layout {
   display: grid !important;
-  grid-template-columns: 220px minmax(0, 1fr) 278px !important;
+  grid-template-columns: 250px minmax(0, 1fr) 260px !important;
   gap: 20px !important;
   width: 100%;
   min-width: 0;
@@ -1221,6 +1230,54 @@ body,
 
 .investigations-space .case-rail {
   padding-right: 8px;
+}
+
+.investigations-space .case-card {
+  display: grid !important;
+  grid-template-columns: 7px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 9px;
+  min-height: 94px;
+  padding: 10px 5px 10px 8px !important;
+  text-align: left;
+}
+
+.investigations-space .case-status-dot {
+  width: 6px;
+  height: 6px;
+  margin-top: 5px;
+}
+
+.investigations-space .case-card-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.investigations-space .case-card-copy small,
+.investigations-space .case-card-copy em {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.investigations-space .case-card-copy strong {
+  display: -webkit-box;
+  min-width: 0;
+  overflow: hidden;
+  line-height: 1.42;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.investigations-space .case-card-tail {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+  min-width: 42px;
+  align-self: start;
 }
 
 .investigations-space .activity-rail {
@@ -1312,6 +1369,10 @@ body,
 }
 
 .investigations-space .case-hero-main {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
   min-width: 0;
 }
 
@@ -1329,7 +1390,13 @@ body,
 .investigations-space .case-hero-state {
   position: relative !important;
   inset: auto !important;
-  min-width: 170px;
+  display: grid;
+  justify-items: end;
+  align-content: start;
+  gap: 4px;
+  min-width: 148px;
+  max-width: 180px;
+  align-self: start;
   justify-self: end;
 }
 
@@ -1810,7 +1877,7 @@ body,
   }
 
   .investigations-space .investigation-layout {
-    grid-template-columns: 200px minmax(0, 1fr) 244px !important;
+    grid-template-columns: 230px minmax(0, 1fr) 250px !important;
     gap: 16px !important;
   }
 
@@ -3622,25 +3689,26 @@ body,
 }
 
 .start-space .mode-chamber {
-  width: 142px !important;
-  min-height: 142px !important;
-  max-width: 142px !important;
+  width: 118px !important;
+  min-height: 118px !important;
+  max-width: 118px !important;
   padding: 0 !important;
 }
 
 .start-space .mode-chamber.active {
-  width: 156px !important;
-  min-height: 156px !important;
-  max-width: 156px !important;
+  width: 136px !important;
+  min-height: 136px !important;
+  max-width: 136px !important;
 }
 
 .start-space .mode-readout {
-  left: 31% !important;
+  left: 28% !important;
   right: auto !important;
-  bottom: 6% !important;
-  width: min(650px, 58%) !important;
+  bottom: 4% !important;
+  width: min(560px, 52%) !important;
   transform: none !important;
   text-align: left !important;
+  pointer-events: none;
 }
 
 .start-space .mode-readout > div {
@@ -3648,13 +3716,19 @@ body,
 }
 
 .start-space .start-role-gate.oracle {
-  left: 2.5% !important;
+  left: 1.5% !important;
   top: 48% !important;
+  pointer-events: none;
 }
 
 .start-space .start-role-gate.argus {
-  right: 2.5% !important;
+  right: 1.5% !important;
   top: 48% !important;
+  pointer-events: none;
+}
+
+.start-space .start-orbit-map {
+  pointer-events: none;
 }
 
 /* Profile changes move the spatial emphasis, not the page skeleton. */
@@ -3701,13 +3775,13 @@ body,
   }
 
   .start-space .mode-chamber {
-    width: 126px !important;
-    min-height: 132px !important;
+    width: 110px !important;
+    min-height: 110px !important;
   }
 
   .start-space .mode-chamber.active {
-    width: 138px !important;
-    min-height: 144px !important;
+    width: 126px !important;
+    min-height: 126px !important;
   }
 
   .start-space .mode-readout {

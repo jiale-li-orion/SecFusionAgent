@@ -646,13 +646,10 @@ body {
 }
 
 .processing-lanes {
-  transform: translateX(-50%);
   pointer-events: none;
   justify-content: space-between;
-  gap: 8px;
   position: absolute;
   inset: 0;
-  display: block;
 }
 
 .processing-lanes span.active {
@@ -2048,11 +2045,8 @@ body {
 }
 
 .investigations-space .case-card {
-  min-height: 76px;
   margin-bottom: 4px;
-  padding-left: 4px;
   transition: transform 180ms ease, opacity 180ms ease, background 180ms ease, border-color 180ms ease;
-  opacity: .78;
 }
 
 .investigations-space .case-hero-sigil {
@@ -2957,7 +2951,6 @@ body {
 .investigations-space .case-card.selected {
   border-left-color: rgba(168,139,255,.55);
   transform: translateX(8px);
-  opacity: 1;
 }
 .investigations-space .activity-rail .runtime-event {
   border: 0;
@@ -8565,9 +8558,6 @@ body {
     radial-gradient(circle at 70% 13%,rgba(255,179,92,.09),transparent 24%),
     linear-gradient(180deg,#191b20 0%,#101216 100%) !important;
 }
-.investigations-space .case-card-copy strong { color: #d1cbc7; }
-.investigations-space .case-card-copy small,
-.investigations-space .case-card-copy em { color: #807d79; }
 .investigations-space .case-hero {
   border: 0;
   border-radius: 0;
@@ -8577,7 +8567,6 @@ body {
   border-bottom: 1px solid rgba(255,255,255,.055);
 }
 .investigations-space .case-hero-main strong {
-  color: #f0eae6;
   font-size: 13px;
 }
 .investigations-space .state-column.tone-lime {
@@ -8605,16 +8594,14 @@ body {
   opacity: .92;
   background: repeating-linear-gradient(135deg,rgba(168,139,255,.03) 0 5px,transparent 5px 14px);
 }
-.investigations-space .state-item strong { color: #c3bfbc; }
-.investigations-space .state-item small { color: #77777b; }
 .investigations-space .conversation-title strong { color: #d0c8dc; }
 .investigations-space .runtime-event {
   position: relative;
   border-radius: 0;
   border: 0;
   border-bottom: 1px solid rgba(255,255,255,.045);
-  background: transparent; opacity: .86; }
-.investigations-space .runtime-event strong { color: #bcb9b7; }
+  background: transparent;
+}
 .role-entity-copy > small,
 .role-coordinates span { color: #75727d; }
 .role-entity-runtime span,

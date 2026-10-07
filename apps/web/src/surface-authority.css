@@ -239,12 +239,37 @@
   border-radius: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
+  opacity: .94;
 }
 
 .investigations-space .case-card.selected {
   border-left: 2px solid rgba(255, 179, 92, .48) !important;
   background: linear-gradient(90deg, rgba(255, 179, 92, .045), transparent 82%) !important;
   box-shadow: none !important;
+  opacity: 1;
+}
+
+.investigations-space .case-card-copy strong,
+.investigations-space .case-hero-main strong,
+.investigations-space .state-item strong,
+.investigations-space .runtime-event strong {
+  color: #d8d4d1;
+}
+
+.investigations-space .case-card-copy small,
+.investigations-space .case-card-copy em,
+.investigations-space .case-hero-main small,
+.investigations-space .case-hero-main .mono,
+.investigations-space .case-hero-state small,
+.investigations-space .state-column-head small,
+.investigations-space .state-item small,
+.investigations-space .runtime-event small,
+.investigations-space .runtime-event em {
+  color: #908b88;
+}
+
+.investigations-space .runtime-event {
+  opacity: .92;
 }
 
 .investigations-space .state-column,
@@ -404,20 +429,38 @@
 
 .observatory-space .system-dependency small,
 .observatory-space .system-backlog-strip small {
-  color: #53666e;
+  color: #72878e;
   letter-spacing: .08em;
 }
 
 .observatory-space .system-dependency strong,
 .observatory-space .system-backlog-strip strong {
-  color: #bac9c8;
+  color: #cbd8d7;
   font-weight: 560;
 }
 
 .observatory-space .system-dependency > span,
 .observatory-space .system-backlog-strip span,
 .observatory-space .system-measurement-boundary {
-  color: #65757b;
+  color: #7d8d92;
+}
+
+.observatory-space.observatory-live .live-metric small,
+.observatory-space.observatory-live .live-metric span,
+.observatory-space.observatory-live .panel-head small,
+.observatory-space.observatory-live .chart-head,
+.observatory-space.observatory-live .spectrum-row small,
+.observatory-space.observatory-live .agent-spectrum-row small,
+.observatory-space.observatory-live .agent-spectrum-row span,
+.observatory-space.observatory-live .system-fact small {
+  color: #7d949b;
+}
+
+.observatory-space.observatory-live .panel-head strong,
+.observatory-space.observatory-live .spectrum-row strong,
+.observatory-space.observatory-live .agent-spectrum-row strong,
+.observatory-space.observatory-live .system-fact strong {
+  color: #d0dddd;
 }
 
 .observatory-space .system-measurement-boundary {
@@ -493,6 +536,27 @@
   background: linear-gradient(90deg, rgba(168, 139, 255, .04), transparent 78%) !important;
 }
 
+.agents-space .role-entity-copy > p {
+  color: #a09ca9;
+}
+
+.agents-space .role-entity-copy > small,
+.agents-space .role-coordinates span,
+.agents-space .role-entity-runtime small,
+.agents-space .role-entity-runtime span,
+.agents-space .role-entity-runtime em {
+  color: #858390;
+}
+
+.agents-space .task-ledger-row strong {
+  color: #d1ced8;
+}
+
+.agents-space .task-ledger-row small,
+.agents-space .task-ledger-row em {
+  color: #85828d;
+}
+
 @media (max-width: 1100px) {
 
   .investigations-space .case-rail,
@@ -556,7 +620,7 @@
 }
 
 .investigations-space.has-case .case-docket-heading p {
-  color: #7e7469 !important;
+  color: #938a83 !important;
 }
 
 .investigations-space.has-case .case-docket-heading h1 {
@@ -577,7 +641,7 @@
 }
 
 .agents-space.runtime-loaded .runtime-stage-caption p {
-  color: #686977 !important;
+  color: #858593 !important;
 }
 
 .agents-space.runtime-loaded .runtime-stage-caption h1 {
@@ -720,9 +784,25 @@
   letter-spacing: .09em;
 }
 
+.start-space .mission-briefing > div:first-child > p,
+.start-space .mission-briefing > div:first-child > small,
+.start-space .start-route-legend span {
+  color: #858493;
+}
+
 .start-space .payload-deck-head > div > strong {
   color: #d6d6df !important;
   font-weight: 600;
+}
+
+.start-space .mode-readout > span,
+.start-space .mode-readout > div small {
+  color: #858797;
+}
+
+.start-space .mode-readout > strong,
+.start-space .mode-readout > div strong {
+  color: #d4d3dd;
 }
 
 .start-space .advanced-toggle {
@@ -733,9 +813,21 @@
 }
 
 .start-space .payload-field > span {
-  color: #666875 !important;
+  color: #7b7d8b !important;
 
   letter-spacing: .07em;
+}
+
+.start-space .payload-field input,
+.start-space .payload-field textarea {
+  color: #d9d8e0 !important;
+  caret-color: #b7a4eb;
+}
+
+.start-space .payload-field input::placeholder,
+.start-space .payload-field textarea::placeholder {
+  color: #666977;
+  opacity: 1;
 }
 
 .start-space .payload-field:focus-within {
@@ -1383,6 +1475,52 @@
 
 .start-space > .mission-briefing {
   border: 0 !important;
+}
+
+.start-space .mode-chamber {
+  border: 1px solid rgba(168, 139, 255, .075) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .018), rgba(8, 10, 16, .22)) !important;
+  box-shadow:
+    inset 0 0 28px rgba(168, 139, 255, .018),
+    0 12px 32px rgba(0, 0, 0, .12) !important;
+  color: #8d8999;
+}
+
+.start-space .mode-chamber.role-oracle {
+  border-color: rgba(114, 215, 255, .085) !important;
+  box-shadow:
+    inset 0 0 28px rgba(114, 215, 255, .018),
+    0 12px 32px rgba(0, 0, 0, .12) !important;
+}
+
+.start-space .mode-chamber > small,
+.start-space .mode-chamber > em {
+  color: #85818f;
+}
+
+.start-space .mode-chamber > strong {
+  color: #c9c7d1;
+}
+
+.start-space .mode-chamber.role-oracle.active {
+  border-color: rgba(114, 215, 255, .28) !important;
+  background:
+    radial-gradient(circle at 50% 40%, rgba(114, 215, 255, .08), rgba(8, 12, 18, .62) 68%) !important;
+  box-shadow:
+    inset 0 0 34px rgba(114, 215, 255, .035),
+    0 18px 44px rgba(0, 0, 0, .22),
+    0 0 28px rgba(114, 215, 255, .055) !important;
+}
+
+.start-space .mode-chamber.role-argus.active {
+  border-color: rgba(168, 139, 255, .30) !important;
+  background:
+    radial-gradient(circle at 50% 40%, rgba(168, 139, 255, .10), rgba(10, 9, 18, .64) 68%) !important;
+  box-shadow:
+    inset 0 0 34px rgba(168, 139, 255, .045),
+    0 18px 44px rgba(0, 0, 0, .22),
+    0 0 30px rgba(168, 139, 255, .06) !important;
 }
 
 .start-space > .payload-deck {
