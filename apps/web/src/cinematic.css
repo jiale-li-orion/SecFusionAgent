@@ -65,12 +65,6 @@ body {
   color: var(--text);
 }
 
-.instrument-bar::after {
-  content: "";
-  position: absolute;
-  opacity: 0.6;
-}
-
 .instrument-brand,
 .instrument-nav-item,
 .command-trigger,
@@ -120,10 +114,6 @@ body {
 .brand-copy {
   display: grid;
   gap: 3px;
-}
-
-.brand-copy strong {
-  font-weight: 760;
 }
 
 .brand-copy small {
@@ -183,33 +173,12 @@ body {
   box-shadow: 0 -4px 18px rgba(114, 215, 255, 0.35);
 }
 
-.instrument-actions {
-  grid-template-columns: 96px 92px 1fr;
-  align-items: stretch;
-}
-
-.command-trigger {
-  display: flex;
-  align-items: center;
-  color: #717d85;
-  cursor: pointer;
-  letter-spacing: 0.12em;
-}
-
 .command-trigger kbd {
   padding: 2px 5px;
   border-radius: 2px;
   color: #65717a;
   font-size: 7px; opacity: .42; border: 0; background: transparent;
   margin-left: auto;
-}
-
-.runtime-state {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: #758179;
-  letter-spacing: 0.14em;
 }
 
 .runtime-state.state-ready {
@@ -236,15 +205,6 @@ body {
   margin-top: 2px;
 }
 
-.global-start::before {
-  content: "";
-  position: absolute;
-  border: 1px solid rgba(201, 244, 91, 0.24);
-  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
-  background: linear-gradient(100deg, rgba(201, 244, 91, 0.025), rgba(201, 244, 91, 0.09), rgba(201, 244, 91, 0.02));
-  transition: border-color 180ms ease, box-shadow 180ms ease;
-}
-
 .global-start:hover::before {
   border-color: rgba(201, 244, 91, 0.55);
   box-shadow: inset 0 0 24px rgba(201, 244, 91, 0.065), 0 0 28px rgba(201, 244, 91, 0.06);
@@ -254,15 +214,6 @@ body {
 .global-start strong {
   position: relative;
   z-index: 1;
-}
-
-.shell-scan {
-  position: fixed;
-  z-index: 5;
-  pointer-events: none;
-  background: linear-gradient(180deg, rgba(114, 215, 255, 0.07), transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 20%, #000 80%, transparent);
-  animation: shell-breathe 8s ease-in-out infinite alternate;
 }
 
 .route-stage {
@@ -279,12 +230,6 @@ body {
     linear-gradient(180deg, rgba(7, 9, 13, 0.88), rgba(7, 9, 13, 0.97)),
     radial-gradient(circle at 50% 12%, rgba(114, 215, 255, 0.11), transparent 34%);
   backdrop-filter: blur(16px);
-}
-
-.command-lens form {
-
-  border-top: 1px solid rgba(114, 215, 255, 0.28);
-  border-bottom: 1px solid var(--hairline);
 }
 
 .command-index {
@@ -309,15 +254,6 @@ body {
   color: var(--cyan);
 }
 
-.command-input-line input {
-  height: 68px;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  font-size: 28px;
-  letter-spacing: -0.025em;
-}
-
 .command-input-line input::placeholder {
   color: #404b53;
 }
@@ -337,10 +273,6 @@ body {
   color: #525e66;
   font-size: 7px;
   letter-spacing: 0.12em;
-}
-
-.product-space-loader {
-  background: var(--void);
 }
 
 .loader-core {
@@ -2541,15 +2473,6 @@ body {
   filter: drop-shadow(0 0 8px rgba(114,215,255,.4));
 }
 
-.instrument-nav-item.active {
-  text-shadow: 0 0 18px rgba(114,215,255,.12);
-}
-
-.command-trigger,
-.global-start {
-  transition: color 180ms ease, background 180ms ease, transform 160ms cubic-bezier(.22,1,.36,1);
-}
-
 .command-trigger:hover {
   color: #d6e2df;
   background: rgba(114,215,255,.04);
@@ -2729,6 +2652,9 @@ body {
 }
 
 .command-lens form {
+
+  border-top: 1px solid rgba(114, 215, 255, 0.28);
+  border-bottom: 1px solid var(--hairline);
   border-top-color: rgba(114,215,255,.48);
   background:
     radial-gradient(circle at 14% 0%, rgba(114,215,255,.08), transparent 30%),
@@ -2737,6 +2663,12 @@ body {
 }
 
 .command-input-line input {
+  height: 68px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-size: 28px;
+  letter-spacing: -0.025em;
   color: #f2f5f2;
 }
 
@@ -2936,11 +2868,9 @@ body {
     transform: none !important;
   }
 }
-.instrument-bar {
-  grid-template-columns: 190px minmax(0, 1fr) auto;
-}
 .command-trigger,
 .global-start {
+  transition: color 180ms ease, background 180ms ease, transform 160ms cubic-bezier(.22,1,.36,1);
   height: 30px;
   background: transparent;
 }
@@ -3236,15 +3166,6 @@ body {
   opacity: .4;
   font: 5.5px ui-monospace,monospace;
   letter-spacing: .1em;
-}
-.language-switch {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 26px;
-  color: #516168;
-  font: 7px ui-monospace, monospace;
-  letter-spacing: .08em;
 }
 .language-switch button {
   appearance: none;
@@ -4225,6 +4146,7 @@ body {
 }
 
 .instrument-bar {
+  grid-template-columns: 190px minmax(0, 1fr) auto;
   position: fixed;
   inset: 0 auto 0 0;
   z-index: 120;
@@ -4242,6 +4164,9 @@ body {
 }
 
 .instrument-bar::after {
+  content: "";
+  position: absolute;
+  opacity: 0.6;
   left: auto;
   right: -1px;
   top: 8%;
@@ -4253,6 +4178,7 @@ body {
 }
 
 .brand-copy strong {
+  font-weight: 760;
   letter-spacing: .13em;
 }
 
@@ -4264,11 +4190,14 @@ body {
 }
 
 .instrument-nav-item.active {
+  text-shadow: 0 0 18px rgba(114,215,255,.12);
   color: #e6efea;
   background: linear-gradient(90deg,rgba(114,215,255,.055),transparent);
 }
 
 .instrument-actions {
+  grid-template-columns: 96px 92px 1fr;
+  align-items: stretch;
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
@@ -4291,23 +4220,52 @@ body {
 }
 
 .command-trigger {
+  display: flex;
+  align-items: center;
+  color: #717d85;
+  cursor: pointer;
+  letter-spacing: 0.12em;
   gap: 8px;
 }
 
 .language-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  color: #516168;
+  font: 7px ui-monospace, monospace;
+  letter-spacing: .08em;
   justify-content: flex-start;
   min-height: 28px;
 }
 
 .runtime-state {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #758179;
+  letter-spacing: 0.14em;
   min-height: 28px;
 }
 
 .global-start::before {
+  content: "";
+  position: absolute;
+  border: 1px solid rgba(201, 244, 91, 0.24);
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+  background: linear-gradient(100deg, rgba(201, 244, 91, 0.025), rgba(201, 244, 91, 0.09), rgba(201, 244, 91, 0.02));
+  transition: border-color 180ms ease, box-shadow 180ms ease;
   inset: 7px;
 }
 
 .shell-scan {
+  position: fixed;
+  z-index: 5;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(114, 215, 255, 0.07), transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 20%, #000 80%, transparent);
+  animation: shell-breathe 8s ease-in-out infinite alternate;
   inset: 0 0 auto var(--shell-rail);
   height: 74px;
   opacity: .08;
@@ -9030,6 +8988,7 @@ body {
   }
 }
 .product-space-loader {
+  background: var(--void);
   position: relative;
   min-height: 100vh;
   overflow: hidden;
