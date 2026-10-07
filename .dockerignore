@@ -4,7 +4,12 @@
 .mypy_cache
 .ruff_cache
 **/__pycache__
+**/node_modules
+**/dist
 *.pyc
+API_KEYS.md
+activate.sh
+sync-keys.sh
 .env
 .env.*
 .local/

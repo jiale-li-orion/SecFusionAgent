@@ -1,0 +1,17 @@
+# Optional development override for hosts where Docker cannot discover upstream DNS.
+# Keep the host-specific resolver in the environment, not in the repository.
+x-runtime-dns: &runtime-dns
+  dns:
+    - "${SECFUSION_DNS_SERVER:?set SECFUSION_DNS_SERVER to a reachable upstream resolver}"
+
+services:
+  worker:
+    <<: *runtime-dns
+  worker-collection:
+    <<: *runtime-dns
+  scheduler:
+    <<: *runtime-dns
+  task-event-dispatcher:
+    <<: *runtime-dns
+  task-event-scheduler:
+    <<: *runtime-dns
