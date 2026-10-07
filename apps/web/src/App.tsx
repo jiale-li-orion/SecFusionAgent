@@ -46,6 +46,8 @@ export default function App() {
                 <Route path="/investigations" element={<InvestigationsPage key={`investigations:${location.search}`} />} />
                 <Route path="/agents" element={<AgentsPage />} />
                 <Route path="/observatory" element={<ObservatoryPage key={`observatory:${location.search}`} />} />
+                <Route path="/demo" element={<Navigate to="/?guide=live" replace />} />
+                <Route path="/demo/frozen" element={<Navigate to="/observatory?mode=proof&guide=frozen" replace />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </motion.div>

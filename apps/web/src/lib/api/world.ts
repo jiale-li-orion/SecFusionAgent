@@ -81,6 +81,26 @@ export async function getWorldKnowledgeChanges(limit = 12): Promise<{ items: Wor
   return response.json() as Promise<{ items: WorldKnowledgeChange[] }>
 }
 
+export type WorldIncidentCandidate = {
+  candidate_id: string
+  incident_type: string
+  promotion_state: string
+  signal_count: number
+  independent_source_count: number
+  anchor_count: number
+  watch_priority: number
+  pinned: boolean
+  last_material_change: string
+  next_poll_at: string | null
+  unresolved_question_count: number
+}
+
+export async function getWorldIncidentCandidates(limit = 24): Promise<{ total: number; total_signals: number; multi_source_candidates: number; anchored_candidates: number; items: WorldIncidentCandidate[] }> {
+  const response = await fetch(`/api/v1/world/incident-candidates?limit=${limit}`)
+  if (!response.ok) throw new Error(`Incident candidates unavailable (${response.status})`)
+  return response.json() as Promise<{ total: number; total_signals: number; multi_source_candidates: number; anchored_candidates: number; items: WorldIncidentCandidate[] }>
+}
+
 export type HotBug = {
   source_id: string
   external_object_id: string

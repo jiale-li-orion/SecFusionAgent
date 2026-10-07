@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import {
@@ -11,8 +11,9 @@ import {
   X,
 } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { getHotWorld, getHotWorldItem, getWorldKnowledgeChanges, getWorldOverview, listIncidents, type HotBug } from '../lib/api'
+import { getHotWorld, getHotWorldItem, getWorldIncidentCandidates, getWorldKnowledgeChanges, getWorldOverview, listIncidents, type HotBug } from '../lib/api'
 import { HotCrystal, HotLens, PathLens, SourceLens, Telemetry, WorldField2D, WorldIncidentCluster, WorldIngressFlow, WorldLiveFlow } from '../components/world/WorldSurfaces'
+import { KnowledgeChangeRail } from '../components/world/KnowledgeChangeRail'
 import { hotIdentity, laneClass, laneSlug, parseHotIdentity, snapshotAge, sourceNarrative, sourceState, sources, supportsWebGL, worldLanePoints, worldWindows, type WorldWindow } from '../components/world/worldModel'
 import { useI18n } from '../lib/i18n'
 
@@ -35,11 +36,14 @@ export function WorldPage() {
   const [locatorError, setLocatorError] = useState('')
   const [worldWindow, setWorldWindow] = useState<WorldWindow>('1h')
   const [clockNow, setClockNow] = useState(() => Date.now())
+  const [knowledgePulseRevision, setKnowledgePulseRevision] = useState<number | null>(null)
+  const lastKnowledgeRevision = useRef<number | null>(null)
   const [compactViewport, setCompactViewport] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 860px), (max-height: 680px)').matches)
   const [world3DReady, setWorld3DReady] = useState(false)
   const worldQuery = useQuery({ queryKey: ['world-overview'], queryFn: getWorldOverview, refetchInterval: 30_000 })
   const hotQuery = useQuery({ queryKey: ['world-hot'], queryFn: () => getHotWorld(6), refetchInterval: 20_000 })
   const incidentQuery = useQuery({ queryKey: ['world-incidents'], queryFn: () => listIncidents(6), refetchInterval: 30_000 })
+  const incidentCandidateQuery = useQuery({ queryKey: ['world-incident-candidates'], queryFn: () => getWorldIncidentCandidates(24), refetchInterval: 20_000 })
   const knowledgeChangeQuery = useQuery({ queryKey: ['world-knowledge-changes'], queryFn: () => getWorldKnowledgeChanges(8), refetchInterval: 15_000 })
   const hotDetailQuery = useQuery({
     queryKey: ['world-hot-detail', focusedHotCoordinate?.sourceId, focusedHotCoordinate?.externalObjectId],
@@ -77,14 +81,27 @@ export function WorldPage() {
   const hasFocus = Boolean(focusedSourceMeta || focusedHotKey || focusedLane)
   const snapshotFresh = snapshot ? clockNow - new Date(snapshot.generated_at).getTime() <= 120_000 : false
   const latestKnowledgeChange = knowledgeChangeQuery.data?.items[0] ?? null
-  const knowledgeChangeFresh = latestKnowledgeChange
-    ? clockNow - new Date(latestKnowledgeChange.committed_at).getTime() <= 300_000
-    : false
+  const knowledgeChangeActive = latestKnowledgeChange?.revision === knowledgePulseRevision
 
   useEffect(() => {
     const timer = window.setInterval(() => setClockNow(Date.now()), 30_000)
     return () => window.clearInterval(timer)
   }, [])
+
+  useEffect(() => {
+    if (!latestKnowledgeChange) return
+    const nextRevision = latestKnowledgeChange.revision
+    if (lastKnowledgeRevision.current === nextRevision) return
+    const initialObservation = lastKnowledgeRevision.current === null
+    lastKnowledgeRevision.current = nextRevision
+    const age = Date.now() - new Date(latestKnowledgeChange.committed_at).getTime()
+    if (initialObservation && age > 300_000) return
+    setKnowledgePulseRevision(nextRevision)
+    const timer = window.setTimeout(() => {
+      setKnowledgePulseRevision((current) => current === nextRevision ? null : current)
+    }, 6_500)
+    return () => window.clearTimeout(timer)
+  }, [latestKnowledgeChange])
 
   useEffect(() => {
     if (reduceMotion || !webglAvailable || compactViewport) return
@@ -125,6 +142,10 @@ export function WorldPage() {
 
   function openIncident(incidentId: string) {
     navigate(`/intelligence?${new URLSearchParams({ incident: incidentId, from: 'world', worldRef: `incident:${incidentId}` }).toString()}`)
+  }
+
+  function openKnowledgeObject(objectId: string, changeId: string) {
+    navigate(`/intelligence?${new URLSearchParams({ object: objectId, from: 'world', worldRef: `knowledge-change:${changeId}` }).toString()}`)
   }
 
   function focusHot(item: HotBug) {
@@ -190,8 +211,15 @@ export function WorldPage() {
 
         <WorldIncidentCluster
           incidents={incidentQuery.data?.items ?? []}
+          candidates={incidentCandidateQuery.data?.items ?? []}
+          candidateTotal={incidentCandidateQuery.data?.total ?? 0}
+          signalTotal={incidentCandidateQuery.data?.total_signals ?? 0}
+          multiSourceCandidates={incidentCandidateQuery.data?.multi_source_candidates ?? 0}
+          anchoredCandidates={incidentCandidateQuery.data?.anchored_candidates ?? 0}
           loading={incidentQuery.isLoading}
+          candidateLoading={incidentCandidateQuery.isLoading}
           unavailable={incidentQuery.isError}
+          candidateUnavailable={incidentCandidateQuery.isError}
           onOpen={openIncident}
         />
         <div className="world-hero-actions">
@@ -220,15 +248,16 @@ export function WorldPage() {
           </div>
         )}
         {!reduceMotion && webglAvailable && !compactViewport && world3DReady ? (
-          <Suspense fallback={<WorldField2D freshChanges={oneHour?.fresh_external_changes ?? 0} backfillObservations={oneHour?.backfill_observations ?? 0} canonicalWrites={oneHour?.canonical_writes ?? 0} knowledgeChangeActive={knowledgeChangeFresh} />}>
+          <Suspense fallback={<WorldField2D freshChanges={oneHour?.fresh_external_changes ?? 0} backfillObservations={oneHour?.backfill_observations ?? 0} canonicalWrites={oneHour?.canonical_writes ?? 0} knowledgeChangeActive={knowledgeChangeActive} />}>
             <WorldField3D
               categories={snapshot?.categories ?? []}
               categoryActivity={categoryActivityMap}
               freshChanges={oneHour?.fresh_external_changes ?? 0}
               backfillObservations={oneHour?.backfill_observations ?? 0}
               canonicalWrites={oneHour?.canonical_writes ?? 0}
-              knowledgeChangeActive={knowledgeChangeFresh}
+              knowledgeChangeActive={knowledgeChangeActive}
               incidents={incidentQuery.data?.items ?? []}
+              incidentCandidates={incidentCandidateQuery.data?.items ?? []}
               focusedSource={focusedSource}
               focusedLane={focusedLane}
               focusedHot={Boolean(focusedHot)}
@@ -242,7 +271,7 @@ export function WorldPage() {
             freshChanges={oneHour?.fresh_external_changes ?? 0}
             backfillObservations={oneHour?.backfill_observations ?? 0}
             canonicalWrites={oneHour?.canonical_writes ?? 0}
-            knowledgeChangeActive={knowledgeChangeFresh}
+            knowledgeChangeActive={knowledgeChangeActive}
           />
         )}
 
@@ -269,8 +298,15 @@ export function WorldPage() {
           ) : (
             <b className="world-change-coordinate unavailable">{knowledgeChangeQuery.isError ? 'KNOWLEDGE CHANGE UNAVAILABLE' : 'NO DURABLE KNOWLEDGE CHANGE'}</b>
           )}
-          <i className={knowledgeChangeFresh ? 'active' : ''} />
+          <i className={knowledgeChangeActive ? 'active' : ''} />
         </div>
+
+        <KnowledgeChangeRail
+          changes={knowledgeChangeQuery.data?.items ?? []}
+          loading={knowledgeChangeQuery.isLoading}
+          unavailable={knowledgeChangeQuery.isError}
+          onOpenObject={openKnowledgeObject}
+        />
 
         <div className="processing-lanes" aria-label="Category route projections">
           {Object.keys(worldLanePoints).map((lane) => (

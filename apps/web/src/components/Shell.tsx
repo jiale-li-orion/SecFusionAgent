@@ -329,6 +329,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
               <button role="tab" aria-selected={storyMode === 'live'} className={storyMode === 'live' ? 'active' : ''} onClick={() => setGuidedStory('live')}>{text('实时链', 'LIVE PATH')}</button>
               <button role="tab" aria-selected={storyMode === 'frozen'} className={storyMode === 'frozen' ? 'active' : ''} onClick={() => setGuidedStory('frozen')}>{text('冻结链', 'FROZEN PATH')}</button>
             </div>
+            <div className="guided-story-entry">
+              <button type="button" onClick={() => navigate('/demo')}><span>LIVE DEMO</span><small>/demo</small></button>
+              <button type="button" onClick={() => navigate('/demo/frozen')}><span>FROZEN DEMO</span><small>/demo/frozen</small></button>
+            </div>
             <div className="guided-story-truth">
               <span className={storyError ? 'degraded' : 'ready'} />
               <small>{storyLoading ? text('解析真实路径…', 'RESOLVING REAL PATH…') : storyError ? text('部分 read seam 不可用；相关 step 已禁用', 'some read seams unavailable; affected steps disabled') : storyMode === 'live' ? text('LIVE / DURABLE refs 已绑定', 'LIVE / DURABLE refs bound') : text('BenchmarkRun / CaseRun / TaskRun / Decision 已绑定', 'BenchmarkRun / CaseRun / TaskRun / Decision bound')}</small>

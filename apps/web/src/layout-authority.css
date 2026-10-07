@@ -17,6 +17,27 @@ body,
   overflow-x: hidden;
 }
 
+.guided-story-entry {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.guided-story-entry > button {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 9px;
+}
+
+.guided-story-entry > button small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .observatory-space.observatory-proof .proof-seal {
   grid-template-columns: 64px minmax(430px, 1.35fr) minmax(260px, .55fr) !important;
   gap: 18px !important;
@@ -46,6 +67,53 @@ body,
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.world-space .world-change-rail {
+  position: absolute;
+  left: 57%;
+  top: 47%;
+  z-index: 23;
+  width: min(300px, 24vw);
+  display: grid;
+  gap: 5px;
+  padding: 9px 11px;
+}
+
+.world-space .world-change-rail > header {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+}
+
+.world-space .world-change-rail > header > div {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.world-space .world-change-rail > button {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 14px;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 5px 0;
+}
+
+.world-space .world-change-rail > button > div {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.world-space .world-change-rail > p {
+  margin: 0;
 }
 
 .investigations-space .case-injection-coordinate {
@@ -527,6 +595,36 @@ body,
   gap: 1px;
 }
 
+.world-space .world-incident-stage-counts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.world-space .world-incident-stage-counts > span {
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  min-width: 0;
+  padding: 4px 3px;
+}
+
+.world-space .world-candidate-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  padding: 4px 0;
+}
+
+.world-space .world-candidate-row strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .world-incident-cluster button {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -545,7 +643,8 @@ body,
 }
 
 @media (max-width: 1180px) {
-  .world-incident-cluster {
+  .world-incident-cluster,
+  .world-space .world-change-rail {
     display: none;
   }
 }
@@ -2701,6 +2800,28 @@ body,
   min-height: 28px;
   padding: 0 9px;
   font-size: 9px;
+}
+
+.guided-story-entry {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.guided-story-entry > button {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 9px;
+}
+
+.guided-story-entry > button small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* =========================================================

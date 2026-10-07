@@ -310,6 +310,53 @@
   letter-spacing: .05em;
 }
 
+.world-space .world-change-rail {
+  border-left: 1px solid rgba(72, 116, 139, .16);
+  background: linear-gradient(90deg, rgba(240, 247, 251, .76), rgba(240, 247, 251, .16));
+}
+
+.world-space .world-change-rail > header {
+  color: #587386;
+}
+
+.world-space .world-change-rail > header small,
+.world-space .world-change-rail > header em,
+.world-space .world-change-rail > button small,
+.world-space .world-change-rail > p {
+  color: #77848a;
+  font-size: 6.5px;
+  font-style: normal;
+  letter-spacing: .06em;
+}
+
+.world-space .world-change-rail > header strong,
+.world-space .world-change-rail > button > span,
+.world-space .world-change-rail > button strong {
+  color: #4d6a7b;
+  font-size: 7.5px;
+  font-weight: 620;
+}
+
+.world-space .world-change-rail > button {
+  color: inherit;
+  border: 0;
+  border-top: 1px solid rgba(72, 116, 139, .08);
+  background: transparent;
+  text-align: left;
+}
+
+.world-space .world-change-rail > button:not(:disabled) {
+  cursor: pointer;
+}
+
+.world-space .world-change-rail > button:not(:disabled):hover {
+  background: linear-gradient(90deg, rgba(72, 116, 139, .055), transparent);
+}
+
+.world-space .world-change-rail > button:disabled {
+  opacity: .55;
+}
+
 .intelligence-space .dossier-masthead {
   border-top: 1px solid rgba(72, 64, 52, .10) !important;
   border-bottom: 1px solid rgba(72, 64, 52, .08) !important;
@@ -599,6 +646,29 @@
 .guided-story-mode button[aria-selected="true"]:focus-visible {
   outline: 2px solid var(--cyan);
   outline-offset: 2px;
+}
+
+.guided-story-entry > button {
+  color: #8d8596;
+  border: 1px solid rgba(168,139,255,.12);
+  background: rgba(168,139,255,.025);
+}
+
+.guided-story-entry > button:hover,
+.guided-story-entry > button:focus-visible {
+  color: #b4a5cb;
+  border-color: rgba(168,139,255,.28);
+}
+
+.guided-story-entry > button span {
+  font-size: 7.5px;
+  font-weight: 620;
+  letter-spacing: .08em;
+}
+
+.guided-story-entry > button small {
+  color: #6d6874;
+  font: 6.5px ui-monospace, monospace;
 }
 
 .story-space-world .guided-story-mode,
@@ -932,6 +1002,36 @@
 .world-space .world-incident-cluster-head em {
   color: #8a765f;
   font-style: normal;
+}
+
+.world-space .world-incident-stage-counts > span {
+  border: 1px solid rgba(70, 87, 99, .08);
+  background: rgba(255, 255, 255, .34);
+}
+
+.world-space .world-incident-stage-counts small,
+.world-space .world-candidate-row span,
+.world-space .world-candidate-row em {
+  color: #807970;
+  font-size: 7px;
+  font-style: normal;
+  letter-spacing: .06em;
+}
+
+.world-space .world-incident-stage-counts strong {
+  color: #4d6370;
+  font-size: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.world-space .world-candidate-row {
+  border-bottom: 1px dashed rgba(125, 106, 142, .12);
+}
+
+.world-space .world-candidate-row strong {
+  color: #5c5365;
+  font-size: 8px;
+  font-weight: 560;
 }
 
 .world-space .world-incident-cluster button {

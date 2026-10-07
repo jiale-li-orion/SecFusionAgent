@@ -1,8 +1,9 @@
 import { useMemo, useRef } from 'react'
 import { Canvas, useFrame, type ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
-import type { IncidentSummary } from '../../lib/api'
+import type { IncidentSummary, WorldIncidentCandidate } from '../../lib/api'
 import { DurableIncidentOrbit } from './IncidentOrbit3D'
+import { IncidentCandidateCloud3D } from './IncidentCandidateCloud3D'
 
 type CategoryHealth = {
   category: string
@@ -170,6 +171,7 @@ export function WorldField3D({
   canonicalWrites,
   knowledgeChangeActive,
   incidents,
+  incidentCandidates,
   focusedSource,
   focusedLane,
   focusedHot,
@@ -184,6 +186,7 @@ export function WorldField3D({
   canonicalWrites: number
   knowledgeChangeActive: boolean
   incidents: IncidentSummary[]
+  incidentCandidates: WorldIncidentCandidate[]
   focusedSource: string | null
   focusedLane: string | null
   focusedHot: boolean
@@ -221,6 +224,7 @@ export function WorldField3D({
         <ActivityParticles countFact={backfillObservations} ghost reduceMotion={reduceMotion} />
         <CanonicalWriteCrystallization canonicalWrites={canonicalWrites} reduceMotion={reduceMotion} />
         <DurableIncidentOrbit incidents={incidents} reduceMotion={reduceMotion} onOpen={onIncidentOpen} />
+        <IncidentCandidateCloud3D candidates={incidentCandidates} reduceMotion={reduceMotion} />
       </Canvas>
     </div>
   )

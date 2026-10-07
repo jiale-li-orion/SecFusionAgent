@@ -109,6 +109,28 @@ class WorldKnowledgeChangeListView(BaseModel):
     items: list[WorldKnowledgeChangeView] = Field(default_factory=list)
 
 
+class WorldIncidentCandidateView(BaseModel):
+    candidate_id: str
+    incident_type: str
+    promotion_state: str
+    signal_count: int = 0
+    independent_source_count: int = 0
+    anchor_count: int = 0
+    watch_priority: int = 0
+    pinned: bool = False
+    last_material_change: datetime
+    next_poll_at: datetime | None = None
+    unresolved_question_count: int = 0
+
+
+class WorldIncidentCandidateListView(BaseModel):
+    total: int = 0
+    total_signals: int = 0
+    multi_source_candidates: int = 0
+    anchored_candidates: int = 0
+    items: list[WorldIncidentCandidateView] = Field(default_factory=list)
+
+
 class HotBugView(BaseModel):
     source_id: str
     external_object_id: str

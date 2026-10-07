@@ -37,4 +37,11 @@ Production `product-web` is fail-closed behind Nginx Basic Auth. Compose refuses
 
 `X-Principal` remains an application principal coordinate, not authentication. Basic Auth is an explicit competition/demo access boundary, not an identity system. When a hostname is available, terminate TLS in front of `product-web` (or extend this Nginx layer with the selected certificate workflow) before exposing credentials over the network.
 
+Stable competition demo entry points:
+
+- `/product/demo` — resolves the current live guided path from real Product reads.
+- `/product/demo/frozen` — enters the formal frozen BenchmarkRun / CaseRun proof path.
+
+These routes only navigate existing facts. They do not seed demo telemetry, fabricate Cases, or rewrite benchmark results.
+
 The product Nginx emits browser hardening headers (CSP, frame denial, no-sniff, no-referrer, and a restrictive Permissions-Policy). HSTS belongs to the TLS terminator because this container intentionally speaks plain HTTP behind that boundary; configure `Strict-Transport-Security` on the public HTTPS listener after the hostname and certificate are fixed.

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import json
-from pathlib import Path
+import asyncio
+from time import monotonic
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -15,25 +15,31 @@ from apps.application.views.world import (
     HotBugView,
     WorldCategoryHealthView,
     WorldHealthCountsView,
+    WorldIncidentCandidateListView,
+    WorldIncidentCandidateView,
     WorldKnowledgeChangeListView,
     WorldOverviewView,
     WorldSeriesPointView,
     WorldSourceHealthView,
     WorldWindowView,
 )
+from packages.intelligence.incident.contracts import IncidentCandidate
 from packages.intelligence.hot_cache.contracts import HotBugCacheEntry
 from packages.intelligence.hot_cache.redis import RedisHotBugCache
+from packages.monitoring.data_plane_status import data_plane_status
 from packages.shared.config import get_settings
 
 router = APIRouter(prefix="/api/v1/world", tags=["world"])
 
-_DATA_PLANE_SNAPSHOT = Path("benchmarks/data-plane/current.json")
 _WINDOW_KEYS = ("1h", "6h", "24h", "168h")
+_WORLD_OVERVIEW_TTL_SECONDS = 15.0
+_world_overview_cache: tuple[float, dict[str, Any]] | None = None
+_world_overview_lock = asyncio.Lock()
 
 
 @router.get("/overview", response_model=WorldOverviewView)
 async def world_overview() -> WorldOverviewView:
-    payload = _load_snapshot()
+    payload = await _live_overview_payload()
     source_health = payload.get("source_health", {})
     counts = source_health.get("counts", {})
     by_category = source_health.get("by_category", {})
@@ -103,6 +109,62 @@ async def world_knowledge_changes(
     return await list_world_knowledge_changes(session, limit=limit)
 
 
+@router.get("/incident-candidates", response_model=WorldIncidentCandidateListView)
+async def world_incident_candidates(
+    limit: int = Query(default=24, ge=1, le=64),
+) -> WorldIncidentCandidateListView:
+    settings = get_settings()
+    redis = Redis.from_url(settings.redis_hot_cache_url)
+    try:
+        cursor = 0
+        keys: list[bytes] = []
+        while True:
+            cursor, batch = await redis.scan(cursor, match="incident:cluster:*", count=256)
+            keys.extend(batch)
+            if cursor == 0:
+                break
+        raw_candidates = await redis.mget(keys) if keys else []
+    except RedisError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Incident candidate working set is unavailable",
+        ) from exc
+    finally:
+        await redis.aclose()
+
+    candidates = [
+        IncidentCandidate.model_validate_json(raw)
+        for raw in raw_candidates
+        if raw is not None
+    ]
+    candidates.sort(
+        key=lambda item: (item.watch_priority, item.last_material_change),
+        reverse=True,
+    )
+    return WorldIncidentCandidateListView(
+        total=len(candidates),
+        total_signals=sum(len(item.signal_ids) for item in candidates),
+        multi_source_candidates=sum(item.independent_source_count > 1 for item in candidates),
+        anchored_candidates=sum(bool(item.anchor_set) for item in candidates),
+        items=[
+            WorldIncidentCandidateView(
+                candidate_id=item.candidate_id,
+                incident_type=item.incident_type,
+                promotion_state=item.promotion_state,
+                signal_count=len(item.signal_ids),
+                independent_source_count=item.independent_source_count,
+                anchor_count=sum(len(values) for values in item.anchor_set.values()),
+                watch_priority=item.watch_priority,
+                pinned=item.pinned,
+                last_material_change=item.last_material_change,
+                next_poll_at=item.next_poll_at,
+                unresolved_question_count=len(item.unresolved_questions),
+            )
+            for item in candidates[:limit]
+        ],
+    )
+
+
 @router.get("/hot", response_model=HotBugListView)
 async def hot_world(limit: int = Query(default=18, ge=1, le=64)) -> HotBugListView:
     settings = get_settings()
@@ -144,14 +206,30 @@ async def hot_world_detail(
     return _hot_view(entry)
 
 
-def _load_snapshot() -> dict[str, Any]:
-    try:
-        return json.loads(_DATA_PLANE_SNAPSHOT.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError, KeyError) as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Data Plane operational snapshot is unavailable",
-        ) from exc
+async def _live_overview_payload() -> dict[str, Any]:
+    global _world_overview_cache
+
+    now = monotonic()
+    if _world_overview_cache is not None:
+        cached_at, payload = _world_overview_cache
+        if now - cached_at < _WORLD_OVERVIEW_TTL_SECONDS:
+            return payload
+
+    async with _world_overview_lock:
+        now = monotonic()
+        if _world_overview_cache is not None:
+            cached_at, payload = _world_overview_cache
+            if now - cached_at < _WORLD_OVERVIEW_TTL_SECONDS:
+                return payload
+        try:
+            payload = await data_plane_status()
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Live Data Plane aggregation is unavailable",
+            ) from exc
+        _world_overview_cache = (monotonic(), payload)
+        return payload
 
 
 def _window_view(metrics: dict[str, Any]) -> WorldWindowView:

@@ -144,6 +144,18 @@ def _static_product_gate(results: list[GateResult]) -> None:
     )
     _require_source(
         results,
+        name="demo-entry-routes",
+        relative_path="apps/web/src/App.tsx",
+        needles=(
+            'path="/demo"',
+            'to="/?guide=live"',
+            'path="/demo/frozen"',
+            'to="/observatory?mode=proof&guide=frozen"',
+        ),
+        detail="stable live and frozen demo entry URLs resolve into the guided Product story",
+    )
+    _require_source(
+        results,
         name="world-fallback",
         relative_path="apps/web/src/components/world/WorldSurfaces.tsx",
         needles=("WorldField2D", "world-2d-fallback"),
@@ -170,6 +182,48 @@ def _static_product_gate(results: list[GateResult]) -> None:
             "WORLD path lens remains an explicit taxonomy projection, "
             "not fabricated execution telemetry"
         ),
+    )
+    _require_source(
+        results,
+        name="world-live-overview-read",
+        relative_path="apps/api/routes/world.py",
+        needles=(
+            "from packages.monitoring.data_plane_status import data_plane_status",
+            "payload = await _live_overview_payload()",
+            "_WORLD_OVERVIEW_TTL_SECONDS = 15.0",
+            "Live Data Plane aggregation is unavailable",
+        ),
+        detail=(
+            "WORLD overview reads current durable state through the monitoring "
+            "aggregator instead of a frozen benchmark artifact"
+        ),
+    )
+    _require_source(
+        results,
+        name="world-knowledge-change-trace",
+        relative_path="apps/web/src/components/world/KnowledgeChangeRail.tsx",
+        needles=(
+            "DURABLE REVISIONS",
+            "change.object_ids[0]",
+            "onOpenObject(objectId, change.change_id)",
+            "KnowledgeChange read seam is unavailable",
+        ),
+        detail=(
+            "KnowledgeChange motion remains traceable to durable revision "
+            "coordinates and canonical objects"
+        ),
+    )
+    _require_source(
+        results,
+        name="demo-entry-controls",
+        relative_path="apps/web/src/components/Shell.tsx",
+        needles=(
+            "navigate('/demo')",
+            "navigate('/demo/frozen')",
+            "LIVE DEMO",
+            "FROZEN DEMO",
+        ),
+        detail="guided Product story exposes stable live and frozen demo entry controls",
     )
     _require_source(
         results,

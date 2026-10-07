@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { ArrowUpRight, Flame, ShieldAlert } from 'lucide-react'
 
-import type { HotBug, IncidentSummary, WorldOverview } from '../../lib/api'
+import type { HotBug, IncidentSummary, WorldIncidentCandidate, WorldOverview } from '../../lib/api'
 import { useI18n } from '../../lib/i18n'
 import { HotEnrichmentPreview } from './HotEnrichmentPreview'
 import { sourceNarrative, sourceState, sources, worldLanePoints } from './worldModel'
@@ -57,16 +57,29 @@ const hotSlots = [
   { left: '78%', top: '75%' },
 ]
 
-export function WorldIncidentCluster({ incidents, loading, unavailable, onOpen }: { incidents: IncidentSummary[]; loading: boolean; unavailable: boolean; onOpen: (incidentId: string) => void }) {
+export function WorldIncidentCluster({ incidents, candidates, candidateTotal, signalTotal, multiSourceCandidates, anchoredCandidates, loading, candidateLoading, unavailable, candidateUnavailable, onOpen }: { incidents: IncidentSummary[]; candidates: WorldIncidentCandidate[]; candidateTotal: number; signalTotal: number; multiSourceCandidates: number; anchoredCandidates: number; loading: boolean; candidateLoading: boolean; unavailable: boolean; candidateUnavailable: boolean; onOpen: (incidentId: string) => void }) {
   const { text } = useI18n()
   return (
-    <div className={`world-incident-cluster ${unavailable ? 'unavailable' : ''}`}>
+    <div className={`world-incident-cluster ${unavailable || candidateUnavailable ? 'unavailable' : ''}`}>
       <div className="world-incident-cluster-head">
         <span><ShieldAlert size={13} /></span>
-        <div><small>{text('持久事件世界', 'DURABLE INCIDENT WORLD')}</small><strong>{loading ? '…' : unavailable ? '—' : incidents.length}</strong></div>
-        <em>{unavailable ? text('读取不可用', 'UNAVAILABLE') : text('仅 durable rows', 'DURABLE ROWS ONLY')}</em>
+        <div><small>{text('事件状态链', 'INCIDENT STATE CHAIN')}</small><strong>{candidateLoading ? '…' : candidateUnavailable ? '—' : candidateTotal}</strong></div>
+        <em>{text('provisional → durable', 'PROVISIONAL → DURABLE')}</em>
       </div>
-      {!loading && !unavailable && incidents.length === 0 && <p>{text('当前没有已 promotion 的 durable Incident；不以 signal / candidate 冒充持久事件。', 'No promoted durable Incident is present; signals or candidates are not presented as durable incidents.')}</p>}
+      <div className="world-incident-stage-counts">
+        <span><small>SIGNAL</small><strong>{candidateUnavailable ? '—' : signalTotal}</strong></span>
+        <span><small>CANDIDATE</small><strong>{candidateUnavailable ? '—' : candidateTotal}</strong></span>
+        <span><small>DURABLE</small><strong>{unavailable ? '—' : incidents.length}</strong></span>
+      </div>
+      {!candidateUnavailable && <small className="world-candidate-diagnostics">{multiSourceCandidates} multi-source · {anchoredCandidates} anchored</small>}
+      {!candidateUnavailable && candidates.slice(0, 2).map((candidate) => (
+        <div className="world-candidate-row" key={candidate.candidate_id}>
+          <span>{candidate.promotion_state.toUpperCase()}</span>
+          <strong>{candidate.incident_type}</strong>
+          <em>{candidate.independent_source_count} src · {candidate.anchor_count} anchor · p{candidate.watch_priority}</em>
+        </div>
+      ))}
+      {!loading && !unavailable && incidents.length === 0 && <p>{text('已有 provisional signal / candidate，但当前没有满足 promotion policy 的 durable Incident。', 'Provisional signal/candidate state exists, but no durable Incident currently satisfies promotion policy.')}</p>}
       {incidents.slice(0, 3).map((incident) => (
         <button key={incident.incident_id} type="button" onClick={() => onOpen(incident.incident_id)}>
           <span>{incident.lifecycle.toUpperCase()}</span>

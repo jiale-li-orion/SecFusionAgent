@@ -20,14 +20,89 @@ NOW = datetime(2026, 10, 7, 8, 30, tzinfo=UTC)
 
 
 @pytest.mark.asyncio
-async def test_world_overview_exposes_product_safe_data_plane_snapshot() -> None:
+async def test_world_overview_exposes_live_product_data_plane_projection(monkeypatch) -> None:
+    import apps.api.routes.world as world_route
+
+    categories = {
+        name: {"healthy": 1, "degraded": 0, "blocked": 0}
+        for name in (
+            "vulnerability",
+            "development",
+            "academic",
+            "vendor",
+            "independent",
+            "normative",
+            "assets",
+            "incidents",
+        )
+    }
+    live_payload = {
+        "schema_version": "1",
+        "generated_at": NOW.isoformat(),
+        "source_health": {
+            "counts": {"healthy": 8, "degraded": 0, "blocked": 0},
+            "healthy_rate": 1.0,
+            "overdue_sources": 0,
+            "backfill_pending_sources": 0,
+            "by_category": categories,
+            "sources": [
+                {
+                    "source_id": "nvd-cves-2",
+                    "measurement_category": "vulnerability",
+                    "health": "healthy",
+                    "latest_scheduled_status": "success",
+                    "consecutive_failures": 0,
+                    "backfill_pending": False,
+                    "last_success_at": NOW.isoformat(),
+                    "next_due_at": NOW.isoformat(),
+                    "backoff_until": None,
+                    "overdue": False,
+                    "latest_error_code": None,
+                }
+            ],
+        },
+        "rolling_windows": {
+            key: {
+                "scheduled_monitoring": {
+                    "observations": 3,
+                    "fresh_external_changes": 2,
+                    "canonical_writes": 11,
+                    "document_chunks": 4,
+                    "document_text_bytes": 128,
+                    "fresh_contributing_sources": 1,
+                    "fresh_contributing_categories": 1,
+                    "fresh_top1_source_share": 1.0,
+                    "evidence_integrity_rate": 1.0,
+                }
+            }
+            for key in ("1h", "6h", "24h", "168h")
+        },
+        "hourly_series": [],
+        "category_hourly_series": {},
+        "pipeline_state": {
+            "outbox": {"delivered": 4},
+            "document_index": {"lexical_ready": 2},
+        },
+        "storage": {
+            "artifact_store": {
+                "status": "available",
+                "public_epoch": {"integrity_rate": 1.0},
+            }
+        },
+    }
+
+    async def fake_data_plane_status() -> dict[str, object]:
+        return live_payload
+
+    world_route._world_overview_cache = None
+    monkeypatch.setattr(world_route, "data_plane_status", fake_data_plane_status)
     app = create_app()
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.get("/api/v1/world/overview")
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["generated_at"]
+    assert payload["generated_at"] == NOW.isoformat().replace("+00:00", "Z")
     assert set(payload["windows"]) >= {"1h", "6h", "24h", "168h"}
     assert payload["source_health"]["healthy"] >= 0
     assert {item["category"] for item in payload["categories"]} >= {
