@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from typing import Literal
 
 from fastapi import APIRouter, Query, Request, Response, status
 from fastapi.responses import StreamingResponse
@@ -103,12 +104,14 @@ async def list_investigations(
     limit: int = Query(default=50, ge=1, le=100),
     cursor: str | None = None,
     investigation_status: str | None = Query(default=None, alias="status"),
+    origin_scope: Literal["product"] | None = None,
 ) -> InvestigationPage:
     return await InvestigationQueries().list(
         session,
         limit=limit,
         cursor=cursor,
         status=investigation_status,
+        product_only=origin_scope == "product",
         principal=context.principal,
     )
 

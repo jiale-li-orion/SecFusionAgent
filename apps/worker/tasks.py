@@ -1,12 +1,17 @@
 import asyncio
+from math import ceil
 from pathlib import Path
 
 import httpx
 from sqlalchemy import select
 
+from apps.application.commands.finalize_investigation import (
+    FinalizationBusyError,
+    FinalizeInvestigationUseCase,
+)
 from apps.enrichment_runtime import create_configured_enrichment_runtime
 from apps.investigation_runtime import create_configured_investigation_runtime
-from apps.model_runtime import record_model_provider
+from apps.model_runtime import create_recorded_model_provider, record_model_provider
 from apps.runtime_artifacts import create_runtime_artifact_service
 from apps.task_admission import create_task_contract_service
 from apps.watch_runtime import RuntimeWatchWakeAdmission
@@ -65,7 +70,12 @@ def index_document_revision(payload: dict[str, object]) -> int:
     return asyncio.run(_index_document_revision(payload))
 
 
-@celery_app.task(name="secfusion.investigation.run")
+@celery_app.task(
+    name="secfusion.investigation.run",
+    autoretry_for=(FinalizationBusyError,),
+    default_retry_delay=5,
+    retry_kwargs={"max_retries": ceil((get_settings().model_timeout_seconds + 30) / 5) + 2},
+)
 def run_investigation(run_id: str) -> str:
     return asyncio.run(_run_investigation(run_id))
 
@@ -76,6 +86,7 @@ async def _run_investigation(run_id: str) -> str:
     factory = create_session_factory(engine)
     execution_service = ExecutionRunService()
     try:
+
         async def execute_role(claimed_run_id: str) -> object:
             async with factory() as session, session.begin():
                 claimed = await get_task_run(session, claimed_run_id)
@@ -123,6 +134,17 @@ async def _run_investigation(run_id: str) -> str:
             {"InvestigationRole": execute_role},
             stream_name=settings.task_event_stream_name,
         ).execute(run_id)
+        if result.final_status is TaskRunStatus.COMPLETED:
+            async with httpx.AsyncClient(timeout=settings.model_timeout_seconds) as client:
+                artifacts = await create_runtime_artifact_service(settings)
+                provider = create_recorded_model_provider(
+                    settings,
+                    factory,
+                    client,
+                    artifact_service=artifacts,
+                )
+                if provider is not None:
+                    await FinalizeInvestigationUseCase(factory, settings, provider).execute(run_id)
         return result.final_status.value
     finally:
         await engine.dispose()

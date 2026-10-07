@@ -35,6 +35,7 @@ from packages.runtime.storage.models import (
     BudgetAccountModel,
     BudgetReservationModel,
     CapabilityInvocationModel,
+    ExecutionRunModel,
 )
 from packages.task_runtime.contracts.models import TaskRunStatus
 from packages.task_runtime.contracts.roles import canonical_roles
@@ -338,6 +339,7 @@ async def get_agent_task_detail(
             select(TaskRunModel)
             .where(
                 (TaskRunModel.run_id == run.parent_run_id)
+                | (TaskRunModel.run_id == summary.predecessor_run_id)
                 | (TaskRunModel.parent_run_id == run_id)
             )
             .order_by(TaskRunModel.created_at)
@@ -374,6 +376,10 @@ async def get_agent_task_detail(
     return AgentTaskDetailView(
         task=summary,
         parent=parent,
+        predecessor=next(
+            (item for item in related_summaries if item.run_id == summary.predecessor_run_id),
+            None,
+        ),
         children=children,
         events=[
             AgentTaskEventView(
@@ -478,6 +484,13 @@ async def _task_summaries(
             .order_by(TaskEventModel.task_run_id, TaskEventModel.seq)
         )
     )
+    executions = list(await session.scalars(
+        select(ExecutionRunModel).where(ExecutionRunModel.task_run_id.in_(run_ids))
+    ))
+    predecessor_by_run = {
+        item.task_run_id: _execution_predecessor_run_id(item)
+        for item in executions
+    }
     events_by_run: dict[str, list[TaskEventModel]] = defaultdict(list)
     for event in events:
         events_by_run[event.task_run_id].append(event)
@@ -487,6 +500,7 @@ async def _task_summaries(
             run,
             task_kind=task_kind_by_contract.get(run.task_contract_version_id, "unknown"),
             events=events_by_run.get(run.run_id, []),
+            predecessor_run_id=predecessor_by_run.get(run.run_id),
         )
         for run in runs
     ]
@@ -497,6 +511,7 @@ def _task_summary(
     *,
     task_kind: str,
     events: list[TaskEventModel],
+    predecessor_run_id: str | None = None,
 ) -> AgentTaskSummaryView:
     latest = events[-1] if events else None
     return AgentTaskSummaryView(
@@ -504,6 +519,7 @@ def _task_summary(
         task_kind=task_kind,
         case_id=run.case_id,
         parent_run_id=run.parent_run_id,
+        predecessor_run_id=predecessor_run_id,
         role_id=run.role_id,
         role_version=run.role_version,
         status=run.status,
@@ -542,3 +558,15 @@ def _capability_view(item: CapabilityInvocationModel) -> AgentCapabilityActivity
 
 def _optional_string(value: object) -> str | None:
     return value if isinstance(value, str) and value else None
+
+
+def _execution_predecessor_run_id(execution: ExecutionRunModel) -> str | None:
+    trace = execution.envelope_json.get("trace_context", {})
+    if not isinstance(trace, dict):
+        return None
+    explicit = _optional_string(trace.get("predecessor_run_id"))
+    if explicit is not None:
+        return explicit
+    if trace.get("surface") == "product-investigation-finalize":
+        return _optional_string(trace.get("request_id"))
+    return None

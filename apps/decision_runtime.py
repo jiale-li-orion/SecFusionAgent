@@ -55,6 +55,8 @@ async def open_case_decision_execution(
     request_id: str,
     surface: str,
     timeout_seconds: float | None = None,
+    run_id: str | None = None,
+    predecessor_run_id: str | None = None,
 ) -> DecisionExecutionCoordinate:
     timeout = float(timeout_seconds or settings.model_timeout_seconds)
     policy = load_runtime_policy(settings.runtime_policy_path)
@@ -77,7 +79,7 @@ async def open_case_decision_execution(
             },
         )
     )
-    run_id = str(uuid4())
+    run_id = run_id or str(uuid4())
     execution_id = f"execution:{run_id}"
     budget_ref = f"budget:{run_id}"
     evidence_refs = sorted(
@@ -152,7 +154,10 @@ async def open_case_decision_execution(
             network_policy="local-only",
             side_effect_policy="read-only",
             sandbox_profile_revision="none@1",
-            trace_context={"request_id": request_id, "surface": surface},
+            trace_context={
+                "request_id": request_id, "surface": surface,
+                "predecessor_run_id": predecessor_run_id,
+            },
         ),
     )
     await transition_task_run(

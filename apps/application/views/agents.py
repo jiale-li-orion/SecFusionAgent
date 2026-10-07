@@ -24,6 +24,7 @@ class AgentTaskSummaryView(BaseModel):
     task_kind: str
     case_id: str | None = None
     parent_run_id: str | None = None
+    predecessor_run_id: str | None = None
     role_id: str
     role_version: str
     status: str
@@ -127,6 +128,7 @@ class AgentRuntimeOverviewView(BaseModel):
 class AgentTaskDetailView(BaseModel):
     task: AgentTaskSummaryView
     parent: AgentTaskSummaryView | None = None
+    predecessor: AgentTaskSummaryView | None = None
     children: list[AgentTaskSummaryView] = Field(default_factory=list)
     events: list[AgentTaskEventView] = Field(default_factory=list)
     capabilities: list[AgentCapabilityActivityView] = Field(default_factory=list)

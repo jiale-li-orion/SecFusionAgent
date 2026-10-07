@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from time import monotonic
 from typing import Any
 
@@ -35,6 +36,8 @@ _WINDOW_KEYS = ("1h", "6h", "24h", "168h")
 _WORLD_OVERVIEW_TTL_SECONDS = 15.0
 _world_overview_cache: tuple[float, dict[str, Any]] | None = None
 _world_overview_lock = asyncio.Lock()
+_world_overview_refresh: asyncio.Task[dict[str, Any]] | None = None
+_logger = logging.getLogger(__name__)
 
 
 @router.get("/overview", response_model=WorldOverviewView)
@@ -207,6 +210,30 @@ async def hot_world_detail(
 
 
 async def _live_overview_payload() -> dict[str, Any]:
+    global _world_overview_refresh
+
+    if _world_overview_cache is None:
+        return await _refresh_overview_payload()
+    cached_at, payload = _world_overview_cache
+    if monotonic() - cached_at >= _WORLD_OVERVIEW_TTL_SECONDS:
+        if _world_overview_refresh is None or _world_overview_refresh.done():
+            _world_overview_refresh = asyncio.create_task(_refresh_overview_payload())
+            _world_overview_refresh.add_done_callback(_observe_refresh)
+    # generated_at remains the original measurement time; the UI can show its age.
+    return payload
+
+
+def _observe_refresh(task: asyncio.Task[dict[str, Any]]) -> None:
+    if not task.cancelled() and (error := task.exception()) is not None:
+        _logger.warning("World overview refresh failed; retaining measured snapshot: %s", error)
+
+
+def _aggregate_overview() -> dict[str, Any]:
+    # Aggregation owns its engine and does CPU-heavy series assembly; isolate its event loop.
+    return asyncio.run(data_plane_status())
+
+
+async def _refresh_overview_payload() -> dict[str, Any]:
     global _world_overview_cache
 
     now = monotonic()
@@ -222,7 +249,7 @@ async def _live_overview_payload() -> dict[str, Any]:
             if now - cached_at < _WORLD_OVERVIEW_TTL_SECONDS:
                 return payload
         try:
-            payload = await data_plane_status()
+            payload = await asyncio.to_thread(_aggregate_overview)
         except Exception as exc:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

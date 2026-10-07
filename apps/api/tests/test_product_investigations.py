@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from apps.api.dependencies import database_session
@@ -16,6 +17,7 @@ from packages.intelligence.storage.knowledge_models import (
     ObjectModel,
 )
 from packages.shared.db import Base
+from packages.task_runtime.storage.models import TaskContractVersionModel, TaskRunModel
 
 NOW = datetime(2026, 9, 27, 12, 0, tzinfo=UTC)
 
@@ -109,6 +111,39 @@ async def test_product_investigation_http_contract() -> None:
             assert cancelled.status_code == 200, cancelled.text
             assert cancelled.json()["status"] == "cancelled"
             assert cancelled.json()["can_cancel"] is False
+
+            # Product filtering must happen before pagination, not hide rows in the browser.
+            benchmark = await client.post(
+                "/api/v1/investigations",
+                headers={"X-Principal": "user:test"},
+                json={
+                    "cve_id": "CVE-2026-51515",
+                    "goal": "Internal benchmark",
+                    "evidence_question": "Verify the fixture",
+                    "task_kind": "verify_version_fix",
+                },
+            )
+            assert benchmark.status_code == 202, benchmark.text
+            async with factory() as fixture_session, fixture_session.begin():
+                await fixture_session.execute(
+                    update(TaskContractVersionModel)
+                    .where(
+                        TaskContractVersionModel.task_contract_version_id.in_(
+                            select(TaskRunModel.task_contract_version_id).where(
+                                TaskRunModel.case_id == benchmark.json()["case_id"]
+                            )
+                        )
+                    )
+                    .values(principal="system:benchmark:internal")
+                )
+            product_page = await client.get(
+                "/api/v1/investigations", params={"limit": 1, "origin_scope": "product"}
+            )
+            assert product_page.status_code == 200, product_page.text
+            assert [item["case_id"] for item in product_page.json()["items"]] == [
+                payload["case_id"]
+            ]
+            assert product_page.json()["has_more"] is False
     finally:
         await engine.dispose()
 

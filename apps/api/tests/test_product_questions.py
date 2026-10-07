@@ -177,6 +177,23 @@ async def test_product_question_session_continues_existing_investigation_case() 
         assert foreign_case.json()["continuation_session_id"] is None
         assert foreign_case.json()["can_cancel"] is False
 
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            history = await client.get(
+                f"/api/v1/questions/sessions/{first['session_id']}",
+                headers={"X-Principal": "user:test"},
+            )
+            forbidden_history = await client.get(
+                f"/api/v1/questions/sessions/{first['session_id']}",
+                headers={"X-Principal": "user:other"},
+            )
+            missing_history = await client.get("/api/v1/questions/sessions/missing-session")
+        assert history.status_code == 200, history.text
+        assert history.json()["turns"][0]["question"] == "Verify the fix evidence."
+        assert history.json()["turns"][0]["investigation_ref"] == f"case:{case_id}"
+        assert "principal" not in history.json()
+        assert forbidden_history.status_code == 403
+        assert missing_history.status_code == 404
+
         async with factory() as session, session.begin():
             run = await session.scalar(
                 select(TaskRunModel).where(

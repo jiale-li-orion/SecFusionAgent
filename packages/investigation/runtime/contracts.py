@@ -5,6 +5,7 @@ from typing import Annotated, Literal, Protocol
 
 from pydantic import BaseModel, Field
 
+from packages.intelligence.knowledge.vocabulary import EnrichmentDimension
 from packages.investigation.perception.contracts import Percept, PerceptionRequest
 from packages.investigation.state.contracts import EvidenceNeed, InvestigationState, StatePatch
 from packages.task_runtime.contracts.models import TaskContract
@@ -27,7 +28,13 @@ class EnrichmentDelegationRequest(BaseModel):
     delegation_id: str
     target_object_id: str
     cve_id: str
-    required_dimensions: list[str] = Field(min_length=1)
+    required_dimensions: list[EnrichmentDimension] = Field(
+        min_length=1,
+        description=(
+            "Canonical enrichment-v1 dimensions only. First fixed version and fix commit "
+            "questions use fix_remediation; affected version questions use version_applicability."
+        ),
+    )
     reason: str
 
 

@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, model_validator
 from apps.api.dependencies import RequestContextDep, SessionDep
 from apps.api.errors import ProblemDetail
 from apps.application.commands.ask_question import AskQuestionCommand, AskQuestionUseCase
+from apps.application.question_sessions import QuestionSessionStore, QuestionSessionTurn
 from apps.application.views.questions import QuestionResultView
 from apps.model_runtime import create_recorded_model_provider
 from apps.runtime_artifacts import create_runtime_artifact_service
@@ -57,99 +58,76 @@ async def ask_question(
     context: RequestContextDep,
 ) -> QuestionResultView:
     settings = get_settings()
-    provider = None
-    if payload.task_kind in {TaskKind.LOOKUP, TaskKind.RETRIEVE}:
-        session_factory = getattr(request.app.state, "session_factory", None)
-        if settings.model_base_url and settings.model_name and session_factory is not None:
-            async with httpx.AsyncClient(
-                timeout=min(settings.model_timeout_seconds, payload.interactive_timeout_seconds)
-            ) as client:
-                runtime_artifacts = await create_runtime_artifact_service(settings)
-                provider = create_recorded_model_provider(
-                    settings,
-                    session_factory,
-                    client,
-                    artifact_service=runtime_artifacts,
-                )
-                result = await AskQuestionUseCase(
-                    policy_path=settings.runtime_policy_path,
-                    task_event_stream_name=settings.task_event_stream_name,
-                    model_provider=provider,
-                ).execute(
-                    session,
-                    AskQuestionCommand(
-                        principal=context.principal,
-                        request_id=context.request_id,
-                        trace_id=context.trace_id,
-                        session_id=payload.session_id,
-                        question=payload.question,
-                        cve_id=payload.cve_id,
-                        object_id=payload.object_id,
-                        task_kind=payload.task_kind,
-                        required_source_roles=payload.required_source_roles,
-                        priority=payload.priority,
-                        interactive_timeout_seconds=payload.interactive_timeout_seconds,
-                        retrieval_limit=payload.retrieval_limit,
-                        allow_wait=payload.allow_wait,
-                        investigation_timeout_seconds=payload.investigation_timeout_seconds,
-                        agent_turns=payload.agent_turns,
-                        tool_calls=payload.tool_calls,
-                    ),
-                )
-        else:
+    command = AskQuestionCommand(
+        principal=context.principal,
+        request_id=context.request_id,
+        trace_id=context.trace_id,
+        session_id=payload.session_id,
+        question=payload.question,
+        cve_id=payload.cve_id,
+        object_id=payload.object_id,
+        task_kind=payload.task_kind,
+        required_source_roles=payload.required_source_roles,
+        priority=payload.priority,
+        interactive_timeout_seconds=payload.interactive_timeout_seconds,
+        retrieval_limit=payload.retrieval_limit,
+        allow_wait=payload.allow_wait,
+        investigation_timeout_seconds=payload.investigation_timeout_seconds,
+        agent_turns=payload.agent_turns,
+        tool_calls=payload.tool_calls,
+    )
+    session_factory = getattr(request.app.state, "session_factory", None)
+    model_enabled = (
+        payload.task_kind in {TaskKind.LOOKUP, TaskKind.RETRIEVE}
+        and bool(settings.model_base_url)
+        and bool(settings.model_name)
+        and session_factory is not None
+    )
+    if model_enabled:
+        async with httpx.AsyncClient(
+            timeout=min(settings.model_timeout_seconds, payload.interactive_timeout_seconds)
+        ) as client:
+            runtime_artifacts = await create_runtime_artifact_service(settings)
+            provider = create_recorded_model_provider(
+                settings,
+                session_factory,
+                client,
+                artifact_service=runtime_artifacts,
+            )
             result = await AskQuestionUseCase(
                 policy_path=settings.runtime_policy_path,
                 task_event_stream_name=settings.task_event_stream_name,
-                model_provider=None,
-            ).execute(
-                session,
-                AskQuestionCommand(
-                    principal=context.principal,
-                    request_id=context.request_id,
-                    trace_id=context.trace_id,
-                    session_id=payload.session_id,
-                    question=payload.question,
-                    cve_id=payload.cve_id,
-                    object_id=payload.object_id,
-                    task_kind=payload.task_kind,
-                    required_source_roles=payload.required_source_roles,
-                    priority=payload.priority,
-                    interactive_timeout_seconds=payload.interactive_timeout_seconds,
-                    retrieval_limit=payload.retrieval_limit,
-                    allow_wait=payload.allow_wait,
-                    investigation_timeout_seconds=payload.investigation_timeout_seconds,
-                    agent_turns=payload.agent_turns,
-                    tool_calls=payload.tool_calls,
-                ),
-            )
+                model_provider=provider,
+            ).execute(session, command)
     else:
         result = await AskQuestionUseCase(
             policy_path=settings.runtime_policy_path,
             task_event_stream_name=settings.task_event_stream_name,
             model_provider=None,
-        ).execute(
-            session,
-            AskQuestionCommand(
-                principal=context.principal,
-                request_id=context.request_id,
-                trace_id=context.trace_id,
-                session_id=payload.session_id,
-                question=payload.question,
-                cve_id=payload.cve_id,
-                object_id=payload.object_id,
-                task_kind=payload.task_kind,
-                required_source_roles=payload.required_source_roles,
-                priority=payload.priority,
-                interactive_timeout_seconds=payload.interactive_timeout_seconds,
-                retrieval_limit=payload.retrieval_limit,
-                allow_wait=payload.allow_wait,
-                investigation_timeout_seconds=payload.investigation_timeout_seconds,
-                agent_turns=payload.agent_turns,
-                tool_calls=payload.tool_calls,
-            ),
-        )
+        ).execute(session, command)
     if result.mode == "accepted":
         response.status_code = status.HTTP_202_ACCEPTED
         assert result.investigation is not None
         response.headers["Location"] = f"/api/v1/investigations/{result.investigation.case_id}"
     return result
+
+
+class QuestionSessionHistoryView(BaseModel):
+    session_id: str
+    turns: list[QuestionSessionTurn]
+
+
+@router.get(
+    "/sessions/{session_id}",
+    response_model=QuestionSessionHistoryView,
+    responses={403: {"model": ProblemDetail}, 404: {"model": ProblemDetail}},
+)
+async def question_session_history(
+    session_id: str,
+    session: SessionDep,
+    context: RequestContextDep,
+) -> QuestionSessionHistoryView:
+    history = await QuestionSessionStore(history_limit=50).resolve(
+        session, session_id=session_id, principal=context.principal
+    )
+    return QuestionSessionHistoryView(session_id=history.session_id, turns=history.turns)

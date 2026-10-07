@@ -60,10 +60,26 @@ class InvestigationQueries:
         limit: int = 50,
         cursor: str | None = None,
         status: str | None = None,
+        product_only: bool = False,
         principal: str | None = None,
     ) -> InvestigationPage:
         bounded_limit = min(max(limit, 1), 100)
         stmt = select(InvestigationCaseModel)
+        if product_only:
+            product_run = (
+                select(TaskRunModel.run_id)
+                .join(
+                    TaskContractVersionModel,
+                    TaskContractVersionModel.task_contract_version_id
+                    == TaskRunModel.task_contract_version_id,
+                )
+                .where(
+                    TaskRunModel.case_id == InvestigationCaseModel.case_id,
+                    TaskContractVersionModel.principal.startswith("user:"),
+                )
+                .exists()
+            )
+            stmt = stmt.where(product_run)
         if status:
             stmt = stmt.where(InvestigationCaseModel.status == status)
         if cursor:
@@ -131,6 +147,23 @@ class InvestigationQueries:
                 execution_profile = (
                     str(execution.envelope_json.get("execution_profile") or "") or None
                 )
+            if run.role_id == "DecisionRole":
+                # The final reasoning step is DIRECT; the Case retains its investigation profile.
+                investigation_execution = await session.scalar(
+                    select(ExecutionRunModel)
+                    .join(TaskRunModel, TaskRunModel.run_id == ExecutionRunModel.task_run_id)
+                    .where(
+                        TaskRunModel.case_id == case.case_id,
+                        TaskRunModel.role_id == "InvestigationRole",
+                    )
+                    .order_by(TaskRunModel.created_at.desc(), TaskRunModel.run_id.desc())
+                    .limit(1)
+                )
+                if investigation_execution is not None:
+                    execution_profile = (
+                        str(investigation_execution.envelope_json.get("execution_profile") or "")
+                        or None
+                    )
             activity = InvestigationActivitySummaryView(
                 phase=_phase_from_task_status(run.status),
                 actor_role=run.role_id,

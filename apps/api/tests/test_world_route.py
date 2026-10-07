@@ -187,9 +187,7 @@ async def test_world_hot_exposes_ranked_product_safe_hot_bug_view(monkeypatch) -
     app = create_app()
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as http:
         response = await http.get("/api/v1/world/hot?limit=5")
-        detail = await http.get(
-            "/api/v1/world/hot/nvd-cves-2/CVE-2026-42424"
-        )
+        detail = await http.get("/api/v1/world/hot/nvd-cves-2/CVE-2026-42424")
 
     assert response.status_code == 200
     item = response.json()["items"][0]
@@ -261,3 +259,40 @@ async def test_world_knowledge_changes_expose_durable_revision_coordinates() -> 
         assert item["committed_at"]
     finally:
         await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_stale_world_snapshot_returns_immediately_while_one_refresh_runs(monkeypatch) -> None:
+    import asyncio
+    from threading import Event
+
+    import apps.api.routes.world as world_route
+
+    previous_cache = world_route._world_overview_cache
+    previous_refresh = world_route._world_overview_refresh
+    old = {"generated_at": NOW.isoformat()}
+    started, finish = Event(), Event()
+    calls = 0
+
+    def slow_refresh():
+        nonlocal calls
+        calls += 1
+        started.set()
+        assert finish.wait(timeout=2)
+        return {"generated_at": "new-measurement"}
+
+    monkeypatch.setattr(world_route, "_aggregate_overview", slow_refresh)
+    world_route._world_overview_cache = (0, old)
+    world_route._world_overview_refresh = None
+    try:
+        assert await asyncio.wait_for(world_route._live_overview_payload(), 0.1) is old
+        assert await asyncio.to_thread(started.wait, 0.5)
+        assert await asyncio.wait_for(world_route._live_overview_payload(), 0.1) is old
+        assert calls == 1
+        finish.set()
+        await world_route._world_overview_refresh
+        assert (await world_route._live_overview_payload())["generated_at"] == "new-measurement"
+    finally:
+        finish.set()
+        world_route._world_overview_cache = previous_cache
+        world_route._world_overview_refresh = previous_refresh
