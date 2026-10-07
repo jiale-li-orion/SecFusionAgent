@@ -63,6 +63,12 @@ body {
 .product-shell {
   min-height: 100vh;
   color: var(--text);
+  --pointer-y: 34vh;
+  --pointer-x: 50vw;
+  isolation: isolate;
+  --shell-rail: 176px;
+  padding-left: var(--shell-rail);
+  background: transparent;
 }
 
 .instrument-brand,
@@ -218,6 +224,8 @@ body {
 
 .route-stage {
   position: relative;
+  transform-origin: center center;
+  perspective: 1200px;
 }
 
 .command-lens {
@@ -2007,6 +2015,7 @@ body {
   top: 82px;
   border: 0;
   border-left: 1px solid var(--hairline);
+  min-height: 70vh;
 }
 
 .intelligence-space .evidence-inspector.active {
@@ -4136,14 +4145,6 @@ body {
   color: #ffd1d4;
   transform: translateX(3px);
 }
-.product-shell {
-  --pointer-y: 34vh;
-  --pointer-x: 50vw;
-  isolation: isolate;
-  --shell-rail: 176px;
-  padding-left: var(--shell-rail);
-  background: transparent;
-}
 
 .instrument-bar {
   grid-template-columns: 190px minmax(0, 1fr) auto;
@@ -4775,10 +4776,6 @@ body {
   box-shadow: 0 12px 35px rgba(71,58,39,.08);
 }
 
-.intelligence-space .evidence-inspector {
-  min-height: 70vh;
-}
-
 .intelligence-space .claim-group-title {
   position: relative;
   padding-bottom: 8px;
@@ -5097,6 +5094,8 @@ body {
   border: 0;
   border-top: 1px solid rgba(114,215,255,.065);
   padding: 12px 0 0;
+  border-top-color: rgba(114,215,255,.11);
+  background: rgba(7,14,19,.16);
 }
 
 .observatory-space .telemetry-charts {
@@ -5351,10 +5350,6 @@ body {
 @keyframes watch-orbit {
   to { transform: rotate(360deg); }
 }
-.route-stage {
-  transform-origin: center center;
-  perspective: 1200px;
-}
 
 .route-aperture.aperture-world {
   background: linear-gradient(90deg,transparent,rgba(255,255,255,.7) 48%,rgba(114,215,255,.18) 56%,transparent);
@@ -5434,11 +5429,6 @@ body {
 .observatory-space .panel-head small,
 .observatory-space .panel-head > span {
   color: #738c96;
-}
-
-.observatory-space .source-spectrum,
-.observatory-space .agent-spectrum {
-  border-top-color: rgba(114,215,255,.11);
 }
 
 .observatory-space .spectrum-row,
@@ -8656,10 +8646,6 @@ body {
 .observatory-space .live-metric span { color: #6e858e; }
 .observatory-space .spectrum-row strong,
 .observatory-space .agent-spectrum-row strong { color: #aebfc3; }
-.observatory-space .source-spectrum,
-.observatory-space .agent-spectrum {
-  background: rgba(7,14,19,.16);
-}
 .intelligence-space .intel-search {
   height: 43px;
   display: grid;
