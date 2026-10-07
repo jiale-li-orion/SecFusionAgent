@@ -64,6 +64,23 @@ export async function getWorldOverview(): Promise<WorldOverview> {
   return response.json() as Promise<WorldOverview>
 }
 
+export type WorldKnowledgeChange = {
+  change_id: string
+  revision: number
+  committed_at: string
+  object_ids: string[]
+  claim_ids: string[]
+  relation_ids: string[]
+  cause_processing_run_id: string | null
+  cause_observation_id: string | null
+}
+
+export async function getWorldKnowledgeChanges(limit = 12): Promise<{ items: WorldKnowledgeChange[] }> {
+  const response = await fetch(`/api/v1/world/knowledge-changes?limit=${limit}`)
+  if (!response.ok) throw new Error(`Knowledge changes unavailable (${response.status})`)
+  return response.json() as Promise<{ items: WorldKnowledgeChange[] }>
+}
+
 export type HotBug = {
   source_id: string
   external_object_id: string

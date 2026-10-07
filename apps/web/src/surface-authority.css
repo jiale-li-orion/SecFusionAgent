@@ -19,6 +19,43 @@
   background: transparent !important;
 }
 
+.observatory-space .live-proof-bridge {
+  border-top: 1px solid rgba(126, 112, 155, .11);
+  border-bottom: 1px solid rgba(126, 112, 155, .08);
+  background: linear-gradient(90deg, rgba(126, 112, 155, .025), transparent);
+}
+
+.observatory-space .live-proof-bridge.bound {
+  border-left: 2px solid rgba(126, 112, 155, .24);
+}
+
+.observatory-space .live-proof-coordinate > span {
+  color: #786d92;
+  border: 1px solid rgba(126, 112, 155, .18);
+}
+
+.observatory-space .live-proof-coordinate small,
+.observatory-space .live-proof-facts span,
+.observatory-space .live-proof-empty {
+  color: #6f7480;
+  font-size: 7px;
+  letter-spacing: .08em;
+}
+
+.observatory-space .live-proof-coordinate strong,
+.observatory-space .live-proof-facts b {
+  color: #b9b2c7;
+  font-size: 8.5px;
+  font-weight: 560;
+}
+
+.observatory-space .live-proof-bridge > button {
+  color: #b7a9d0;
+  border: 1px solid rgba(126, 112, 155, .18);
+  background: rgba(126, 112, 155, .035);
+  letter-spacing: .06em;
+}
+
 .start-space .alchemist-boundary.runtime-active {
   opacity: 1;
   color: #9d7144;
@@ -255,6 +292,22 @@
 
 .world-live-flow-track {
   scrollbar-width: thin;
+}
+
+.world-space .world-change-coordinate {
+  color: #587386;
+  font-size: 7px;
+  font-weight: 620;
+  letter-spacing: .08em;
+}
+
+.world-space .world-change-coordinate.unavailable,
+.world-space .world-change-cause {
+  color: #7b878e;
+  font-size: 6.5px;
+  font-style: normal;
+  font-weight: 500;
+  letter-spacing: .05em;
 }
 
 .intelligence-space .dossier-masthead {

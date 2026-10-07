@@ -95,7 +95,15 @@ export function ObservatoryPage() {
                 <button onClick={() => selectMode('proof')}><Archive size={12} /> {text('打开冻结 PROOF', 'OPEN FROZEN PROOF')}</button>
               </div>
             )}
-            <LiveObservatory world={worldQuery.data ?? null} agents={agentsQuery.data ?? null} system={systemQuery.data ?? null} windowKey={windowKey} setWindowKey={setWindowKey} />
+            <LiveObservatory
+              world={worldQuery.data ?? null}
+              agents={agentsQuery.data ?? null}
+              system={systemQuery.data ?? null}
+              proof={proofQuery.data ?? null}
+              proofUnavailable={proofQuery.isError}
+              windowKey={windowKey}
+              setWindowKey={setWindowKey}
+            />
           </motion.div>
         ) : (
           <motion.div

@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useNavigate } from 'react-router-dom'
-import { Activity, Binary, Boxes, BrainCircuit, CircleGauge, Clock3, DatabaseZap, Eye, Fingerprint, Gauge, RadioTower, ScanLine, ServerCog, ShieldCheck, Sparkles, TriangleAlert, Waypoints } from 'lucide-react'
+import { Activity, Archive, Binary, Boxes, BrainCircuit, CircleGauge, Clock3, DatabaseZap, Eye, Fingerprint, Gauge, RadioTower, ScanLine, ServerCog, ShieldCheck, Sparkles, TriangleAlert, Waypoints } from 'lucide-react'
 
-import { getAgentRuntime, type SystemOverview, type WorldOverview } from '../../lib/api'
+import { getAgentRuntime, type CompetitionProof, type SystemOverview, type WorldOverview } from '../../lib/api'
 import { useI18n } from '../../lib/i18n'
 import { bytes, compactNumber, linePath, numeric, observatoryWindows, pct, seconds, snapshotAge, type ObservatoryWindow } from '../../lib/observatoryPresentation'
 import { dominantRuntimeName, rankRuntimeCounts, runtimeToken } from '../../lib/runtimePresentation'
@@ -45,7 +45,7 @@ function AgentLiveInstrument({ runtime }: { runtime: Awaited<ReturnType<typeof g
   )
 }
 
-export function LiveObservatory({ world, agents, system, windowKey, setWindowKey }: { world: WorldOverview | null; agents: Awaited<ReturnType<typeof getAgentRuntime>> | null; system: SystemOverview | null; windowKey: ObservatoryWindow; setWindowKey: (value: ObservatoryWindow) => void }) {
+export function LiveObservatory({ world, agents, system, proof, proofUnavailable, windowKey, setWindowKey }: { world: WorldOverview | null; agents: Awaited<ReturnType<typeof getAgentRuntime>> | null; system: SystemOverview | null; proof: CompetitionProof | null; proofUnavailable: boolean; windowKey: ObservatoryWindow; setWindowKey: (value: ObservatoryWindow) => void }) {
   const { text } = useI18n()
   const navigate = useNavigate()
   const [focus, setFocus] = useState<'world' | 'sources' | 'agents' | 'system' | null>(null)
@@ -54,6 +54,7 @@ export function LiveObservatory({ world, agents, system, windowKey, setWindowKey
   const series = useMemo(() => (world?.hourly_series ?? []).slice(-hours), [world?.hourly_series, hours])
   const activeTasks = agents?.roles.reduce((sum, role) => sum + role.active_tasks, 0) ?? 0
   const totalSources = world ? world.source_health.healthy + world.source_health.degraded + world.source_health.blocked : 0
+  const frozenRun = proof?.runs[0] ?? null
   const chooseFocus = (next: 'world' | 'sources' | 'agents' | 'system') => setFocus((current) => current === next ? null : next)
 
   return (
@@ -69,6 +70,31 @@ export function LiveObservatory({ world, agents, system, windowKey, setWindowKey
       <div className="live-window-row">
         <div className="live-now"><span className="scan-dot" /><strong>{text('运行快照', 'OPERATIONAL SNAPSHOT')}</strong><span>{world ? snapshotAge(world.generated_at) : text('加载中', 'loading')}</span></div>
         <div className="window-switch">{observatoryWindows.map((item) => <button key={item} className={windowKey === item ? 'active' : ''} onClick={() => setWindowKey(item)}>{item === '168h' ? '7d' : item}</button>)}</div>
+      </div>
+
+      <div className={`live-proof-bridge ${frozenRun ? 'bound' : 'unbound'}`}>
+        <div className="live-proof-coordinate">
+          <span><Archive size={13} /></span>
+          <div>
+            <small>{text('最近冻结证明坐标', 'LATEST FROZEN PROOF COORDINATE')}</small>
+            <strong>{frozenRun ? frozenRun.suite_ref : proofUnavailable ? text('冻结证明不可读', 'FROZEN PROOF UNAVAILABLE') : text('尚无正式 BenchmarkRun', 'NO FORMAL BENCHMARK RUN')}</strong>
+          </div>
+        </div>
+        {frozenRun ? (
+          <>
+            <div className="live-proof-facts">
+              <span><b>{frozenRun.passed_case_count}/{frozenRun.case_count}</b> CASES</span>
+              <span><b>{frozenRun.status}</b> STATUS</span>
+              <span><b className="mono">{frozenRun.world_snapshot_ref ?? 'UNBOUND'}</b> WORLD</span>
+              <span><b className="mono">{frozenRun.deployment_revision_id.slice(0, 12)}</b> DEPLOY</span>
+            </div>
+            <button type="button" onClick={() => navigate(`/observatory?mode=proof&run=${encodeURIComponent(frozenRun.benchmark_run_id)}`)}>
+              {text('冻结到这次运行', 'FREEZE TO THIS RUN')} <Archive size={12} />
+            </button>
+          </>
+        ) : (
+          <small className="live-proof-empty">{text('LIVE 与 PROOF 保持分离；没有正式冻结坐标时不伪造对照。', 'LIVE and PROOF remain separate; no comparison is fabricated without a formal frozen coordinate.')}</small>
+        )}
       </div>
 
       <div className={`observatory-live-grid ${focus ? `has-observatory-focus focus-${focus}` : ''}`}>

@@ -481,6 +481,15 @@ body,
   transform: translate(-50%, -50%) !important;
 }
 
+.world-space .world-change-coordinate,
+.world-space .world-change-cause {
+  display: block;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .hot-field-label {
   top: 19% !important;
   right: 4.5% !important;
@@ -831,6 +840,69 @@ body,
 
 .observatory-space .live-metric span {
   overflow-wrap: anywhere;
+}
+
+.observatory-space .live-proof-bridge {
+  display: grid;
+  grid-template-columns: minmax(230px, .8fr) minmax(0, 1.4fr) auto;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  padding: 9px 12px;
+}
+
+.observatory-space .live-proof-coordinate {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.observatory-space .live-proof-coordinate > span {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+}
+
+.observatory-space .live-proof-coordinate > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.observatory-space .live-proof-coordinate strong,
+.observatory-space .live-proof-facts b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.observatory-space .live-proof-facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  min-width: 0;
+}
+
+.observatory-space .live-proof-facts span {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.observatory-space .live-proof-bridge > button {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 11px;
+}
+
+.observatory-space .live-proof-empty {
+  grid-column: 2 / -1;
 }
 
 .intelligence-space .intel-layout {
@@ -4024,6 +4096,21 @@ body,
 
 /* Mobile keeps the information topology while changing the spatial grammar. */
 @media (max-width: 760px) {
+  .observatory-space .live-proof-bridge {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .observatory-space .live-proof-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .observatory-space .live-proof-bridge > button,
+  .observatory-space .live-proof-empty {
+    width: 100%;
+    grid-column: 1;
+  }
+
   .agents-space .role-theater,
   .agents-space.runtime-loaded .role-theater {
     display: grid !important;

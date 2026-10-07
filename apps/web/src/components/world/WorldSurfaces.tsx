@@ -123,7 +123,7 @@ function categoryActivity(series: Array<Record<string, number | string | null>>)
   return { fresh, runs, observations, active: fresh > 0 || runs > 0 || observations > 0 }
 }
 
-export function WorldField2D({ freshChanges, backfillObservations, canonicalWrites }: { freshChanges: number; backfillObservations: number; canonicalWrites: number }) {
+export function WorldField2D({ freshChanges, backfillObservations, canonicalWrites, knowledgeChangeActive = false }: { freshChanges: number; backfillObservations: number; canonicalWrites: number; knowledgeChangeActive?: boolean }) {
   const freshRadius = Math.min(31, 20 + Math.log10(freshChanges + 1) * 3.2)
   const backfillRadius = Math.min(38, 27 + Math.log10(backfillObservations + 1) * 2.8)
   const writeEnergy = Math.min(1, Math.log10(canonicalWrites + 1) / 2.5)
@@ -137,7 +137,7 @@ export function WorldField2D({ freshChanges, backfillObservations, canonicalWrit
         <circle className="fresh-ring" cx="50" cy="50" r={freshRadius / 2} />
         <polygon className="core-plane outer" points="50,39 58,44 60,53 54,61 45,60 40,53 42,44" />
         <polygon className="core-plane inner" points="50,43 55,46 56,52 52,57 46,56 44,52 45,46" style={{ opacity: .36 + writeEnergy * .44 }} />
-        {canonicalWrites > 0 && <circle className="write-ring" cx="50" cy="50" r="13" />}
+        {knowledgeChangeActive && <circle className="write-ring" cx="50" cy="50" r="13" />}
       </svg>
       <div className="world-2d-readout"><span>{freshChanges} fresh</span><span>{backfillObservations} backfill</span><span>{canonicalWrites} writes</span></div>
     </div>

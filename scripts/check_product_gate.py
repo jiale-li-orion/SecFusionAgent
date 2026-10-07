@@ -173,6 +173,21 @@ def _static_product_gate(results: list[GateResult]) -> None:
     )
     _require_source(
         results,
+        name="observatory-live-proof-coordinate",
+        relative_path="apps/web/src/components/observatory/ObservatoryLive.tsx",
+        needles=(
+            "const frozenRun = proof?.runs[0] ?? null",
+            "LATEST FROZEN PROOF COORDINATE",
+            "mode=proof&run=",
+            "world_snapshot_ref",
+        ),
+        detail=(
+            "LIVE Observatory exposes a real frozen BenchmarkRun coordinate and "
+            "deep-links to that proof"
+        ),
+    )
+    _require_source(
+        results,
         name="world-durable-incidents",
         relative_path="apps/web/src/components/world/WorldSurfaces.tsx",
         needles=(
@@ -232,6 +247,34 @@ def _static_product_gate(results: list[GateResult]) -> None:
         relative_path="apps/web/src/components/world/WorldSurfaces.tsx",
         needles=("<HotEnrichmentPreview cveId={item.cve_id} />",),
         detail="Hot focus lens mounts the canonical enrichment boundary without fabricating state",
+    )
+    _require_source(
+        results,
+        name="world-knowledge-change-read",
+        relative_path="apps/application/queries/world.py",
+        needles=(
+            "select(KnowledgeChangeModel)",
+            "KnowledgeChangeModel.revision.desc()",
+            'change.changed_ids.get(key, [])',
+        ),
+        detail=(
+            "WORLD reads durable KnowledgeChange rows directly from the Knowledge "
+            "write authority"
+        ),
+    )
+    _require_source(
+        results,
+        name="world-knowledge-change-motion",
+        relative_path="apps/web/src/components/world/WorldField3D.tsx",
+        needles=(
+            "knowledgeChangeActive",
+            "<KnowledgeChangePulse",
+            "<CanonicalWriteCrystallization",
+        ),
+        detail=(
+            "WORLD separates KnowledgeChange pulse semantics from canonical-write "
+            "crystallization"
+        ),
     )
     _require_source(
         results,

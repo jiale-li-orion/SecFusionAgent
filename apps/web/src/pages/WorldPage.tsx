@@ -11,7 +11,7 @@ import {
   X,
 } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { getHotWorld, getHotWorldItem, getWorldOverview, listIncidents, type HotBug } from '../lib/api'
+import { getHotWorld, getHotWorldItem, getWorldKnowledgeChanges, getWorldOverview, listIncidents, type HotBug } from '../lib/api'
 import { HotCrystal, HotLens, PathLens, SourceLens, Telemetry, WorldField2D, WorldIncidentCluster, WorldIngressFlow, WorldLiveFlow } from '../components/world/WorldSurfaces'
 import { hotIdentity, laneClass, laneSlug, parseHotIdentity, snapshotAge, sourceNarrative, sourceState, sources, supportsWebGL, worldLanePoints, worldWindows, type WorldWindow } from '../components/world/worldModel'
 import { useI18n } from '../lib/i18n'
@@ -40,6 +40,7 @@ export function WorldPage() {
   const worldQuery = useQuery({ queryKey: ['world-overview'], queryFn: getWorldOverview, refetchInterval: 30_000 })
   const hotQuery = useQuery({ queryKey: ['world-hot'], queryFn: () => getHotWorld(6), refetchInterval: 20_000 })
   const incidentQuery = useQuery({ queryKey: ['world-incidents'], queryFn: () => listIncidents(6), refetchInterval: 30_000 })
+  const knowledgeChangeQuery = useQuery({ queryKey: ['world-knowledge-changes'], queryFn: () => getWorldKnowledgeChanges(8), refetchInterval: 15_000 })
   const hotDetailQuery = useQuery({
     queryKey: ['world-hot-detail', focusedHotCoordinate?.sourceId, focusedHotCoordinate?.externalObjectId],
     queryFn: () => getHotWorldItem(focusedHotCoordinate!.sourceId, focusedHotCoordinate!.externalObjectId),
@@ -75,6 +76,10 @@ export function WorldPage() {
   const focusedSourceMeta = sources.find((source) => source.key === focusedSource) ?? null
   const hasFocus = Boolean(focusedSourceMeta || focusedHotKey || focusedLane)
   const snapshotFresh = snapshot ? clockNow - new Date(snapshot.generated_at).getTime() <= 120_000 : false
+  const latestKnowledgeChange = knowledgeChangeQuery.data?.items[0] ?? null
+  const knowledgeChangeFresh = latestKnowledgeChange
+    ? clockNow - new Date(latestKnowledgeChange.committed_at).getTime() <= 300_000
+    : false
 
   useEffect(() => {
     const timer = window.setInterval(() => setClockNow(Date.now()), 30_000)
@@ -215,13 +220,14 @@ export function WorldPage() {
           </div>
         )}
         {!reduceMotion && webglAvailable && !compactViewport && world3DReady ? (
-          <Suspense fallback={<WorldField2D freshChanges={oneHour?.fresh_external_changes ?? 0} backfillObservations={oneHour?.backfill_observations ?? 0} canonicalWrites={oneHour?.canonical_writes ?? 0} />}>
+          <Suspense fallback={<WorldField2D freshChanges={oneHour?.fresh_external_changes ?? 0} backfillObservations={oneHour?.backfill_observations ?? 0} canonicalWrites={oneHour?.canonical_writes ?? 0} knowledgeChangeActive={knowledgeChangeFresh} />}>
             <WorldField3D
               categories={snapshot?.categories ?? []}
               categoryActivity={categoryActivityMap}
               freshChanges={oneHour?.fresh_external_changes ?? 0}
               backfillObservations={oneHour?.backfill_observations ?? 0}
               canonicalWrites={oneHour?.canonical_writes ?? 0}
+              knowledgeChangeActive={knowledgeChangeFresh}
               incidents={incidentQuery.data?.items ?? []}
               focusedSource={focusedSource}
               focusedLane={focusedLane}
@@ -236,6 +242,7 @@ export function WorldPage() {
             freshChanges={oneHour?.fresh_external_changes ?? 0}
             backfillObservations={oneHour?.backfill_observations ?? 0}
             canonicalWrites={oneHour?.canonical_writes ?? 0}
+            knowledgeChangeActive={knowledgeChangeFresh}
           />
         )}
 
@@ -248,7 +255,21 @@ export function WorldPage() {
           <small>DURABLE INNER WORLD</small>
           <strong>EVIDENCE CORE</strong>
           <span>Evidence · Knowledge · Incident · Insight · Experience</span>
-          <i className={oneHour?.canonical_writes ? 'active' : ''} />
+          {latestKnowledgeChange ? (
+            <>
+              <b className="world-change-coordinate mono">
+                REV {latestKnowledgeChange.revision} · O{latestKnowledgeChange.object_ids.length} / C{latestKnowledgeChange.claim_ids.length} / R{latestKnowledgeChange.relation_ids.length}
+              </b>
+              <em className="world-change-cause mono">
+                {latestKnowledgeChange.cause_processing_run_id ? `PROC ${latestKnowledgeChange.cause_processing_run_id.slice(0, 12)}` : 'PROC —'}
+                {' · '}
+                {latestKnowledgeChange.cause_observation_id ? `OBS ${latestKnowledgeChange.cause_observation_id.slice(0, 12)}` : 'OBS —'}
+              </em>
+            </>
+          ) : (
+            <b className="world-change-coordinate unavailable">{knowledgeChangeQuery.isError ? 'KNOWLEDGE CHANGE UNAVAILABLE' : 'NO DURABLE KNOWLEDGE CHANGE'}</b>
+          )}
+          <i className={knowledgeChangeFresh ? 'active' : ''} />
         </div>
 
         <div className="processing-lanes" aria-label="Category route projections">

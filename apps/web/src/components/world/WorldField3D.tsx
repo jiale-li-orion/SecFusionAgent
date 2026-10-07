@@ -168,6 +168,7 @@ export function WorldField3D({
   freshChanges,
   backfillObservations,
   canonicalWrites,
+  knowledgeChangeActive,
   incidents,
   focusedSource,
   focusedLane,
@@ -181,6 +182,7 @@ export function WorldField3D({
   freshChanges: number
   backfillObservations: number
   canonicalWrites: number
+  knowledgeChangeActive: boolean
   incidents: IncidentSummary[]
   focusedSource: string | null
   focusedLane: string | null
@@ -206,7 +208,7 @@ export function WorldField3D({
         <pointLight position={[4, -3, 3]} color="#C99B6D" intensity={2.2} distance={13} decay={2.2} />
         <CameraRig focusedSource={focusedSource} focusedLane={focusedLane} focusedHot={focusedHot} reduceMotion={reduceMotion} />
         <WorldGrid reduceMotion={reduceMotion} />
-        <EvidenceCore canonicalWrites={canonicalWrites} reduceMotion={reduceMotion} />
+        <EvidenceCore canonicalWrites={canonicalWrites} knowledgeChangeActive={knowledgeChangeActive} reduceMotion={reduceMotion} />
         <SourceConstellation
           health={health}
           activity={categoryActivity}
@@ -290,7 +292,7 @@ function WorldGrid({ reduceMotion }: { reduceMotion: boolean }) {
   )
 }
 
-function EvidenceCore({ canonicalWrites, reduceMotion }: { canonicalWrites: number; reduceMotion: boolean }) {
+function EvidenceCore({ canonicalWrites, knowledgeChangeActive, reduceMotion }: { canonicalWrites: number; knowledgeChangeActive: boolean; reduceMotion: boolean }) {
   const group = useRef<THREE.Group>(null)
   const energy = Math.min(1, Math.log10(canonicalWrites + 1) / 2.3)
 
@@ -328,14 +330,14 @@ function EvidenceCore({ canonicalWrites, reduceMotion }: { canonicalWrites: numb
         <torusGeometry args={[1.78, .009, 8, 128]} />
         <meshBasicMaterial color="#7A7698" transparent opacity={.16} />
       </mesh>
-      {canonicalWrites > 0 && (
-        <CoreWritePulse reduceMotion={reduceMotion} />
+      {knowledgeChangeActive && (
+        <KnowledgeChangePulse reduceMotion={reduceMotion} />
       )}
     </group>
   )
 }
 
-function CoreWritePulse({ reduceMotion }: { reduceMotion: boolean }) {
+function KnowledgeChangePulse({ reduceMotion }: { reduceMotion: boolean }) {
   const pulse = useRef<THREE.Mesh>(null)
 
   useFrame((state) => {

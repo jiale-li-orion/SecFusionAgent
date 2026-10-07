@@ -227,6 +227,12 @@ def _check_page(
         errors.append(f"product main collapsed to {main_width:.0f}px")
 
     if space.name == "world" and "hot=" in space.path:
+        try:
+            page.locator(
+                ".world-enrichment-boundary, .world-enrichment-preview"
+            ).first.wait_for(state="attached", timeout=2_500)
+        except Exception:
+            pass
         boundary_count = page.locator(".world-enrichment-boundary").count()
         preview_count = page.locator(".world-enrichment-preview").count()
         if boundary_count + preview_count != 1:
