@@ -228,6 +228,7 @@ export function StartPage() {
             <motion.button
               key={id}
               className={`mode-chamber mode-${id.toLowerCase()} ${active ? 'active' : ''} ${previewModeId === id ? 'preview' : ''} role-${role.toLowerCase()}`}
+              aria-pressed={active}
               initial={false}
               onHoverStart={() => setPreviewModeId(id)}
               onHoverEnd={() => setPreviewModeId(null)}
