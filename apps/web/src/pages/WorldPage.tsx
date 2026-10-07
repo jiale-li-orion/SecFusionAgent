@@ -213,19 +213,6 @@ export function WorldPage() {
           <button onClick={() => navigate('/observatory')}>{text('查看运行证据', 'OPEN RUNTIME PROOF')} <ArrowUpRight size={13} /></button>
           <button className="launch" onClick={() => navigate('/start')}><Sparkles size={13} /> {text('发起调查', 'START INVESTIGATION')}</button>
         </div>
-        <WorldIncidentCluster
-          incidents={incidentQuery.data?.items ?? []}
-          candidates={incidentCandidateQuery.data?.items ?? []}
-          candidateTotal={incidentCandidateQuery.data?.total ?? 0}
-          signalTotal={incidentCandidateQuery.data?.total_signals ?? 0}
-          multiSourceCandidates={incidentCandidateQuery.data?.multi_source_candidates ?? 0}
-          anchoredCandidates={incidentCandidateQuery.data?.anchored_candidates ?? 0}
-          loading={incidentQuery.isLoading}
-          candidateLoading={incidentCandidateQuery.isLoading}
-          unavailable={incidentQuery.isError}
-          candidateUnavailable={incidentCandidateQuery.isError}
-          onOpen={openIncident}
-        />
       </header>
 
       <form className="world-locator" onSubmit={locateObject}>
@@ -238,6 +225,32 @@ export function WorldPage() {
         <button type="submit">{text('打开档案', 'OPEN')}</button>
         {locatorError && <span>{locatorError}</span>}
       </form>
+
+      <div className="world-status-strip">
+        <div className="world-telemetry">
+          <div className="world-time-lens">
+            {worldWindows.map((window) => <button key={window} className={worldWindow === window ? 'active' : ''} onClick={() => setWorldWindow(window)}>{window === '168h' ? '7d' : window}</button>)}
+          </div>
+          <Telemetry label="SOURCE HEALTH" value={snapshot ? `${snapshot.source_health.healthy}/${snapshot.source_health.healthy + snapshot.source_health.degraded + snapshot.source_health.blocked}` : '—'} detail={snapshot ? text(`${(snapshot.healthy_rate * 100).toFixed(1)}% 健康`, `${(snapshot.healthy_rate * 100).toFixed(1)}% healthy`) : worldQuery.isError ? text('不可用', 'unavailable') : text('解析中', 'resolving')} tone="lime" />
+          <Telemetry label={`FRESH CHANGES · ${worldWindow === '168h' ? '7D' : worldWindow.toUpperCase()}`} value={activeWindow ? String(activeWindow.fresh_external_changes) : '—'} detail={activeWindow ? text(`${activeWindow.observations} 条 observations`, `${activeWindow.observations} observations`) : text('运行快照', 'operational snapshot')} tone="cyan" />
+          <Telemetry label={`CANONICAL WRITES · ${worldWindow === '168h' ? '7D' : worldWindow.toUpperCase()}`} value={activeWindow ? String(activeWindow.canonical_writes) : '—'} detail={activeWindow ? `${activeWindow.backfill_observations} backfill` : text('运行快照', 'operational snapshot')} tone="violet" />
+          <Telemetry label="SNAPSHOT AGE" value={snapshot ? snapshotAge(snapshot.generated_at) : '—'} detail={snapshot ? new Date(snapshot.generated_at).toLocaleString() : text('等待 truth source', 'loading truth source')} tone="blue" />
+        </div>
+        <WorldIncidentCluster
+          compact
+          incidents={incidentQuery.data?.items ?? []}
+          candidates={incidentCandidateQuery.data?.items ?? []}
+          candidateTotal={incidentCandidateQuery.data?.total ?? 0}
+          signalTotal={incidentCandidateQuery.data?.total_signals ?? 0}
+          multiSourceCandidates={incidentCandidateQuery.data?.multi_source_candidates ?? 0}
+          anchoredCandidates={incidentCandidateQuery.data?.anchored_candidates ?? 0}
+          loading={incidentQuery.isLoading}
+          candidateLoading={incidentCandidateQuery.isLoading}
+          unavailable={incidentQuery.isError}
+          candidateUnavailable={incidentCandidateQuery.isError}
+          onOpen={openIncident}
+        />
+      </div>
 
       <div className={`world-stage ${hasFocus ? 'has-focus' : ''} ${focusedSource ? 'focus-source' : ''} ${focusedHotKey ? 'focus-hot' : ''} ${focusedLane ? 'focus-lane' : ''}`}>
         {snapshot && !snapshotFresh && (
@@ -400,23 +413,9 @@ export function WorldPage() {
           <span><i className="ghost" />{text('幽灵轨迹 = 1h backfill', 'ghost transit = 1h backfill')}</span>
           <span><i className="write" />{text('核心波纹 = 1h canonical writes', 'core ripple = 1h canonical writes')}</span>
           <span><i className="degraded" />{text('节点健康色 = source health 聚合', 'node health color = source health aggregate')}</span>
-          <span><i className="provider-failure" />{text('琥珀 halo = provider-boundary failure rate', 'amber halo = provider-boundary failure rate')}</span>
-          <span><i className="runtime-failure" />{text('珊瑚 halo = runtime-owned failure rate', 'coral halo = runtime-owned failure rate')}</span>
         </div>
 
         {!hasFocus && <div className="world-focus-hint"><Crosshair size={12} /> {text('聚焦来源 / Hot Object', 'FOCUS SOURCE / HOT OBJECT')}</div>}
-
-        {!hasFocus && (
-          <motion.button
-            className="world-start-portal"
-            onClick={() => navigate('/start')}
-            whileHover={reduceMotion ? undefined : { scale: 1.045 }}
-            whileTap={reduceMotion ? undefined : { scale: .98 }}
-          >
-            <span className="world-start-ring"><Sparkles size={17} /></span>
-            <div><small>{text('任务入口', 'MISSION ENTRY')}</small><strong>START</strong><em>{text('选择 ExecutionProfile', 'CHOOSE EXECUTION PROFILE')}</em></div>
-          </motion.button>
-        )}
 
         <AnimatePresence>
           {hasFocus && (
@@ -458,16 +457,6 @@ export function WorldPage() {
         </AnimatePresence>
       </div>
 
-      <div className="world-telemetry">
-        <div className="world-time-lens">
-          {worldWindows.map((window) => <button key={window} className={worldWindow === window ? 'active' : ''} onClick={() => setWorldWindow(window)}>{window === '168h' ? '7d' : window}</button>)}
-        </div>
-        <Telemetry label="SOURCE HEALTH" value={snapshot ? `${snapshot.source_health.healthy}/${snapshot.source_health.healthy + snapshot.source_health.degraded + snapshot.source_health.blocked}` : '—'} detail={snapshot ? text(`${(snapshot.healthy_rate * 100).toFixed(1)}% 健康`, `${(snapshot.healthy_rate * 100).toFixed(1)}% healthy`) : worldQuery.isError ? text('不可用', 'unavailable') : text('解析中', 'resolving')} tone="lime" />
-        <Telemetry label={`FRESH CHANGES · ${worldWindow === '168h' ? '7D' : worldWindow.toUpperCase()}`} value={activeWindow ? String(activeWindow.fresh_external_changes) : '—'} detail={activeWindow ? text(`${activeWindow.observations} 条 observations`, `${activeWindow.observations} observations`) : text('运行快照', 'operational snapshot')} tone="cyan" />
-        <Telemetry label={`CANONICAL WRITES · ${worldWindow === '168h' ? '7D' : worldWindow.toUpperCase()}`} value={activeWindow ? String(activeWindow.canonical_writes) : '—'} detail={activeWindow ? `${activeWindow.backfill_observations} backfill` : text('运行快照', 'operational snapshot')} tone="violet" />
-        <Telemetry label="QUEUE / EXEC P95" value={activeWindow?.queue_delay_p95_seconds != null && activeWindow?.execution_p95_seconds != null ? `${activeWindow.queue_delay_p95_seconds.toFixed(1)} / ${activeWindow.execution_p95_seconds.toFixed(1)}s` : '—'} detail={activeWindow?.scheduled_run_success_rate != null ? text(`${(activeWindow.scheduled_run_success_rate * 100).toFixed(1)}% 调度成功`, `${(activeWindow.scheduled_run_success_rate * 100).toFixed(1)}% scheduled success`) : text('不可评估', 'not evaluable')} tone="amber" />
-        <Telemetry label="SNAPSHOT AGE" value={snapshot ? snapshotAge(snapshot.generated_at) : '—'} detail={snapshot ? new Date(snapshot.generated_at).toLocaleString() : text('等待 truth source', 'loading truth source')} tone="blue" />
-      </div>
       <WorldLiveFlow series={flowSeries.slice(-12)} requestedWindow={worldWindow} totalAvailable={snapshot?.hourly_series?.length ?? 0} />
     </section>
   )

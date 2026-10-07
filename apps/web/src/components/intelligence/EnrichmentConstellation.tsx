@@ -25,18 +25,15 @@ export function EnrichmentConstellation({ claims, cveId, state, stateLoading, st
   const { text } = useI18n()
   const [focusedDimension, setFocusedDimension] = useState<string | null>(null)
   const stateByDimension = new Map(state?.dimensions.map((item) => [item.dimension, item]) ?? [])
-  const dimensions = enrichmentDimensions.map((dimension, index) => {
+  const dimensions = enrichmentDimensions.map((dimension) => {
     const matchedClaims = claims.filter((claim) => dimension.test.test(claim.predicate))
     const authoritativeState = stateByDimension.get(dimension.key)
     const status: EnrichmentVisualStatus = authoritativeState?.status ?? 'unavailable'
-    const angle = -Math.PI / 2 + (index / enrichmentDimensions.length) * Math.PI * 2
     return {
       ...dimension,
       status,
       authoritativeState,
       matchedClaims,
-      x: 50 + Math.cos(angle) * 40,
-      y: 50 + Math.sin(angle) * 37,
     }
   })
   const counts = dimensions.reduce<Record<EnrichmentVisualStatus, number>>((acc, item) => {
@@ -55,39 +52,28 @@ export function EnrichmentConstellation({ claims, cveId, state, stateLoading, st
             ? text('四态 read 不可用 · 不从 Claim 数量推断', 'four-state read unavailable · claim counts are not used as status')
             : `${counts.resolved} resolved · ${counts.conflict} conflict · ${counts.unknown} unknown · ${counts.missing} missing`}</span>
       </div>
-      <div className="enrichment-orbit">
-        <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-          {dimensions.map((item) => (
-            <line
-              key={item.key}
-              className={`status-${item.status}`}
-              x1="50"
-              y1="50"
-              x2={item.x}
-              y2={item.y}
-            />
-          ))}
-        </svg>
+      <div className="enrichment-board">
         <button className="enrichment-core" onClick={() => setFocusedDimension(null)}>
           <small>CANONICAL</small>
           <strong>{focused ? focused.label : cveId}</strong>
           <span>{focused ? enrichmentStatusLabel(focused.status, text) : state ? `WORLD REV ${state.world_revision}` : text(`${claims.length} 条可见 Claims`, `${claims.length} visible claims`)}</span>
         </button>
-        {dimensions.map((item, index) => (
-          <motion.button
-            key={item.key}
-            className={`enrichment-dimension status-${item.status} ${focusedDimension === item.key ? 'selected' : ''} ${focused && focusedDimension !== item.key ? 'dimmed' : ''}`}
-            style={{ left: `${item.x}%`, top: `${item.y}%` }}
-            onClick={() => setFocusedDimension((current) => current === item.key ? null : item.key)}
-            initial={{ opacity: 0, scale: .82 }}
-            animate={{ opacity: focused && focusedDimension !== item.key ? .18 : 1, scale: focusedDimension === item.key ? 1.08 : 1 }}
-            transition={{ delay: index * .025 }}
-          >
-            <span>{String(index + 1).padStart(2, '0')}</span>
-            <strong>{item.label}</strong>
-            <small>{enrichmentStatusLabel(item.status, text)}</small>
-          </motion.button>
-        ))}
+        <div className="enrichment-grid">
+          {dimensions.map((item, index) => (
+            <motion.button
+              key={item.key}
+              className={`enrichment-dimension status-${item.status} ${focusedDimension === item.key ? 'selected' : ''} ${focused && focusedDimension !== item.key ? 'dimmed' : ''}`}
+              onClick={() => setFocusedDimension((current) => current === item.key ? null : item.key)}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: focused && focusedDimension !== item.key ? .34 : 1, y: 0 }}
+              transition={{ delay: index * .018 }}
+            >
+              <span>{String(index + 1).padStart(2, '0')}</span>
+              <strong>{item.label}</strong>
+              <small>{enrichmentStatusLabel(item.status, text)}</small>
+            </motion.button>
+          ))}
+        </div>
         <AnimatePresence>
           {focused && (
             <motion.aside

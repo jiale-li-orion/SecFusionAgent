@@ -294,35 +294,40 @@ body,
 
 /* Readability floor. Micro coordinates are allowed to remain smaller explicitly. */
 .product-shell small {
-  font-size: 10px !important;
-  line-height: 1.45;
+  font-size: 11px !important;
+  line-height: 1.5;
 }
 
 .product-shell em {
-  font-size: 9.5px !important;
-  line-height: 1.45;
+  font-size: 10.5px !important;
+  line-height: 1.5;
 }
 
 .product-shell kbd {
-  font-size: 8px !important;
+  font-size: 9.5px !important;
 }
 
 .product-shell button,
 .product-shell input,
 .product-shell textarea {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .product-shell input,
 .product-shell textarea {
-  line-height: 1.5;
+  line-height: 1.55;
+}
+
+.product-shell p {
+  font-size: 12.5px;
+  line-height: 1.58;
 }
 
 .mono,
 .world-coordinate,
 .graph-coordinate,
 .task-budget-coordinate {
-  font-size: 9.5px !important;
+  font-size: 10.5px !important;
 }
 
 .world-semantic-legend span,
@@ -330,20 +335,20 @@ body,
 .processing-lanes button,
 .world-start-portal span,
 .world-start-portal em {
-  font-size: 9.5px !important;
+  font-size: 10.5px !important;
 }
 
 .hot-crystal em,
 .hot-crystal small {
-  font-size: 9.5px !important;
-}
-
-.instrument-nav-item .nav-copy strong {
   font-size: 10.5px !important;
 }
 
+.instrument-nav-item .nav-copy strong {
+  font-size: 12px !important;
+}
+
 .instrument-nav-item .nav-copy small {
-  font-size: 9px !important;
+  font-size: 10.5px !important;
 }
 
 .brand-copy strong {
@@ -351,7 +356,7 @@ body,
 }
 
 .brand-copy small {
-  font-size: 9px !important;
+  font-size: 10.5px !important;
 }
 
 .command-trigger,
@@ -359,7 +364,16 @@ body,
 .language-switch,
 .runtime-state,
 .global-start {
-  font-size: 10px !important;
+  font-size: 11px !important;
+}
+
+.product-space-loader .loader-core strong {
+  font-size: 14px !important;
+  line-height: 1.3;
+}
+
+.product-space-loader .loader-core small {
+  font-size: 10.5px !important;
 }
 
 /* =========================================================
@@ -369,15 +383,15 @@ body,
 .world-space {
   position: relative;
   display: grid !important;
-  grid-template-columns: minmax(360px, .86fr) minmax(620px, 1.14fr);
-  grid-template-rows: auto auto minmax(610px, 1fr) 126px;
+  grid-template-columns: minmax(360px, .82fr) minmax(620px, 1.18fr);
+  grid-template-rows: auto auto minmax(650px, 1fr) 126px;
   grid-template-areas:
     "title locator"
-    "title telemetry"
+    "status status"
     "stage stage"
     "flow flow";
   column-gap: 34px;
-  row-gap: 10px;
+  row-gap: 14px;
   width: 100%;
   min-height: 100vh;
   padding: 62px 28px 0 32px !important;
@@ -393,7 +407,7 @@ body,
   align-content: start;
   width: auto !important;
   max-width: 620px;
-  min-height: 174px;
+  min-height: 150px;
   margin: 0 !important;
   padding: 8px 0 12px !important;
 }
@@ -448,7 +462,7 @@ body,
   position: relative !important;
   inset: auto !important;
   z-index: 31;
-  align-self: end;
+  align-self: center;
   width: 100% !important;
   min-width: 0 !important;
   max-width: 680px !important;
@@ -461,18 +475,26 @@ body,
   container-name: case-workspace;
 }
 
+.world-status-strip {
+  grid-area: status;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
+  gap: 18px;
+  align-items: stretch;
+  min-width: 0;
+}
+
 .world-telemetry {
-  grid-area: telemetry;
   position: relative !important;
   inset: auto !important;
   z-index: 29;
   display: grid !important;
-  grid-template-columns: 90px repeat(5, minmax(0, 1fr)) !important;
+  grid-template-columns: 96px repeat(4, minmax(0, 1fr)) !important;
   align-self: start;
   width: 100% !important;
   min-width: 0 !important;
   max-width: none !important;
-  min-height: 100px !important;
+  min-height: 92px !important;
   margin: 0 !important;
   overflow: hidden;
 }
@@ -480,7 +502,7 @@ body,
 .world-time-lens,
 .world-telemetry .telemetry-readout {
   min-width: 0 !important;
-  min-height: 100px !important;
+  min-height: 92px !important;
   transform: none !important;
 }
 
@@ -503,7 +525,7 @@ body,
   width: 100% !important;
   min-width: 0 !important;
   max-width: none !important;
-  min-height: 610px !important;
+  min-height: 650px !important;
   height: auto !important;
   margin: 0 !important;
   padding: 0 !important;
@@ -579,11 +601,20 @@ body,
   left: auto;
   bottom: auto;
   z-index: 24;
-  width: min(100%, 590px);
+  width: 100%;
   display: grid;
   gap: 6px;
-  margin-top: 14px;
+  margin: 0;
   padding: 10px 12px;
+}
+
+.world-incident-cluster.compact {
+  min-height: 92px;
+  align-content: center;
+}
+
+.world-incident-cluster.compact .world-candidate-diagnostics {
+  justify-self: end;
 }
 
 .world-incident-cluster-head {
@@ -676,13 +707,13 @@ body,
 }
 
 .world-semantic-legend {
-  left: 27% !important;
-  right: 27% !important;
-  bottom: 24px !important;
+  left: 29% !important;
+  right: 29% !important;
+  bottom: 18px !important;
   z-index: 19;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 7px 18px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
   width: auto !important;
 }
 
@@ -1114,6 +1145,133 @@ body,
   gap: 32px !important;
 }
 
+.intelligence-space .enrichment-board {
+  position: relative;
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 18px;
+  align-items: stretch;
+  min-width: 0;
+  padding: 18px 0 8px;
+}
+
+.intelligence-space .enrichment-core {
+  position: relative !important;
+  inset: auto !important;
+  left: auto !important;
+  top: auto !important;
+  width: 100% !important;
+  min-width: 0;
+  min-height: 198px;
+  aspect-ratio: auto !important;
+  transform: none !important;
+  padding: 18px;
+  text-align: left;
+  justify-items: start;
+}
+
+.intelligence-space .enrichment-core::before,
+.intelligence-space .enrichment-core::after {
+  display: none !important;
+}
+
+.intelligence-space .enrichment-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+  min-width: 0;
+}
+
+.intelligence-space .enrichment-dimension {
+  position: relative !important;
+  inset: auto !important;
+  left: auto !important;
+  top: auto !important;
+  width: auto !important;
+  min-width: 0;
+  min-height: 92px;
+  transform: none !important;
+  padding: 12px 11px;
+  grid-template-columns: 24px minmax(0, 1fr) !important;
+  align-content: center;
+  text-align: left;
+}
+
+.intelligence-space .enrichment-dimension-lens {
+  position: relative !important;
+  inset: auto !important;
+  right: auto !important;
+  top: auto !important;
+  grid-column: 1 / -1;
+  width: 100% !important;
+  margin-top: 10px;
+  transform: none !important;
+  padding: 16px !important;
+}
+
+.intelligence-space .enrichment-board {
+  display: grid;
+  grid-template-columns: minmax(210px, .34fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: stretch;
+  min-width: 0;
+  margin-top: 14px;
+}
+
+.intelligence-space .enrichment-core {
+  position: relative !important;
+  inset: auto !important;
+  left: auto !important;
+  top: auto !important;
+  grid-column: 1;
+  grid-row: 1;
+  width: 100% !important;
+  min-width: 0;
+  min-height: 100%;
+  aspect-ratio: auto !important;
+  transform: none !important;
+  padding: 18px;
+}
+
+.intelligence-space .enrichment-core::before,
+.intelligence-space .enrichment-core::after {
+  display: none !important;
+}
+
+.intelligence-space .enrichment-grid {
+  grid-column: 2;
+  grid-row: 1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
+.intelligence-space .enrichment-dimension {
+  position: relative !important;
+  inset: auto !important;
+  transform: none !important;
+  width: 100% !important;
+  min-width: 0;
+  min-height: 82px;
+  padding: 12px;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-content: center;
+}
+
+.intelligence-space .enrichment-dimension-lens {
+  position: relative !important;
+  inset: auto !important;
+  right: auto !important;
+  top: auto !important;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  width: 100% !important;
+  transform: none !important;
+  margin-top: 2px;
+  padding: 16px 18px !important;
+}
+
 .intelligence-space .intel-side {
   position: sticky !important;
   top: 64px !important;
@@ -1229,7 +1387,7 @@ body,
 }
 
 .investigations-space .case-rail {
-  padding-right: 8px;
+  padding: 12px 12px 16px;
 }
 
 .investigations-space .case-card {
@@ -1272,6 +1430,37 @@ body,
   -webkit-line-clamp: 3;
 }
 
+.agents-space .role-entity .role-sigil {
+  width: 84px !important;
+  height: 84px !important;
+}
+
+.agents-space .role-axis,
+.agents-space .role-theater::before,
+.agents-space .role-theater::after {
+  display: none !important;
+}
+
+.agents-space .role-entity-runtime {
+  position: relative !important;
+  inset: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  grid-column: 1 / -1;
+  width: 100% !important;
+  display: grid !important;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: baseline;
+  justify-items: start;
+  gap: 4px 10px;
+  margin-top: 16px;
+  padding-top: 12px !important;
+}
+
+.agents-space .role-entity-runtime em {
+  grid-column: 3;
+}
+
 .investigations-space .case-card-tail {
   display: grid;
   justify-items: end;
@@ -1281,7 +1470,7 @@ body,
 }
 
 .investigations-space .activity-rail {
-  padding-left: 10px;
+  padding: 12px 12px 16px;
 }
 
 .investigations-space .case-rail-head,
@@ -1352,7 +1541,7 @@ body,
     "terminal terminal"
     "states session"
     "decision session";
-  gap: 16px 22px !important;
+  gap: 18px 22px !important;
   align-items: start;
   width: 100%;
 }
@@ -1364,7 +1553,7 @@ body,
   align-items: center;
   gap: 24px;
   min-height: 116px;
-  padding: 16px 0 !important;
+  padding: 18px !important;
   min-width: 0;
 }
 
@@ -1482,19 +1671,38 @@ body,
 
 .agents-space .role-theater {
   position: relative !important;
-  height: 430px !important;
-  min-height: 430px !important;
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 18px 0 24px;
   overflow: visible !important;
-
-
-
 }
 
 .agents-space .role-entity {
+  position: relative !important;
+  inset: auto !important;
+  left: auto !important;
+  right: auto !important;
+  top: auto !important;
+  bottom: auto !important;
   min-width: 0;
-  max-width: 30% !important;
-  width: 30% !important;
+  max-width: none !important;
+  width: 100% !important;
+  min-height: 280px;
+  transform: none !important;
+  grid-template-columns: 94px minmax(0, 1fr) !important;
+  padding: 22px 18px !important;
+}
 
+.agents-space .role-entity:nth-of-type(1),
+.agents-space .role-entity:nth-of-type(2),
+.agents-space .role-entity:nth-of-type(3),
+.agents-space .role-entity.role-focused:nth-of-type(1),
+.agents-space .role-entity.role-focused:nth-of-type(2),
+.agents-space .role-entity.role-focused:nth-of-type(3) {
+  transform: none !important;
 }
 
 .agents-space .role-entity-copy {
@@ -1568,6 +1776,12 @@ body,
   position: sticky !important;
   top: 64px !important;
   width: 100%;
+}
+
+.agents-space .task-runtime-lens,
+.agents-space .skill-codex,
+.agents-space .experience-memory {
+  padding: 16px !important;
 }
 
 .agents-space .task-ledger {
@@ -1689,8 +1903,15 @@ body,
 }
 
 .observatory-space .observatory-live-grid {
-  grid-template-columns: minmax(0, 1fr) 320px !important;
+  grid-template-columns: minmax(0, 1fr) 360px !important;
   gap: 22px 30px !important;
+}
+
+.observatory-space .telemetry-panel,
+.observatory-space .telemetry-charts,
+.observatory-space .source-spectrum,
+.observatory-space .agent-spectrum {
+  padding: 16px !important;
 }
 
 .observatory-space .telemetry-panel,
@@ -2059,11 +2280,11 @@ body,
   }
 
   .world-title-lockup > div:first-child > small {
-    font-size: 10px !important;
+    font-size: 11px !important;
   }
 
   .world-telemetry {
-    grid-template-columns: 82px repeat(5, minmax(0, 1fr)) !important;
+    grid-template-columns: 82px repeat(4, minmax(0, 1fr)) !important;
   }
 
   .world-telemetry .telemetry-readout {
@@ -2151,6 +2372,7 @@ body,
 
   .world-title-lockup,
   .world-locator,
+  .world-status-strip,
   .world-telemetry,
   .world-stage,
   .world-live-flow,
@@ -2173,12 +2395,18 @@ body,
   }
 
   .world-locator,
-  .world-telemetry {
+  .world-status-strip {
     margin-top: 10px !important;
+  }
+
+  .world-status-strip {
+    display: block !important;
+    width: 100% !important;
   }
 
   .world-telemetry {
     display: flex !important;
+    width: 100% !important;
     overflow-x: auto !important;
   }
 
@@ -2235,7 +2463,7 @@ body,
 
 @media (max-width: 760px) {
   .product-shell small {
-    font-size: 9.5px !important;
+    font-size: 10.5px !important;
   }
 
   .world-stage {
@@ -3564,10 +3792,16 @@ body,
   inset: auto !important;
   width: 100% !important;
   min-width: 0 !important;
-  min-height: 640px !important;
-  height: 100% !important;
+  min-height: 470px !important;
+  height: auto !important;
   margin: 0 !important;
-  overflow: hidden !important;
+  padding: 18px 0 0 !important;
+  overflow: visible !important;
+  display: grid !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-rows: auto auto auto;
+  gap: 12px;
+  align-content: start;
 }
 
 .start-space > .payload-deck {
@@ -3652,7 +3886,7 @@ body,
 .start-space .payload-field textarea {
   width: 100%;
   margin-top: 7px;
-  padding: 0 !important;
+  padding: 10px 11px !important;
 }
 
 .start-space .payload-field input {
@@ -3689,23 +3923,56 @@ body,
 }
 
 .start-space .mode-chamber {
-  width: 118px !important;
-  min-height: 118px !important;
-  max-width: 118px !important;
-  padding: 0 !important;
+  position: relative !important;
+  inset: auto !important;
+  left: auto !important;
+  top: auto !important;
+  display: grid !important;
+  align-content: start !important;
+  justify-items: start !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  min-height: 142px !important;
+  padding: 14px 12px !important;
+  text-align: left !important;
+  transform: none !important;
+  rotate: none !important;
+}
+
+.start-space .mode-chamber::before {
+  position: absolute !important;
+  left: 12px !important;
+  right: 12px !important;
+  top: auto !important;
+  bottom: 0 !important;
+  width: auto !important;
+  height: 1px !important;
+  transform: none !important;
+}
+
+.start-space .mode-chamber::after,
+.start-space .mode-instrument {
+  display: none !important;
 }
 
 .start-space .mode-chamber.active {
-  width: 136px !important;
-  min-height: 136px !important;
-  max-width: 136px !important;
+  width: 100% !important;
+  min-height: 142px !important;
+  max-width: none !important;
 }
 
 .start-space .mode-readout {
-  left: 28% !important;
+  position: relative !important;
+  inset: auto !important;
+  left: auto !important;
   right: auto !important;
-  bottom: 4% !important;
-  width: min(560px, 52%) !important;
+  bottom: auto !important;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  width: 100% !important;
+  min-height: 154px;
+  padding: 20px 2px 0 !important;
   transform: none !important;
   text-align: left !important;
   pointer-events: none;
@@ -3716,19 +3983,30 @@ body,
 }
 
 .start-space .start-role-gate.oracle {
-  left: 1.5% !important;
-  top: 48% !important;
-  pointer-events: none;
+  display: none !important;
 }
 
 .start-space .start-role-gate.argus {
-  right: 1.5% !important;
-  top: 48% !important;
-  pointer-events: none;
+  display: none !important;
 }
 
 .start-space .start-orbit-map {
-  pointer-events: none;
+  display: none !important;
+}
+
+.start-space .mission-reactor {
+  display: none !important;
+}
+
+.start-space .alchemist-boundary {
+  position: relative !important;
+  inset: auto !important;
+  grid-column: 1 / -1;
+  grid-row: 3;
+  width: 100% !important;
+  max-width: none !important;
+  margin-top: 4px;
+  text-align: left !important;
 }
 
 /* Profile changes move the spatial emphasis, not the page skeleton. */
@@ -3775,18 +4053,17 @@ body,
   }
 
   .start-space .mode-chamber {
-    width: 110px !important;
-    min-height: 110px !important;
+    width: 100% !important;
+    min-height: 132px !important;
   }
 
   .start-space .mode-chamber.active {
-    width: 126px !important;
-    min-height: 126px !important;
+    width: 100% !important;
+    min-height: 132px !important;
   }
 
   .start-space .mode-readout {
-    left: 24% !important;
-    width: 66% !important;
+    width: 100% !important;
   }
 }
 
@@ -3807,7 +4084,15 @@ body,
   }
 
   .start-space > .start-theater {
-    min-height: 650px !important;
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .start-space .mode-readout,
+  .start-space .alchemist-boundary {
+    grid-column: 1 / -1;
   }
 
   .start-space > .payload-deck {

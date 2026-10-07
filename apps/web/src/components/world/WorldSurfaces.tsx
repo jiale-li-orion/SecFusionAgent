@@ -57,10 +57,10 @@ const hotSlots = [
   { left: '78%', top: '75%' },
 ]
 
-export function WorldIncidentCluster({ incidents, candidates, candidateTotal, signalTotal, multiSourceCandidates, anchoredCandidates, loading, candidateLoading, unavailable, candidateUnavailable, onOpen }: { incidents: IncidentSummary[]; candidates: WorldIncidentCandidate[]; candidateTotal: number; signalTotal: number; multiSourceCandidates: number; anchoredCandidates: number; loading: boolean; candidateLoading: boolean; unavailable: boolean; candidateUnavailable: boolean; onOpen: (incidentId: string) => void }) {
+export function WorldIncidentCluster({ incidents, candidates, candidateTotal, signalTotal, multiSourceCandidates, anchoredCandidates, loading, candidateLoading, unavailable, candidateUnavailable, onOpen, compact = false }: { incidents: IncidentSummary[]; candidates: WorldIncidentCandidate[]; candidateTotal: number; signalTotal: number; multiSourceCandidates: number; anchoredCandidates: number; loading: boolean; candidateLoading: boolean; unavailable: boolean; candidateUnavailable: boolean; onOpen: (incidentId: string) => void; compact?: boolean }) {
   const { text } = useI18n()
   return (
-    <div className={`world-incident-cluster ${unavailable || candidateUnavailable ? 'unavailable' : ''}`}>
+    <div className={`world-incident-cluster ${compact ? 'compact' : ''} ${unavailable || candidateUnavailable ? 'unavailable' : ''}`}>
       <div className="world-incident-cluster-head">
         <span><ShieldAlert size={13} /></span>
         <div><small>{text('事件状态链', 'INCIDENT STATE CHAIN')}</small><strong>{candidateLoading ? '…' : candidateUnavailable ? '—' : candidateTotal}</strong></div>
@@ -72,22 +72,22 @@ export function WorldIncidentCluster({ incidents, candidates, candidateTotal, si
         <span><small>DURABLE</small><strong>{unavailable ? '—' : incidents.length}</strong></span>
       </div>
       {!candidateUnavailable && <small className="world-candidate-diagnostics">{multiSourceCandidates} multi-source · {anchoredCandidates} anchored</small>}
-      {!candidateUnavailable && candidates.slice(0, 2).map((candidate) => (
+      {!compact && !candidateUnavailable && candidates.slice(0, 2).map((candidate) => (
         <div className="world-candidate-row" key={candidate.candidate_id}>
           <span>{candidate.promotion_state.toUpperCase()}</span>
           <strong>{candidate.incident_type}</strong>
           <em>{candidate.independent_source_count} src · {candidate.anchor_count} anchor · p{candidate.watch_priority}</em>
         </div>
       ))}
-      {!loading && !unavailable && incidents.length === 0 && <p>{text('已有 provisional signal / candidate，但当前没有满足 promotion policy 的 durable Incident。', 'Provisional signal/candidate state exists, but no durable Incident currently satisfies promotion policy.')}</p>}
-      {incidents.slice(0, 3).map((incident) => (
+      {!compact && !loading && !unavailable && incidents.length === 0 && <p>{text('已有 provisional signal / candidate，但当前没有满足 promotion policy 的 durable Incident。', 'Provisional signal/candidate state exists, but no durable Incident currently satisfies promotion policy.')}</p>}
+      {incidents.slice(0, compact ? 1 : 3).map((incident) => (
         <button key={incident.incident_id} type="button" onClick={() => onOpen(incident.incident_id)}>
           <span>{incident.lifecycle.toUpperCase()}</span>
           <strong>{incident.current_summary ?? incident.incident_type}</strong>
           <em>{incident.source_diversity_count} src · r{incident.current_revision}</em>
         </button>
       ))}
-      <small className="world-incident-boundary">signal → candidate → <b>durable incident</b></small>
+      {!compact && <small className="world-incident-boundary">signal → candidate → <b>durable incident</b></small>}
     </div>
   )
 }

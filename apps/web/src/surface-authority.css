@@ -8,6 +8,181 @@
 
 /* Core space corrections: page-specific surfaces only. */
 
+:where(.start-space, .investigations-space, .agents-space, .observatory-space) {
+  color: #f0eff4;
+}
+
+.agents-space .role-entity.role-dimmed {
+  opacity: .55 !important;
+  filter: none !important;
+}
+
+.start-space .mode-chamber::before {
+  content: "" !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  clip-path: none !important;
+  background: currentColor !important;
+  opacity: .34 !important;
+}
+
+.agents-space .role-entity-runtime {
+  border-top: 1px solid rgba(255, 255, 255, .07) !important;
+}
+
+.agents-space .role-entity-runtime b {
+  font-size: 22px !important;
+}
+
+.agents-space .task-field,
+.agents-space .task-runtime-lens,
+.agents-space .skill-codex,
+.agents-space .experience-memory {
+  border: 1px solid rgba(255, 255, 255, .055) !important;
+  background: rgba(255, 255, 255, .015) !important;
+}
+
+
+.investigations-space .case-rail,
+.investigations-space .activity-rail,
+.investigations-space .case-hero {
+  border: 1px solid rgba(255, 255, 255, .055) !important;
+  background: rgba(255, 255, 255, .018) !important;
+}
+
+.investigations-space .state-column {
+  border: 1px solid rgba(255, 255, 255, .05) !important;
+  background: rgba(255, 255, 255, .024) !important;
+  opacity: 1 !important;
+}
+
+.investigations-space .state-column.state-dimmed {
+  opacity: .58 !important;
+}
+
+.investigations-space .state-item {
+  opacity: 1 !important;
+  background: rgba(255, 255, 255, .018) !important;
+}
+
+.investigations-space .state-item strong {
+  color: #e0ddd9 !important;
+}
+
+.investigations-space .state-item small,
+.investigations-space .state-column-head small {
+  color: #a59f99 !important;
+}
+
+.observatory-space .observatory-live-grid > *,
+.observatory-space .live-command-strip,
+.observatory-space .live-window-row,
+.observatory-space .live-proof-bridge {
+  border-color: rgba(114, 215, 255, .08) !important;
+}
+
+.observatory-space .observatory-live-grid .focus-dimmed {
+  opacity: .58 !important;
+}
+
+.observatory-space .live-metric,
+.observatory-space .telemetry-panel,
+.observatory-space .telemetry-chart,
+.observatory-space .source-spectrum,
+.observatory-space .agent-spectrum,
+.observatory-space .system-status-panel {
+  background: rgba(255, 255, 255, .024) !important;
+  border: 1px solid rgba(114, 215, 255, .065) !important;
+}
+
+.observatory-space .live-metric strong,
+.observatory-space .panel-head strong,
+.observatory-space .spectrum-row strong,
+.observatory-space .agent-spectrum-row strong,
+.observatory-space .system-fact strong {
+  color: #e2eeee !important;
+}
+
+.observatory-space .live-metric small,
+.observatory-space .live-metric span,
+.observatory-space .panel-head small,
+.observatory-space .chart-head,
+.observatory-space .spectrum-row small,
+.observatory-space .agent-spectrum-row small,
+.observatory-space .system-fact small {
+  color: #91a7ad !important;
+}
+
+
+.agents-space .role-theater,
+.agents-space .task-field,
+.agents-space .task-runtime-lens,
+.agents-space .skill-codex,
+.agents-space .experience-memory {
+  background: rgba(255, 255, 255, .014) !important;
+  border-color: rgba(168, 139, 255, .075) !important;
+}
+
+.agents-space .role-theater {
+  border-top-color: rgba(168, 139, 255, .11) !important;
+  border-bottom: 1px solid rgba(168, 139, 255, .07) !important;
+}
+
+.agents-space .role-entity {
+  border: 1px solid rgba(168, 139, 255, .10) !important;
+  background: linear-gradient(145deg, rgba(255, 255, 255, .045), rgba(168, 139, 255, .025)) !important;
+  box-shadow: none !important;
+}
+
+.agents-space .role-entity:hover,
+.agents-space .role-entity.role-focused {
+  border-color: rgba(168, 139, 255, .28) !important;
+  background: linear-gradient(145deg, rgba(255, 255, 255, .04), rgba(168, 139, 255, .05)) !important;
+}
+
+:where(.start-space, .investigations-space, .agents-space, .observatory-space) p {
+  color: #a7a9b4;
+}
+
+:where(.start-space, .investigations-space, .agents-space, .observatory-space) small,
+:where(.start-space, .investigations-space, .agents-space, .observatory-space) em {
+  color: #898d9a;
+  opacity: 1;
+}
+
+:where(.world-space, .intelligence-space) {
+  color: #242522;
+}
+
+:where(.world-space, .intelligence-space) p {
+  color: #555d5e;
+}
+
+:where(.world-space, .intelligence-space) small,
+:where(.world-space, .intelligence-space) em {
+  color: #687276;
+  opacity: 1;
+}
+
+.product-space-loader .loader-core strong {
+  color: #dce3e7;
+}
+
+.product-space-loader .loader-core small {
+  color: #87939b;
+  opacity: 1;
+}
+
+.loader-space-world .loader-core strong,
+.loader-space-intelligence .loader-core strong {
+  color: #344c59;
+}
+
+.loader-space-world .loader-core small,
+.loader-space-intelligence .loader-core small {
+  color: #647780;
+}
+
 .intelligence-space .claim-group,
 .intelligence-space .claim-row,
 .intelligence-space .relation-section,
@@ -16,7 +191,54 @@
 .intelligence-space .incident-archive-rail {
   border-radius: 0 !important;
   box-shadow: none !important;
-  background: transparent !important;
+  background: rgba(255, 255, 255, .024) !important;
+}
+
+.intelligence-space .enrichment-dimension {
+  border-color: rgba(72, 64, 52, .14) !important;
+  background: rgba(255, 255, 255, .68) !important;
+  box-shadow: 0 8px 28px rgba(76, 63, 44, .035) !important;
+}
+
+.intelligence-space .enrichment-core {
+  border: 1px solid rgba(72, 64, 52, .14) !important;
+  border-left: 3px solid rgba(101, 88, 67, .34) !important;
+  border-radius: 0 !important;
+  background: rgba(255, 255, 255, .78) !important;
+  color: #30322d;
+  box-shadow: 0 10px 34px rgba(76, 63, 44, .04) !important;
+  text-align: left;
+}
+
+.intelligence-space .enrichment-core small,
+.intelligence-space .enrichment-core span {
+  color: #6f7169;
+}
+
+.intelligence-space .enrichment-core strong {
+  color: #2f312c;
+}
+
+.intelligence-space .enrichment-dimension strong {
+  color: #343630;
+}
+
+.intelligence-space .enrichment-dimension small,
+.intelligence-space .enrichment-dimension span {
+  color: #65675f;
+}
+
+.intelligence-space .enrichment-dimension-lens {
+  border: 1px solid rgba(72, 64, 52, .12) !important;
+  border-left: 3px solid rgba(71, 112, 139, .34) !important;
+  background: rgba(255, 255, 255, .82) !important;
+  backdrop-filter: none !important;
+  color: #3d423d;
+}
+
+.intelligence-space .enrichment-dimension-lens p {
+  border-bottom-color: rgba(72, 64, 52, .08) !important;
+  color: #565b56;
 }
 
 .observatory-space .live-proof-bridge {
@@ -237,14 +459,29 @@
   border-left: 1px solid rgba(255, 179, 92, .08) !important;
   border-bottom: 1px solid rgba(255, 255, 255, .035) !important;
   border-radius: 0 !important;
-  background: transparent !important;
+  background: rgba(255, 255, 255, .024) !important;
   box-shadow: none !important;
   opacity: .94;
 }
 
+.investigations-space .case-rail,
+.investigations-space .case-workspace,
+.investigations-space .activity-rail {
+  background: rgba(255, 255, 255, .012) !important;
+}
+
+.investigations-space .case-workspace {
+  border-top: 1px solid rgba(255, 255, 255, .055) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, .045) !important;
+}
+
+.investigations-space .activity-rail {
+  border-left-color: rgba(255, 179, 92, .10) !important;
+}
+
 .investigations-space .case-card.selected {
   border-left: 2px solid rgba(255, 179, 92, .48) !important;
-  background: linear-gradient(90deg, rgba(255, 179, 92, .045), transparent 82%) !important;
+  background: linear-gradient(90deg, rgba(255, 179, 92, .085), rgba(255, 255, 255, .018) 82%) !important;
   box-shadow: none !important;
   opacity: 1;
 }
@@ -265,7 +502,7 @@
 .investigations-space .state-item small,
 .investigations-space .runtime-event small,
 .investigations-space .runtime-event em {
-  color: #908b88;
+  color: #a19b96;
 }
 
 .investigations-space .runtime-event {
@@ -279,6 +516,95 @@
 .investigations-space .case-resume-boundary {
   border-radius: 0 !important;
   box-shadow: none !important;
+  background: rgba(255, 255, 255, .032) !important;
+}
+
+.investigations-space .state-column {
+  border-top: 1px solid rgba(255, 255, 255, .07) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, .05) !important;
+}
+
+.investigations-space .state-column-head {
+  border-bottom-color: rgba(255, 255, 255, .08) !important;
+}
+
+.investigations-space .state-column-head strong {
+  color: #ddd9d6;
+}
+
+.investigations-space .state-item {
+  border-bottom-color: rgba(255, 255, 255, .055) !important;
+  background: rgba(255, 255, 255, .012) !important;
+}
+
+.observatory-space .live-command-strip,
+.observatory-space .system-status-panel,
+.observatory-space .telemetry-wide,
+.observatory-space .agent-runtime-panel {
+  background: rgba(255, 255, 255, .018) !important;
+  border-color: rgba(114, 215, 255, .08) !important;
+}
+
+.observatory-space .live-metric strong,
+.observatory-space .panel-head strong,
+.observatory-space .chart-head strong {
+  color: #d8e4e4;
+}
+
+.start-space .mode-chamber {
+  border: 1px solid rgba(168, 139, 255, .12) !important;
+  background: rgba(255, 255, 255, .022) !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+}
+
+.start-space .mode-chamber:hover,
+.start-space .mode-chamber.preview {
+  border-color: rgba(168, 139, 255, .28) !important;
+  background: rgba(168, 139, 255, .055) !important;
+}
+
+.start-space .mode-chamber.active {
+  border-color: rgba(168, 139, 255, .52) !important;
+  background: linear-gradient(180deg, rgba(168, 139, 255, .10), rgba(255, 255, 255, .025)) !important;
+}
+
+.start-space .mode-chamber strong {
+  color: #ebe9f2;
+}
+
+.start-space .mode-chamber small,
+.start-space .mode-chamber em,
+.start-space .mode-chamber b {
+  color: #aaaab6;
+}
+
+.start-space .mode-chamber:not(.active) {
+  opacity: .9 !important;
+}
+
+.start-space .mode-chamber:not(.active) strong {
+  color: #d4d3db !important;
+}
+
+.start-space .payload-deck {
+  border-left: 1px solid rgba(168, 139, 255, .14) !important;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .028), rgba(255, 255, 255, .012)) !important;
+}
+
+.start-space .payload-field {
+  border-bottom: 1px solid rgba(255, 255, 255, .07) !important;
+}
+
+.start-space .payload-field input,
+.start-space .payload-field textarea {
+  background: rgba(255, 255, 255, .025) !important;
+  border: 1px solid rgba(255, 255, 255, .08) !important;
+}
+
+.start-space .payload-launch {
+  border: 1px solid rgba(168, 139, 255, .22) !important;
+  background: rgba(168, 139, 255, .055) !important;
 }
 
 .world-stage {
@@ -320,16 +646,16 @@
 }
 
 .world-space .world-change-coordinate {
-  color: #587386;
-  font-size: 7px;
+  color: #45697f;
+  font-size: 10px;
   font-weight: 620;
   letter-spacing: .08em;
 }
 
 .world-space .world-change-coordinate.unavailable,
 .world-space .world-change-cause {
-  color: #7b878e;
-  font-size: 6.5px;
+  color: #667880;
+  font-size: 9.5px;
   font-style: normal;
   font-weight: 500;
   letter-spacing: .05em;
@@ -348,8 +674,8 @@
 .world-space .world-change-rail > header em,
 .world-space .world-change-rail > button small,
 .world-space .world-change-rail > p {
-  color: #77848a;
-  font-size: 6.5px;
+  color: #65777f;
+  font-size: 9.5px;
   font-style: normal;
   letter-spacing: .06em;
 }
@@ -357,8 +683,8 @@
 .world-space .world-change-rail > header strong,
 .world-space .world-change-rail > button > span,
 .world-space .world-change-rail > button strong {
-  color: #4d6a7b;
-  font-size: 7.5px;
+  color: #365d74;
+  font-size: 10.5px;
   font-weight: 620;
 }
 
@@ -397,7 +723,7 @@
 .observatory-space .system-fact {
   border-radius: 0 !important;
   box-shadow: none !important;
-  background: transparent !important;
+  background: rgba(255, 255, 255, .018) !important;
 }
 
 .observatory-space .spectrum-row,
@@ -537,7 +863,7 @@
 }
 
 .agents-space .role-entity-copy > p {
-  color: #a09ca9;
+  color: #b1aeba;
 }
 
 .agents-space .role-entity-copy > small,
@@ -545,7 +871,7 @@
 .agents-space .role-entity-runtime small,
 .agents-space .role-entity-runtime span,
 .agents-space .role-entity-runtime em {
-  color: #858390;
+  color: #9593a0;
 }
 
 .agents-space .task-ledger-row strong {
