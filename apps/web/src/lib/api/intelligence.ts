@@ -15,7 +15,7 @@ export type IntelligenceSearchResult = {
 export async function searchIntelligence(query: string, limit = 12): Promise<IntelligenceSearchResult> {
   const params = new URLSearchParams({ q: query, limit: String(limit) })
   const response = await fetch(`/api/v1/intelligence/search?${params.toString()}`)
-  if (!response.ok) throw new Error(`Intelligence search unavailable (${response.status})`)
+  if (!response.ok) throw new Error(`Intelligence search failed (${response.status})`)
   return response.json() as Promise<IntelligenceSearchResult>
 }
 
@@ -34,7 +34,7 @@ export function evidenceBoundObjectIds(item: EvidenceDetail): string[] {
 
 export async function getKnowledgeObject(objectId: string): Promise<KnowledgeObject> {
   const response = await fetch(`/api/v1/intelligence/objects/${encodeURIComponent(objectId)}`)
-  if (!response.ok) throw new Error(response.status === 404 ? 'Knowledge object not found' : `Knowledge object unavailable (${response.status})`)
+  if (!response.ok) throw new Error(response.status === 404 ? 'Knowledge object not found' : `Knowledge object read failed (${response.status})`)
   return response.json() as Promise<KnowledgeObject>
 }
 
@@ -55,7 +55,7 @@ export async function getIntelligenceGraph(objectId: string, limit = 24): Promis
   const response = await fetch(
     `/api/v1/intelligence/objects/${encodeURIComponent(objectId)}/graph?${params.toString()}`,
   )
-  if (!response.ok) throw new Error(response.status === 404 ? 'Knowledge graph not found' : `Knowledge graph unavailable (${response.status})`)
+  if (!response.ok) throw new Error(response.status === 404 ? 'Knowledge graph not found' : `Knowledge graph read failed (${response.status})`)
   return response.json() as Promise<IntelligenceGraph>
 }
 
@@ -82,7 +82,7 @@ export type IntelligenceEnrichmentState = {
 
 export async function getIntelligenceEnrichment(objectId: string): Promise<IntelligenceEnrichmentState> {
   const response = await fetch(`/api/v1/intelligence/objects/${encodeURIComponent(objectId)}/enrichment`)
-  if (!response.ok) throw new Error(response.status === 404 ? 'Enrichment state not found' : `Enrichment state unavailable (${response.status})`)
+  if (!response.ok) throw new Error(response.status === 404 ? 'Enrichment state not found' : `Enrichment state read failed (${response.status})`)
   return response.json() as Promise<IntelligenceEnrichmentState>
 }
 
@@ -175,13 +175,13 @@ export type EvidenceDetail = {
 
 export async function getVulnerability(cveId: string): Promise<KnowledgeObject> {
   const response = await fetch(`/api/v1/vulnerabilities/${encodeURIComponent(cveId)}`)
-  if (!response.ok) throw new Error(response.status === 404 ? 'Vulnerability not found' : `Vulnerability unavailable (${response.status})`)
+  if (!response.ok) throw new Error(response.status === 404 ? 'Vulnerability not found' : `Vulnerability read failed (${response.status})`)
   return response.json() as Promise<KnowledgeObject>
 }
 
 export async function getEvidence(evidenceRef: string): Promise<EvidenceDetail> {
   const response = await fetch(`/api/v1/evidence/${encodeURIComponent(evidenceRef)}`)
-  if (!response.ok) throw new Error(response.status === 404 ? 'Evidence not found' : `Evidence unavailable (${response.status})`)
+  if (!response.ok) throw new Error(response.status === 404 ? 'Evidence not found' : `Evidence read failed (${response.status})`)
   return response.json() as Promise<EvidenceDetail>
 }
 
@@ -234,12 +234,12 @@ export type IncidentDetail = {
 
 export async function listIncidents(limit = 20): Promise<{ items: IncidentSummary[] }> {
   const response = await fetch(`/api/v1/incidents?limit=${limit}`)
-  if (!response.ok) throw new Error(`Incidents unavailable (${response.status})`)
+  if (!response.ok) throw new Error(`Incident index read failed (${response.status})`)
   return response.json() as Promise<{ items: IncidentSummary[] }>
 }
 
 export async function getIncident(incidentId: string): Promise<IncidentDetail> {
   const response = await fetch(`/api/v1/incidents/${encodeURIComponent(incidentId)}`)
-  if (!response.ok) throw new Error(response.status === 404 ? 'Incident not found' : `Incident unavailable (${response.status})`)
+  if (!response.ok) throw new Error(response.status === 404 ? 'Incident not found' : `Incident read failed (${response.status})`)
   return response.json() as Promise<IncidentDetail>
 }

@@ -50,11 +50,11 @@ function categorySeriesSummary(series: Array<Record<string, number | string | nu
 }
 
 const hotSlots = [
-  { left: '78%', top: '27%' },
-  { left: '78%', top: '39%' },
-  { left: '78%', top: '51%' },
-  { left: '78%', top: '63%' },
-  { left: '78%', top: '75%' },
+  { left: '72%', top: '31%' },
+  { left: '73.5%', top: '41%' },
+  { left: '72%', top: '51%' },
+  { left: '73.5%', top: '61%' },
+  { left: '72%', top: '71%' },
 ]
 
 export function WorldIncidentCluster({ incidents, candidates, candidateTotal, signalTotal, multiSourceCandidates, anchoredCandidates, loading, candidateLoading, unavailable, candidateUnavailable, onOpen, compact = false }: { incidents: IncidentSummary[]; candidates: WorldIncidentCandidate[]; candidateTotal: number; signalTotal: number; multiSourceCandidates: number; anchoredCandidates: number; loading: boolean; candidateLoading: boolean; unavailable: boolean; candidateUnavailable: boolean; onOpen: (incidentId: string) => void; compact?: boolean }) {
@@ -118,7 +118,7 @@ export function WorldIngressFlow({ snapshot, focusedSource, focusedLane, focused
           const dimmed = Boolean((focusedSource && !selected) || (focusedLane && !laneSelected))
           return (
             <g key={source.key} className={`state-${state} ${activity.active ? 'active' : ''} ${selected || laneSelected ? 'selected' : ''} ${dimmed ? 'dimmed' : ''}`}>
-              <motion.path d={`M 20 ${source.y} C 26 ${source.y}, 29 ${point.y}, ${point.x} ${point.y}`} animate={reduceMotion || !activity.active ? undefined : { strokeDashoffset: [0, -14] }} transition={{ duration: activity.fresh > 0 ? 1.15 : 2.1, repeat: Infinity, ease: 'linear' }} />
+              <motion.path d={`M ${source.x} ${source.y} C ${(source.x + point.x) / 2} ${source.y}, ${(source.x + point.x) / 2} ${point.y}, ${point.x} ${point.y}`} animate={reduceMotion || !activity.active ? undefined : { strokeDashoffset: [0, -14] }} transition={{ duration: activity.fresh > 0 ? 1.15 : 2.1, repeat: Infinity, ease: 'linear' }} />
               <circle cx={point.x} cy={point.y} r={selected || laneSelected ? 1.1 : .65} />
             </g>
           )
@@ -213,7 +213,7 @@ export function HotCrystal({
       style={slot}
       onClick={onOpen}
       animate={{
-        opacity: dimmed ? .18 : 1,
+        opacity: dimmed ? .68 : 1,
         scale: selected ? 1.11 : dimmed ? .94 : 1,
         y: 0,
       }}
@@ -261,7 +261,7 @@ export function SourceLens({
       <div className="lens-facts">
         <LensFact label={text('类别路径', 'CATEGORY ROUTE')} value={narrative.lane} />
         <LensFact label={text('世界角色', 'WORLD ROLE')} value={text(narrative.roleZh, narrative.role)} />
-        <LensFact label={text('健康度', 'HEALTH')} value={health ? text(`${health.healthy}/${total} 健康`, `${health.healthy}/${total} healthy`) : text('快照不可用', 'snapshot unavailable')} />
+        <LensFact label={text('健康度', 'HEALTH')} value={health ? text(`${health.healthy}/${total} 健康`, `${health.healthy}/${total} healthy`) : text('尚无快照', 'snapshot not loaded')} />
         <LensFact label={text('新增 · 6H', 'FRESH · 6H')} value={String(summary.fresh)} />
         <LensFact label={text('运行 · 6H', 'RUNS · 6H')} value={String(summary.runs)} />
         <LensFact label={text('运行成功率', 'RUN SUCCESS')} value={summary.success == null ? '—' : `${(summary.success * 100).toFixed(1)}%`} />
@@ -409,7 +409,7 @@ export function HotLens({ item, onInspect }: { item: HotBug; onInspect: () => vo
     <div className="lens-stack">
       <div className="lens-index">{text('HOT 工作集 / REDIS 读取边界', 'HOT WORKING SET / REDIS READ SEAM')}</div>
       <div className="lens-title"><span><Flame size={18} /></span><div><small>{signal}</small><strong>{item.cve_id ?? item.external_object_id}</strong></div></div>
-      <p>{item.description ?? item.title ?? text('当前 Hot Bug 投影来自真实读取，不填充演示内容。', 'Current Hot Bug projection. No demo content substituted.')}</p>
+      <p>{item.description ?? item.title ?? text('当前来源尚未提供对象描述。', 'The source has not provided a description yet.')}</p>
       <div className="lens-facts two">
         <LensFact label={text('来源', 'SOURCE')} value={item.source_id} />
         <LensFact label={text('版本', 'REVISION')} value={item.external_revision ?? text('内容版本', 'content revision')} />

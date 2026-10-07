@@ -4,7 +4,6 @@ import argparse
 from dataclasses import dataclass
 
 from playwright.sync_api import Page, sync_playwright
-from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,7 +83,7 @@ def _check_stateful_controls(page: Page, surface: Surface) -> list[str]:
                 errors.append("WORLD time-window control did not become active")
 
     if surface.name == "start":
-        modes = page.locator(".mode-chamber")
+        modes = page.locator("[data-mission-mode]")
         for index in range(modes.count()):
             mode = modes.nth(index)
             mode.click()
@@ -97,17 +96,13 @@ def _check_stateful_controls(page: Page, surface: Surface) -> list[str]:
                 errors.append("START advanced controls did not open")
 
     if surface.name == "observatory":
-        switches = page.locator(".observatory-mode-switch button")
-        if switches.count() >= 2:
-            try:
-                switches.nth(1).click(timeout=2_000)
-                page.wait_for_timeout(120)
-                class_name = page.locator(".observatory-space").get_attribute("class") or ""
-                if "observatory-proof" not in class_name:
-                    errors.append("OBSERVATORY proof switch did not change mode")
-            except PlaywrightTimeoutError as exc:
-                reason = exc.message.splitlines()[-1]
-                errors.append(f"OBSERVATORY proof switch is not clickable: {reason}")
+        windows = page.locator(".window-switch button")
+        if windows.count() >= 2:
+            windows.nth(1).click()
+            if "active" not in (windows.nth(1).get_attribute("class") or ""):
+                errors.append("OBSERVATORY time-window control did not become active")
+        if page.locator(".observatory-refresh").count() != 1:
+            errors.append("OBSERVATORY refresh control is missing")
     return errors
 
 

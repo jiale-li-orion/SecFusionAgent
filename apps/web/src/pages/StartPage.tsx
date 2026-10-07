@@ -1,24 +1,23 @@
-import { useMemo, useState } from 'react'
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { SessionHistory } from '../components/SessionHistory'
+import { useEffect, useMemo, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { motion, useReducedMotion } from 'motion/react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
-  ArrowUpRight,
-  BrainCircuit,
   Eye,
   FlaskConical,
   Gauge,
-  Link2,
-  Orbit,
   ScanSearch,
   Send,
   SlidersHorizontal,
-  Sparkles,
   Telescope,
 } from 'lucide-react'
-import { askQuestion, type QuestionResult, type TaskKind } from '../lib/api'
+import { askQuestion, getDecision, getInvestigation, type QuestionResult, type TaskKind } from '../lib/api'
+import { MissionField } from '../components/start/MissionField'
+import { MissionOutcome } from '../components/start/MissionOutcome'
 import { AlchemistBoundary } from '../components/start/AlchemistBoundary'
-import { AdvancedRange, ModeFact, ModeInstrument } from '../components/start/MissionControls'
-import { compactOutcomeRef, missionTargetDossierPath, missionTargetEvidencePath, modeDescriptionEn, modeTitleEn, originToIntelligence, parseMissionTarget, summarizeDecision } from '../lib/startMissionPresentation'
+import { AdvancedRange } from '../components/start/MissionControls'
+import { modeTitleEn, originToIntelligence, parseMissionTarget } from '../lib/startMissionPresentation'
 import { useI18n } from '../lib/i18n'
 
 const sourceRoles = ['primary', 'authority', 'forensic', 'reference', 'telemetry', 'signal'] as const
@@ -86,21 +85,11 @@ const modes = [
   },
 ]
 
-const oracleRailSlots = [
-  { left: 24, top: 31 },
-  { left: 24, top: 64 },
-]
-
-const argusRailSlots = [
-  { left: 76, top: 24 },
-  { left: 82, top: 45 },
-  { left: 76, top: 67 },
-]
-
 export function StartPage() {
   const { text } = useI18n()
   const navigate = useNavigate()
-  const [params] = useSearchParams()
+  const [params, setParams] = useSearchParams()
+  const queryClient = useQueryClient()
   const profileParam = params.get('profile')?.toUpperCase() ?? ''
   const cveParam = params.get('cve')?.toUpperCase() ?? ''
   const objectParam = params.get('object') ?? ''
@@ -109,10 +98,28 @@ export function StartPage() {
   const originRef = params.get('origin')
   const reduceMotion = Boolean(useReducedMotion())
   const [modeId, setModeId] = useState(() => modes.some((mode) => mode.id === profileParam) ? profileParam : 'VERIFY')
-  const [previewModeId, setPreviewModeId] = useState<string | null>(null)
   const [question, setQuestion] = useState(questionParam)
   const [target, setTarget] = useState(cveParam || (objectParam ? `object:${objectParam}` : ''))
-  const [result, setResult] = useState<QuestionResult | null>(null)
+  const [liveResult, setResult] = useState<QuestionResult | null>(null)
+  const savedDecision = params.get('decision')
+  const savedCase = params.get('case')
+  const sessionId = liveResult?.session_id ?? params.get('session') ?? undefined
+  const decisionQuery = useQuery({ queryKey: ['decision', savedDecision], queryFn: () => getDecision(savedDecision!), enabled: Boolean(savedDecision), retry: false })
+  const caseQuery = useQuery({ queryKey: ['start-case', savedCase], queryFn: () => getInvestigation(savedCase!), enabled: Boolean(savedCase && !savedDecision), retry: false, refetchInterval: (query) => ['active', 'waiting'].includes(query.state.data?.status ?? '') ? 5000 : false })
+  const restored: QuestionResult | null = decisionQuery.data ? {
+    mode: 'completed', decision: decisionQuery.data, session_id: sessionId ?? '',
+    execution_profile: profileParam || 'DIRECT', request_id: params.get('request') ?? '', turn_index: Number(params.get('turn')) || 1,
+  } : caseQuery.data ? {
+    mode: 'accepted', investigation: caseQuery.data, session_id: sessionId ?? '',
+    execution_profile: caseQuery.data.execution_profile ?? profileParam, request_id: params.get('request') ?? '', turn_index: Number(params.get('turn')) || 1,
+  } : null
+  const currentCase = liveResult?.mode === 'accepted' ? caseQuery.data : restored?.investigation ? caseQuery.data : null
+  const result: QuestionResult | null = currentCase ? {
+    ...(liveResult ?? restored!),
+    mode: currentCase.latest_decision ? 'completed' : 'accepted',
+    decision: currentCase.latest_decision,
+    investigation: currentCase,
+  } : liveResult ?? restored
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [advancedOpen, setAdvancedOpen] = useState(false)
@@ -125,12 +132,14 @@ export function StartPage() {
   const [agentTurns, setAgentTurns] = useState(8)
   const [toolCalls, setToolCalls] = useState(12)
   const selected = useMemo(() => modes.find((mode) => mode.id === modeId)!, [modeId])
-  const preview = useMemo(() => modes.find((mode) => mode.id === previewModeId) ?? selected, [previewModeId, selected])
-  const previewIndex = modes.findIndex((mode) => mode.id === preview.id)
+
+  useEffect(() => {
+    document.getElementById('mission-outcome')?.scrollIntoView({ behavior: reduceMotion ? 'instant' : 'smooth', block: 'start' })
+  }, [result?.request_id, result?.decision?.decision_id, reduceMotion])
 
   async function launch() {
     if (!question.trim() || busy) return
-    const requiresTarget = selected.id !== 'RETRIEVE'
+    const requiresTarget = selected.id !== 'RETRIEVE' && !sessionId
     const parsedTarget = parseMissionTarget(target)
     if (requiresTarget && !parsedTarget) {
       setError(text(`${selected.id} 需要 CVE 或 canonical object 目标。`, `${selected.id} requires a CVE or canonical object target.`))
@@ -142,12 +151,12 @@ export function StartPage() {
     }
     setBusy(true)
     setError('')
-    setResult(null)
     try {
       const response = await askQuestion({
         question: question.trim(),
-        cveId: parsedTarget?.kind === 'cve' ? parsedTarget.value : undefined,
-        objectId: parsedTarget?.kind === 'object' ? parsedTarget.value : undefined,
+        sessionId,
+        cveId: !sessionId && parsedTarget?.kind === 'cve' ? parsedTarget.value : undefined,
+        objectId: !sessionId && parsedTarget?.kind === 'object' ? parsedTarget.value : undefined,
         taskKind: selected.taskKind,
         requiredSourceRoles,
         priority,
@@ -159,6 +168,25 @@ export function StartPage() {
         toolCalls,
       })
       setResult(response)
+      if (response.decision || response.investigation) {
+        const next = new URLSearchParams(params)
+        if (response.mode === 'completed' && response.decision) {
+          queryClient.setQueryData(['decision', response.decision.decision_id], response.decision)
+          next.set('decision', response.decision.decision_id)
+          next.delete('case')
+        } else if (response.investigation) {
+          next.set('case', response.investigation.case_id)
+          next.delete('decision')
+        }
+        void queryClient.invalidateQueries({ queryKey: ['question-session', response.session_id] })
+        next.set('session', response.session_id)
+        next.set('turn', String(response.turn_index))
+        next.set('request', response.request_id)
+        next.set('profile', modeId)
+        next.set('question', question.trim())
+        if (parsedTarget) next.set(parsedTarget.kind === 'cve' ? 'cve' : 'object', parsedTarget.value)
+        setParams(next, { replace: true })
+      }
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : text('请求失败', 'Request failed'))
     } finally {
@@ -194,138 +222,9 @@ export function StartPage() {
         </div>
       )}
 
-      <div id="mission-theater" className={`start-theater chamber-focus-${selected.id.toLowerCase()} ${busy ? 'is-launching' : ''}`}>
-        <svg className="start-orbit-map" viewBox="0 0 100 58" preserveAspectRatio="none" aria-hidden="true">
-          <ellipse cx="50" cy="31" rx="39" ry="21" />
-          <ellipse cx="50" cy="31" rx="27" ry="15" className="inner" />
-          <path className="axis" d="M 7 44 C 28 32, 38 30, 50 31 C 62 30, 72 32, 93 44" />
-          <motion.path
-            className={`selected-route ${previewModeId ? 'is-preview' : ''} role-${preview.role.toLowerCase()}`}
-            d={missionRoute(previewIndex, preview.role, modeId)}
-            initial={false}
-            animate={{ pathLength: 1, opacity: 1 }}
-            transition={{ duration: reduceMotion ? 0 : .42, ease: 'easeOut' }}
-          />
-        </svg>
-
-        <div className="start-role-gate oracle">
-          <span className="role-gate-sigil"><Orbit size={18} /></span>
-          <small>DECISION ROLE</small>
-          <strong>ORACLE</strong>
-          <em>DIRECT · RETRIEVE</em>
-        </div>
-
-        <div className="start-role-gate argus">
-          <span className="role-gate-sigil"><Orbit size={18} /></span>
-          <small>INVESTIGATION ROLE</small>
-          <strong>ARGUS</strong>
-          <em>VERIFY · INVESTIGATE · WATCH</em>
-        </div>
-
-        {modes.map(({ id, title, icon: Icon, role }, index) => {
-          const active = id === modeId
-          const slot = missionChamberSlot(index, modeId)
-          return (
-            <motion.button
-              key={id}
-              className={`mode-chamber mode-${id.toLowerCase()} ${active ? 'active' : ''} ${previewModeId === id ? 'preview' : ''} role-${role.toLowerCase()}`}
-              aria-pressed={active}
-              initial={false}
-              onHoverStart={() => setPreviewModeId(id)}
-              onHoverEnd={() => setPreviewModeId(null)}
-              onFocus={() => setPreviewModeId(id)}
-              onBlur={() => setPreviewModeId(null)}
-              onClick={() => {
-                if (busy) return
-                setModeId(id)
-                setResult(null)
-                setError('')
-              }}
-              animate={{
-                left: `${slot.left}%`,
-                top: `${slot.top}%`,
-                y: active ? 0 : slot.top > 50 ? 3 : -3,
-                scale: active ? 1.08 : .92,
-                opacity: active ? 1 : .86,
-                rotate: active ? 0 : slot.left < 50 ? -1.2 : 1.2,
-              }}
-              transition={{ type: 'spring', stiffness: 190, damping: 24, mass: .82 }}
-            >
-              <span className="mode-chamber-index">0{index + 1}</span>
-              <span className="mode-chamber-glyph"><Icon size={active ? 23 : 18} /></span>
-              <ModeInstrument mode={id} active={active} />
-              <small>{text(title, modeTitleEn(id))}</small>
-              <strong>{id}</strong>
-              <em>{role}</em>
-              <b>{active ? text('已装载', 'LOADED') : text('点击装载', 'LOAD')}</b>
-              {active && <i />}
-            </motion.button>
-          )
-        })}
-
-        <motion.div
-          className={`mission-reactor ${busy ? 'active' : ''} role-${selected.role.toLowerCase()}`}
-          animate={{ scale: busy && !reduceMotion ? [1, 1.05, 1] : 1 }}
-          transition={{ duration: .9, repeat: busy && !reduceMotion ? Infinity : 0 }}
-        >
-          <span className="reactor-ring ring-a" />
-          <span className="reactor-ring ring-b" />
-          <Sparkles size={21} />
-          <strong>{busy ? text('启动中', 'LAUNCH') : selected.id}</strong>
-          <small>{selected.role}</small>
-        </motion.div>
-
-        <motion.div
-          key={preview.id}
-          className="mode-readout"
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <span>{text(preview.title, modeTitleEn(preview.id))} · {preview.id}</span>
-          <strong>{text(preview.description, modeDescriptionEn(preview.id))}</strong>
-          <div>
-            <ModeFact label={text('响应节奏', 'TEMPO')} value={preview.tempo} />
-            <ModeFact label={text('持久状态', 'DURABILITY')} value={preview.durable} />
-            <ModeFact label={text('结果形态', 'OUTCOME')} value={preview.outcome} />
-            <ModeFact label={text('允许能力', 'CAPABILITY')} value={preview.capability} />
-          </div>
-        </motion.div>
-
+      <MissionField modes={modes} selected={selected} busy={busy} onSelect={(id) => { setModeId(id); setResult(null); setError('') }}>
         <AlchemistBoundary caseId={result?.mode === 'accepted' ? result.investigation?.case_id ?? null : null} />
-
-        <AnimatePresence>
-          {busy && (
-            <motion.div
-              className={`mission-injection role-${selected.role.toLowerCase()}`}
-              initial={{ opacity: 0, clipPath: 'circle(0% at 50% 50%)' }}
-              animate={{ opacity: 1, clipPath: 'circle(74% at 50% 50%)' }}
-              exit={{ opacity: 0, clipPath: 'circle(18% at 50% 50%)' }}
-              transition={{ duration: reduceMotion ? 0 : .42, ease: [0.22, 1, 0.36, 1] }}
-            >
-              <motion.div
-                className="mission-injection-packet"
-                initial={{ y: 38, scale: .78, opacity: 0 }}
-                animate={{ y: 0, scale: 1, opacity: 1 }}
-                transition={{ delay: reduceMotion ? 0 : .08, type: 'spring', stiffness: 260, damping: 24 }}
-              >
-                <small>{text('PRODUCT REQUEST / 准入', 'PRODUCT REQUEST / ADMISSION')}</small>
-                <strong>{selected.id}</strong>
-                <span>{selected.role}</span>
-              </motion.div>
-              <div className="mission-injection-route">
-                <i />
-                <span>{text('请求正在进入真实执行边界', 'REQUEST ENTERING REAL EXECUTION BOUNDS')}</span>
-                <b>{selected.role === 'ORACLE' ? 'DecisionRole@1' : 'InvestigationRole@1'}</b>
-              </div>
-              <div className="mission-injection-bounds">
-                <span>{requiredSourceRoles.length ? requiredSourceRoles.join(' · ') : text('来源角色：未指定', 'source roles: unconstrained')}</span>
-                <span>priority {priority}</span>
-                <span>{selected.role === 'ORACLE' ? `${interactiveTimeoutSeconds}s · retrieval ${retrievalLimit}` : `${investigationTimeoutSeconds}s · ${agentTurns} turns · ${toolCalls} calls`}</span>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+      </MissionField>
 
       <div className="payload-deck">
         <div className="payload-deck-head">
@@ -338,11 +237,12 @@ export function StartPage() {
 
         <div className="payload-grid">
           <label className="payload-field target">
-            <span>{selected.id === 'RETRIEVE' ? text('目标 / 可选', 'TARGET / OPTIONAL') : text('目标 / 必填', 'TARGET / REQUIRED')}</span>
+            <span>{sessionId ? text('目标 / 由当前会话继承', 'TARGET / CARRIED BY SESSION') : selected.id === 'RETRIEVE' ? text('目标 / 可选', 'TARGET / OPTIONAL') : text('目标 / 必填', 'TARGET / REQUIRED')}</span>
             <input
               className="mono"
               value={target}
               onChange={(event) => setTarget(event.target.value)}
+              disabled={Boolean(sessionId) || busy}
               placeholder="CVE-2026-… / object:<id>"
             />
           </label>
@@ -352,14 +252,16 @@ export function StartPage() {
             <textarea
               value={question}
               onChange={(event) => setQuestion(event.target.value)}
+              disabled={busy}
+              onKeyDown={(event) => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !event.nativeEvent.isComposing) { event.preventDefault(); void launch() } }}
               placeholder={text('写清要确认的问题。', 'State the question the system must resolve.')}
             />
           </label>
 
-          <button className={`payload-launch role-${selected.role.toLowerCase()}`} onClick={launch} disabled={busy || !question.trim() || (selected.id !== 'RETRIEVE' && !target.trim())}>
+          <button className={`payload-launch role-${selected.role.toLowerCase()}`} onClick={launch} disabled={busy || !question.trim() || (selected.id !== 'RETRIEVE' && !sessionId && !target.trim())}>
             <span><Send size={16} /></span>
             <small>{busy ? text('请求执行中', 'REQUEST IN FLIGHT') : text(`${selected.role} 接管任务`, `${selected.role} TAKES OWNERSHIP`)}</small>
-            <strong>{busy ? text('启动中…', 'LAUNCHING…') : text(`启动 ${selected.title}`, `START ${modeTitleEn(selected.id)}`)}</strong>
+            <strong>{busy ? text('启动中…', 'LAUNCHING…') : sessionId ? text('继续当前会话', 'CONTINUE SESSION') : text(`启动 ${selected.title}`, `START ${modeTitleEn(selected.id)}`)}</strong>
           </button>
         </div>
 
@@ -398,8 +300,16 @@ export function StartPage() {
           </motion.section>
         )}
 
+        {sessionId && <div className="mission-session-strip"><span>{text('同一会话保留目标与上下文，可切换模式继续追问。', 'Target and context carry across turns. Switch modes to continue.')}</span><button onClick={() => { const next = new URLSearchParams(params); ['session', 'decision', 'case', 'turn', 'request', 'question'].forEach((key) => next.delete(key)); setParams(next, { replace: true }) }} disabled={busy}>{text('开启新会话', 'NEW SESSION')}</button></div>}
+      </div>
+        {sessionId && <SessionHistory sessionId={sessionId} />}
+        {decisionQuery.isLoading && <p role="status">{text('恢复已保存的研判…', 'RESTORING SAVED DECISION…')}</p>}
+        {decisionQuery.isError && <div className="error-block" role="alert">{decisionQuery.error.message}<button onClick={() => void decisionQuery.refetch()}>{text('重试', 'RETRY')}</button></div>}
+        {caseQuery.isLoading && <p role="status">{text('恢复调查状态…', 'RESTORING CASE STATE…')}</p>}
+        {caseQuery.isError && <div className="error-block" role="alert">{caseQuery.error.message}<button onClick={() => void caseQuery.refetch()}>{text('重试', 'RETRY')}</button></div>}
         {(error || result) && (
           <motion.div
+            id="mission-outcome"
             className={`start-outcome ${error ? 'error' : result?.mode === 'accepted' ? 'accepted' : 'completed'}`}
             role={error ? 'alert' : 'status'}
             aria-live="polite"
@@ -411,108 +321,9 @@ export function StartPage() {
                 <small>{text('请求失败', 'REQUEST FAILED')}</small>
                 <strong>{error}</strong>
               </>
-            ) : result ? (
-              result.mode === 'accepted' ? (
-                <div className="start-case-outcome">
-                  <div className="case-outcome-axis"><span /><i /><b /></div>
-                  <div>
-                    <small>{text('ARGUS / DURABLE CASE 已接收', 'ARGUS / DURABLE CASE ACCEPTED')}</small>
-                    <strong>{result.execution_profile}</strong>
-                    <span>{result.investigation?.goal ?? text('调查已进入 durable runtime。', 'Investigation entered durable runtime.')}</span>
-                    <em className="mono">{result.investigation?.case_id ?? text('Case 已创建', 'case created')} · {result.investigation?.status ?? text('已接收', 'accepted')}</em>
-                  </div>
-                  {result.investigation?.case_id && (
-                    <button onClick={() => navigate(`/investigations?${new URLSearchParams({ case: result.investigation!.case_id, session: result.session_id, from: 'start', request: result.request_id }).toString()}`)}>
-                      {text('进入 Case 现场', 'ENTER CASE FIELD')} <ArrowUpRight size={13} />
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="start-decision-outcome">
-                  <div className="decision-seal"><Sparkles size={18} /><i /></div>
-                  <div>
-                    <small>{text('ORACLE / DECISION 已生成', 'ORACLE / DECISION READY')}</small>
-                    <strong>{result.execution_profile}</strong>
-                    <p>{summarizeDecision(result)}</p>
-                    <div className="decision-boundary">
-                      <span>{text(`${result.decision?.citations?.length ?? 0} 条 citations`, `${result.decision?.citations?.length ?? 0} citations`)}</span>
-                      <span>{text(`${result.decision?.conflicts?.length ?? 0} 个 conflicts`, `${result.decision?.conflicts?.length ?? 0} conflicts`)}</span>
-                      <span>{text(`${result.decision?.unknowns?.length ?? 0} 个 unknowns`, `${result.decision?.unknowns?.length ?? 0} unknowns`)}</span>
-                    </div>
-                    <div className="start-decision-next">
-                      {missionTargetDossierPath(target, result.request_id) && <button onClick={() => navigate(missionTargetDossierPath(target, result.request_id)!)}><BrainCircuit size={11} /> {text('打开目标档案', 'OPEN TARGET DOSSIER')}</button>}
-                      {missionTargetDossierPath(target, result.request_id) && (result.decision?.citations ?? []).slice(0, 3).map((citation, index) => <button key={citation.evidence_ref} onClick={() => navigate(missionTargetEvidencePath(target, citation.evidence_ref, result.request_id)!)}><Link2 size={11} /> {text(`证据 ${index + 1}`, `EVIDENCE ${index + 1}`)}<span className="mono">{compactOutcomeRef(citation.evidence_ref)}</span></button>)}
-                    </div>
-                    <em className="mono">{result.decision?.decision_id ?? 'decision'} · session {result.session_id} · turn {result.turn_index}</em>
-                  </div>
-                </div>
-              )
-            ) : null}
+            ) : result ? <MissionOutcome result={result} target={target} /> : null}
           </motion.div>
         )}
-      </div>
     </section>
   )
-}
-
-function missionChamberSlot(index: number, activeModeId: string) {
-  const activeIndex = modes.findIndex((mode) => mode.id === activeModeId)
-  const activeSlots: Record<string, { left: number; top: number }> = {
-    DIRECT: { left: 46, top: 35 },
-    RETRIEVE: { left: 50, top: 38 },
-    VERIFY: { left: 52, top: 35 },
-    INVESTIGATE: { left: 50, top: 32 },
-    WATCH: { left: 50, top: 44 },
-  }
-  if (index === activeIndex) return activeSlots[activeModeId] ?? { left: 50, top: 38 }
-  const mode = modes[index]
-  const layouts: Record<string, Partial<Record<string, { left: number; top: number }>>> = {
-    DIRECT: {
-      RETRIEVE: { left: 24, top: 62 },
-      VERIFY: { left: 77, top: 24 },
-      INVESTIGATE: { left: 83, top: 48 },
-      WATCH: { left: 76, top: 72 },
-    },
-    RETRIEVE: {
-      DIRECT: { left: 22, top: 35 },
-      VERIFY: { left: 76, top: 24 },
-      INVESTIGATE: { left: 83, top: 48 },
-      WATCH: { left: 76, top: 70 },
-    },
-    VERIFY: {
-      DIRECT: { left: 20, top: 28 },
-      RETRIEVE: { left: 22, top: 62 },
-      INVESTIGATE: { left: 78, top: 48 },
-      WATCH: { left: 71, top: 72 },
-    },
-    INVESTIGATE: {
-      DIRECT: { left: 18, top: 28 },
-      RETRIEVE: { left: 21, top: 64 },
-      VERIFY: { left: 74, top: 20 },
-      WATCH: { left: 77, top: 70 },
-    },
-    WATCH: {
-      DIRECT: { left: 19, top: 25 },
-      RETRIEVE: { left: 22, top: 61 },
-      VERIFY: { left: 74, top: 20 },
-      INVESTIGATE: { left: 81, top: 48 },
-    },
-  }
-  const explicit = layouts[activeModeId]?.[mode.id]
-  if (explicit) return explicit
-  const sameRole = modes
-    .map((candidate, modeIndex) => ({ candidate, modeIndex }))
-    .filter(({ candidate, modeIndex }) => modeIndex !== activeIndex && candidate.role === mode.role)
-    .map(({ modeIndex }) => modeIndex)
-  const roleIndex = sameRole.indexOf(index)
-  if (mode.role === 'ORACLE') return oracleRailSlots[Math.max(0, roleIndex)] ?? oracleRailSlots[0]
-  return argusRailSlots[Math.max(0, roleIndex)] ?? argusRailSlots[0]
-}
-
-function missionRoute(index: number, role: string, activeModeId: string) {
-  const slot = missionChamberSlot(index, activeModeId)
-  const routeY = Math.max(12, Math.min(50, slot.top * .58))
-  const gateX = role === 'ORACLE' ? 8 : 92
-  const bendX = role === 'ORACLE' ? 38 : 62
-  return `M ${slot.left} ${routeY} C ${slot.left} ${routeY - 5}, ${bendX} 30, 50 31 C ${50} 36, ${gateX} 37, ${gateX} 45`
 }

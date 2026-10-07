@@ -60,7 +60,7 @@ export function FocusedKnowledgeGraph({
         </div>
       </div>
       <div className="focused-graph-stage" onWheel={(event) => { if (!event.ctrlKey && !event.metaKey) return; event.preventDefault(); setZoom((value) => Math.max(.78, Math.min(1.32, Number((value + (event.deltaY < 0 ? .06 : -.06)).toFixed(2))))) }}>
-        <motion.div className="graph-world" animate={{ scale: (selected ? 1.045 : 1) * zoom, x: selected ? -36 : 0 }} transition={{ type: 'spring', stiffness: 180, damping: 24 }}>
+        <motion.div className="graph-world" animate={{ scale: zoom }} transition={{ type: 'spring', stiffness: 180, damping: 24 }}>
           <svg className="graph-edges" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
             {visible.map((relation, index) => {
               const point = graphPoint(index, visible.length)
@@ -110,7 +110,7 @@ function GraphRelationNode({ relation, point, active, dimmed, onSelect }: { rela
     style={{ left: `${point.x}%`, top: `${point.y}%` }}
     onClick={onSelect}
     initial={{ opacity: 0, scale: .85 }}
-    animate={{ opacity: dimmed ? .15 : 1, scale: active ? 1.08 : dimmed ? .92 : 1 }}
+    animate={{ opacity: dimmed ? .68 : 1, scale: active ? 1.08 : dimmed ? .92 : 1 }}
     transition={{ type: 'spring', stiffness: 220, damping: 24 }}
   >
     <span className="graph-node-glyph"><GitBranch size={13} /></span>

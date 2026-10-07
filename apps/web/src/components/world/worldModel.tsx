@@ -3,25 +3,25 @@ import { Boxes, Bug, Building2, Code2, FileBadge, GraduationCap, RadioTower, Shi
 import type { HotBug } from '../../lib/api'
 
 export const sources = [
-  { key: 'vulnerability', label: 'VULNERABILITY', labelZh: '漏洞', sub: 'CVE · NVD · KEV', icon: Bug, x: 4.5, y: 20 },
-  { key: 'development', label: 'DEVELOPMENT', labelZh: '开发', sub: 'Git · Package · Release', icon: Code2, x: 4.5, y: 30 },
-  { key: 'academic', label: 'ACADEMIC', labelZh: '学术', sub: 'Paper · Preprint', icon: GraduationCap, x: 4.5, y: 40 },
-  { key: 'vendor', label: 'VENDOR', labelZh: '厂商', sub: 'Advisory · PSIRT', icon: Building2, x: 4.5, y: 50 },
-  { key: 'independent', label: 'INDEPENDENT', labelZh: '独立情报', sub: 'OSINT · Analysis', icon: RadioTower, x: 4.5, y: 60 },
-  { key: 'normative', label: 'NORMATIVE', labelZh: '规范', sub: 'Standard · Regulation', icon: FileBadge, x: 4.5, y: 70 },
-  { key: 'assets', label: 'ASSETS', labelZh: '资产', sub: 'Exposure · Inventory', icon: Boxes, x: 4.5, y: 80 },
-  { key: 'incidents', label: 'INCIDENTS', labelZh: '事件', sub: 'Report · Signal', icon: ShieldAlert, x: 4.5, y: 90 },
+  { key: 'vulnerability', label: 'VULNERABILITY', labelZh: '漏洞', sub: 'CVE · NVD · KEV', icon: Bug, x: 6.5, y: 19 },
+  { key: 'vendor', label: 'VENDOR', labelZh: '厂商', sub: 'Advisory · PSIRT', icon: Building2, x: 5.5, y: 42 },
+  { key: 'development', label: 'DEVELOPMENT', labelZh: '开发', sub: 'Git · Package · Release', icon: Code2, x: 10, y: 67 },
+  { key: 'academic', label: 'ACADEMIC', labelZh: '学术', sub: 'Paper · Preprint', icon: GraduationCap, x: 25, y: 83 },
+  { key: 'independent', label: 'INDEPENDENT', labelZh: '独立情报', sub: 'OSINT · Analysis', icon: RadioTower, x: 49, y: 88 },
+  { key: 'normative', label: 'NORMATIVE', labelZh: '规范', sub: 'Standard · Regulation', icon: FileBadge, x: 70, y: 83 },
+  { key: 'assets', label: 'ASSETS', labelZh: '资产', sub: 'Exposure · Inventory', icon: Boxes, x: 75, y: 68 },
+  { key: 'incidents', label: 'INCIDENTS', labelZh: '事件', sub: 'Report · Signal', icon: ShieldAlert, x: 75, y: 20 },
 ]
 
 export const worldWindows = ['1h', '6h', '24h', '168h'] as const
 export type WorldWindow = (typeof worldWindows)[number]
 
 export const worldLanePoints: Record<string, { x: number; y: number }> = {
-  'BUG STREAM': { x: 34, y: 34 },
-  'DEVELOPMENT INDEX': { x: 37, y: 43 },
-  'INSIGHT CORPUS': { x: 38, y: 53 },
-  'INCIDENT WATCH': { x: 36, y: 64 },
-  'ASSET OBSERVATION': { x: 40, y: 73 },
+  'BUG STREAM': { x: 35, y: 34 },
+  'DEVELOPMENT INDEX': { x: 42, y: 27 },
+  'INSIGHT CORPUS': { x: 52, y: 24 },
+  'INCIDENT WATCH': { x: 65, y: 32 },
+  'ASSET OBSERVATION': { x: 68, y: 66 },
 }
 
 export const sourceNarrative: Record<string, { lane: string; role: string; roleZh: string; summary: string; summaryZh: string }> = {

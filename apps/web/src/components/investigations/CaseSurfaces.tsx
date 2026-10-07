@@ -1,21 +1,25 @@
-import { useEffect, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { motion } from 'motion/react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { motion, useReducedMotion } from 'motion/react'
 import { Activity, BadgeCheck, BrainCircuit, CircleAlert, CircleDot, FileWarning, Link2, MessageSquareText, OctagonX, Orbit, Radar, SearchCheck, Sparkles, TerminalSquare } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 import { askQuestion, cancelInvestigation, evidenceBoundObjectIds, getEvidence, type EvidenceDetail, type InvestigationFinding, type InvestigationView, type ProductRuntimeEvent, type QuestionResult, type TaskKind } from '../../lib/api'
 import { eventState, type CaseStateFocus, type EventCue } from '../../lib/investigationPresentation'
 import { useI18n } from '../../lib/i18n'
+import { DecisionReport } from '../DecisionReport'
+import { SessionHistory } from '../SessionHistory'
 
 const liveStatuses = new Set(['active', 'waiting'])
 
 export function CaseWorkspace({ investigation, events, eventCue, initialFocus, onEvidence, sessionId, reduceMotion, onFollowUpComplete }: { investigation: InvestigationView; events: ProductRuntimeEvent[]; eventCue: EventCue | null; initialFocus: CaseStateFocus | null; onEvidence: (ref: string) => void; sessionId: string | null; reduceMotion: boolean; onFollowUpComplete: () => void }) {
   const { text } = useI18n()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [followUp, setFollowUp] = useState('')
   const [followUpBusy, setFollowUpBusy] = useState(false)
-  const [sessionTurns, setSessionTurns] = useState<Array<{ kind: 'user' | 'system'; text: string }>>([])
+  const [sessionTurns, setSessionTurns] = useState<Array<{ kind: 'user' | 'system'; text: string; result?: QuestionResult }>>([])
   const [cancelBusy, setCancelBusy] = useState(false)
   const [cancelError, setCancelError] = useState('')
   const [stateFocus, setStateFocus] = useState<CaseStateFocus | null>(initialFocus)
@@ -25,7 +29,8 @@ export function CaseWorkspace({ investigation, events, eventCue, initialFocus, o
   }, [eventCue])
 
   const latestTaskRunId = [...events].reverse().find((event) => event.task_run_id)?.task_run_id ?? null
-  const continuationKind = continuationTaskKind(investigation.current_activity.task_kind)
+  const continuationKind = continuationTaskKind(investigation.current_activity.task_kind, investigation.execution_profile)
+  const waitingForInput = investigation.current_activity.task_status === 'waiting_input' || investigation.terminal_reason === 'decision_requires_continuation'
 
   async function sendFollowUp() {
     const question = followUp.trim()
@@ -35,8 +40,12 @@ export function CaseWorkspace({ investigation, events, eventCue, initialFocus, o
     setFollowUp('')
     try {
       const result = await askQuestion({ question, sessionId, taskKind: continuationKind })
-      setSessionTurns((current) => [...current, { kind: 'system', text: followUpNarrative(result, text) }])
+      setSessionTurns((current) => [...current, { kind: 'system', text: result.mode === 'completed' ? text('研判已生成', 'DECISION READY') : followUpNarrative(result, text), result }])
+      void queryClient.invalidateQueries({ queryKey: ['question-session', sessionId] })
       onFollowUpComplete()
+      if (result.mode === 'accepted' && result.investigation?.case_id && result.investigation.case_id !== investigation.case_id) {
+        navigate(`/investigations?${new URLSearchParams({ case: result.investigation.case_id, session: result.session_id, from: 'case' })}`)
+      }
     } catch (error) {
       setSessionTurns((current) => [...current, { kind: 'system', text: error instanceof Error ? error.message : text('后续追问失败', 'Follow-up failed') }])
     } finally {
@@ -102,30 +111,18 @@ export function CaseWorkspace({ investigation, events, eventCue, initialFocus, o
         <section className={`case-wait-boundary status-${investigation.current_activity.task_status ?? 'waiting'}`}>
           <span className="case-wait-glyph"><CircleDot size={14} /></span>
           <div>
-            <small>{investigation.current_activity.task_status === 'waiting_input' ? text('等待用户输入', 'WAITING FOR INPUT') : text('等待依赖变化', 'WAITING FOR DEPENDENCY')}</small>
-            <strong>{investigation.current_activity.task_status === 'waiting_input'
-              ? text('继续提问会在同一个 durable Case 上开启新的 InvestigationRole episode。', 'A follow-up opens a new InvestigationRole episode on the same durable Case.')
-              : text('Dependency wake 由 Task Runtime 接管；相关子任务状态变化后，父 Task 可以重新进入 queued。', 'Dependency wake is owned by Task Runtime; a relevant child state change can return the parent Task to queued.')}</strong>
+            <small>{waitingForInput ? text('等待补充信息或证据', 'WAITING FOR INFORMATION OR EVIDENCE') : text('等待依赖变化', 'WAITING FOR DEPENDENCY')}</small>
+            <strong>{waitingForInput
+              ? text('补充信息或调整问题，继续当前调查。', 'Add information or refine your question to continue this investigation.')
+              : text('正在等待相关证据或子任务完成，进展会自动更新。', 'Waiting for evidence or related tasks. Progress updates automatically.')}</strong>
           </div>
           <div className="case-wait-actions">
-            {investigation.current_activity.task_status === 'waiting_input' && sessionId && <button onClick={() => document.getElementById('case-session-composer')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>{text('继续当前 Case', 'CONTINUE CASE')}</button>}
+            {waitingForInput && sessionId && <button onClick={() => document.getElementById('case-session-composer')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>{text('继续当前 Case', 'CONTINUE CASE')}</button>}
             {investigation.current_activity.task_status === 'waiting_dependency' && latestTaskRunId && <button onClick={() => navigate(`/agents?run=${encodeURIComponent(latestTaskRunId)}&from=case&caseRef=${encodeURIComponent(investigation.case_id)}`)}>{text('查看等待边界', 'OPEN WAIT BOUNDARY')}</button>}
           </div>
         </section>
       )}
 
-      {investigation.status === 'waiting' && (
-        <section className="case-resume-boundary">
-          <div>
-            <small>{text('WAITING / 恢复路径', 'WAITING / RESUME PATH')}</small>
-            <strong>{sessionId ? text('通过当前 Case session 继续', 'CONTINUE THROUGH CURRENT CASE SESSION') : text('等待 runtime dependency wake', 'AWAIT RUNTIME DEPENDENCY WAKE')}</strong>
-            <span>{sessionId
-              ? text('新的用户输入会在同一个 Case 上开启下一次 InvestigationRole episode。', 'A new user turn opens the next InvestigationRole episode on the same durable Case.')
-              : text('通用手动 resume API 尚未暴露；dependency wake 由 Task Runtime 持有。', 'Generic manual resume is not exposed; dependency wake remains owned by Task Runtime.')}</span>
-          </div>
-          {sessionId && <button onClick={() => { document.getElementById('case-followup-input')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); window.setTimeout(() => (document.getElementById('case-followup-input') as HTMLInputElement | null)?.focus(), 280) }}>{text('继续当前 Case', 'CONTINUE CASE')}</button>}
-        </section>
-      )}
 
       <div className={`case-state-grid ${stateFocus ? `has-state-focus focus-${stateFocus}` : ''}`}>
         <StateColumn key={`confirmed:${eventCue?.state === 'confirmed' ? eventCue.eventId : 'stable'}`} title={text('已确认', 'CONFIRMED')} tone="lime" icon={BadgeCheck} items={investigation.confirmed_findings} onEvidence={onEvidence} active={stateFocus === 'confirmed'} dimmed={Boolean(stateFocus && stateFocus !== 'confirmed')} forged={eventCue?.state === 'confirmed'} reduceMotion={reduceMotion} onFocus={() => setStateFocus((current) => current === 'confirmed' ? null : 'confirmed')} />
@@ -138,13 +135,14 @@ export function CaseWorkspace({ investigation, events, eventCue, initialFocus, o
         key={`decision:${eventCue?.state === 'decision' ? eventCue.eventId : 'stable'}`}
         className={`decision-focus-wrap ${stateFocus === 'decision' ? 'state-focused' : stateFocus ? 'state-dimmed' : ''} ${eventCue?.state === 'decision' ? 'state-forged' : ''}`}
         initial={eventCue?.state === 'decision' && !reduceMotion ? { opacity: .35, scale: .985 } : false}
-        animate={{ opacity: stateFocus && stateFocus !== 'decision' ? .22 : 1, scale: 1 }}
+        animate={{ opacity: stateFocus && stateFocus !== 'decision' ? .78 : 1, scale: 1 }}
         transition={{ duration: reduceMotion ? 0 : .28 }}
         role="button"
         tabIndex={0}
         aria-pressed={stateFocus === 'decision'}
         onClick={() => setStateFocus((current) => current === 'decision' ? null : 'decision')}
         onKeyDown={(event) => {
+          if (event.target !== event.currentTarget) return
           if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault()
             setStateFocus((current) => current === 'decision' ? null : 'decision')
@@ -157,23 +155,24 @@ export function CaseWorkspace({ investigation, events, eventCue, initialFocus, o
       <section className="conversation-shell">
         <div className="conversation-title"><MessageSquareText size={15} /><div><small>{text('持续交互', 'CONTINUOUS INTERACTION')}</small><strong>{text('Case 会话', 'CASE SESSION')}</strong></div><span>{sessionId ? text('绑定当前 Case', 'BOUND TO CURRENT CASE') : text('从 START 进入后绑定会话', 'OPEN FROM START TO BIND SESSION')}</span></div>
         <div className="conversation-preview">
+          {sessionId && <SessionHistory sessionId={sessionId} />}
           <div className="system-message"><Sparkles size={14} /><ProgressiveReveal text={latestNarrative(events, investigation)} /></div>
-          {sessionTurns.map((turn, index) => <motion.div key={`${turn.kind}:${index}`} className={`session-turn turn-${turn.kind}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}><small>{turn.kind === 'user' ? 'YOU' : 'SECFUSION'}</small><p>{turn.text}</p></motion.div>)}
+          {sessionTurns.map((turn, index) => <motion.div key={`${turn.kind}:${index}`} className={`session-turn turn-${turn.kind}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}><small>{turn.kind === 'user' ? 'YOU' : 'SECFUSION'}</small><p>{turn.text}</p>{turn.result?.decision && <DecisionReport decision={turn.result.decision} onEvidence={onEvidence} />}</motion.div>)}
           <div id="case-session-composer" className={`case-session-composer ${sessionId ? 'enabled' : 'disabled'}`}>
             <div className="case-injection-coordinate">
               <span className="case-injection-glyph"><TerminalSquare size={13} /></span>
               <div>
-                <small>{text('下一次 CASE EPISODE / 任务注入', 'NEXT CASE EPISODE / TASK INJECTION')}</small>
+                <small>{text('继续当前调查', 'CONTINUE THIS INVESTIGATION')}</small>
                 <strong>{investigation.current_activity.actor_role ?? 'InvestigationRole'} · {continuationKind}</strong>
               </div>
               <em className="mono">REV {investigation.revision} · {sessionId ? `SESSION ${sessionId.slice(0, 8)}` : 'SESSION UNBOUND'}</em>
             </div>
             <div className="case-injection-channel" aria-hidden="true"><i /><span>{text('同一 durable Case', 'SAME DURABLE CASE')}</span><i /></div>
             <div className="case-injection-input">
-              <input id="case-followup-input" aria-describedby="case-injection-contract" value={followUp} onChange={(event) => setFollowUp(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void sendFollowUp() } }} disabled={!sessionId || followUpBusy} placeholder={sessionId ? text('写入下一步调查意图…', 'Inject the next investigation intent…') : text('从 START 进入调查后绑定 durable session', 'Launch from START to bind a durable session')} />
-              <button onClick={() => void sendFollowUp()} disabled={!sessionId || !followUp.trim() || followUpBusy}>{followUpBusy ? text('准入中…', 'ADMITTING…') : text('注入下一轮', 'INJECT NEXT EPISODE')}</button>
+              <input id="case-followup-input" aria-describedby="case-injection-contract" value={followUp} onChange={(event) => setFollowUp(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void sendFollowUp() } }} disabled={!sessionId || followUpBusy} placeholder={sessionId ? text('写入下一步调查意图…', 'Inject the next investigation intent…') : text('从 START 进入调查后绑定 durable session', 'Launch from START to bind a durable session')} />
+              <button onClick={() => void sendFollowUp()} disabled={!sessionId || !followUp.trim() || followUpBusy}>{followUpBusy ? text('准入中…', 'ADMITTING…') : text('继续调查', 'CONTINUE INVESTIGATION')}</button>
             </div>
-            <small id="case-injection-contract" className="case-injection-contract">{text('提交沿用当前 session 与任务类型；后续状态仍由真实 ProductEvent / SSE 驱动。', 'Submission reuses the current session and task kind; subsequent state remains driven by real ProductEvent / SSE.')}</small>
+            <small id="case-injection-contract" className="case-injection-contract">{text('追问会保留当前调查的目标、证据和历史记录。', 'Follow-ups retain this investigation’s targets, evidence, and history.')}</small>
           </div>
         </div>
       </section>
@@ -187,7 +186,7 @@ function StateColumn({ title, tone, icon: Icon, items, onEvidence, active, dimme
     <motion.section
       className={`state-column tone-${tone} ${active ? 'state-focused' : ''} ${dimmed ? 'state-dimmed' : ''} ${forged ? 'state-forged' : ''}`}
       initial={forged && !reduceMotion ? { opacity: .38, y: 7, scale: .985 } : false}
-      animate={{ opacity: dimmed ? .18 : 1, y: 0, scale: 1 }}
+      animate={{ opacity: dimmed ? .78 : 1, y: 0, scale: 1 }}
       transition={{ duration: reduceMotion ? 0 : .28, ease: [0.22, 1, 0.36, 1] }}
     >
       <button type="button" className="state-column-head" onClick={onFocus}><Icon size={14} /><strong>{title}</strong><span>{items.length}</span></button>
@@ -208,7 +207,7 @@ function StateColumn({ title, tone, icon: Icon, items, onEvidence, active, dimme
 function EvidenceNeeds({ investigation, active, dimmed, forged, reduceMotion, onFocus }: { investigation: InvestigationView; active: boolean; dimmed: boolean; forged: boolean; reduceMotion: boolean; onFocus: () => void }) {
   const { text } = useI18n()
   return (
-    <motion.section className={`state-column tone-cyan ${active ? 'state-focused' : ''} ${dimmed ? 'state-dimmed' : ''} ${forged ? 'state-forged' : ''}`} initial={forged && !reduceMotion ? { opacity: .38, y: 7 } : false} animate={{ opacity: dimmed ? .18 : 1, y: 0 }} transition={{ duration: reduceMotion ? 0 : .28 }}>
+    <motion.section className={`state-column tone-cyan ${active ? 'state-focused' : ''} ${dimmed ? 'state-dimmed' : ''} ${forged ? 'state-forged' : ''}`} initial={forged && !reduceMotion ? { opacity: .38, y: 7 } : false} animate={{ opacity: dimmed ? .78 : 1, y: 0 }} transition={{ duration: reduceMotion ? 0 : .28 }}>
       <button type="button" className="state-column-head" onClick={onFocus}><SearchCheck size={14} /><strong>{text('证据缺口', 'EVIDENCE NEEDS')}</strong><span>{investigation.open_evidence_needs.length}</span></button>
       <div className="state-items">
         {investigation.open_evidence_needs.slice(0, 8).map((need) => (
@@ -231,10 +230,7 @@ function DecisionPanel({ investigation, onEvidence }: { investigation: Investiga
       <div className="decision-oracle"><div className="oracle-mini"><div /><div /><Sparkles size={19} /></div><div><small>ORACLE / DECISION</small><strong>{decision ? text('DECISION 已就绪', 'DECISION READY') : text('等待 Evidence', 'WAITING FOR EVIDENCE')}</strong></div></div>
       {decision ? (
         <div className="decision-content">
-          {decision.conclusions.map((item, index) => (
-            <div key={`${index}:${item.statement}`} className="decision-conclusion"><span>{String(index + 1).padStart(2, '0')}</span><div><small>{item.type}</small><strong>{item.statement}</strong><EvidenceButtons refs={item.evidence_refs} onEvidence={onEvidence} /></div></div>
-          ))}
-          {(decision.conflicts.length > 0 || decision.unknowns.length > 0) && <div className="decision-boundary"><span>{text(`${decision.conflicts.length} 个 conflicts`, `${decision.conflicts.length} conflicts`)}</span><span>{text(`${decision.unknowns.length} 个 unknowns`, `${decision.unknowns.length} unknowns`)}</span><span>{decision.stop_reason}</span></div>}
+          <DecisionReport decision={decision} onEvidence={onEvidence} />
         </div>
       ) : <p className="decision-waiting">{text('ARGUS 正围绕 EvidenceNeed 推进。证据边界满足后，Decision 收束。', 'ARGUS is advancing around the current EvidenceNeed. Decision closes when the evidence boundary is satisfied.')}</p>}
     </section>
@@ -255,22 +251,35 @@ function EvidenceButtons({ refs, onEvidence }: { refs: string[]; onEvidence: (re
 
 export function EvidenceOverlay({ evidenceRef, onClose }: { evidenceRef: string; onClose: () => void }) {
   const { text } = useI18n()
+  const reduceMotion = Boolean(useReducedMotion())
+  const closeRef = useRef<HTMLButtonElement>(null)
+  const onCloseRef = useRef(onClose)
+  useEffect(() => { onCloseRef.current = onClose }, [onClose])
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null
+    closeRef.current?.focus()
+    const handleKey = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onCloseRef.current() } }
+    document.addEventListener('keydown', handleKey)
+    return () => { document.removeEventListener('keydown', handleKey); previous?.focus() }
+  }, [])
   const query = useQuery({ queryKey: ['evidence-overlay', evidenceRef], queryFn: () => getEvidence(evidenceRef) })
   const item = query.data
-  return (
+  return createPortal(
     <motion.aside
       className="investigation-evidence-lens"
-      initial={{ opacity: 0, x: 36, clipPath: 'inset(0 0 0 18%)' }}
+      role="dialog"
+      aria-label={text('证据查看', 'Evidence inspector')}
+      initial={reduceMotion ? false : { opacity: 0, x: 36, clipPath: 'inset(0 0 0 18%)' }}
       animate={{ opacity: 1, x: 0, clipPath: 'inset(0 0 0 0%)' }}
-      exit={{ opacity: 0, x: 28, clipPath: 'inset(0 0 0 14%)' }}
+      exit={reduceMotion ? undefined : { opacity: 0, x: 28, clipPath: 'inset(0 0 0 14%)' }}
       transition={{ type: 'spring', stiffness: 250, damping: 28 }}
     >
       <div className="overlay-head">
         <div><small>EVIDENCE TRACE</small><strong>{item?.source.source_id ?? text('解析中…', 'Resolving…')}</strong><span className="mono">{evidenceRef}</span></div>
-        <button onClick={onClose}>{text('关闭', 'CLOSE')}</button>
+        <button ref={closeRef} onClick={onClose}>{text('关闭', 'CLOSE')}</button>
       </div>
       {item ? <EvidenceTrace item={item} /> : <div className="inspector-empty"><Orbit size={30} />{query.isError ? String(query.error.message) : text('解析 Evidence…', 'resolving evidence…')}</div>}
-    </motion.aside>
+    </motion.aside>, document.body
   )
 }
 
@@ -303,7 +312,7 @@ function ProgressiveReveal({ text }: { text: string }) {
   )
 }
 
-function continuationTaskKind(value: string | null): TaskKind {
+function continuationTaskKind(value: string | null, profile: string | null): TaskKind {
   if (
     value === 'verify_version_fix'
     || value === 'resolve_conflict'
@@ -313,6 +322,8 @@ function continuationTaskKind(value: string | null): TaskKind {
     || value === 'assess_normative_applicability'
     || value === 'observe_live_asset'
   ) return value
+  if (profile === 'VERIFY') return 'verify_version_fix'
+  if (profile === 'WATCH') return 'watch_incident'
   return 'investigate_incident'
 }
 

@@ -47,13 +47,13 @@ export function HotEnrichmentPreview({ cveId }: { cveId: string | null }) {
     return <div className="world-enrichment-boundary resolving"><small>ENRICHMENT-V1 / RESOLVING</small><span>{text('正在解析 canonical Vulnerability…', 'Resolving canonical Vulnerability…')}</span></div>
   }
   if (knowledgeQuery.isError || !object) {
-    return <div className="world-enrichment-boundary hot-only"><small>HOT ONLY / KNOWLEDGE UNAVAILABLE</small><span>{text('对象仍可存在于 Hot Layer；canonical Knowledge 尚不可读，因此不展示虚构的 enrichment。', 'The object may remain in the Hot Layer; canonical Knowledge is unreadable, so no enrichment is fabricated.')}</span></div>
+    return <div className="world-enrichment-boundary hot-only"><small>HOT ONLY / KNOWLEDGE NOT MATERIALIZED</small><span>{text('已捕获来源记录，正在等待知识归档。归档后可查看各维度的证据。', 'Source records have been captured and await knowledge archiving. Evidence dimensions become available after archiving.')}</span></div>
   }
   if (enrichmentQuery.isLoading) {
     return <div className="world-enrichment-boundary resolving"><small>ENRICHMENT-V1 / CANONICAL</small><span>{text('正在读取权威十二维状态…', 'Resolving authoritative 12D state…')}</span></div>
   }
   if (enrichmentQuery.isError || !state) {
-    return <div className="world-enrichment-boundary unavailable"><small>ENRICHMENT-V1 / UNAVAILABLE</small><span>{text('canonical object 已解析，但 enrichment read seam 当前不可用。', 'Canonical object resolved, but the enrichment read seam is unavailable.')}</span></div>
+    return <div className="world-enrichment-boundary unavailable"><small>ENRICHMENT-V1 / READ ERROR</small><span>{text('canonical object 已解析，但 enrichment read seam 读取失败。', 'Canonical object resolved, but the enrichment read seam failed.')}</span></div>
   }
 
   return (

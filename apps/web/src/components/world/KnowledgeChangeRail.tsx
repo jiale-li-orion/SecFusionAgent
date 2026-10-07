@@ -38,7 +38,7 @@ export function KnowledgeChangeRail({ changes, loading, unavailable, onOpenObjec
           </button>
         )
       })}
-      {unavailable && <p>{text('KnowledgeChange read seam 当前不可用；不从 canonical write 数量反推变更。', 'KnowledgeChange read seam is unavailable; change events are not inferred from canonical-write counts.')}</p>}
+      {unavailable && <p>{text('KnowledgeChange read seam 读取失败；不从 canonical write 数量反推变更。', 'KnowledgeChange read seam failed; change events are not inferred from canonical-write counts.')}</p>}
     </aside>
   )
 }

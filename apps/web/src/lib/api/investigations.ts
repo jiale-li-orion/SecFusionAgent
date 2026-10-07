@@ -102,20 +102,20 @@ export type ProductRuntimeEvent = {
 }
 
 export async function listInvestigations(limit = 40): Promise<{ items: InvestigationView[]; next_cursor: string | null; has_more: boolean }> {
-  const response = await fetch(`/api/v1/investigations?limit=${limit}`, { headers: productHeaders() })
-  if (!response.ok) throw new Error(`Investigations unavailable (${response.status})`)
+  const response = await fetch(`/api/v1/investigations?origin_scope=product&limit=${limit}`, { headers: productHeaders() })
+  if (!response.ok) throw new Error(`Investigation index read failed (${response.status})`)
   return response.json()
 }
 
 export async function getInvestigation(caseId: string): Promise<InvestigationView> {
   const response = await fetch(`/api/v1/investigations/${encodeURIComponent(caseId)}`, { headers: productHeaders() })
-  if (!response.ok) throw new Error(response.status === 404 ? 'Investigation not found' : `Investigation unavailable (${response.status})`)
+  if (!response.ok) throw new Error(response.status === 404 ? 'Investigation not found' : `Investigation read failed (${response.status})`)
   return response.json()
 }
 
 export async function getInvestigationActivity(caseId: string): Promise<{ case_id: string; events: ProductRuntimeEvent[] }> {
   const response = await fetch(`/api/v1/investigations/${encodeURIComponent(caseId)}/activity`)
-  if (!response.ok) throw new Error(`Runtime activity unavailable (${response.status})`)
+  if (!response.ok) throw new Error(`Runtime activity read failed (${response.status})`)
   return response.json()
 }
 
@@ -173,4 +173,25 @@ export async function cancelInvestigation(caseId: string): Promise<Investigation
     throw new Error(String(detail))
   }
   return body as InvestigationView
+}
+
+export async function getDecision(decisionId: string): Promise<DecisionView> {
+  const response = await fetch(`/api/v1/decisions/${encodeURIComponent(decisionId)}`, { headers: productHeaders() })
+  if (!response.ok) throw new Error(response.status === 404 ? 'Decision not found' : `Decision read failed (${response.status})`)
+  return response.json()
+}
+
+
+export type QuestionSessionHistory = {
+  session_id: string
+  turns: Array<{
+    turn_index: number; question: string; task_kind: string; created_at: string
+    decision_ref: string | null; investigation_ref: string | null
+  }>
+}
+
+export async function getQuestionSession(sessionId: string): Promise<QuestionSessionHistory> {
+  const response = await fetch(`/api/v1/questions/sessions/${encodeURIComponent(sessionId)}`, { headers: productHeaders() })
+  if (!response.ok) throw new Error(response.status === 403 ? 'Session access denied' : `Session read failed (${response.status})`)
+  return response.json()
 }

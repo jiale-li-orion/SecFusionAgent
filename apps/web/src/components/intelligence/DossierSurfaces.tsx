@@ -109,12 +109,12 @@ export function IncidentArchiveRail({
       {loading ? (
         <div className="incident-archive-state">{text('解析 Incident 索引…', 'RESOLVING INCIDENT INDEX…')}</div>
       ) : error ? (
-        <div className="incident-archive-state error-block" role="alert">{text('Incident read 当前不可用。', 'Incident read is unavailable.')}</div>
+        <div className="incident-archive-state error-block" role="alert">{text('Incident read 读取失败。', 'Incident read failed.')}</div>
       ) : items.length === 0 ? (
         <div className="incident-archive-state">
           <Radar size={18} />
-          <strong>{text('当前 durable Incident 为 0', '0 DURABLE INCIDENTS')}</strong>
-          <span>{text('Incident promotion 持久化真实 row 后，这里自动出现 timeline-first dossier。', 'A timeline-first dossier appears here when Incident promotion persists a real row.')}</span>
+          <strong>{text('暂无已确认事件', 'NO CONFIRMED INCIDENTS')}</strong>
+          <span>{text('事件确认后，可以在这里查看演进记录和来源。', 'Confirmed incidents appear here with their timeline and sources.')}</span>
         </div>
       ) : (
         <div className="incident-archive-list">
@@ -261,7 +261,7 @@ export function DocumentIndexDossier({
     return <section className="document-index-dossier is-loading"><FileSearch size={18} /><span>{text('解析文档索引…', 'RESOLVING DOCUMENT INDEX…')}</span></section>
   }
   if (error || !document) {
-    return <section className="document-index-dossier is-error"><FileSearch size={18} /><span>{error ?? text('文档索引不可用', 'Document index unavailable')}</span></section>
+    return <section className="document-index-dossier is-error"><FileSearch size={18} /><span>{error ?? text('文档索引读取失败', 'Document index read failed')}</span></section>
   }
   const revision = document.current_revision
   const indexed = Object.entries(document.index_status_counts).sort((a, b) => b[1] - a[1])

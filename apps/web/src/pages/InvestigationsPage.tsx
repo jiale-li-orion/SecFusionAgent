@@ -117,8 +117,8 @@ export function InvestigationsPage() {
           <p>{text('让 Case 保持开放，直到证据推动它前进', 'KEEP THE CASE OPEN UNTIL THE EVIDENCE MOVES')}</p>
           <h1>{text('调查', 'INVESTIGATION')} <span>{text('现场', 'FIELD')}</span></h1>
           <small>{text(
-            '同一 durable Case 容纳 Confirmed、Conflict、Unknown、EvidenceNeed、Decision 与 continuous session；ProductEvent / SSE 把真实状态变化逐条送入现场。',
-            'One durable Case contains Confirmed, Conflict, Unknown, EvidenceNeed, Decision, and the continuous session. ProductEvent / SSE delivers real state changes into the field.',
+            '跟进调查进展，查看已确认事实、来源冲突和证据缺口；补充信息后继续研判。',
+            'Follow progress, review confirmed findings, source conflicts, and evidence gaps, then add information to continue.',
           )}</small>
         </div>
         <div className="investigation-stats">
@@ -149,7 +149,7 @@ export function InvestigationsPage() {
           {listQuery.isError && (
             <div className="case-index-fault" role="alert">
               <CircleAlert size={14} />
-              <div><small>{text('CASE 索引不可用', 'CASE INDEX UNAVAILABLE')}</small><strong>{text('durable Case 索引当前不可读。', 'The durable Case index is currently unreadable.')}</strong></div>
+              <div><small>{text('CASE 索引读取失败', 'CASE INDEX READ ERROR')}</small><strong>{text('durable Case 索引读取失败。', 'The durable Case index read failed.')}</strong></div>
               <button className="recovery-action" onClick={() => void listQuery.refetch()}>{text('重试 Case 索引', 'RETRY CASE INDEX')}</button>
             </div>
           )}
@@ -191,7 +191,7 @@ export function InvestigationsPage() {
             <div><small>{text('产品事件流', 'PRODUCT EVENT STREAM')}</small><strong>{text('实时活动', 'LIVE ACTIVITY')}</strong></div>
             <div className="activity-head-actions"><span className={`stream-beacon stream-${streamState}`} />{events.length > 8 && <button type="button" className="rail-density-toggle" aria-expanded={eventHistoryExpanded} onClick={() => setEventHistoryExpanded((value) => !value)}>{eventHistoryExpanded ? text('最近', 'RECENT') : text('历史', 'HISTORY')}</button>}</div>
           </div>
-          {activityQuery.isError && <div className="activity-fault" role="alert"><CircleAlert size={13} /><span>{text('历史 ProductEvent read 不可用；SSE 会继续尝试连接。', 'Historical ProductEvent read is unavailable; SSE continues reconnect attempts.')}</span><button className="recovery-action" onClick={() => void activityQuery.refetch()}>{text('重试历史事件', 'RETRY EVENT HISTORY')}</button></div>}
+          {activityQuery.isError && <div className="activity-fault" role="alert"><CircleAlert size={13} /><span>{text('历史 ProductEvent read 读取失败；SSE 会继续尝试连接。', 'Historical ProductEvent read failed; SSE continues reconnect attempts.')}</span><button className="recovery-action" onClick={() => void activityQuery.refetch()}>{text('重试历史事件', 'RETRY EVENT HISTORY')}</button></div>}
           {events.length ? <RuntimeEventRail events={events} limit={eventHistoryExpanded ? 32 : 8} activeEventId={eventCue?.eventId ?? null} onFocus={(event) => { const state = eventState(event.event_type); if (state) setEventCue({ eventId: event.event_id, state }) }} /> : <EventRailBlueprint state={streamState} />}
           {!eventHistoryExpanded && events.length > 8 && <button type="button" className="rail-overflow-note event-overflow" onClick={() => setEventHistoryExpanded(true)}>+{events.length - 8} {text('更早事件', 'earlier events')}</button>}
         </aside>
@@ -209,16 +209,8 @@ function normalizeCaseFocus(value: string | null): CaseStateFocus | null {
 
 function CaseRailBlueprint() {
   const { text } = useI18n()
-  return (
-    <div className="case-rail-blueprint">
-      {['VERIFY FIX BOUNDARY', 'INVESTIGATE RELATION', 'WATCH INCIDENT'].map((label, index) => (
-        <div key={label}>
-          <span>{String(index + 1).padStart(2, '0')}</span>
-          <div><small>{text('持久 CASE 槽位', 'DURABLE CASE SLOT')}</small><strong>{label}</strong><em>{text('从 START 创建', 'launch from START')}</em></div>
-        </div>
-      ))}
-    </div>
-  )
+  const navigate = useNavigate()
+  return <div className="case-list-empty"><strong>{text('暂无调查记录', 'No investigations yet')}</strong><p>{text('针对漏洞、修复版本或关联事件发起调查。', 'Investigate a vulnerability, fix version, or related incident.')}</p><button className="recovery-action" onClick={() => navigate('/start?profile=VERIFY')}>{text('发起调查', 'START INVESTIGATION')}</button></div>
 }
 
 function InvestigationFieldBlueprint({ loading }: { loading: boolean }) {
@@ -276,20 +268,5 @@ function InvestigationFieldBlueprint({ loading }: { loading: boolean }) {
 
 function EventRailBlueprint({ state }: { state: string }) {
   const { text } = useI18n()
-  const labels = ['investigation.started', 'evidence_need_changed', 'finding_added', 'decision_ready']
-  return (
-    <div className="event-rail-blueprint">
-      <div className="event-rail-state"><span /><strong>{state.toUpperCase()}</strong><small>{text('SSE 产品事件通道', 'SSE PRODUCT EVENT CHANNEL')}</small></div>
-      {labels.map((label, index) => (
-        <div
-          key={label}
-          className="event-blueprint-row"
-        >
-          <span>{String(index + 1).padStart(2, '0')}</span>
-          <i />
-          <div><small>{text('产品事件', 'PRODUCT EVENT')}</small><strong>{label}</strong><em>{text('真实 persisted/runtime event 出现后显示', 'appears when a persisted/runtime event exists')}</em></div>
-        </div>
-      ))}
-    </div>
-  )
+  return <div className="event-rail-blueprint"><div className="event-rail-state"><span /><strong>{state.toUpperCase()}</strong><small>{text('调查进展', 'INVESTIGATION ACTIVITY')}</small></div><p>{text('暂无活动记录。调查开始后，进展会自动出现在这里。', 'No activity yet. Progress appears here as the investigation runs.')}</p></div>
 }

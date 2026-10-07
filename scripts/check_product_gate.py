@@ -91,9 +91,7 @@ def _require_source(
     source = _read_source(relative_path)
     missing = [needle for needle in needles if needle not in source]
     if missing:
-        raise RuntimeError(
-            f"{relative_path} missing {name} markers: {', '.join(missing)}"
-        )
+        raise RuntimeError(f"{relative_path} missing {name} markers: {', '.join(missing)}")
     results.append(GateResult(name, detail))
 
 
@@ -129,33 +127,6 @@ def _static_product_gate(results: list[GateResult]) -> None:
     )
     _require_source(
         results,
-        name="guided-demo",
-        relative_path="apps/web/src/components/Shell.tsx",
-        needles=(
-            "guided-story",
-            "storySteps",
-            "storyMode",
-            "FROZEN PATH",
-            "BenchmarkRun / CaseRun",
-            "guidedModeFromSearch",
-            "withGuidedMode",
-        ),
-        detail="live + formal frozen guided paths are URL-addressable",
-    )
-    _require_source(
-        results,
-        name="demo-entry-routes",
-        relative_path="apps/web/src/App.tsx",
-        needles=(
-            'path="/demo"',
-            'to="/?guide=live"',
-            'path="/demo/frozen"',
-            'to="/observatory?mode=proof&guide=frozen"',
-        ),
-        detail="stable live and frozen demo entry URLs resolve into the guided Product story",
-    )
-    _require_source(
-        results,
         name="world-fallback",
         relative_path="apps/web/src/components/world/WorldSurfaces.tsx",
         needles=("WorldField2D", "world-2d-fallback"),
@@ -168,10 +139,20 @@ def _static_product_gate(results: list[GateResult]) -> None:
         needles=(
             "provider_boundary_failure_rate",
             "runtime_owned_failure_rate",
-            "provider-boundary failure rate",
-            "runtime-owned failure rate",
         ),
         detail="WORLD motion distinguishes measured provider/runtime failure channels",
+    )
+    _require_source(
+        results,
+        name="world-failure-readout",
+        relative_path="apps/web/src/components/world/WorldSurfaces.tsx",
+        needles=(
+            "average('provider_boundary_failure_rate')",
+            "average('runtime_owned_failure_rate')",
+            "summary.providerFailure",
+            "summary.runtimeFailure",
+        ),
+        detail="source lens reads provider and runtime failure channels separately",
     )
     _require_source(
         results,
@@ -206,7 +187,7 @@ def _static_product_gate(results: list[GateResult]) -> None:
             "DURABLE REVISIONS",
             "change.object_ids[0]",
             "onOpenObject(objectId, change.change_id)",
-            "KnowledgeChange read seam is unavailable",
+            "KnowledgeChange read seam failed",
         ),
         detail=(
             "KnowledgeChange motion remains traceable to durable revision "
@@ -215,38 +196,11 @@ def _static_product_gate(results: list[GateResult]) -> None:
     )
     _require_source(
         results,
-        name="demo-entry-controls",
-        relative_path="apps/web/src/components/Shell.tsx",
-        needles=(
-            "navigate('/demo')",
-            "navigate('/demo/frozen')",
-            "LIVE DEMO",
-            "FROZEN DEMO",
-        ),
-        detail="guided Product story exposes stable live and frozen demo entry controls",
-    )
-    _require_source(
-        results,
-        name="observatory-live-proof-coordinate",
-        relative_path="apps/web/src/components/observatory/ObservatoryLive.tsx",
-        needles=(
-            "const frozenRun = proof?.runs[0] ?? null",
-            "LATEST FROZEN PROOF COORDINATE",
-            "mode=proof&run=",
-            "world_snapshot_ref",
-        ),
-        detail=(
-            "LIVE Observatory exposes a real frozen BenchmarkRun coordinate and "
-            "deep-links to that proof"
-        ),
-    )
-    _require_source(
-        results,
         name="world-durable-incidents",
         relative_path="apps/web/src/components/world/WorldSurfaces.tsx",
         needles=(
             "candidate.promotion_state.toUpperCase()",
-            "incidents.slice(0, 3).map((incident)",
+            "incidents.slice(0, compact ? 1 : 3).map((incident)",
             "onOpen(incident.incident_id)",
             "signal → candidate → <b>durable incident</b>",
         ),
@@ -287,7 +241,7 @@ def _static_product_gate(results: list[GateResult]) -> None:
         needles=(
             "getVulnerability(cveId!)",
             "getIntelligenceEnrichment(object!.object_id)",
-            "HOT ONLY / KNOWLEDGE UNAVAILABLE",
+            "HOT ONLY / KNOWLEDGE NOT MATERIALIZED",
             "status-${dimension.status}",
             "WORLD REV {state.world_revision}",
         ),
@@ -310,11 +264,10 @@ def _static_product_gate(results: list[GateResult]) -> None:
         needles=(
             "select(KnowledgeChangeModel)",
             "KnowledgeChangeModel.revision.desc()",
-            'change.changed_ids.get(key, [])',
+            "change.changed_ids.get(key, [])",
         ),
         detail=(
-            "WORLD reads durable KnowledgeChange rows directly from the Knowledge "
-            "write authority"
+            "WORLD reads durable KnowledgeChange rows directly from the Knowledge write authority"
         ),
     )
     _require_source(
@@ -327,8 +280,7 @@ def _static_product_gate(results: list[GateResult]) -> None:
             "<CanonicalWriteCrystallization",
         ),
         detail=(
-            "WORLD separates KnowledgeChange pulse semantics from canonical-write "
-            "crystallization"
+            "WORLD separates KnowledgeChange pulse semantics from canonical-write crystallization"
         ),
     )
     _require_source(
@@ -379,21 +331,14 @@ def _static_product_gate(results: list[GateResult]) -> None:
         needles=(
             "const continuationKind = continuationTaskKind",
             "askQuestion({ question, sessionId, taskKind: continuationKind })",
-            "NEXT CASE EPISODE / TASK INJECTION",
+            "CONTINUE THIS INVESTIGATION",
             "SAME DURABLE CASE",
-            "subsequent state remains driven by real ProductEvent / SSE",
+            "Follow-ups retain this investigation’s targets, evidence, and history.",
         ),
         detail=(
             "Case follow-up is presented as a same-session next episode injection, "
             "while persisted ProductEvent/SSE remains the state authority"
         ),
-    )
-    _require_source(
-        results,
-        name="proof-evidence-drilldown",
-        relative_path="apps/web/src/components/observatory/ObservatoryProof.tsx",
-        needles=("getEvidence(", "METRIC → EVIDENCE", "getCompetitionProofRun"),
-        detail="MetricObservation drills into typed proof refs",
     )
     _require_source(
         results,
@@ -466,16 +411,17 @@ def _static_product_gate(results: list[GateResult]) -> None:
         ),
         detail="Agent Task and Role state survive direct URL entry",
     )
-    _require_source(
-        results,
-        name="observatory-mode-deep-link",
-        relative_path="apps/web/src/pages/ObservatoryPage.tsx",
-        needles=(
-            "params.get('mode') === 'proof'",
-            "function selectMode(nextMode: ObservatoryMode)",
-            "next.set('mode', 'proof')",
-        ),
-        detail="LIVE / PROOF mode is URL-addressable",
+    for path, forbidden in (
+        ("apps/web/src/components/Shell.tsx", ("guided-story", "getCompetitionProof")),
+        ("apps/web/src/pages/ObservatoryPage.tsx", ("ProofObservatory", "getCompetitionProof")),
+        ("apps/web/src/pages/AgentsPage.tsx", ("AgentControlledProof", "getAgentControlledProof")),
+        ("apps/web/src/App.tsx", ('path="/demo"', 'path="/demo/frozen"')),
+    ):
+        source = _read_source(path)
+        if any(marker in source for marker in forbidden):
+            raise RuntimeError(f"Product must not expose demo or frozen proof surfaces: {path}")
+    results.append(
+        GateResult("production-surfaces", "live product navigation without demo/proof surfaces")
     )
     _require_source(
         results,
@@ -536,9 +482,7 @@ def _static_product_gate(results: list[GateResult]) -> None:
             if isinstance(manifest.get(key), dict) and manifest[key].get("file")
         }
         if any("three-runtime" in name for name in initial_files):
-            raise RuntimeError(
-                "Three/R3F runtime leaked into the initial Product dependency graph"
-            )
+            raise RuntimeError("Three/R3F runtime leaked into the initial Product dependency graph")
         initial_js_gzip = sum(
             len(gzip.compress((dist / name).read_bytes(), compresslevel=9))
             for name in initial_files
@@ -546,8 +490,7 @@ def _static_product_gate(results: list[GateResult]) -> None:
         )
         if initial_js_gzip > 180_000:
             raise RuntimeError(
-                f"initial Product JS is {initial_js_gzip / 1024:.1f} KiB gzip; "
-                "budget is 175.8 KiB"
+                f"initial Product JS is {initial_js_gzip / 1024:.1f} KiB gzip; budget is 175.8 KiB"
             )
         results.append(
             GateResult(
@@ -559,17 +502,13 @@ def _static_product_gate(results: list[GateResult]) -> None:
         css_files = list((dist / "assets").glob("*.css"))
         if css_files:
             css_gzip = sum(
-                len(gzip.compress(path.read_bytes(), compresslevel=9))
-                for path in css_files
+                len(gzip.compress(path.read_bytes(), compresslevel=9)) for path in css_files
             )
             if css_gzip > 120_000:
                 raise RuntimeError(
-                    f"Product CSS is {css_gzip / 1024:.1f} KiB gzip; "
-                    "budget is 117.2 KiB"
+                    f"Product CSS is {css_gzip / 1024:.1f} KiB gzip; budget is 117.2 KiB"
                 )
-            results.append(
-                GateResult("product-css", f"{css_gzip / 1024:.1f} KiB gzip")
-            )
+            results.append(GateResult("product-css", f"{css_gzip / 1024:.1f} KiB gzip"))
 
         world_chunks = list((dist / "assets").glob("WorldPage-*.js"))
         if world_chunks:
@@ -657,8 +596,7 @@ def run_gate(api_base: str, web_url: str | None) -> list[GateResult]:
         if isinstance(run_id, str) and run_id:
             task = _json(api_base, f"/api/v1/tasks/{quote(run_id, safe='')}")
             if any(
-                key not in task
-                for key in ("task", "parent", "children", "events", "capabilities")
+                key not in task for key in ("task", "parent", "children", "events", "capabilities")
             ):
                 raise RuntimeError("task detail missing runtime coordinates")
             results.append(GateResult("task-detail", run_id))
@@ -702,8 +640,7 @@ def run_gate(api_base: str, web_url: str | None) -> list[GateResult]:
         (
             item
             for item in proof_cases
-            if isinstance(item, dict)
-            and item.get("case_id") == "agent-delegated-enrichment-resume"
+            if isinstance(item, dict) and item.get("case_id") == "agent-delegated-enrichment-resume"
         ),
         None,
     )
@@ -870,17 +807,14 @@ def run_gate(api_base: str, web_url: str | None) -> list[GateResult]:
                 object_id = str(vulnerability["object_id"])
                 enrichment = _json(
                     api_base,
-                    "/api/v1/intelligence/objects/"
-                    f"{quote(object_id, safe='')}/enrichment",
+                    f"/api/v1/intelligence/objects/{quote(object_id, safe='')}/enrichment",
                 )
                 dimensions = enrichment.get("dimensions", [])
                 allowed_states = {"resolved", "conflict", "unknown", "missing"}
                 if not isinstance(dimensions, list) or len(dimensions) != 12:
                     raise RuntimeError("enrichment-v1 Product state must expose 12 dimensions")
                 states: set[Any] = {
-                    item.get("status")
-                    for item in dimensions
-                    if isinstance(item, dict)
+                    item.get("status") for item in dimensions if isinstance(item, dict)
                 }
                 if not states or not states <= allowed_states:
                     raise RuntimeError(f"invalid enrichment states: {sorted(states)}")

@@ -2,7 +2,7 @@ export async function getHotWorldItem(sourceId: string, externalObjectId: string
   const response = await fetch(
     `/api/v1/world/hot/${encodeURIComponent(sourceId)}/${encodeURIComponent(externalObjectId)}`,
   )
-  if (!response.ok) throw new Error(response.status === 404 ? 'Hot object not found' : `Hot object unavailable (${response.status})`)
+  if (!response.ok) throw new Error(response.status === 404 ? 'Hot object not found' : `Hot object read failed (${response.status})`)
   return response.json() as Promise<HotBug>
 }
 
@@ -60,7 +60,7 @@ export type WorldOverview = {
 
 export async function getWorldOverview(): Promise<WorldOverview> {
   const response = await fetch('/api/v1/world/overview')
-  if (!response.ok) throw new Error(`World overview unavailable (${response.status})`)
+  if (!response.ok) throw new Error(`World overview read failed (${response.status})`)
   return response.json() as Promise<WorldOverview>
 }
 
@@ -77,7 +77,7 @@ export type WorldKnowledgeChange = {
 
 export async function getWorldKnowledgeChanges(limit = 12): Promise<{ items: WorldKnowledgeChange[] }> {
   const response = await fetch(`/api/v1/world/knowledge-changes?limit=${limit}`)
-  if (!response.ok) throw new Error(`Knowledge changes unavailable (${response.status})`)
+  if (!response.ok) throw new Error(`Knowledge changes read failed (${response.status})`)
   return response.json() as Promise<{ items: WorldKnowledgeChange[] }>
 }
 
@@ -97,7 +97,7 @@ export type WorldIncidentCandidate = {
 
 export async function getWorldIncidentCandidates(limit = 24): Promise<{ total: number; total_signals: number; multi_source_candidates: number; anchored_candidates: number; items: WorldIncidentCandidate[] }> {
   const response = await fetch(`/api/v1/world/incident-candidates?limit=${limit}`)
-  if (!response.ok) throw new Error(`Incident candidates unavailable (${response.status})`)
+  if (!response.ok) throw new Error(`Incident candidates read failed (${response.status})`)
   return response.json() as Promise<{ total: number; total_signals: number; multi_source_candidates: number; anchored_candidates: number; items: WorldIncidentCandidate[] }>
 }
 
@@ -125,6 +125,6 @@ export type HotBug = {
 
 export async function getHotWorld(limit = 6): Promise<{ items: HotBug[] }> {
   const response = await fetch(`/api/v1/world/hot?limit=${limit}`)
-  if (!response.ok) throw new Error(`Hot world unavailable (${response.status})`)
+  if (!response.ok) throw new Error(`Hot world read failed (${response.status})`)
   return response.json() as Promise<{ items: HotBug[] }>
 }

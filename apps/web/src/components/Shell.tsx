@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useEffect, useRef, useState } from 'react'
+import { useDeferredValue, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   Activity,
@@ -16,15 +16,15 @@ import {
 import { AnimatePresence, motion } from 'motion/react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useI18n } from '../lib/i18n'
-import { getAgentRuntime, getCompetitionProof, getCompetitionProofRun, getHotWorld, listIncidents, listInvestigations, searchIntelligence } from '../lib/api'
-import { buildCommandItems, buildContextTrace, checkReadiness, guidedModeFromSearch, shouldSearchGlobalKnowledge, storyStepMatches, withGuidedMode, type CommandObjectItem, type CommandObjectKind } from '../lib/shellPresentation'
+import { getAgentRuntime, getHotWorld, listIncidents, listInvestigations, searchIntelligence } from '../lib/api'
+import { buildCommandItems, buildContextTrace, checkReadiness, shouldSearchGlobalKnowledge, type CommandObjectItem, type CommandObjectKind } from '../lib/shellPresentation'
 
 const nav = [
   { to: '/', label: 'WORLD', zh: '世界', sub: 'Evidence World', subZh: '证据世界', icon: Radar },
   { to: '/intelligence', label: 'INTELLIGENCE', zh: '情报', sub: 'Objects & Knowledge', subZh: '对象与知识', icon: BrainCircuit },
   { to: '/investigations', label: 'INVESTIGATIONS', zh: '调查', sub: 'Continuous Inquiry', subZh: '持续调查', icon: Telescope },
   { to: '/agents', label: 'AGENTS', zh: '智能体', sub: 'Runtime & Memory', subZh: '运行与记忆', icon: Bot },
-  { to: '/observatory', label: 'OBSERVATORY', zh: '观测', sub: 'Metrics & Proof', subZh: '运行与证明', icon: Activity },
+  { to: '/observatory', label: 'OBSERVATORY', zh: '观测', sub: 'Operations & Health', subZh: '运行与健康', icon: Activity },
 ]
 
 export function Shell({ children }: { children: React.ReactNode }) {
@@ -34,9 +34,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const shellRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const [searchOpen, setSearchOpen] = useState(false)
-  const guidedMode = guidedModeFromSearch(location.search)
-  const storyOpen = guidedMode !== null
-  const storyMode = guidedMode ?? 'live'
   const [searchValue, setSearchValue] = useState('')
   const deferredSearchValue = useDeferredValue(searchValue.trim())
   const [searchError, setSearchError] = useState('')
@@ -48,10 +45,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
     refetchInterval: 15_000,
     retry: false,
   })
-  const storyHot = useQuery({ queryKey: ['guided-story-hot'], queryFn: () => getHotWorld(8), enabled: (storyOpen && storyMode === 'live') || searchOpen, staleTime: 20_000 })
-  const storyCases = useQuery({ queryKey: ['guided-story-cases'], queryFn: () => listInvestigations(20), enabled: (storyOpen && storyMode === 'live') || searchOpen, staleTime: 15_000 })
-  const storyAgents = useQuery({ queryKey: ['guided-story-agents'], queryFn: getAgentRuntime, enabled: (storyOpen && storyMode === 'live') || searchOpen, staleTime: 15_000 })
-  const storyProof = useQuery({ queryKey: ['guided-story-proof'], queryFn: getCompetitionProof, enabled: storyOpen || searchOpen, staleTime: 60_000 })
+  const storyHot = useQuery({ queryKey: ['command-hot'], queryFn: () => getHotWorld(8), enabled: searchOpen, staleTime: 20_000 })
+  const storyCases = useQuery({ queryKey: ['command-cases'], queryFn: () => listInvestigations(20), enabled: searchOpen, staleTime: 15_000 })
+  const storyAgents = useQuery({ queryKey: ['command-agents'], queryFn: getAgentRuntime, enabled: searchOpen, staleTime: 15_000 })
   const commandIncidents = useQuery({ queryKey: ['command-incidents'], queryFn: () => listIncidents(8), enabled: searchOpen, staleTime: 20_000 })
   const commandKnowledge = useQuery({
     queryKey: ['command-knowledge', deferredSearchValue],
@@ -59,24 +55,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
     enabled: searchOpen && shouldSearchGlobalKnowledge(deferredSearchValue),
     staleTime: 20_000,
   })
-  const frozenRunId = storyProof.data?.runs.slice().sort((a, b) => b.case_count - a.case_count)[0]?.benchmark_run_id ?? null
-  const storyFrozenRun = useQuery({
-    queryKey: ['guided-story-frozen-run', frozenRunId],
-    queryFn: () => getCompetitionProofRun(frozenRunId!),
-    enabled: storyOpen && storyMode === 'frozen' && Boolean(frozenRunId),
-    staleTime: 60_000,
-  })
-
-  const setGuidedStory = useCallback((mode: 'live' | 'frozen' | null) => {
-    const params = new URLSearchParams(location.search)
-    if (mode) params.set('guide', mode)
-    else params.delete('guide')
-    navigate({
-      pathname: location.pathname,
-      search: params.size ? `?${params.toString()}` : '',
-    }, { replace: true })
-  }, [location.pathname, location.search, navigate])
-
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
@@ -88,12 +66,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
       }
       if (event.key === 'Escape') {
         setSearchOpen(false)
-        setGuidedStory(null)
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [setGuidedStory])
+  }, [])
 
   function submitSearch(event: React.FormEvent) {
     event.preventDefault()
@@ -137,71 +114,15 @@ export function Shell({ children }: { children: React.ReactNode }) {
     ? 'world'
     : location.pathname.split('/').filter(Boolean)[0] ?? 'world'
   const contextTrace = buildContextTrace(location.pathname, location.search, text)
-  const storyHotCve = storyHot.data?.items.find((item) => item.cve_id)?.cve_id ?? null
-  const liveCases = storyCases.data?.items.filter((item) => item.origin_scope !== 'benchmark') ?? []
-  const storyCase = liveCases.find((item) => storyHotCve && item.goal.toUpperCase().includes(storyHotCve))
-    ?? liveCases.find((item) => item.status === 'active' || item.status === 'waiting')
-    ?? liveCases[0]
-    ?? null
-  const storyTask = storyCase
-    ? storyAgents.data?.recent_tasks.find((item) => item.case_id === storyCase.case_id) ?? null
-    : null
-  const storyEvidence = storyCase?.latest_decision?.citations[0]?.evidence_ref
-    ?? storyCase?.confirmed_findings.find((item) => item.evidence_refs.length > 0)?.evidence_refs[0]
-    ?? storyCase?.conflicts.find((item) => item.evidence_refs.length > 0)?.evidence_refs[0]
-    ?? null
-  const storyRun = storyProof.data?.runs[0] ?? null
-  const caseDecisionPath = storyCase
-    ? `/investigations?${new URLSearchParams({
-      case: storyCase.case_id,
-      focus: 'decision',
-      ...(storyEvidence ? { evidence: storyEvidence } : {}),
-    }).toString()}`
-    : null
-  const liveStorySteps = [
-    { index: '01', titleZh: '证据世界', titleEn: 'EVIDENCE WORLD', scopeZh: 'M1–M3 · 多源监测与 Evidence Plane', scopeEn: 'M1–M3 · monitoring & Evidence Plane', detail: storyHot.data ? text(`${storyHot.data.items.length} 个真实 Hot 对象`, `${storyHot.data.items.length} real Hot objects`) : text('读取当前世界', 'resolve current world'), path: '/' },
-    { index: '02', titleZh: '情报档案', titleEn: 'INTELLIGENCE DOSSIER', scopeZh: 'M2–M3 · 规范化、富化与关系证据', scopeEn: 'M2–M3 · normalization, enrichment & relations', detail: storyHotCve ?? text('等待 Hot CVE', 'awaiting Hot CVE'), path: storyHotCve ? `/intelligence?cve=${encodeURIComponent(storyHotCve)}` : null },
-    { index: '03', titleZh: '精准核验', titleEn: 'VERIFY', scopeZh: 'M4–M6 · Product Intelligence 入口', scopeEn: 'M4–M6 · Product Intelligence admission', detail: storyHotCve ? `${storyHotCve} · ARGUS` : 'VERIFY · ARGUS', path: `/start?${new URLSearchParams({ profile: 'VERIFY', ...(storyHotCve ? { cve: storyHotCve, from: 'intelligence', origin: storyHotCve } : {}) }).toString()}` },
-    { index: '04', titleZh: '证据缺口', titleEn: 'EVIDENCE NEED', scopeZh: 'M4–M6 · durable Investigation 状态', scopeEn: 'M4–M6 · durable Investigation state', detail: storyCase?.case_id ?? text('等待 durable Case', 'awaiting durable Case'), path: storyCase ? `/investigations?case=${encodeURIComponent(storyCase.case_id)}&focus=needs` : null },
-    { index: '05', titleZh: '执行链', titleEn: 'AGENT RUNTIME', scopeZh: 'M5 · Role / Task / Capability / Recovery', scopeEn: 'M5 · Role / Task / Capability / Recovery', detail: storyTask?.run_id ?? text('等待 TaskRun', 'awaiting TaskRun'), path: storyTask ? `/agents?${new URLSearchParams({ run: storyTask.run_id, ...(storyCase ? { from: 'case', caseRef: storyCase.case_id } : {}) }).toString()}` : null },
-    { index: '06', titleZh: '判决与证据', titleEn: 'DECISION / EVIDENCE', scopeZh: 'M4–M6 · Decision / citations / conflicts / unknowns', scopeEn: 'M4–M6 · Decision / citations / conflicts / unknowns', detail: storyEvidence ?? storyCase?.latest_decision?.decision_id ?? text('等待 Decision', 'awaiting Decision'), path: caseDecisionPath },
-    { index: '07', titleZh: '记忆演化', titleEn: 'SKILL / EXPERIENCE', scopeZh: 'M5 + M7 · 程序记忆与 replay', scopeEn: 'M5 + M7 · procedural memory & replay', detail: text('真实 Skill / Experience read', 'real Skill / Experience read'), path: '/agents?section=memory' },
-    { index: '08', titleZh: '冻结证明', titleEn: 'PROOF', scopeZh: 'M7–M8 · Benchmark / Operations / Recovery', scopeEn: 'M7–M8 · Benchmark / Operations / Recovery', detail: storyRun?.benchmark_run_id ?? text('等待正式 Run', 'awaiting formal Run'), path: storyRun ? `/observatory?mode=proof&run=${encodeURIComponent(storyRun.benchmark_run_id)}` : '/observatory?mode=proof' },
-  ]
-  const frozenCases = storyFrozenRun.data?.cases ?? []
-  const frozenCase = frozenCases.find((item) => item.task_run_id && item.decision_ref && item.target_refs.length > 0 && item.case_ref.includes('cross-source-risk'))
-    ?? frozenCases.find((item) => item.task_run_id && item.decision_ref && item.target_refs.length > 0)
-    ?? null
-  const frozenTarget = frozenCase?.target_refs.find((ref) => ref.startsWith('cve:'))?.slice(4) ?? null
-  const frozenProofPath = frozenRunId && frozenCase
-    ? `/observatory?${new URLSearchParams({ mode: 'proof', run: frozenRunId, caseRun: frozenCase.case_run_id }).toString()}`
-    : frozenRunId
-      ? `/observatory?mode=proof&run=${encodeURIComponent(frozenRunId)}`
-      : '/observatory?mode=proof'
-  const frozenStorySteps = [
-    { index: '01', titleZh: '冻结目标', titleEn: 'FROZEN TARGET', scopeZh: 'M7 · BenchmarkCase target / world coordinate', scopeEn: 'M7 · BenchmarkCase target / world coordinate', detail: frozenTarget ?? text('等待正式 Case target', 'awaiting formal case target'), path: frozenTarget ? `/intelligence?cve=${encodeURIComponent(frozenTarget)}&from=proof` : null },
-    { index: '02', titleZh: '正式 CaseRun', titleEn: 'FORMAL CASE RUN', scopeZh: 'M7 · 冻结输入 / 状态 / artifact 坐标', scopeEn: 'M7 · frozen input / status / artifact coordinates', detail: frozenCase?.case_ref ?? text('等待 CaseRun', 'awaiting CaseRun'), path: frozenProofPath },
-    { index: '03', titleZh: '执行 TaskRun', titleEn: 'TASK RUNTIME', scopeZh: 'M5 + M7 · 真实 Role / Task 执行坐标', scopeEn: 'M5 + M7 · real Role / Task execution coordinate', detail: frozenCase?.task_run_id ?? text('等待 TaskRun', 'awaiting TaskRun'), path: frozenCase?.task_run_id ? `/agents?${new URLSearchParams({ run: frozenCase.task_run_id, from: 'proof', ...(frozenRunId ? { proofRun: frozenRunId } : {}), caseRun: frozenCase.case_run_id }).toString()}` : null },
-    { index: '04', titleZh: '冻结 Decision', titleEn: 'FROZEN DECISION', scopeZh: 'M6 + M7 · persisted Decision / citations', scopeEn: 'M6 + M7 · persisted Decision / citations', detail: frozenCase?.decision_ref ?? text('等待 Decision', 'awaiting Decision'), path: frozenProofPath },
-    { index: '05', titleZh: '评测证明', titleEn: 'METRIC PROOF', scopeZh: 'M7–M8 · MetricObservation / EvidenceRef / DeploymentRevision', scopeEn: 'M7–M8 · MetricObservation / EvidenceRef / DeploymentRevision', detail: frozenRunId ?? text('等待正式 Run', 'awaiting formal Run'), path: frozenProofPath },
-  ]
-  const storySteps = storyMode === 'live' ? liveStorySteps : frozenStorySteps
-  const storyLoading = storyMode === 'live'
-    ? storyHot.isLoading || storyCases.isLoading || storyAgents.isLoading || storyProof.isLoading
-    : storyProof.isLoading || storyFrozenRun.isLoading
-  const storyError = storyMode === 'live'
-    ? storyHot.isError || storyCases.isError || storyAgents.isError || storyProof.isError
-    : storyProof.isError || storyFrozenRun.isError
   const commandItems = buildCommandItems({
     knowledge: commandKnowledge.data?.items ?? [],
     hot: storyHot.data?.items ?? [],
     cases: storyCases.data?.items ?? [],
     tasks: storyAgents.data?.recent_tasks ?? [],
     incidents: commandIncidents.data?.items ?? [],
-    runs: storyProof.data?.runs ?? [],
     query: searchValue,
   })
-  const commandLoading = searchOpen && (storyHot.isLoading || storyCases.isLoading || storyAgents.isLoading || storyProof.isLoading || commandIncidents.isLoading || commandKnowledge.isLoading)
+  const commandLoading = searchOpen && (storyHot.isLoading || storyCases.isLoading || storyAgents.isLoading || commandIncidents.isLoading || commandKnowledge.isLoading)
 
   return (
     <div
@@ -244,11 +165,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <Search size={14} />
             <span>{text('定位对象', 'LOCATE OBJECT')}</span>
             <kbd>⌘K</kbd>
-          </button>
-          <button className={`story-trigger ${storyOpen ? 'active' : ''}`} onClick={() => setGuidedStory(storyOpen ? null : storyMode)}>
-            <Waypoints size={14} />
-            <span>{text('演示主路径', 'GUIDED PATH')}</span>
-            <b>{storyMode === 'live' ? 8 : 5}</b>
           </button>
           <div className="language-switch" role="group" aria-label={text('产品语言', 'Product language')}>
             <button className={language === 'zh' ? 'active' : ''} onClick={() => setLanguage('zh')}>中</button>
@@ -308,58 +224,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
         )}
       </AnimatePresence>
       <main id="product-main" className="product-workspace" tabIndex={-1}>{children}</main>
-
-      <AnimatePresence>
-        {storyOpen && (
-          <motion.aside
-            className={`guided-story story-space-${shellSpace}`}
-            role="dialog"
-            aria-modal="true"
-            aria-label={text('真实系统演示路径', 'Real system guided path')}
-            initial={{ opacity: 0, x: -24, clipPath: 'inset(0 0 0 18%)' }}
-            animate={{ opacity: 1, x: 0, clipPath: 'inset(0 0 0 0%)' }}
-            exit={{ opacity: 0, x: -16, clipPath: 'inset(0 0 0 12%)' }}
-            transition={{ type: 'spring', stiffness: 260, damping: 28 }}
-          >
-            <div className="guided-story-head">
-              <div><small>REAL PRODUCT STORY</small><strong>{storyMode === 'live' ? text('八幕实时系统路径', 'EIGHT-ACT LIVE PATH') : text('五幕冻结证明路径', 'FIVE-ACT FROZEN PATH')}</strong><span>{storyMode === 'live' ? text('对象从当前 Product read 派生', 'objects resolve from current Product reads') : text('对象从正式 BenchmarkRun / CaseRun 派生', 'objects resolve from formal BenchmarkRun / CaseRun')}</span></div>
-              <button onClick={() => setGuidedStory(null)} aria-label={text('关闭演示路径', 'Close guided path')}><X size={14} /></button>
-            </div>
-            <div className="guided-story-mode" role="tablist" aria-label={text('演示路径模式', 'Guided path mode')}>
-              <button role="tab" aria-selected={storyMode === 'live'} className={storyMode === 'live' ? 'active' : ''} onClick={() => setGuidedStory('live')}>{text('实时链', 'LIVE PATH')}</button>
-              <button role="tab" aria-selected={storyMode === 'frozen'} className={storyMode === 'frozen' ? 'active' : ''} onClick={() => setGuidedStory('frozen')}>{text('冻结链', 'FROZEN PATH')}</button>
-            </div>
-            <div className="guided-story-entry">
-              <button type="button" onClick={() => navigate('/demo')}><span>LIVE DEMO</span><small>/demo</small></button>
-              <button type="button" onClick={() => navigate('/demo/frozen')}><span>FROZEN DEMO</span><small>/demo/frozen</small></button>
-            </div>
-            <div className="guided-story-truth">
-              <span className={storyError ? 'degraded' : 'ready'} />
-              <small>{storyLoading ? text('解析真实路径…', 'RESOLVING REAL PATH…') : storyError ? text('部分 read seam 不可用；相关 step 已禁用', 'some read seams unavailable; affected steps disabled') : storyMode === 'live' ? text('LIVE / DURABLE refs 已绑定', 'LIVE / DURABLE refs bound') : text('BenchmarkRun / CaseRun / TaskRun / Decision 已绑定', 'BenchmarkRun / CaseRun / TaskRun / Decision bound')}</small>
-            </div>
-            <div className="guided-story-steps">
-              {storySteps.map((step) => {
-                const active = step.path ? storyStepMatches(step.path, location.pathname, location.search) : false
-                return (
-                  <button
-                    key={step.index}
-                    className={`${active ? 'active' : ''} ${step.path ? '' : 'unavailable'}`}
-                    disabled={!step.path}
-                    onClick={() => { if (step.path) navigate(withGuidedMode(step.path, storyMode)) }}
-                  >
-                    <span>{step.index}</span>
-                    <div><small>{language === 'zh' ? step.titleZh : step.titleEn}</small><strong>{step.detail}</strong><em>{language === 'zh' ? step.scopeZh : step.scopeEn}</em></div>
-                    <ArrowUpRight size={12} />
-                  </button>
-                )
-              })}
-            </div>
-            <p className="guided-story-boundary">{storyMode === 'live'
-              ? text('LIVE Guide 负责导航，不生成 telemetry、Case、Task、Skill 或评测结果。', 'LIVE Guide navigates existing facts; it creates no telemetry, Case, Task, Skill, or evaluation result.')
-              : text('FROZEN Guide 使用正式 Benchmark 坐标，不把冻结评测冒充当前运行。', 'FROZEN Guide uses formal benchmark coordinates and never presents frozen evaluation as current runtime.')}</p>
-          </motion.aside>
-        )}
-      </AnimatePresence>
 
       <AnimatePresence>
         {searchOpen && (
@@ -445,7 +309,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
 function CommandObjectIcon({ kind }: { kind: CommandObjectKind }) {
   if (kind === 'CASE') return <Telescope size={14} />
   if (kind === 'TASK') return <Bot size={14} />
-  if (kind === 'PROOF') return <Activity size={14} />
   if (kind === 'INCIDENT') return <Radar size={14} />
   return <BrainCircuit size={14} />
 }

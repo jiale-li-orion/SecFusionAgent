@@ -270,7 +270,7 @@ export function IntelligencePage() {
             <IncidentDossier incident={incident} onEvidence={openEvidence} />
           ) : (
             <>
-              {(!obj || obj.object_type === 'Vulnerability')
+              {obj?.object_type === 'Vulnerability'
                 ? <EnrichmentConstellation
                     claims={obj?.claims ?? []}
                     cveId={selectedCve || headline}
@@ -278,7 +278,7 @@ export function IntelligencePage() {
                     stateLoading={Boolean(obj && enrichmentQuery.isLoading)}
                     stateError={Boolean(obj && enrichmentQuery.isError)}
                   />
-                : <ObjectFacetField obj={obj} />}
+                : obj ? <ObjectFacetField obj={obj} /> : null}
               {obj && (obj.object_type === 'Document' || obj.object_type === 'ResearchWork') && (
                 <DocumentIndexDossier
                   document={documentQuery.data ?? null}

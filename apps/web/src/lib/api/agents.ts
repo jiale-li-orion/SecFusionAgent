@@ -10,7 +10,7 @@ export async function listAgentTasks(input: {
   if (input.caseId) params.set('case_id', input.caseId)
   params.set('limit', String(input.limit ?? 72))
   const response = await fetch(`/api/v1/tasks?${params.toString()}`)
-  if (!response.ok) throw new Error(`Task list unavailable (${response.status})`)
+  if (!response.ok) throw new Error(`Task list read failed (${response.status})`)
   return response.json() as Promise<AgentTaskPage>
 }
 
@@ -33,6 +33,7 @@ export type AgentTaskSummary = {
   task_kind: string
   case_id: string | null
   parent_run_id: string | null
+  predecessor_run_id: string | null
   role_id: string
   role_version: string
   status: string
@@ -107,6 +108,7 @@ export type AgentTaskPage = {
 export type AgentTaskDetail = {
   task: AgentTaskSummary
   parent: AgentTaskSummary | null
+  predecessor: AgentTaskSummary | null
   children: AgentTaskSummary[]
   events: Array<{
     event_id: string
@@ -139,13 +141,13 @@ export type AgentTaskDetail = {
 
 export async function getAgentRuntime(): Promise<AgentRuntimeOverview> {
   const response = await fetch('/api/v1/agents/runtime?task_limit=72')
-  if (!response.ok) throw new Error(`Agent runtime unavailable (${response.status})`)
+  if (!response.ok) throw new Error(`Agent runtime read failed (${response.status})`)
   return response.json() as Promise<AgentRuntimeOverview>
 }
 
 export async function getAgentTask(runId: string): Promise<AgentTaskDetail> {
   const response = await fetch(`/api/v1/tasks/${encodeURIComponent(runId)}`)
-  if (!response.ok) throw new Error(response.status === 404 ? 'Task not found' : `Task unavailable (${response.status})`)
+  if (!response.ok) throw new Error(response.status === 404 ? 'Task not found' : `Task read failed (${response.status})`)
   return response.json() as Promise<AgentTaskDetail>
 }
 
@@ -219,58 +221,32 @@ export type AgentLearningOverview = {
   completed_trajectory_count: number
 }
 
-export type AgentControlledProofCase = {
-  case_id: string
-  subsystem: string | null
-  metrics: Record<string, number>
-  diagnostics: Record<string, unknown>
-  task_run_ids: string[]
-  evidence_refs: string[]
-  capability_invocation_ids: string[]
-}
-
-export type AgentControlledProof = {
-  schema_version: string
-  benchmark_run_id: string
-  deployment_revision_id: string
-  suite_ref: string
-  execution_mode: string
-  scope: string
-  cases: AgentControlledProofCase[]
-}
-
 export async function getAgentLearning(): Promise<AgentLearningOverview> {
   const response = await fetch('/api/v1/agents/learning')
-  if (!response.ok) throw new Error(`Agent learning unavailable (${response.status})`)
+  if (!response.ok) throw new Error(`Agent learning read failed (${response.status})`)
   return response.json() as Promise<AgentLearningOverview>
 }
 
 export async function getAgentSkills(): Promise<ProductSkill[]> {
   const response = await fetch('/api/v1/agents/skills')
-  if (!response.ok) throw new Error(`Agent skills unavailable (${response.status})`)
+  if (!response.ok) throw new Error(`Agent skills read failed (${response.status})`)
   return response.json() as Promise<ProductSkill[]>
 }
 
 export async function getAgentSkill(skillRef: string): Promise<ProductSkill> {
   const response = await fetch(`/api/v1/agents/skills/${encodeURIComponent(skillRef)}`)
-  if (!response.ok) throw new Error(response.status === 404 ? 'Skill not found' : `Agent skill unavailable (${response.status})`)
+  if (!response.ok) throw new Error(response.status === 404 ? 'Skill not found' : `Agent skill read failed (${response.status})`)
   return response.json() as Promise<ProductSkill>
 }
 
 export async function getAgentExperiences(): Promise<ProductExperience[]> {
   const response = await fetch('/api/v1/agents/experiences')
-  if (!response.ok) throw new Error(`Agent experiences unavailable (${response.status})`)
+  if (!response.ok) throw new Error(`Agent experiences read failed (${response.status})`)
   return response.json() as Promise<ProductExperience[]>
 }
 
 export async function getAgentExperience(experienceRef: string): Promise<ProductExperience> {
   const response = await fetch(`/api/v1/agents/experiences/${encodeURIComponent(experienceRef)}`)
-  if (!response.ok) throw new Error(response.status === 404 ? 'Experience not found' : `Agent experience unavailable (${response.status})`)
+  if (!response.ok) throw new Error(response.status === 404 ? 'Experience not found' : `Agent experience read failed (${response.status})`)
   return response.json() as Promise<ProductExperience>
-}
-
-export async function getAgentControlledProof(): Promise<AgentControlledProof> {
-  const response = await fetch('/api/v1/agents/proof')
-  if (!response.ok) throw new Error(`Agent controlled proof unavailable (${response.status})`)
-  return response.json() as Promise<AgentControlledProof>
 }

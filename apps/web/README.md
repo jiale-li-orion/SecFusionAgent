@@ -2,7 +2,7 @@
 
 `apps.web` is the user-facing SecFusionAgent product frontend.
 
-The authoritative Product UI contract is [`SPEC.md`](SPEC.md). Product v1 exposes the complete Evidence Plane + Agent Runtime + Investigation/Decision + Operations/Evaluation story required by the competition and project Requirements.
+The authoritative Product UI contract is [`SPEC.md`](SPEC.md). Product exposes Evidence Plane, Agent Runtime, Investigation/Decision and live Operations. Competition evaluation remains an internal engineering capability.
 
 ## Boundary
 
@@ -33,20 +33,42 @@ WORLD           Evidence World / Data Plane
 INTELLIGENCE    dossiers, graph and evidence
 INVESTIGATIONS  durable cases and continuous interaction
 AGENTS          Role / Task / Capability / Skill / Experience
-OBSERVATORY     live operations + frozen proof
+OBSERVATORY     live operations and service health
 
                 START
 ```
 
 `START` exposes the canonical DIRECT / RETRIEVE / VERIFY / INVESTIGATE / WATCH interaction modes.
 
-The guided product story is URL-addressable. Add `guide=live` to keep the current-runtime eight-act path open while moving through Product spaces, or `guide=frozen` to bind the five-act proof path to persisted BenchmarkRun / CaseRun / TaskRun / Decision coordinates. The guide only navigates existing Product reads; it does not synthesize telemetry or evaluation results.
+Completed START results display the full persisted answer, typed conclusions, conflicts, unknowns and assumptions. Citations open Evidence directly even for a generic RETRIEVE without a selected target. The URL carries `decision` and, when present, `session` so refresh restores the result through `GET /api/v1/decisions/{id}`. Follow-up sends the same session without rebinding its target; “New session” explicitly clears that binding. Ctrl/Cmd+Enter submits the question.
+
+## Local frontend/backend integration
+
+Start the API from a shell that has loaded the repository's local experiment environment when model-backed QA is needed:
+
+```bash
+. ./activate.sh
+.venv/bin/uvicorn apps.api.main:app --host 127.0.0.1 --port 8000
+```
+
+In a second terminal:
+
+```bash
+cd apps/web
+npm run dev
+```
+
+Open `http://localhost:5173/product/`. To use another API port, set `SECFUSION_API_PROXY=http://127.0.0.1:8001` when starting Vite. The proxy setting is development-only; production uses the existing Nginx same-origin routes. An API started without model configuration can serve Knowledge and Evidence while returning an explicit dependency error for model-backed QA.
+
+The user-facing app contains no demonstration guide or frozen benchmark view. WORLD keeps source geometry, recent Knowledge changes, Hot objects and its detail panel in distinct regions. START uses five profile cards with a separate question console; asynchronous accepted Cases update into their persisted Decision when the worker completes M5 → M6.
 
 ## Browser regression gate
 
-`make product-visual-check` runs Chromium against the live local Product at `http://127.0.0.1:8000/product`. It resolves current Hot / Case / Task / Proof coordinates, checks all six Product spaces at 1440×1000, 1366×768, 1024×768, and 390×844, rejects document-level horizontal overflow or collapsed primary regions, checks the reduced-motion WORLD fallback, and writes review screenshots under `/tmp/secfusion-product-visual`.
+`make product-visual-check` runs Chromium against the live local Product at `http://127.0.0.1:8000/product`. It resolves current Hot / Case / Task coordinates, checks all six Product spaces at 1440×1000, 1366×768, 1024×768, and 390×844, rejects document-level horizontal overflow or collapsed primary regions, checks the reduced-motion WORLD fallback, and writes review screenshots under `/tmp/secfusion-product-visual`.
 
-`make product-interaction-check` complements the geometry gate. It hit-tests visible interactive controls so decorative layers cannot silently intercept clicks, then exercises the stateful WORLD time window, START execution-profile / advanced controls, and OBSERVATORY mode switch. Keep both browser gates separate from the fast `make product-check`; run the interaction gate whenever z-index, pointer-event ownership, or interactive composition changes.
+`make product-interaction-check` complements the geometry gate. It hit-tests visible interactive controls so decorative layers cannot silently intercept clicks, then exercises the stateful WORLD time window, START execution-profile / advanced controls, and OBSERVATORY time window and refresh. Keep both browser gates separate from the fast `make product-check`; run the interaction gate whenever z-index, pointer-event ownership, or interactive composition changes.
+
+`uv run python scripts/check_product_decision_flow.py` checks persisted Decision → target-free citation → Evidence → Escape/focus recovery → refresh at desktop and mobile widths. It only reads existing results and makes no model calls. Override `--api-base` and `--product-base` for a separate Vite/API integration environment.
 
 Install the browser runtime once with `uv run playwright install chromium`. Run `make product-visual-check` whenever composition, responsive layout, navigation shell, or cinematic state changes.
 
@@ -56,4 +78,4 @@ The former Runtime Workbench UI and `/api/v1/workbench/*` transport have been re
 
 ## Truthfulness rule
 
-Live visuals must be driven by runtime facts. Frozen benchmark results must be labeled as frozen proof. The frontend may add presentation aliases and cinematic motion, but it may not fabricate source health, Hot CVEs, Agent activity, Skill status, tool calls, token streaming, or monetary cost.
+Live visuals must be driven by runtime facts. Benchmark results are not exposed as live Product facts. The frontend may add presentation aliases and cinematic motion, but it may not fabricate source health, Hot CVEs, Agent activity, Skill status, tool calls, token streaming, or monetary cost.

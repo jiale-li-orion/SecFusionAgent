@@ -35,12 +35,12 @@ export type ProductDocument = {
 
 export async function getDocumentByObject(objectId: string): Promise<ProductDocument> {
   const response = await fetch(`/api/v1/documents/by-object/${encodeURIComponent(objectId)}`)
-  if (!response.ok) throw new Error(response.status === 404 ? 'Document not found' : `Document unavailable (${response.status})`)
+  if (!response.ok) throw new Error(response.status === 404 ? 'Document not found' : `Document read failed (${response.status})`)
   return response.json() as Promise<ProductDocument>
 }
 
 export async function getDocument(documentId: string): Promise<ProductDocument> {
   const response = await fetch(`/api/v1/documents/${encodeURIComponent(documentId)}`)
-  if (!response.ok) throw new Error(response.status === 404 ? 'Document not found' : `Document unavailable (${response.status})`)
+  if (!response.ok) throw new Error(response.status === 404 ? 'Document not found' : `Document read failed (${response.status})`)
   return response.json() as Promise<ProductDocument>
 }

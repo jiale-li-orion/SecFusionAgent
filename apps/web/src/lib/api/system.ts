@@ -24,6 +24,6 @@ export type SystemOverview = {
 
 export async function getSystemOverview(): Promise<SystemOverview> {
   const response = await fetch('/api/v1/observatory/system')
-  if (!response.ok) throw new Error(`System overview unavailable (${response.status})`)
+  if (!response.ok) throw new Error(`System overview read failed (${response.status})`)
   return response.json() as Promise<SystemOverview>
 }

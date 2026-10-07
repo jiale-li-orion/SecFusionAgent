@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.parse import parse_qs, urlencode, urlparse
+from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from playwright.sync_api import Browser, Page, sync_playwright
@@ -69,7 +69,6 @@ def _resolve_spaces(api_base: str) -> tuple[ProductSpace, ...]:
     hot = _json(api_base, "/api/v1/world/hot?limit=8")
     cases = _json(api_base, "/api/v1/investigations?limit=8")
     agents = _json(api_base, "/api/v1/agents/runtime?task_limit=8")
-    proof = _json(api_base, "/api/v1/observatory/proof")
 
     hot_item = next(
         (
@@ -81,35 +80,13 @@ def _resolve_spaces(api_base: str) -> tuple[ProductSpace, ...]:
     )
     case = _first_dict(cases, "items")
     task = _first_dict(agents, "recent_tasks")
-    run = _first_dict(proof, "runs")
 
     cve = str(hot_item["cve_id"]) if hot_item else ""
-    hot_ref = (
-        f"{hot_item['source_id']}:{hot_item['external_object_id']}" if hot_item else ""
-    )
+    hot_ref = f"{hot_item['source_id']}:{hot_item['external_object_id']}" if hot_item else ""
     case_id = str(case["case_id"]) if case and case.get("case_id") else ""
     run_id = str(task["run_id"]) if task and task.get("run_id") else ""
-    proof_run = (
-        str(run["benchmark_run_id"])
-        if run and run.get("benchmark_run_id")
-        else ""
-    )
-    canonical_cve = ""
-    if proof_run:
-        run_detail = _json(
-            api_base,
-            f"/api/v1/observatory/proof/runs/{proof_run}",
-        )
-        canonical_cve = next(
-            (
-                ref.removeprefix("cve:")
-                for item in run_detail.get("cases", [])
-                if isinstance(item, dict)
-                for ref in item.get("target_refs", [])
-                if isinstance(ref, str) and ref.startswith("cve:")
-            ),
-            "",
-        )
+    targets = case.get("target_object_ids", []) if case else []
+    canonical_object = str(targets[0]) if targets else ""
 
     return (
         ProductSpace(
@@ -117,31 +94,31 @@ def _resolve_spaces(api_base: str) -> tuple[ProductSpace, ...]:
             _query("/", hot=hot_ref) if hot_ref else "/",
             ".world-space",
             (
-                Landmark(".world-title-lockup", .24, .82),
-                Landmark(".world-telemetry", .42, .82),
-                Landmark(".world-stage", .78, .82),
+                Landmark(".world-title-lockup", 0.24, 0.82),
+                Landmark(".world-telemetry", 0.42, 0.82),
+                Landmark(".world-stage", 0.78, 0.82),
             ),
         ),
         ProductSpace(
             "start",
-            _query("/start", profile="VERIFY", cve=cve, guide="live") if cve else "/start",
+            _query("/start", profile="VERIFY", cve=cve) if cve else "/start",
             ".start-space",
             (
-                Landmark(".mission-briefing", .42, .82),
-                Landmark(".start-theater", .48, .82),
-                Landmark(".payload-deck", .24, .82),
+                Landmark(".mission-briefing", 0.42, 0.82),
+                Landmark(".start-theater", 0.48, 0.82),
+                Landmark(".payload-deck", 0.24, 0.82),
             ),
         ),
         ProductSpace(
             "intelligence",
-            _query("/intelligence", cve=canonical_cve or cve)
-            if canonical_cve or cve
+            _query("/intelligence", object=canonical_object)
+            if canonical_object
             else "/intelligence",
             ".intelligence-space",
             (
-                Landmark(".dossier-masthead", .62, .82),
-                Landmark(".intel-layout", .76, .82),
-                Landmark(".intel-main", .48, .82),
+                Landmark(".dossier-masthead", 0.62, 0.82),
+                Landmark(".intel-layout", 0.76, 0.82),
+                Landmark(".intel-main", 0.48, 0.82),
             ),
         ),
         ProductSpace(
@@ -149,8 +126,8 @@ def _resolve_spaces(api_base: str) -> tuple[ProductSpace, ...]:
             _query("/investigations", case=case_id) if case_id else "/investigations",
             ".investigations-space",
             (
-                Landmark(".investigation-layout", .76, .82),
-                Landmark(".case-workspace", .42, .82),
+                Landmark(".investigation-layout", 0.76, 0.82),
+                Landmark(".case-workspace", 0.42, 0.82),
             ),
         ),
         ProductSpace(
@@ -158,19 +135,17 @@ def _resolve_spaces(api_base: str) -> tuple[ProductSpace, ...]:
             _query("/agents", run=run_id) if run_id else "/agents",
             ".agents-space",
             (
-                Landmark(".role-theater", .72, .82),
-                Landmark(".agent-runtime-grid", .72, .82),
+                Landmark(".role-theater", 0.72, 0.82),
+                Landmark(".agent-runtime-grid", 0.72, 0.82),
             ),
         ),
         ProductSpace(
             "observatory",
-            _query("/observatory", mode="proof", run=proof_run)
-            if proof_run
-            else "/observatory?mode=proof",
+            "/observatory",
             ".observatory-space",
             (
-                Landmark(".proof-seal", .68, .82),
-                Landmark(".proof-run-ledger", .72, .82),
+                Landmark(".live-command-strip", 0.68, 0.82),
+                Landmark(".observatory-live-grid", 0.72, 0.82),
             ),
         ),
     )
@@ -223,14 +198,14 @@ def _check_page(
         errors.append(
             f"document overflow {max(document_width, body_width):.0f}px > {inner_width:.0f}px"
         )
-    if main_width < max(280, inner_width * .68):
+    if main_width < max(280, inner_width * 0.68):
         errors.append(f"product main collapsed to {main_width:.0f}px")
 
     if space.name == "world" and "hot=" in space.path:
         try:
-            page.locator(
-                ".world-enrichment-boundary, .world-enrichment-preview"
-            ).first.wait_for(state="attached", timeout=2_500)
+            page.locator(".world-enrichment-boundary, .world-enrichment-preview").first.wait_for(
+                state="attached", timeout=2_500
+            )
         except Exception:
             pass
         boundary_count = page.locator(".world-enrichment-boundary").count()
@@ -258,6 +233,8 @@ def _check_page(
     page.screenshot(
         path=str(screenshot_dir / f"{viewport.name}-{space.name}.png"),
         full_page=False,
+        animations="disabled",
+        timeout=15_000,
     )
     return errors
 
@@ -273,15 +250,13 @@ def _check_live_observatory(
         "/observatory",
         ".observatory-space",
         (
-            Landmark(".live-command-strip", .68, .82),
-            Landmark(".telemetry-wide", .48, .82),
-            Landmark(".system-status-panel", .24, .82),
+            Landmark(".live-command-strip", 0.68, 0.82),
+            Landmark(".telemetry-wide", 0.48, 0.82),
+            Landmark(".system-status-panel", 0.24, 0.82),
         ),
     )
     for viewport in (VIEWPORTS[0], VIEWPORTS[-1]):
-        context = browser.new_context(
-            viewport={"width": viewport.width, "height": viewport.height}
-        )
+        context = browser.new_context(viewport={"width": viewport.width, "height": viewport.height})
         page = context.new_page()
         try:
             errors.extend(
@@ -300,36 +275,6 @@ def _check_live_observatory(
                 errors.append(f"{viewport.name}: measurement ledger is incomplete")
         finally:
             context.close()
-    return errors
-
-
-def _check_frozen_guide(browser: Browser, product_base: str, screenshot_dir: Path) -> list[str]:
-    context = browser.new_context(viewport={"width": 1440, "height": 1000})
-    page = context.new_page()
-    errors: list[str] = []
-    try:
-        page.goto(
-            _join_product_url(product_base, "/observatory?mode=proof&guide=frozen"),
-            wait_until="domcontentloaded",
-            timeout=20_000,
-        )
-        page.locator(".guided-story").wait_for(state="visible", timeout=10_000)
-        selected = page.locator('.guided-story-mode [role="tab"][aria-selected="true"]')
-        if selected.count() != 1 or "FROZEN" not in selected.first.inner_text().upper():
-            errors.append("guide=frozen did not restore the frozen guided path")
-
-        step = page.locator(".guided-story-steps > button:not([disabled])").first
-        step.wait_for(state="visible", timeout=10_000)
-        step.click()
-        page.wait_for_timeout(500)
-        query = parse_qs(urlparse(page.url).query)
-        if query.get("guide") != ["frozen"]:
-            errors.append("guided navigation dropped guide=frozen from the URL")
-        if page.locator(".guided-story").count() == 0:
-            errors.append("guided navigation closed the frozen path unexpectedly")
-        page.screenshot(path=str(screenshot_dir / "frozen-guide.png"), full_page=False)
-    finally:
-        context.close()
     return errors
 
 
@@ -406,14 +351,6 @@ def main() -> int:
             failures.extend(
                 f"reduced-motion/world: {error}"
                 for error in _check_reduced_motion(
-                    browser,
-                    args.product_base,
-                    args.screenshots_dir,
-                )
-            )
-            failures.extend(
-                f"frozen-guide: {error}"
-                for error in _check_frozen_guide(
                     browser,
                     args.product_base,
                     args.screenshots_dir,

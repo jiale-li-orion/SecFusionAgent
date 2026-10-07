@@ -1,9 +1,13 @@
 # SecFusion Product Frontend Spec v2
 
-> Status: **Frozen for Product v1 implementation**
+> Status: **Production product contract, updated 2026-10-08**
 > Date: 2026-10-04
 > Owner: Product App (`apps/web`)
 > Supersedes: 2026-10-04 narrow Ask/Investigation/Intelligence draft
+
+## 2026-10-08 product direction
+
+The user requires a real operating product. This supersedes earlier competition presentation requirements: no demo routes/guided paths, no frozen proof view, no manufactured waiting sequence. Evaluation remains backend-owned and outside Product navigation. OBSERVATORY is live operations; all animations must support actual focus, state changes or traceable runtime events. The UI-design-cache remains the art-direction authority for the distinct six spaces.
 
 ## 0. Product contract
 
@@ -18,7 +22,7 @@ External sources
   → Task / Agent Runtime
   → Investigation State
   → Decision / QA
-  → Evaluation / Operations proof
+  → Live Operations
 ```
 
 The frontend may introduce presentation aliases, visual grouping and derived read models. It must not introduce a second source of business truth.
@@ -41,7 +45,7 @@ The product exposes the complete M1–M8 story rather than only the final QA sur
 | M4 investigation context | Investigation confirmed/conflict/unknown/evidence-gap state |
 | M5 Agent investigation | AGENTS, Task/activity/delegation/Capability/Skill |
 | M6 decision / QA | START + continuous session + Decision/citations |
-| M7 evaluation | OBSERVATORY / PROOF |
+| M7 evaluation | internal engineering capability; outside user navigation |
 | M8 operations | OBSERVATORY / LIVE + health/degraded/recovery |
 | C1 traceability | every visible conclusion/fact has evidence drill-down |
 | C2 external content untrusted | evidence/source semantics remain visible; no source text becomes authority in the UI |
@@ -526,13 +530,9 @@ Support and counterexample trajectories remain visible. Experience is presented 
 
 ---
 
-## 8. OBSERVATORY — live operations and frozen proof
+## 8. OBSERVATORY — live operations
 
-One top-level view, two explicit modes:
-
-```text
-LIVE | PROOF
-```
+One live view with explicit refresh and measurement windows.
 
 ### 8.1 LIVE
 
@@ -563,42 +563,9 @@ Agent live data may include:
 
 System live data includes readiness/degraded components, outbox/task-event lag and worker/dependency health as they become available through stable read models.
 
-### 8.2 PROOF
+### 8.2 Evaluation boundary
 
-Frozen competition/evaluation evidence is visually separate from LIVE.
-
-Current formal headline facts:
-
-```text
-CompetitionReport 2735331f-1f7d-419c-80d2-72c4ce157b5f
-6 formal BenchmarkRuns completed
-37/37 CaseRuns passed
-
-M1
-12/12 latency-evaluable
-within 6h = 100%
-source_delivery_coverage = 61.538%
-
-M3
-292 TP / 1 FP / 1 FN
-precision = recall = 99.659%
-
-M6 Product QA
-14 cases
-core correctness metrics = 1.0
-latency avg 2.517s / max 4.032s
-
-Session QA
-context/target/retrieval reuse metrics = 1.0
-
-Evaluation substrate
-85/87 core metrics observed
-only exact monetary provider/capability costs unavailable
-```
-
-The 61.538% coverage weakness remains visible. Passing CaseRun status must not be used to hide an imperfect business metric.
-
-Controlled Agent-runtime benchmark is labeled as controlled regression evidence, not live external success rate.
+Formal benchmark and competition records remain available to engineering through existing backend contracts. Product does not fetch or render these records, including when a historical URL contains `mode=proof` or `guide=frozen`.
 
 ---
 
@@ -744,39 +711,11 @@ Rules:
 
 ---
 
-## 13. Demo path
+## 13. Product flow
 
-A competition demo should tell one continuous story:
+WORLD source/Hot object → INTELLIGENCE dossier/evidence → START question → durable INVESTIGATION and AGENT execution → cited Decision → Evidence inspector. The asynchronous M5 completion automatically enters bounded M6 finalization through the existing M4 gate. Insufficient evidence creates a durable EvidenceNeed and waiting Case; user continuation preserves the session target. OBSERVATORY shows live service and task state.
 
-```text
-WORLD
-  → see 8 source domains and live runtime truth
-  → focus a Hot CVE
-
-INTELLIGENCE
-  → inspect enrichment dimensions / graph / evidence
-
-START / VERIFY
-  → launch a fix-boundary verification
-
-INVESTIGATION + AGENTS
-  → ARGUS selects evidence gap / Skill / Capability
-  → optional ALCHEMIST child enrichment
-  → real activity arrives over ProductEvent/SSE
-
-ORACLE / Decision
-  → evidence-bounded answer
-  → citation opens source Evidence
-
-AGENT evolution
-  → Skill / Experience / trajectory proof
-
-OBSERVATORY / PROOF
-  → live runtime curves
-  → formal M1/M3/M6/Agent/fault evidence
-```
-
-This path deliberately covers monitoring, enrichment, QA, Agent architecture, automation, engineering and demonstration value.
+There is no separate guided or demo path.
 
 ---
 

@@ -34,9 +34,9 @@ export function SkillFamilyDetail({ family, primaryDetail }: { family: SkillFami
           <section className="skill-procedure-pane">
             <div className="skill-chips">{item.task_patterns.map((value) => <span key={value}>{value}</span>)}{item.required_capability_classes.map((value) => <span key={value}>{value}</span>)}</div>
             <div className="skill-procedure">{item.steps.map((step, index) => <div key={String(step.step_id ?? index)}><span>{String(index + 1).padStart(2,'0')}</span><p>{String(step.semantic_instruction ?? step.step_id ?? text('流程步骤', 'procedure step'))}</p></div>)}</div>
-            {item.failure_guards.length > 0 && <div className="skill-guards"><small>{text('失败护栏', 'FAILURE GUARDS')}</small><p>{item.failure_guards.join(' · ')}</p></div>}
-            {item.fallbacks.length > 0 && <div className="skill-guards"><small>{text('回退路径', 'FALLBACKS')}</small><p>{item.fallbacks.join(' · ')}</p></div>}
-            {item.stop_conditions.length > 0 && <div className="skill-guards"><small>{text('停止条件', 'STOP CONDITIONS')}</small><p>{item.stop_conditions.join(' · ')}</p></div>}
+            {item.failure_guards.length > 0 && <div className="skill-guards"><small>{text('失败护栏', 'FAILURE GUARDS')}</small><p>{item.failure_guards.map(presentGuard).join(' · ')}</p></div>}
+            {item.fallbacks.length > 0 && <div className="skill-guards"><small>{text('回退路径', 'FALLBACKS')}</small><p>{item.fallbacks.map(presentGuard).join(' · ')}</p></div>}
+            {item.stop_conditions.length > 0 && <div className="skill-guards"><small>{text('停止条件', 'STOP CONDITIONS')}</small><p>{item.stop_conditions.map(presentGuard).join(' · ')}</p></div>}
           </section>
           <aside className="skill-governance">
             <SkillGovernanceRef label="VALIDATION" values={item.validation_ref ? [item.validation_ref] : []} empty={text('尚无 validation ref', 'no validation ref')} />
@@ -50,6 +50,10 @@ export function SkillFamilyDetail({ family, primaryDetail }: { family: SkillFami
       </article>
     ))}</div>
   </div>
+}
+
+function presentGuard(value: string) {
+  return value.replaceAll('required observation unavailable', 'required observation not present')
 }
 
 function SkillGovernanceRef({ label, values, empty }: { label: string; values: string[]; empty: string }) {

@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useNavigate } from 'react-router-dom'
-import { Activity, Archive, Binary, Boxes, BrainCircuit, CircleGauge, Clock3, DatabaseZap, Eye, Fingerprint, Gauge, RadioTower, ScanLine, ServerCog, ShieldCheck, Sparkles, TriangleAlert, Waypoints } from 'lucide-react'
+import { Activity, Binary, Boxes, BrainCircuit, CircleGauge, Clock3, DatabaseZap, Eye, Fingerprint, Gauge, RadioTower, ScanLine, ServerCog, ShieldCheck, Sparkles, TriangleAlert, Waypoints } from 'lucide-react'
 
-import { getAgentRuntime, type CompetitionProof, type SystemOverview, type WorldOverview } from '../../lib/api'
+import { getAgentRuntime, type SystemOverview, type WorldOverview } from '../../lib/api'
 import { useI18n } from '../../lib/i18n'
-import { bytes, compactNumber, linePath, numeric, observatoryWindows, pct, seconds, snapshotAge, type ObservatoryWindow } from '../../lib/observatoryPresentation'
+import { bytes, compactNumber, linePath, observatoryWindows, pct, seconds, snapshotAge, type ObservatoryWindow } from '../../lib/observatoryPresentation'
 import { dominantRuntimeName, rankRuntimeCounts, runtimeToken } from '../../lib/runtimePresentation'
 import { PanelHead } from './ObservatoryPrimitives'
 
@@ -26,7 +26,7 @@ function AgentLiveInstrument({ runtime }: { runtime: Awaited<ReturnType<typeof g
         <div><small>REQUEST</small><strong>{model.request_count}</strong><span>{model.attempt_count} attempts</span></div>
         <div><small>RETRY</small><strong>{model.retry_attempt_count}</strong><span>{model.retry_scheduled_count} scheduled</span></div>
         <div><small>FAIL</small><strong>{model.failed_attempt_count}</strong><span>{model.unknown_after_dispatch_count} unknown</span></div>
-        <div><small>MODEL P95</small><strong>{model.p95_latency_ms == null ? '—' : `${model.p95_latency_ms}ms`}</strong><span>{topProvider ?? 'provider unavailable'}</span></div>
+        <div><small>MODEL P95</small><strong>{model.p95_latency_ms == null ? '—' : `${model.p95_latency_ms}ms`}</strong><span>{topProvider ?? 'provider not recorded'}</span></div>
       </div>
       <div className="agent-live-coordinate">
         <div><BrainCircuit size={12} /><span>{topModel ?? text('没有持久 ModelAttempt', 'no persisted ModelAttempt')}</span></div>
@@ -45,7 +45,7 @@ function AgentLiveInstrument({ runtime }: { runtime: Awaited<ReturnType<typeof g
   )
 }
 
-export function LiveObservatory({ world, agents, system, proof, proofUnavailable, windowKey, setWindowKey }: { world: WorldOverview | null; agents: Awaited<ReturnType<typeof getAgentRuntime>> | null; system: SystemOverview | null; proof: CompetitionProof | null; proofUnavailable: boolean; windowKey: ObservatoryWindow; setWindowKey: (value: ObservatoryWindow) => void }) {
+export function LiveObservatory({ world, agents, system, windowKey, setWindowKey }: { world: WorldOverview | null; agents: Awaited<ReturnType<typeof getAgentRuntime>> | null; system: SystemOverview | null; windowKey: ObservatoryWindow; setWindowKey: (value: ObservatoryWindow) => void }) {
   const { text } = useI18n()
   const navigate = useNavigate()
   const [focus, setFocus] = useState<'world' | 'sources' | 'agents' | 'system' | null>(null)
@@ -54,7 +54,6 @@ export function LiveObservatory({ world, agents, system, proof, proofUnavailable
   const series = useMemo(() => (world?.hourly_series ?? []).slice(-hours), [world?.hourly_series, hours])
   const activeTasks = agents?.roles.reduce((sum, role) => sum + role.active_tasks, 0) ?? 0
   const totalSources = world ? world.source_health.healthy + world.source_health.degraded + world.source_health.blocked : 0
-  const frozenRun = proof?.runs[0] ?? null
   const chooseFocus = (next: 'world' | 'sources' | 'agents' | 'system') => setFocus((current) => current === next ? null : next)
 
   return (
@@ -70,31 +69,6 @@ export function LiveObservatory({ world, agents, system, proof, proofUnavailable
       <div className="live-window-row">
         <div className="live-now"><span className="scan-dot" /><strong>{text('运行快照', 'OPERATIONAL SNAPSHOT')}</strong><span>{world ? snapshotAge(world.generated_at) : text('加载中', 'loading')}</span></div>
         <div className="window-switch">{observatoryWindows.map((item) => <button key={item} className={windowKey === item ? 'active' : ''} onClick={() => setWindowKey(item)}>{item === '168h' ? '7d' : item}</button>)}</div>
-      </div>
-
-      <div className={`live-proof-bridge ${frozenRun ? 'bound' : 'unbound'}`}>
-        <div className="live-proof-coordinate">
-          <span><Archive size={13} /></span>
-          <div>
-            <small>{text('最近冻结证明坐标', 'LATEST FROZEN PROOF COORDINATE')}</small>
-            <strong>{frozenRun ? frozenRun.suite_ref : proofUnavailable ? text('冻结证明不可读', 'FROZEN PROOF UNAVAILABLE') : text('尚无正式 BenchmarkRun', 'NO FORMAL BENCHMARK RUN')}</strong>
-          </div>
-        </div>
-        {frozenRun ? (
-          <>
-            <div className="live-proof-facts">
-              <span><b>{frozenRun.passed_case_count}/{frozenRun.case_count}</b> CASES</span>
-              <span><b>{frozenRun.status}</b> STATUS</span>
-              <span><b className="mono">{frozenRun.world_snapshot_ref ?? 'UNBOUND'}</b> WORLD</span>
-              <span><b className="mono">{frozenRun.deployment_revision_id.slice(0, 12)}</b> DEPLOY</span>
-            </div>
-            <button type="button" onClick={() => navigate(`/observatory?mode=proof&run=${encodeURIComponent(frozenRun.benchmark_run_id)}`)}>
-              {text('冻结到这次运行', 'FREEZE TO THIS RUN')} <Archive size={12} />
-            </button>
-          </>
-        ) : (
-          <small className="live-proof-empty">{text('LIVE 与 PROOF 保持分离；没有正式冻结坐标时不伪造对照。', 'LIVE and PROOF remain separate; no comparison is fabricated without a formal frozen coordinate.')}</small>
-        )}
       </div>
 
       <div className={`observatory-live-grid ${focus ? `has-observatory-focus focus-${focus}` : ''}`}>
@@ -204,12 +178,16 @@ function TelemetryChart({ title, series, lines }: { title: string; series: Array
   const reduceMotion = Boolean(useReducedMotion())
   const width = 520
   const height = 150
-  const allValues = lines.flatMap((line) => series.map((item) => numeric(item[line.key]))).filter((value) => Number.isFinite(value))
+  const sampleValue = (value: number | string | null | undefined) => value == null || value === '' || !Number.isFinite(Number(value)) ? null : Number(value)
+  const allValues = lines.flatMap((line) => series.map((item) => sampleValue(item[line.key]))).filter((value): value is number => value != null)
   const max = Math.max(...allValues, 1)
-  const paths = lines.map((line) => ({ ...line, d: linePath(series.map((item) => numeric(item[line.key])), width, height, max) }))
+  const paths = lines.map((line) => ({ ...line, d: linePath(series.map((item) => sampleValue(item[line.key])), width, height, max) }))
   const lastSample = series.at(-1)
   const revision = String(lastSample?.hour ?? lastSample?.timestamp ?? lastSample?.generated_at ?? series.length)
-  return <div className={`telemetry-chart ${series.length ? '' : 'chart-unresolved'}`}><div className="chart-head"><strong>{title}</strong><div>{lines.map((line) => <span key={line.key} className={`tone-${line.tone}`}><i />{line.label}</span>)}</div></div><div className="chart-canvas"><svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none"><defs><linearGradient id={`fade-${title.replaceAll(' ', '-')}`} x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="currentColor" stopOpacity=".16"/><stop offset="1" stopColor="currentColor" stopOpacity="0"/></linearGradient></defs>{[.25,.5,.75].map((part) => <line key={part} x1="0" x2={width} y1={height * part} y2={height * part} className="chart-gridline" />)}{paths.map((path) => <motion.path key={`${path.key}:${revision}`} className={`chart-line tone-${path.tone}`} d={path.d} fill="none" initial={reduceMotion ? false : { pathLength: 0, opacity: .28 }} animate={{ pathLength: 1, opacity: 1 }} transition={{ duration: reduceMotion ? 0 : .58, ease: [0.22, 1, 0.36, 1] }} />)}</svg>{series.length === 0 && <div className="chart-await"><ScanLine size={16}/><strong>{text('等待运行样本', 'AWAITING OPERATIONAL SAMPLES')}</strong><small>{text('保留测量网格 · 不生成合成曲线', 'grid retained · no synthetic curve')}</small></div>}<div className="chart-scanline" /></div></div>
+  return <div className={`telemetry-chart ${series.length ? '' : 'chart-unresolved'}`}><div className="chart-head"><strong>{title}</strong><div>{lines.map((line) => <span key={line.key} className={`tone-${line.tone}`}><i />{line.label} · {sampleValue(lastSample?.[line.key]) == null ? '—' : line.key.endsWith('_seconds') ? seconds(sampleValue(lastSample?.[line.key])) : compactNumber(sampleValue(lastSample?.[line.key])!)}</span>)}</div></div><div className="chart-canvas"><svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none"><defs><linearGradient id={`fade-${title.replaceAll(' ', '-')}`} x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="currentColor" stopOpacity=".16"/><stop offset="1" stopColor="currentColor" stopOpacity="0"/></linearGradient></defs>{[.25,.5,.75].map((part) => <line key={part} x1="0" x2={width} y1={height * part} y2={height * part} className="chart-gridline" />)}{paths.map((path) => <motion.path key={`${path.key}:${revision}`} className={`chart-line tone-${path.tone}`} d={path.d} fill="none" initial={reduceMotion ? false : { pathLength: 0, opacity: .28 }} animate={{ pathLength: 1, opacity: 1 }} transition={{ duration: reduceMotion ? 0 : .58, ease: [0.22, 1, 0.36, 1] }} />)}{series.length === 1 && lines.map(line => {
+      const value = sampleValue(series[0][line.key])
+      return value == null ? null : <circle key={line.key} className={`chart-sample tone-${line.tone}`} cx={width / 2} cy={height - Math.min(value / max, 1) * (height - 10) - 5} r="4" />
+    })}</svg>{series.length === 0 && <div className="chart-await"><ScanLine size={16}/><strong>{text('等待运行样本', 'AWAITING OPERATIONAL SAMPLES')}</strong><small>{text('保留测量网格 · 不生成合成曲线', 'grid retained · no synthetic curve')}</small></div>}<div className="chart-scanline" /></div></div>
 }
 
 function SourceSpectrumBlueprint() {

@@ -11,9 +11,9 @@ import {
   TimerReset,
   Waypoints,
 } from 'lucide-react'
-import { getAgentControlledProof, getAgentExperiences, getAgentLearning, getAgentRuntime, getAgentSkill, getAgentSkills, getAgentTask, getCompetitionProofRun, type AgentRoleRuntime } from '../lib/api'
+import { getAgentExperiences, getAgentLearning, getAgentRuntime, getAgentSkill, getAgentSkills, getAgentTask, type AgentRoleRuntime } from '../lib/api'
 import { ExperienceMemory, SkillFamilyDetail } from '../components/agents/LearningSurfaces'
-import { AgentControlledProof, RuntimeActivityView, TaskCard, TaskDossier, TaskTopology } from '../components/agents/RuntimeSurfaces'
+import { RuntimeActivityView, TaskCard, TaskDossier, TaskTopology } from '../components/agents/RuntimeSurfaces'
 import { groupSkillFamilies, skillFamilyKeyFromRef } from '../lib/agentLearning'
 import { activeStatuses, rolePresentation } from '../lib/agentRuntimePresentation'
 import { useI18n } from '../lib/i18n'
@@ -38,14 +38,14 @@ function ModelRuntimeRibbon({ runtime }: { runtime: Awaited<ReturnType<typeof ge
         <i />
         <div><small>RETRY ATTEMPTS</small><strong>{model.retry_attempt_count}</strong><span>{model.retry_scheduled_count} scheduled</span></div>
         <i />
-        <div><small>FAILED / UNKNOWN</small><strong>{model.failed_attempt_count} / {model.unknown_after_dispatch_count}</strong><span>{model.p95_latency_ms == null ? 'p95 unavailable' : `p95 ${model.p95_latency_ms} ms`}</span></div>
+        <div><small>FAILED / UNKNOWN</small><strong>{model.failed_attempt_count} / {model.unknown_after_dispatch_count}</strong><span>{model.p95_latency_ms == null ? 'p95 not measured' : `p95 ${model.p95_latency_ms} ms`}</span></div>
         <i />
         <div><small>PROVIDER / MODEL</small><strong>{provider ?? '—'}</strong><span>{actualModel ?? '—'}</span></div>
       </div>
       <div className="agent-control-runtime-line">
         <span><b>{control.dependency_wake_count}</b> dependency wakes</span>
         <span><b>{control.waiting_event_count}</b> waiting boundaries</span>
-        <span><b>{control.wake_latency_measurement.toUpperCase()}</b> wake latency</span>
+        <span><b>{control.wake_latency_measurement === 'unavailable' ? 'NOT MEASURED' : control.wake_latency_measurement.toUpperCase()}</b> wake latency</span>
         {stopReasons.map(([reason, count]) => <span key={reason}><b>{count}</b> {runtimeToken(reason)}</span>)}
       </div>
     </section>
@@ -103,7 +103,7 @@ function TaskTopologyBlueprint({ loading }: { loading: boolean }) {
     <div className="task-topology task-topology-blueprint">
       <div className="task-topology-head">
         <div className="task-role-axis"><span>ORACLE</span><span>ARGUS</span><span>ALCHEMIST</span></div>
-        <div><small>{text('规范执行拓扑', 'CANONICAL EXECUTION TOPOLOGY')}</small><strong>{loading ? text('解析 durable TaskRun…', 'resolving durable TaskRun…') : text('runtime 不可用 · 保留结构场', 'runtime unavailable · structural field retained')}</strong></div>
+        <div><small>{text('规范执行拓扑', 'CANONICAL EXECUTION TOPOLOGY')}</small><strong>{loading ? text('解析 durable TaskRun…', 'resolving durable TaskRun…') : text('runtime 读取失败 · 保留结构场', 'runtime read failed · structural field retained')}</strong></div>
       </div>
       <div className="task-topology-canvas">
         <div className="task-role-column role-decision" /><div className="task-role-column role-investigation" /><div className="task-role-column role-enrichment" />
@@ -200,8 +200,6 @@ export function AgentsPage() {
   const sectionParam = params.get('section')
   const roleParam = params.get('role')
   const origin = params.get('from')
-  const proofRunRef = params.get('proofRun')
-  const caseRunRef = params.get('caseRun')
   const originCaseRef = params.get('caseRef')
   const runtimeQuery = useQuery({ queryKey: ['agent-runtime'], queryFn: getAgentRuntime, refetchInterval: 12_000 })
   const runtime = runtimeQuery.data
@@ -209,13 +207,6 @@ export function AgentsPage() {
   const learning = learningQuery.data
   const skillsQuery = useQuery({ queryKey: ['agent-skills'], queryFn: getAgentSkills, refetchInterval: 30_000 })
   const experiencesQuery = useQuery({ queryKey: ['agent-experiences'], queryFn: getAgentExperiences, refetchInterval: 30_000 })
-  const proofQuery = useQuery({ queryKey: ['agent-controlled-proof'], queryFn: getAgentControlledProof, staleTime: 60_000 })
-  const proofRunQuery = useQuery({
-    queryKey: ['agent-controlled-proof-run', proofQuery.data?.benchmark_run_id],
-    queryFn: () => getCompetitionProofRun(proofQuery.data!.benchmark_run_id),
-    enabled: Boolean(proofQuery.data?.benchmark_run_id),
-    staleTime: 60_000,
-  })
   const initialTask = runtime?.recent_tasks.find((task) => activeStatuses.has(task.status))?.run_id ?? runtime?.recent_tasks[0]?.run_id ?? null
   const requestedRun = params.get('run')
   const selectedTask = requestedRun ?? initialTask
@@ -290,14 +281,6 @@ export function AgentsPage() {
           <div><small>{text('能力调用', 'CAPABILITY INVOCATIONS')}</small><strong>{runtime?.recent_capabilities.length ?? '—'}</strong></div>
         </div>
       </header>
-      {origin === 'proof' && (proofRunRef || caseRunRef) && (
-        <div className="agent-origin">
-          <span>PROOF → TASK</span>
-          <strong className="mono">{proofRunRef ?? 'benchmark-run'}</strong>
-          {caseRunRef && <em className="mono">{caseRunRef}</em>}
-          <button onClick={() => navigate(`/observatory?mode=proof&run=${encodeURIComponent(proofRunRef ?? '')}`)}>{text('返回 PROOF', 'BACK TO PROOF')}</button>
-        </div>
-      )}
       {origin === 'case' && originCaseRef && (
         <div className="agent-origin case-origin">
           <span>CASE → TASK</span>
@@ -313,7 +296,7 @@ export function AgentsPage() {
             <small>{text('产品读取降级', 'PRODUCT READ DEGRADED')}</small>
             <strong>{runtimeQuery.isError
               ? text('Agent Runtime 当前不可读；三 Role 权威结构保持可见。', 'Agent Runtime is unreadable; the three canonical Roles remain visible.')
-              : text('Skill / Experience read 当前不可用；Task Runtime 保持独立可读。', 'Skill / Experience read is unavailable; Task Runtime remains independently readable.')}</strong>
+              : text('Skill / Experience read 读取失败；Task Runtime 保持独立可读。', 'Skill / Experience read failed; Task Runtime remains independently readable.')}</strong>
           </div>
           <span>{runtimeQuery.isError ? 'runtime seam' : 'learning seam'}</span>
           <button className="recovery-action" onClick={() => {
@@ -335,7 +318,6 @@ export function AgentsPage() {
 
       {runtime && <ModelRuntimeRibbon runtime={runtime} />}
       {detailQuery.data && <RuntimeActivityView detail={detailQuery.data} onSkillSelect={inspectSkillRef} onTaskSelect={selectTask} />}
-      {proofQuery.data && <AgentControlledProof proof={proofQuery.data} detail={proofRunQuery.data ?? null} />}
 
       <div id="agent-runtime-field" className={`agent-runtime-grid ${focusedRole ? `runtime-focus-${focusedRole.toLowerCase()}` : ''}`}>
         <section className={`task-field ${focusedRole ? 'role-owned-field' : ''}`}>

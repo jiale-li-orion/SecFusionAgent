@@ -282,7 +282,6 @@
 
 /* Contextual provenance trace — derived from real deep-link coordinates. */
 .context-trace {
-  position: fixed;
   z-index: 78;
   top: 14px;
   left: calc(var(--shell-rail) + 22px);
@@ -483,18 +482,8 @@
   color: #8a8377;
 }
 
-.observatory-space.observatory-proof .evidence-object-links {
-  border-top-color: rgba(64,64,48,.1);
-}
-
-.observatory-space.observatory-proof .evidence-object-links button {
-  border-bottom-color: rgba(64,64,48,.07);
-  color: #555b4e;
-}
-
 /* Target coordinates become traversable product seams. */
-.case-target-strip,
-.proof-target-ref-strip {
+.case-target-strip {
   display: grid;
   gap: 7px;
   min-width: 0;
@@ -506,22 +495,19 @@
   border-bottom: 1px solid rgba(168,139,255,.045);
 }
 
-.case-target-strip > small,
-.proof-target-ref-strip > small {
+.case-target-strip > small {
   color: #617077;
   font: 8px ui-monospace, monospace;
   letter-spacing: .08em;
 }
 
-.case-target-strip > div,
-.proof-target-ref-strip > div {
+.case-target-strip > div {
   display: flex;
   flex-wrap: wrap;
   gap: 6px 10px;
 }
 
-.case-target-strip button,
-.proof-target-ref-strip button {
+.case-target-strip button {
   min-width: 0;
   display: inline-grid;
   grid-template-columns: 14px auto minmax(0,1fr);
@@ -541,44 +527,13 @@
   border-bottom-color: rgba(168,139,255,.2);
 }
 
-.case-target-strip button b,
-.proof-target-ref-strip button b {
+.case-target-strip button b {
   min-width: 0;
   overflow: hidden;
   color: #5a696f;
   font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.proof-target-ref-strip {
-  margin: 10px 0 4px;
-  padding: 10px 0;
-  border-top: 1px solid rgba(64,64,48,.09);
-  border-bottom: 1px solid rgba(64,64,48,.07);
-}
-
-.proof-target-ref-strip > small {
-  color: #6b7065;
-}
-
-.proof-target-ref-strip button {
-  color: #51584b;
-  border-bottom-color: rgba(64,64,48,.07);
-}
-
-.proof-target-ref-strip button:hover {
-  color: #252a22;
-  border-bottom-color: rgba(64,64,48,.18);
-}
-
-.proof-target-ref-strip button b {
-  color: #777d70;
-}
-
-.proof-target-ref-strip > div > span {
-  color: #777d70;
-  font-size: 8.5px;
 }
 
 /* Command lens — live object index, not a naked ID box. */
@@ -697,11 +652,6 @@
 .command-object-glyph.kind-incident {
   color: var(--amber);
   border-color: rgba(255,179,92,.14);
-}
-
-.command-object-glyph.kind-proof {
-  color: #b5bac0;
-  border-color: rgba(181,186,192,.12);
 }
 
 .command-object-copy {

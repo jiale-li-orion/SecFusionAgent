@@ -1,4 +1,4 @@
-import { getAgentRuntime, getCompetitionProof, getHotWorld, listIncidents, listInvestigations, searchIntelligence } from './api'
+import { getAgentRuntime, getHotWorld, listIncidents, listInvestigations, searchIntelligence } from './api'
 
 export type ContextTraceSegment = { kind: string; ref: string; path?: string }
 
@@ -19,8 +19,6 @@ export function buildContextTrace(
   const worldRef = params.get('worldRef')
   const caseRef = params.get('caseRef') ?? params.get('case')
   const runRef = params.get('run')
-  const proofRun = params.get('proofRun') ?? (pathname === '/observatory' ? params.get('run') : null)
-  const caseRun = params.get('caseRun')
 
   if (origin === 'world' || worldRef) add('WORLD', worldRef ?? text('证据世界', 'Evidence World'), '/')
   if (origin === 'start') add('START', compactTraceRef(params.get('request') ?? text('任务准入', 'Mission Admission')), '/start')
@@ -28,10 +26,6 @@ export function buildContextTrace(
     add('MEMORY', text('经验记忆', 'Experience Memory'), '/agents?section=memory')
     add('EXPERIENCE', compactTraceRef(params.get('experience')))
     add('TRAJECTORY', compactTraceRef(params.get('trajectory')))
-  }
-  if (origin === 'proof' || proofRun || caseRun) {
-    add('PROOF', proofRun ?? text('冻结证明', 'Frozen Proof'), proofRun ? `/observatory?mode=proof&run=${encodeURIComponent(proofRun)}` : '/observatory?mode=proof')
-    if (caseRun) add('CASE RUN', compactTraceRef(caseRun), proofRun ? `/observatory?mode=proof&run=${encodeURIComponent(proofRun)}&caseRun=${encodeURIComponent(caseRun)}` : undefined)
   }
   if (origin === 'case' || origin === 'task' || caseRef) {
     add('CASE', compactTraceRef(caseRef), caseRef ? `/investigations?case=${encodeURIComponent(caseRef)}` : undefined)
@@ -53,10 +47,7 @@ export function buildContextTrace(
     else if (params.get('role')) add('ROLE', params.get('role')!)
     else if (params.get('section') === 'memory') add('MEMORY', 'SKILL / EXPERIENCE')
   } else if (pathname === '/observatory') {
-    const mode = params.get('mode') === 'proof' ? 'PROOF' : 'LIVE'
-    add('OBSERVATORY', mode)
-    if (proofRun) add('RUN', compactTraceRef(proofRun))
-    if (caseRun) add('CASE RUN', compactTraceRef(caseRun))
+    add('OBSERVATORY', 'LIVE')
   } else if (pathname === '/') {
     add('WORLD', text('证据世界', 'Evidence World'))
     if (params.get('source')) add('SOURCE', params.get('source')!.toUpperCase())
@@ -71,7 +62,7 @@ function compactTraceRef(value: string | null | undefined) {
   return value.length > 30 ? `${value.slice(0, 13)}…${value.slice(-8)}` : value
 }
 
-export type CommandObjectKind = 'CVE' | 'OBJECT' | 'CASE' | 'TASK' | 'INCIDENT' | 'PROOF'
+export type CommandObjectKind = 'CVE' | 'OBJECT' | 'CASE' | 'TASK' | 'INCIDENT'
 export type CommandObjectItem = { kind: CommandObjectKind; ref: string; label: string; meta: string; path: string }
 
 export function buildCommandItems(input: {
@@ -80,7 +71,6 @@ export function buildCommandItems(input: {
   cases: Awaited<ReturnType<typeof listInvestigations>>['items']
   tasks: Awaited<ReturnType<typeof getAgentRuntime>>['recent_tasks']
   incidents: Awaited<ReturnType<typeof listIncidents>>['items']
-  runs: Awaited<ReturnType<typeof getCompetitionProof>>['runs']
   query: string
 }): CommandObjectItem[] {
   const items: CommandObjectItem[] = []
@@ -133,16 +123,6 @@ export function buildCommandItems(input: {
       path: `/intelligence?incident=${encodeURIComponent(item.incident_id)}&from=command`,
     })
   }
-  for (const item of input.runs.slice(0, 6)) {
-    items.push({
-      kind: 'PROOF',
-      ref: item.benchmark_run_id,
-      label: item.suite_ref,
-      meta: `${item.passed_case_count}/${item.case_count} cases · ${item.status} · ${compactTraceRef(item.benchmark_run_id)}`,
-      path: `/observatory?mode=proof&run=${encodeURIComponent(item.benchmark_run_id)}&from=command`,
-    })
-  }
-
   const deduped = [...new Map(items.map((item) => [`${item.kind}:${item.ref}`, item])).values()]
   const query = input.query.trim().toLowerCase()
   const filtered = query
@@ -158,33 +138,9 @@ export function shouldSearchGlobalKnowledge(value: string) {
   return true
 }
 
-export function guidedModeFromSearch(search: string): 'live' | 'frozen' | null {
-  const guide = new URLSearchParams(search).get('guide')
-  return guide === 'live' || guide === 'frozen' ? guide : null
-}
-
-export function withGuidedMode(path: string, mode: 'live' | 'frozen') {
-  const [pathname, search = ''] = path.split('?')
-  const params = new URLSearchParams(search)
-  params.set('guide', mode)
-  return `${pathname}?${params.toString()}`
-}
-
 function compactCommandLabel(value: string, fallback: string) {
   const clean = value.trim() || fallback
   return clean.length > 64 ? `${clean.slice(0, 61)}…` : clean
-}
-
-export function storyStepMatches(path: string, pathname: string, search: string) {
-  const [stepPathname, stepSearch = ''] = path.split('?')
-  if (stepPathname !== pathname) return false
-  const expected = new URLSearchParams(stepSearch)
-  if ([...expected.keys()].length === 0) return true
-  const current = new URLSearchParams(search)
-  for (const [key, value] of expected.entries()) {
-    if (current.get(key) !== value) return false
-  }
-  return true
 }
 
 export async function checkReadiness() {

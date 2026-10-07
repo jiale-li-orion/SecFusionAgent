@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 
 import { type IntelligenceEnrichmentState, type KnowledgeClaim } from '../../lib/api'
 import { useI18n } from '../../lib/i18n'
@@ -19,27 +19,31 @@ const enrichmentDimensions = [
   { key: 'incident_context', label: 'INCIDENT CONTEXT', test: /incident|campaign|attack|observed_in_the_wild/i },
 ] as const
 
-type EnrichmentVisualStatus = IntelligenceEnrichmentState['dimensions'][number]['status'] | 'unavailable'
+type EnrichmentVisualStatus = IntelligenceEnrichmentState['dimensions'][number]['status'] | 'not_materialized'
 
 export function EnrichmentConstellation({ claims, cveId, state, stateLoading, stateError }: { claims: KnowledgeClaim[]; cveId: string; state: IntelligenceEnrichmentState | null; stateLoading: boolean; stateError: boolean }) {
   const { text } = useI18n()
+  const reduceMotion = Boolean(useReducedMotion())
   const [focusedDimension, setFocusedDimension] = useState<string | null>(null)
   const stateByDimension = new Map(state?.dimensions.map((item) => [item.dimension, item]) ?? [])
-  const dimensions = enrichmentDimensions.map((dimension) => {
+  const dimensions = enrichmentDimensions.map((dimension, index) => {
     const matchedClaims = claims.filter((claim) => dimension.test.test(claim.predicate))
     const authoritativeState = stateByDimension.get(dimension.key)
-    const status: EnrichmentVisualStatus = authoritativeState?.status ?? 'unavailable'
+    const status: EnrichmentVisualStatus = authoritativeState?.status ?? 'not_materialized'
+    const angle = -Math.PI / 2 + (index / enrichmentDimensions.length) * Math.PI * 2
     return {
       ...dimension,
       status,
       authoritativeState,
       matchedClaims,
+      x: 50 + Math.cos(angle) * 40,
+      y: 50 + Math.sin(angle) * 37,
     }
   })
   const counts = dimensions.reduce<Record<EnrichmentVisualStatus, number>>((acc, item) => {
     acc[item.status] += 1
     return acc
-  }, { resolved: 0, conflict: 0, unknown: 0, missing: 0, unavailable: 0 })
+  }, { resolved: 0, conflict: 0, unknown: 0, missing: 0, not_materialized: 0 })
   const focused = dimensions.find((item) => item.key === focusedDimension) ?? null
 
   return (
@@ -48,32 +52,45 @@ export function EnrichmentConstellation({ claims, cveId, state, stateLoading, st
         <div><small>ENRICHMENT-V1</small><strong>12-DIMENSION EVIDENCE CONSTELLATION</strong></div>
         <span>{stateLoading
           ? text('解析权威 enrichment state…', 'resolving authoritative enrichment state…')
-          : stateError || !state
-            ? text('四态 read 不可用 · 不从 Claim 数量推断', 'four-state read unavailable · claim counts are not used as status')
+          : stateError
+            ? text('四态读取失败 · 不从 Claim 数量推断', 'four-state read failed · claim counts are not used as status')
+            : !state
+              ? text('当前对象尚未形成四态快照', 'four-state snapshot not materialized for this object')
             : `${counts.resolved} resolved · ${counts.conflict} conflict · ${counts.unknown} unknown · ${counts.missing} missing`}</span>
       </div>
-      <div className="enrichment-board">
+      <div className="enrichment-orbit">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          {dimensions.map((item) => (
+            <line
+              key={item.key}
+              className={`status-${item.status}`}
+              x1="50"
+              y1="50"
+              x2={item.x}
+              y2={item.y}
+            />
+          ))}
+        </svg>
         <button className="enrichment-core" onClick={() => setFocusedDimension(null)}>
           <small>CANONICAL</small>
           <strong>{focused ? focused.label : cveId}</strong>
           <span>{focused ? enrichmentStatusLabel(focused.status, text) : state ? `WORLD REV ${state.world_revision}` : text(`${claims.length} 条可见 Claims`, `${claims.length} visible claims`)}</span>
         </button>
-        <div className="enrichment-grid">
-          {dimensions.map((item, index) => (
-            <motion.button
-              key={item.key}
-              className={`enrichment-dimension status-${item.status} ${focusedDimension === item.key ? 'selected' : ''} ${focused && focusedDimension !== item.key ? 'dimmed' : ''}`}
-              onClick={() => setFocusedDimension((current) => current === item.key ? null : item.key)}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: focused && focusedDimension !== item.key ? .34 : 1, y: 0 }}
-              transition={{ delay: index * .018 }}
-            >
-              <span>{String(index + 1).padStart(2, '0')}</span>
-              <strong>{item.label}</strong>
-              <small>{enrichmentStatusLabel(item.status, text)}</small>
-            </motion.button>
-          ))}
-        </div>
+        {dimensions.map((item, index) => (
+          <motion.button
+            key={item.key}
+            className={`enrichment-dimension status-${item.status} ${focusedDimension === item.key ? 'selected' : ''} ${focused && focusedDimension !== item.key ? 'dimmed' : ''}`}
+            style={{ left: `${item.x}%`, top: `${item.y}%`, x: '-50%', y: '-50%' }}
+            onClick={() => setFocusedDimension((current) => current === item.key ? null : item.key)}
+            initial={reduceMotion ? false : { opacity: 0, scale: .82 }}
+            animate={{ opacity: focused && focusedDimension !== item.key ? .18 : 1, scale: focusedDimension === item.key ? 1.08 : 1 }}
+            transition={{ delay: reduceMotion ? 0 : index * .025, duration: reduceMotion ? 0 : .25 }}
+          >
+            <span>{String(index + 1).padStart(2, '0')}</span>
+            <strong>{item.label}</strong>
+            <small>{enrichmentStatusLabel(item.status, text)}</small>
+          </motion.button>
+        ))}
         <AnimatePresence>
           {focused && (
             <motion.aside
@@ -84,7 +101,7 @@ export function EnrichmentConstellation({ claims, cveId, state, stateLoading, st
             >
               <small>{focused.key.toUpperCase()} / ENRICHMENT DIMENSION</small>
               <strong>{focused.label}</strong>
-              <span>{enrichmentStatusLabel(focused.status, text)} · {focused.authoritativeState ? `REV ${focused.authoritativeState.world_revision}` : 'STATE UNAVAILABLE'}</span>
+              <span>{enrichmentStatusLabel(focused.status, text)} · {focused.authoritativeState ? `REV ${focused.authoritativeState.world_revision}` : text('尚无权威 revision', 'NO AUTHORITATIVE REVISION')}</span>
               <div>
                 {focused.matchedClaims.slice(0, 4).map((claim) => (
                   <p key={claim.claim_id}><b>{humanize(claim.predicate)}</b>{formatValue(claim.value)}</p>
@@ -109,7 +126,7 @@ function enrichmentStatusLabel(status: EnrichmentVisualStatus, text: (zh: string
   if (status === 'conflict') return text('冲突', 'CONFLICT')
   if (status === 'unknown') return text('明确未知', 'EXPLICIT UNKNOWN')
   if (status === 'missing') return text('缺失', 'MISSING')
-  return text('状态不可用', 'STATE UNAVAILABLE')
+  return text('尚未形成', 'NOT MATERIALIZED')
 }
 
 function enrichmentStatusExplanation(status: EnrichmentVisualStatus, text: (zh: string, en: string) => string) {
@@ -117,7 +134,7 @@ function enrichmentStatusExplanation(status: EnrichmentVisualStatus, text: (zh: 
   if (status === 'missing') return text('当前 world revision 没有满足该维度 completion predicate 的 canonical fact。', 'No canonical fact satisfies this dimension completion predicate at the current world revision.')
   if (status === 'conflict') return text('当前 canonical facts 形成互不相容的值或适用性状态，冲突被保留。', 'Current canonical facts contain incompatible values or applicability states; the conflict is preserved.')
   if (status === 'resolved') return text('当前 world revision 已有满足 completion predicate 的 canonical fact。', 'A canonical fact satisfies the completion predicate at the current world revision.')
-  return text('权威 enrichment state read 当前不可用；页面不从可见 Claim 数量推断状态。', 'The authoritative enrichment-state read is unavailable; the UI does not infer status from visible claim count.')
+  return text('当前对象尚未形成该维度的权威 enrichment state；页面不从可见 Claim 数量推断状态。', 'No authoritative enrichment state has been materialized for this dimension; the UI does not infer status from visible claim count.')
 }
 
 function humanize(value: string) { return value.replaceAll('_', ' ').replaceAll('-', ' ').toUpperCase() }

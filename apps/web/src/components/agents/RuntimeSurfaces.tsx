@@ -1,22 +1,23 @@
 import { useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useNavigate } from 'react-router-dom'
-import { Activity, ArrowDownRight, BookOpenCheck, BrainCircuit, CircleDot, GitFork, TerminalSquare, Waypoints } from 'lucide-react'
+import { Activity, ArrowDownRight, BrainCircuit, CircleDot, GitFork, TerminalSquare, Waypoints } from 'lucide-react'
 
-import { getAgentControlledProof, getAgentTask, type AgentControlledProofCase, type AgentTaskSummary, type ProofRunDetail } from '../../lib/api'
+import { getAgentTask, type AgentTaskSummary } from '../../lib/api'
 import { activeStatuses, rolePresentation } from '../../lib/agentRuntimePresentation'
 import { useI18n } from '../../lib/i18n'
 
-function DelegationActivityNode({ parent, children, onTaskSelect }: { parent: AgentTaskSummary | null; children: AgentTaskSummary[]; onTaskSelect: (runId: string) => void }) {
+function DelegationActivityNode({ parent, predecessor, children, onTaskSelect }: { parent: AgentTaskSummary | null; predecessor: AgentTaskSummary | null; children: AgentTaskSummary[]; onTaskSelect: (runId: string) => void }) {
   const { text } = useI18n()
-  const relationCount = children.length + (parent ? 1 : 0)
+  const relationCount = children.length + (parent ? 1 : 0) + (predecessor ? 1 : 0)
   return (
     <div className="runtime-activity-node tone-delegation runtime-delegation-node">
       <span>↳</span>
       <div>
-        <small>DELEGATION</small>
-        <strong>{text(`${relationCount} 条持久父子关系`, `${relationCount} durable parent/child link${relationCount === 1 ? '' : 's'}`)}</strong>
+        <small>EXECUTION LINKS</small>
+        <strong>{text(`${relationCount} 条持久执行关联`, `${relationCount} durable execution link${relationCount === 1 ? '' : 's'}`)}</strong>
         <div className="runtime-delegation-links">
+          {predecessor && <button type="button" onClick={() => onTaskSelect(predecessor.run_id)}><b>← PREVIOUS</b><span>{rolePresentation[predecessor.role_id]?.alias ?? predecessor.role_id} · {shortTaskKind(predecessor.task_kind)}</span><em>{predecessor.status}</em></button>}
           {parent && <button type="button" onClick={() => onTaskSelect(parent.run_id)}><b>↑ PARENT</b><span>{rolePresentation[parent.role_id]?.alias ?? parent.role_id} · {shortTaskKind(parent.task_kind)}</span><em>{parent.status}</em></button>}
           {children.map((child) => <button type="button" key={child.run_id} onClick={() => onTaskSelect(child.run_id)}><b>↓ CHILD</b><span>{rolePresentation[child.role_id]?.alias ?? child.role_id} · {shortTaskKind(child.task_kind)}</span><em>{child.status}</em></button>)}
         </div>
@@ -74,9 +75,10 @@ export function RuntimeActivityView({ detail, onSkillSelect, onTaskSelect }: { d
           secondary={task.status}
           tone={activeStatuses.has(task.status) ? 'live' : task.status === 'failed' ? 'failure' : 'stable'}
         />
-        {(detail.parent || detail.children.length > 0) && (
+        {(detail.parent || detail.predecessor || detail.children.length > 0) && (
           <DelegationActivityNode
             parent={detail.parent}
+            predecessor={detail.predecessor ?? null}
             children={detail.children}
             onTaskSelect={onTaskSelect}
           />
@@ -117,56 +119,6 @@ function RuntimeActivityNode({ index, label, primary, secondary, tone }: { index
   )
 }
 
-export function AgentControlledProof({ proof, detail }: { proof: Awaited<ReturnType<typeof getAgentControlledProof>>; detail: ProofRunDetail | null }) {
-  const { text } = useI18n()
-  const navigate = useNavigate()
-  return (
-    <section className="agent-controlled-proof">
-      <div className="agent-proof-seal"><BookOpenCheck size={17} /><span>FROZEN PROOF</span></div>
-      <div className="agent-proof-copy">
-        <small>{text('AGENT 受控运行回归', 'AGENT CONTROLLED RUNTIME REGRESSION')}</small>
-        <strong>{proof.suite_ref}</strong>
-        <span>{text('这组结果来自 M5 frozen controlled benchmark；它证明机制，不代表当前 LIVE Agent 成功率。', 'This result comes from the frozen M5 controlled benchmark. It proves mechanisms, not the current LIVE Agent success rate.')}</span>
-      </div>
-      <div className="agent-proof-score"><strong>{proof.cases.length}/{proof.cases.length}</strong><small>CONTROLLED CASES</small></div>
-      <div className="agent-proof-cases">
-        {proof.cases.map((item) => <AgentProofCase key={item.case_id} item={item} proof={proof} detail={detail} />)}
-      </div>
-      <button className="agent-proof-open" onClick={() => navigate(`/observatory?mode=proof&run=${encodeURIComponent(proof.benchmark_run_id)}`)}>{text('打开完整冻结 Run', 'OPEN FULL FROZEN RUN')}</button>
-    </section>
-  )
-}
-
-function AgentProofCase({ item, proof, detail }: { item: AgentControlledProofCase; proof: Awaited<ReturnType<typeof getAgentControlledProof>>; detail: ProofRunDetail | null }) {
-  const navigate = useNavigate()
-  const metric = Object.entries(item.metrics)[0]
-  const taskCoordinate = item.task_run_ids[0] ?? null
-  const caseRun = detail?.cases.find((candidate) => candidate.case_ref.split('@', 1)[0] === item.case_id) ?? null
-  return (
-    <button
-      type="button"
-      disabled={!caseRun}
-      onClick={() => caseRun && navigate(`/observatory?${new URLSearchParams({ mode: 'proof', run: proof.benchmark_run_id, caseRun: caseRun.case_run_id }).toString()}`)}
-    >
-      <i className="state-passed" />
-      <span>
-        <small>{item.case_id}</small>
-        <strong>{metric ? `${shortMetricName(metric[0])} ${formatProofMetric(metric[1])}` : 'measured'}</strong>
-      </span>
-      <em title={taskCoordinate ?? item.subsystem ?? undefined}>{taskCoordinate ? `Task ${taskCoordinate.slice(0, 8)} · frozen` : item.subsystem ?? 'controlled runtime'}</em>
-    </button>
-  )
-}
-
-function shortMetricName(value: string) {
-  return value.replace(/^agent\./, '').replaceAll('_', ' ').toUpperCase()
-}
-
-function formatProofMetric(value: number) {
-  if (value === 0 || value === 1) return value.toFixed(1)
-  return value.toFixed(3)
-}
-
 export function TaskTopology({ tasks, selectedTask, onSelect, focusedRole }: { tasks: AgentTaskSummary[]; selectedTask: string | null; onSelect: (runId: string) => void; focusedRole: string | null }) {
   const { text } = useI18n()
   const topology = useMemo(() => buildTaskTopology(tasks, selectedTask), [tasks, selectedTask])
@@ -179,7 +131,7 @@ export function TaskTopology({ tasks, selectedTask, onSelect, focusedRole }: { t
           ? <span>{rolePresentation[focusedRole]?.alias ?? focusedRole} / {focusedRole}</span>
           : <><span>ORACLE</span><span>ARGUS</span><span>ALCHEMIST</span></>}
       </div>
-      <div><small>{text('真实 parent / child 关系', 'REAL PARENT / CHILD LINKS ONLY')}</small><strong>{text(`${topology.nodes.length} 个可见节点 · ${topology.edges.length} 条委派关系`, `${topology.nodes.length} visible nodes · ${topology.edges.length} delegation links`)}</strong></div>
+      <div><small>{text('委派与执行步骤', 'DELEGATION + EXECUTION STEPS')}</small><strong>{text(`${topology.nodes.length} 个可见节点 · ${topology.edges.length} 条执行关联`, `${topology.nodes.length} visible nodes · ${topology.edges.length} execution links`)}</strong></div>
     </div>
     <div className={`task-topology-canvas ${focusedRole ? 'single-role-topology' : ''}`}>
       {focusedRole
@@ -189,7 +141,7 @@ export function TaskTopology({ tasks, selectedTask, onSelect, focusedRole }: { t
         {topology.edges.map((edge) => {
           const active = edge.parent.run_id === selectedTask || edge.child.run_id === selectedTask || Boolean(selectedCase && edge.parent.task.case_id === selectedCase && edge.child.task.case_id === selectedCase)
           const delegating = activeStatuses.has(edge.child.task.status)
-          return <path key={`${edge.parent.run_id}:${edge.child.run_id}`} className={`${active ? 'active' : selectedTask ? 'dimmed' : ''} ${delegating ? 'delegating' : 'frozen'}`} d={`M ${edge.parent.x} ${edge.parent.y} C ${edge.parent.x} ${(edge.parent.y + edge.child.y) / 2}, ${edge.child.x} ${(edge.parent.y + edge.child.y) / 2}, ${edge.child.x} ${edge.child.y}`} />
+          return <path key={`${edge.parent.run_id}:${edge.child.run_id}`} className={`${active ? 'active' : selectedTask ? 'dimmed' : ''} ${delegating ? 'delegating' : 'settled'}`} d={`M ${edge.parent.x} ${edge.parent.y} C ${edge.parent.x} ${(edge.parent.y + edge.child.y) / 2}, ${edge.child.x} ${(edge.parent.y + edge.child.y) / 2}, ${edge.child.x} ${edge.child.y}`} />
         })}
       </svg>
       {topology.nodes.map((node) => {
@@ -201,13 +153,13 @@ export function TaskTopology({ tasks, selectedTask, onSelect, focusedRole }: { t
           style={{ left: `${node.x}%`, top: `${node.y}%` }}
           onClick={() => onSelect(task.run_id)}
           initial={{ opacity: 0, scale: .75 }}
-          animate={{ opacity: related ? 1 : .2, scale: task.run_id === selectedTask ? 1.1 : 1 }}
+          animate={{ opacity: related ? 1 : .68, scale: task.run_id === selectedTask ? 1.1 : 1 }}
           transition={{ type: 'spring', stiffness: 230, damping: 25 }}
           title={`${task.role_id} · ${task.task_kind} · ${task.status}`}
         >
           <span className="task-crystal-core" />
           <span className="task-crystal-copy"><small>{rolePresentation[task.role_id]?.alias ?? task.role_id}</small><strong>{shortTaskKind(task.task_kind)}</strong><em>{task.status}</em></span>
-          {task.parent_run_id && <GitFork size={10} className="task-child-mark" />}
+          {(task.parent_run_id || task.predecessor_run_id) && <GitFork size={10} className="task-child-mark" />}
         </motion.button>
       })}
       {topology.nodes.length === 0 && <div className="task-topology-empty">{text('当前读取窗口没有 durable TaskRun。', 'No durable TaskRun in current read window.')}</div>}
@@ -225,14 +177,16 @@ function buildTaskTopology(tasks: AgentTaskSummary[], selectedTask: string | nul
 
   if (selected) {
     chosen.set(selected.run_id, selected)
-    if (selected.parent_run_id && allById.has(selected.parent_run_id)) chosen.set(selected.parent_run_id, allById.get(selected.parent_run_id)!)
+    const preceding = selected.parent_run_id ?? selected.predecessor_run_id
+    if (preceding && allById.has(preceding)) chosen.set(preceding, allById.get(preceding)!)
     for (const task of tasks) if (task.parent_run_id === selected.run_id || (selected.case_id && task.case_id === selected.case_id)) chosen.set(task.run_id, task)
   }
   for (const task of tasks) if (activeStatuses.has(task.status)) chosen.set(task.run_id, task)
   for (const task of tasks) {
     if (chosen.size >= 14) break
-    if (task.parent_run_id && allById.has(task.parent_run_id)) {
-      chosen.set(task.parent_run_id, allById.get(task.parent_run_id)!)
+    const preceding = task.parent_run_id ?? task.predecessor_run_id
+    if (preceding && allById.has(preceding)) {
+      chosen.set(preceding, allById.get(preceding)!)
       chosen.set(task.run_id, task)
     }
   }
@@ -276,8 +230,9 @@ function buildTaskTopology(tasks: AgentTaskSummary[], selectedTask: string | nul
   const nodeById = new Map(nodes.map((node) => [node.run_id, node]))
   const edges: TaskTopologyEdge[] = []
   for (const node of nodes) {
-    if (!node.task.parent_run_id) continue
-    const parent = nodeById.get(node.task.parent_run_id)
+    const preceding = node.task.parent_run_id ?? node.task.predecessor_run_id
+    if (!preceding) continue
+    const parent = nodeById.get(preceding)
     if (parent) edges.push({ parent, child: node })
   }
   return { nodes, edges }
@@ -290,12 +245,12 @@ function shortTaskKind(value: string) {
 
 export function TaskCard({ task, selected, onSelect }: { task: AgentTaskSummary; selected: boolean; onSelect: (runId: string) => void }) {
   const { text } = useI18n()
-  const child = Boolean(task.parent_run_id)
+  const relation = task.parent_run_id ? 'CHILD' : task.predecessor_run_id ? 'STEP' : 'ROOT'
   return (
     <button className={`task-ledger-row ${selected ? 'selected' : ''} state-${task.status}`} onClick={() => onSelect(task.run_id)}>
       <span className="task-role-mark">{rolePresentation[task.role_id]?.alias.slice(0, 2) ?? 'RT'}</span>
-      <span className="task-main"><small>{task.role_id} · {child ? 'CHILD' : 'ROOT'}</small><strong>{humanize(task.task_kind)}</strong><em>{task.last_event_type ?? text('无事件', 'no event')} · {text(`${task.event_count} 个 events`, `${task.event_count} events`)}</em></span>
-      <span className="task-tail"><b>{task.status}</b>{child ? <GitFork size={12} /> : <ArrowDownRight size={12} />}</span>
+      <span className="task-main"><small>{task.role_id} · {relation}</small><strong>{humanize(task.task_kind)}</strong><em>{task.last_event_type ?? text('无事件', 'no event')} · {text(`${task.event_count} 个 events`, `${task.event_count} events`)}</em></span>
+      <span className="task-tail"><b>{task.status}</b>{relation === 'ROOT' ? <ArrowDownRight size={12} /> : <GitFork size={12} />}</span>
     </button>
   )
 }
@@ -314,18 +269,20 @@ export function TaskDossier({ detail, onSkillSelect }: { detail: Awaited<ReturnT
         <small>RUN ID</small><strong className="mono">{task.run_id}</strong>
         <div><span>{rolePresentation[task.role_id]?.alias ?? task.role_id}</span><span>{task.role_id}@{task.role_version}</span></div>
       </div>
-      {(task.case_id || task.parent_run_id) && (
+      {(task.case_id || task.parent_run_id || task.predecessor_run_id) && (
         <div className="task-coordinate-links">
           {task.case_id && <button onClick={() => {
             const query = new URLSearchParams({ case: task.case_id!, from: 'task', run: task.run_id })
             navigate(`/investigations?${query.toString()}`)
           }}><Waypoints size={11} /> {text('打开所属 Case', 'OPEN CASE')}<span className="mono">{task.case_id}</span></button>}
+          {task.predecessor_run_id && <button onClick={() => navigate(`/agents?run=${encodeURIComponent(task.predecessor_run_id!)}`)}><Waypoints size={11} /> {text('上一步调查任务', 'PREVIOUS INVESTIGATION TASK')}<span className="mono">{task.predecessor_run_id}</span></button>}
           {task.parent_run_id && <button onClick={() => navigate(`/agents?run=${encodeURIComponent(task.parent_run_id!)}`)}><GitFork size={11} /> {text('打开 Parent Task', 'OPEN PARENT TASK')}<span className="mono">{task.parent_run_id}</span></button>}
         </div>
       )}
       <div className="task-facts">
         <TaskFact label="CASE" value={task.case_id ?? text('独立 Task', 'standalone')} mono />
         <TaskFact label="PARENT" value={task.parent_run_id ?? text('根 Task', 'root task')} mono />
+        <TaskFact label="PREVIOUS STEP" value={task.predecessor_run_id ?? text('无前序执行', 'none')} mono />
         <TaskFact label="STOP REASON" value={task.stop_reason ?? (activeStatuses.has(task.status) ? text('执行中', 'in progress') : text('未指定', 'unspecified'))} />
         <TaskFact label="UPDATED" value={new Date(task.updated_at).toLocaleString()} />
       </div>
@@ -441,7 +398,7 @@ export function TaskDossier({ detail, onSkillSelect }: { detail: Awaited<ReturnT
             <AnimatePresence initial={false}>
               {open && <motion.div className="capability-detail" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
                 <TaskFact label="INVOCATION" value={item.invocation_id} mono />
-                <TaskFact label="POLICY" value={item.policy_decision_ref ?? text('不可用', 'unavailable')} mono />
+                <TaskFact label="POLICY" value={item.policy_decision_ref ?? text('未关联', 'not linked')} mono />
                 <TaskFact label="OUTPUT" value={item.canonical_output_ref ?? text('无', 'none')} mono />
                 <TaskFact label="RAW ARTIFACT" value={item.raw_artifact_ref ?? text('无', 'none')} mono />
                 <TaskFact label="EFFECT RECEIPT" value={item.effect_receipt_ref ?? text('无', 'none')} mono />
