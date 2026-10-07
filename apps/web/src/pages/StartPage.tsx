@@ -16,6 +16,7 @@ import {
   Telescope,
 } from 'lucide-react'
 import { askQuestion, type QuestionResult, type TaskKind } from '../lib/api'
+import { AlchemistBoundary } from '../components/start/AlchemistBoundary'
 import { AdvancedRange, ModeFact, ModeInstrument } from '../components/start/MissionControls'
 import { compactOutcomeRef, missionTargetDossierPath, missionTargetEvidencePath, modeDescriptionEn, modeTitleEn, originToIntelligence, parseMissionTarget, summarizeDecision } from '../lib/startMissionPresentation'
 import { useI18n } from '../lib/i18n'
@@ -290,10 +291,7 @@ export function StartPage() {
           </div>
         </motion.div>
 
-        <div className="alchemist-boundary">
-          <span>ALCHEMIST</span>
-          <small>{text('真实 Enrichment 子任务创建后，ALCHEMIST 进入运行链。', 'ALCHEMIST enters the runtime when a real Enrichment child task is created.')}</small>
-        </div>
+        <AlchemistBoundary caseId={result?.mode === 'accepted' ? result.investigation?.case_id ?? null : null} />
 
         <AnimatePresence>
           {busy && (

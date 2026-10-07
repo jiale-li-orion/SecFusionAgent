@@ -575,6 +575,25 @@ body,
   bottom: 8% !important;
 }
 
+.start-space .alchemist-runtime-link {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  max-width: 250px;
+  padding: 0;
+}
+
+.start-space .alchemist-runtime-link small,
+.start-space .alchemist-runtime-link strong,
+.start-space .alchemist-runtime-link em,
+.start-space .alchemist-runtime-link b {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .start-space .payload-grid,
 .start-space .mission-advanced {
   min-width: 0;

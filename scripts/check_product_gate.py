@@ -219,6 +219,33 @@ def _static_product_gate(results: list[GateResult]) -> None:
     )
     _require_source(
         results,
+        name="start-enrichment-delegation",
+        relative_path="apps/web/src/components/start/AlchemistBoundary.tsx",
+        needles=(
+            "getInvestigationActivity(caseId!)",
+            "event.role_id === 'EnrichmentRole' && event.task_run_id",
+            "getAgentTask(enrichmentRunId!)",
+            "task?.parent_run_id && parent",
+            "No real EnrichmentRole TaskRun has appeared",
+        ),
+        detail=(
+            "START lights ALCHEMIST only from a real EnrichmentRole TaskRun and "
+            "verifies delegated parent state"
+        ),
+    )
+    _require_source(
+        results,
+        name="start-enrichment-wiring",
+        relative_path="apps/web/src/pages/StartPage.tsx",
+        needles=(
+            "<AlchemistBoundary",
+            "result?.mode === 'accepted'",
+            "result.investigation?.case_id",
+        ),
+        detail="START binds the enrichment boundary to the accepted durable Case",
+    )
+    _require_source(
+        results,
         name="evidence-drilldown",
         relative_path="apps/web/src/components/investigations/CaseSurfaces.tsx",
         needles=("EvidenceOverlay", "getEvidence(", "EvidenceButtons"),

@@ -19,6 +19,41 @@
   background: transparent !important;
 }
 
+.start-space .alchemist-boundary.runtime-active {
+  opacity: 1;
+  color: #9d7144;
+  border-left-color: rgba(185, 130, 76, .38);
+  filter: drop-shadow(0 10px 24px rgba(104, 72, 43, .08));
+}
+
+.start-space .alchemist-boundary.delegated-child {
+  color: #b07842;
+  border-left-color: rgba(185, 130, 76, .58);
+}
+
+.start-space .alchemist-runtime-link {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: right;
+  cursor: pointer;
+}
+
+.start-space .alchemist-runtime-link strong {
+  color: currentColor;
+  font-size: 9px;
+  letter-spacing: .08em;
+}
+
+.start-space .alchemist-runtime-link em,
+.start-space .alchemist-runtime-link b {
+  color: #6f655b;
+  font-size: 7px;
+  font-style: normal;
+  font-weight: 500;
+}
+
 /* Product read additions introduced by the current data seams. */
 
 .intelligence-space .enrichment-orbit > svg line.status-resolved {
