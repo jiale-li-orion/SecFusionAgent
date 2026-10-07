@@ -2075,40 +2075,12 @@ body {
   overflow: hidden;
 }
 
-.intelligence-space .intel-search {
-  height: 43px;
-  display: grid;
-  grid-template-columns: 30px 1fr 72px;
-  align-items: center;
-  gap: 5px;
-  padding-left: 10px;
-  border-radius: 0;
-  clip-path: polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);
-}
-
 .intelligence-space .intel-search svg { color: var(--cyan); }
 .intelligence-space .intel-search input {
   border: 0;
   outline: 0;
   background: transparent;
   font: 9px ui-monospace, monospace;
-}
-.intelligence-space .intel-search button {
-  align-self: stretch;
-  border: 0;
-  background: rgba(114,215,255,.035);
-  font-size: 7px;
-  letter-spacing: .1em;
-}
-
-.intelligence-space .intel-layout {
-  margin-top: 18px;
-  border-top: 1px solid var(--hairline);
-}
-
-.intelligence-space .intel-main {
-  padding-right: 18px;
-  transform-style: preserve-3d;
 }
 
 .dossier-hero {
@@ -2149,32 +2121,12 @@ body {
   letter-spacing: .14em;
 }
 
-.intelligence-space .dossier-id strong {
-  letter-spacing: -.03em;
-}
-
-.intelligence-space .dossier-stat {
-  min-height: 62px;
-  display: grid;
-  align-content: center;
-  gap: 3px;
-  padding: 7px 13px;
-  background: transparent; min-width: 72px;
-}
-
 .intelligence-space .dossier-stat small {
   letter-spacing: .1em;
 }
 
 .intelligence-space .dossier-stat strong {
   font-weight: 650; font-size: 24px;
-}
-
-.enrichment-head {
-  min-height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
 }
 
 .enrichment-head > div {
@@ -2218,20 +2170,6 @@ body {
   stroke-dasharray: .4 1.2;
 }
 
-.enrichment-core {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  aspect-ratio: 1;
-  transform: translate(-50%,-50%);
-  display: grid;
-  place-items: center;
-  align-content: center;
-  gap: 4px;
-  border-radius: 50%;
-  cursor: pointer;
-}
-
 .enrichment-core::before,
 .enrichment-core::after {
   content: "";
@@ -2244,16 +2182,6 @@ body {
 
 .enrichment-core small {
   letter-spacing: .13em;
-}
-
-.enrichment-dimension {
-  position: absolute;
-  transform: translate(-50%,-50%);
-  display: grid;
-  grid-template-columns: 22px 1fr;
-  align-content: center;
-  gap: 2px 6px;
-  cursor: pointer;
 }
 
 .enrichment-dimension > span {
@@ -2295,16 +2223,6 @@ body {
   border-radius: 1px;
   border-color: rgba(114,215,255,.14);
   background: rgba(114,215,255,.025);
-}
-
-.intelligence-space .focused-graph-stage {
-  border-radius: 0;
-}
-
-.intelligence-space .graph-relation-node {
-  border-radius: 0;
-  clip-path: polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);
-  border-color: rgba(83,72,54,.12);
 }
 
 .intelligence-space .evidence-inspector {
@@ -2721,9 +2639,6 @@ body {
 .experience-blueprint-stage strong { color: #788489; letter-spacing: .06em; }
 .experience-blueprint-stage small { color: #4b575f; }
 .intel-blueprint { margin-top: 16px; }
-.intel-blueprint-claims { display: grid; grid-template-columns: repeat(4,1fr); }
-.intel-blueprint-claims > div { position: relative; display: grid; grid-template-columns: 28px 1fr; align-content: center; gap: 3px 7px;
-  min-height: 84px; }
 .intel-blueprint-claims > div > span { grid-row: 1 / 4; color: #46525a; font: 6px ui-monospace, monospace; }
 .intel-blueprint-claims small { color: #4f5c64; letter-spacing: .1em; }
 .intel-blueprint-claims strong { color: #7a878a; }
@@ -3100,6 +3015,8 @@ body {
   background: transparent;
 }
 .intelligence-space .intel-layout {
+  margin-top: 18px;
+  border-top: 1px solid var(--hairline);
   background: transparent;
   border-bottom: 0;
 }
@@ -3121,6 +3038,12 @@ body {
 }
 
 .intelligence-space .dossier-stat {
+  min-height: 62px;
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  padding: 7px 13px;
+  background: transparent; min-width: 72px;
   border-left: 0;
   padding-left: 0;
 }
@@ -3132,17 +3055,12 @@ body {
 }
 
 .enrichment-head {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   border-bottom: 0;
   padding-left: 8px;
-}
-
-.intelligence-space .claim-group {
-  padding-left: 8px;
-  break-inside: avoid;
-}
-
-.intelligence-space .relation-section {
-  border: 0;
 }
 
 .investigations-space .case-rail,
@@ -3297,8 +3215,9 @@ body {
   border-left: 1px solid rgba(114,215,255,.08);
 }
 .inspector-head { border-bottom: 0; }
-.intel-blueprint-claims { gap: 14px; border: 0; background: transparent; }
-.intel-blueprint-claims > div {
+.intel-blueprint-claims { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; border: 0; background: transparent; }
+.intel-blueprint-claims > div { position: relative; display: grid; grid-template-columns: 28px 1fr; align-content: center; gap: 3px 7px;
+  min-height: 84px;
   padding: 10px 6px;
   border-left: 1px solid rgba(114,215,255,.06);
   background: linear-gradient(90deg,rgba(114,215,255,.018),transparent);
@@ -3343,12 +3262,30 @@ body {
   padding-left: 14px;
 }
 .enrichment-core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  aspect-ratio: 1;
+  transform: translate(-50%,-50%);
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 4px;
+  border-radius: 50%;
+  cursor: pointer;
   font: inherit;
 }
 .enrichment-constellation.dimension-focused .enrichment-orbit {
   filter: saturate(1.08);
 }
 .enrichment-dimension {
+  position: absolute;
+  transform: translate(-50%,-50%);
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  align-content: center;
+  gap: 2px 6px;
+  cursor: pointer;
   font: inherit;
 }
 .enrichment-dimension.selected {
@@ -4834,10 +4771,9 @@ body {
     display: block;
   }
 }
-.intelligence-space .dossier-hero {
-  border-left-width: 2px;
-}
 .intelligence-space .claim-group {
+  padding-left: 8px;
+  break-inside: avoid;
   margin: 0 0 28px;
   padding-bottom: 12px;
 }
@@ -4845,6 +4781,7 @@ body {
   transform: none;
 }
 .intelligence-space .relation-section {
+  border: 0;
   margin-top: 32px;
   padding-top: 24px;
   border-top: 1px solid rgba(68,61,50,.12);
@@ -5076,6 +5013,7 @@ body {
 }
 
 .intelligence-space .focused-graph-stage {
+  border-radius: 0;
   min-height: 520px;
   background:
     radial-gradient(circle at 50% 48%,rgba(106,91,65,.045),transparent 34%),
@@ -5092,6 +5030,9 @@ body {
 }
 
 .intelligence-space .graph-relation-node {
+  border-radius: 0;
+  clip-path: polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);
+  border-color: rgba(83,72,54,.12);
   color: #403d36;
   background: rgba(244,240,231,.86);
 }
@@ -5854,11 +5795,6 @@ body {
   stroke: rgba(79,73,63,.06);
 }
 
-.intelligence-space .enrichment-core {
-  width: 138px;
-  border: 1px solid rgba(109,92,65,.18);
-}
-
 .intelligence-space .enrichment-core::before,
 .intelligence-space .enrichment-core::after {
   border-color: rgba(105,87,62,.12);
@@ -5880,16 +5816,6 @@ body {
   font-size: 8px;
 }
 
-.intelligence-space .enrichment-dimension {
-  width: 132px;
-  min-height: 44px;
-  padding: 7px 9px 7px 11px;
-  border: 0;
-  border-left: 1px solid rgba(94,81,61,.13);
-  box-shadow: none;
-  backdrop-filter: blur(3px);
-}
-
 .intelligence-space .enrichment-dimension > span {
   color: #a08f74;
   font-size: 8px;
@@ -5901,10 +5827,6 @@ body {
 .intelligence-space .enrichment-dimension small {
   color: #8c867d;
   font-size: 8px;
-}
-.intelligence-space .enrichment-dimension.unknown {
-  filter: none;
-  border-style: dashed;
 }
 
 .intelligence-space .enrichment-dimension:hover,
@@ -6125,6 +6047,8 @@ body {
   }
 }
 .intelligence-space .intel-main {
+  padding-right: 18px;
+  transform-style: preserve-3d;
   position: relative;
 }
 .intelligence-space .intel-main::before {
@@ -9028,6 +8952,14 @@ body {
   background: rgba(7,14,19,.16);
 }
 .intelligence-space .intel-search {
+  height: 43px;
+  display: grid;
+  grid-template-columns: 30px 1fr 72px;
+  align-items: center;
+  gap: 5px;
+  padding-left: 10px;
+  border-radius: 0;
+  clip-path: polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);
   color: #2f312c;
   background: rgba(255,255,255,.34);
   border: 0;
@@ -9045,14 +8977,21 @@ body {
   color: #4c4a43;
 }
 .intelligence-space .intel-search button {
+  align-self: stretch;
+  border: 0;
+  background: rgba(114,215,255,.035);
+  font-size: 7px;
+  letter-spacing: .1em;
   color: #655a46;
   border-left: 1px solid rgba(73,66,54,.10);
 }
 .intelligence-space .dossier-hero {
+  border-left-width: 2px;
   background:
     linear-gradient(90deg,rgba(255,255,255,.38),transparent 68%);
 }
 .intelligence-space .dossier-id strong {
+  letter-spacing: -.03em;
   color: #272a26;
   font-size: clamp(26px,2.6vw,38px);
 }
@@ -9064,17 +9003,28 @@ body {
   background-size: auto,60px 60px,60px 60px;
 }
 .intelligence-space .enrichment-core {
+  width: 138px;
+  border: 1px solid rgba(109,92,65,.18);
   color: #3a3a34;
   background: rgba(248,244,235,.88);
   border-color: rgba(96,79,52,.16);
   box-shadow: 0 20px 46px rgba(66,55,42,.09);
 }
 .intelligence-space .enrichment-dimension {
+  width: 132px;
+  min-height: 44px;
+  padding: 7px 9px 7px 11px;
+  border: 0;
+  border-left: 1px solid rgba(94,81,61,.13);
+  box-shadow: none;
+  backdrop-filter: blur(3px);
   color: #3f4039;
   background: rgba(249,246,238,.83);
   border-color: rgba(78,68,52,.09);
 }
 .intelligence-space .enrichment-dimension.unknown {
+  filter: none;
+  border-style: dashed;
   opacity: .7;
 }
 
