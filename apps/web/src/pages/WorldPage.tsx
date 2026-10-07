@@ -118,6 +118,10 @@ export function WorldPage() {
     setParams(nextParams, { replace: true })
   }
 
+  function openIncident(incidentId: string) {
+    navigate(`/intelligence?${new URLSearchParams({ incident: incidentId, from: 'world', worldRef: `incident:${incidentId}` }).toString()}`)
+  }
+
   function focusHot(item: HotBug) {
     const nextParams = new URLSearchParams(params)
     nextParams.delete('source')
@@ -183,7 +187,7 @@ export function WorldPage() {
           incidents={incidentQuery.data?.items ?? []}
           loading={incidentQuery.isLoading}
           unavailable={incidentQuery.isError}
-          onOpen={(incidentId) => navigate(`/intelligence?${new URLSearchParams({ incident: incidentId, from: 'world', worldRef: `incident:${incidentId}` }).toString()}`)}
+          onOpen={openIncident}
         />
         <div className="world-hero-actions">
           <button onClick={() => navigate('/observatory')}>{text('查看运行证据', 'OPEN RUNTIME PROOF')} <ArrowUpRight size={13} /></button>
@@ -218,12 +222,13 @@ export function WorldPage() {
               freshChanges={oneHour?.fresh_external_changes ?? 0}
               backfillObservations={oneHour?.backfill_observations ?? 0}
               canonicalWrites={oneHour?.canonical_writes ?? 0}
-              durableIncidentCount={incidentQuery.data?.items.length ?? 0}
+              incidents={incidentQuery.data?.items ?? []}
               focusedSource={focusedSource}
               focusedLane={focusedLane}
               focusedHot={Boolean(focusedHot)}
               reduceMotion={!snapshotFresh}
               onSourceFocus={focusSource}
+              onIncidentOpen={openIncident}
             />
           </Suspense>
         ) : (

@@ -175,8 +175,40 @@ def _static_product_gate(results: list[GateResult]) -> None:
         results,
         name="world-durable-incidents",
         relative_path="apps/web/src/components/world/WorldSurfaces.tsx",
-        needles=("DURABLE INCIDENT WORLD", "DURABLE ROWS ONLY", "signals or candidates are not presented as durable incidents"),
-        detail="WORLD exposes durable Incident rows without promoting provisional signal/candidate state",
+        needles=(
+            "DURABLE INCIDENT WORLD",
+            "DURABLE ROWS ONLY",
+            "signals or candidates are not presented as durable incidents",
+        ),
+        detail=(
+            "WORLD exposes durable Incident rows without promoting provisional "
+            "signal/candidate state"
+        ),
+    )
+    _require_source(
+        results,
+        name="world-incident-orbit",
+        relative_path="apps/web/src/components/world/IncidentOrbit3D.tsx",
+        needles=(
+            "candidate:${point.incident.candidate_id}",
+            "incident:${point.incident.incident_id}",
+            "source_diversity_count",
+            "onOpen(point.incident.incident_id)",
+        ),
+        detail=(
+            "WORLD 3D promotion orbit is keyed by durable Incident/Candidate "
+            "coordinates rather than anonymous counts"
+        ),
+    )
+    _require_source(
+        results,
+        name="world-incident-orbit-wiring",
+        relative_path="apps/web/src/pages/WorldPage.tsx",
+        needles=("incidents={incidentQuery.data?.items ?? []}", "onIncidentOpen={openIncident}"),
+        detail=(
+            "WORLD 3D receives the same durable Incident projection used by the "
+            "Product incident surface"
+        ),
     )
     _require_source(
         results,

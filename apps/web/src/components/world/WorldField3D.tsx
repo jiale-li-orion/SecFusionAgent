@@ -1,41 +1,14 @@
 import { useMemo, useRef } from 'react'
 import { Canvas, useFrame, type ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
+import type { IncidentSummary } from '../../lib/api'
+import { DurableIncidentOrbit } from './IncidentOrbit3D'
 
 type CategoryHealth = {
   category: string
   healthy: number
   degraded: number
   blocked: number
-}
-
-function DurableIncidentCrystallization({ count, reduceMotion }: { count: number; reduceMotion: boolean }) {
-  const group = useRef<THREE.Group>(null)
-  const visible = Math.min(7, Math.max(0, count))
-  useFrame((state) => {
-    if (!group.current || reduceMotion || visible === 0) return
-    group.current.rotation.z = Math.sin(state.clock.elapsedTime * .24) * .045
-    group.current.rotation.y = state.clock.elapsedTime * .035
-  })
-  if (visible === 0) return null
-  return (
-    <group ref={group} position={[1.6, -2.05, -.35]}>
-      <mesh rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[1.02, .012, 6, 80]} />
-        <meshBasicMaterial color="#B9824C" transparent opacity={.18} depthWrite={false} />
-      </mesh>
-      {Array.from({ length: visible }, (_, index) => {
-        const angle = index / visible * Math.PI * 2
-        const radius = .46 + (index % 2) * .22
-        return (
-          <mesh key={index} position={[Math.cos(angle) * radius, Math.sin(angle) * radius, (index % 3) * .08]} scale={.085 + (index % 2) * .025}>
-            <dodecahedronGeometry args={[1, 0]} />
-            <meshStandardMaterial color="#B9824C" emissive="#B9824C" emissiveIntensity={.07} roughness={.52} metalness={.18} transparent opacity={.58} />
-          </mesh>
-        )
-      })}
-    </group>
-  )
 }
 
 function SourceFlowMarkers({
@@ -195,24 +168,26 @@ export function WorldField3D({
   freshChanges,
   backfillObservations,
   canonicalWrites,
-  durableIncidentCount,
+  incidents,
   focusedSource,
   focusedLane,
   focusedHot,
   reduceMotion,
   onSourceFocus,
+  onIncidentOpen,
 }: {
   categories: CategoryHealth[]
   categoryActivity: Record<string, CategoryActivity>
   freshChanges: number
   backfillObservations: number
   canonicalWrites: number
-  durableIncidentCount: number
+  incidents: IncidentSummary[]
   focusedSource: string | null
   focusedLane: string | null
   focusedHot: boolean
   reduceMotion: boolean
   onSourceFocus: (source: string) => void
+  onIncidentOpen: (incidentId: string) => void
 }) {
   const health = useMemo(() => new Map(categories.map((item) => [item.category, item])), [categories])
 
@@ -243,7 +218,7 @@ export function WorldField3D({
         <ActivityParticles countFact={freshChanges} ghost={false} reduceMotion={reduceMotion} />
         <ActivityParticles countFact={backfillObservations} ghost reduceMotion={reduceMotion} />
         <CanonicalWriteCrystallization canonicalWrites={canonicalWrites} reduceMotion={reduceMotion} />
-        <DurableIncidentCrystallization count={durableIncidentCount} reduceMotion={reduceMotion} />
+        <DurableIncidentOrbit incidents={incidents} reduceMotion={reduceMotion} onOpen={onIncidentOpen} />
       </Canvas>
     </div>
   )
