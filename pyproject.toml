@@ -20,7 +20,7 @@ dependencies = [
   "pydantic-settings>=2.6,<3",
   "pypdf>=5,<7",
   "redis>=5.2,<6",
-  "selectolax>=0.3,<1",
+  "selectolax>=0.3,<2",
   "sqlalchemy[asyncio]>=2.0,<3",
   "uvicorn[standard]>=0.30,<1",
 ]
