@@ -94,6 +94,21 @@ class WorldOverviewView(BaseModel):
     public_epoch_artifact_integrity_rate: float | None = None
 
 
+class WorldKnowledgeChangeView(BaseModel):
+    change_id: str
+    revision: int
+    committed_at: datetime
+    object_ids: list[str] = Field(default_factory=list)
+    claim_ids: list[str] = Field(default_factory=list)
+    relation_ids: list[str] = Field(default_factory=list)
+    cause_processing_run_id: str | None = None
+    cause_observation_id: str | None = None
+
+
+class WorldKnowledgeChangeListView(BaseModel):
+    items: list[WorldKnowledgeChangeView] = Field(default_factory=list)
+
+
 class HotBugView(BaseModel):
     source_id: str
     external_object_id: str

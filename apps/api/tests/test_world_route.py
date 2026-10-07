@@ -1,9 +1,22 @@
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from datetime import UTC, datetime
+
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from apps.api.dependencies import database_session
 from apps.api.main import create_app
+from apps.runtime_models import register_runtime_models
+from packages.intelligence.storage.knowledge_models import (
+    KnowledgeChangeModel,
+    KnowledgeRevisionModel,
+)
+from packages.shared.db import Base
+
+NOW = datetime(2026, 10, 7, 8, 30, tzinfo=UTC)
 
 
 @pytest.mark.asyncio
@@ -117,3 +130,59 @@ async def test_world_hot_exposes_ranked_product_safe_hot_bug_view(monkeypatch) -
     assert detail_item["pinned"] is True
     assert detail_item["access_count"] == 1.0
     assert "raw_payload" not in detail.text
+
+
+@pytest.mark.asyncio
+async def test_world_knowledge_changes_expose_durable_revision_coordinates() -> None:
+    register_runtime_models()
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with factory() as session, session.begin():
+        revision = KnowledgeRevisionModel(
+            cause_processing_run_id="run-knowledge-1",
+            cause_observation_id=None,
+            committed_at=NOW,
+        )
+        session.add(revision)
+        await session.flush()
+        session.add(
+            KnowledgeChangeModel(
+                change_id="knowledge-change-product-1",
+                revision=revision.revision,
+                changed_ids={
+                    "objects": ["object:1"],
+                    "claims": ["claim:1", "claim:2"],
+                    "relations": ["relation:1"],
+                },
+                cause_processing_run_id="run-knowledge-1",
+                cause_observation_id=None,
+                committed_at=NOW,
+            )
+        )
+
+    app = create_app()
+
+    async def override_session() -> AsyncIterator[AsyncSession]:
+        async with factory() as session:
+            yield session
+
+    app.dependency_overrides[database_session] = override_session
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+        ) as client:
+            response = await client.get("/api/v1/world/knowledge-changes?limit=4")
+
+        assert response.status_code == 200, response.text
+        item = response.json()["items"][0]
+        assert item["revision"] == revision.revision
+        assert item["object_ids"] == ["object:1"]
+        assert item["claim_ids"] == ["claim:1", "claim:2"]
+        assert item["relation_ids"] == ["relation:1"]
+        assert item["cause_processing_run_id"] == "run-knowledge-1"
+        assert item["committed_at"]
+    finally:
+        await engine.dispose()

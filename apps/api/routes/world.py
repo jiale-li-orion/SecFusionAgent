@@ -8,11 +8,14 @@ from fastapi import APIRouter, HTTPException, Query, status
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
 
+from apps.api.dependencies import SessionDep
+from apps.application.queries.world import list_world_knowledge_changes
 from apps.application.views.world import (
     HotBugListView,
     HotBugView,
     WorldCategoryHealthView,
     WorldHealthCountsView,
+    WorldKnowledgeChangeListView,
     WorldOverviewView,
     WorldSeriesPointView,
     WorldSourceHealthView,
@@ -90,6 +93,14 @@ async def world_overview() -> WorldOverviewView:
             "integrity_rate"
         ),
     )
+
+
+@router.get("/knowledge-changes", response_model=WorldKnowledgeChangeListView)
+async def world_knowledge_changes(
+    session: SessionDep,
+    limit: int = Query(default=12, ge=1, le=64),
+) -> WorldKnowledgeChangeListView:
+    return await list_world_knowledge_changes(session, limit=limit)
 
 
 @router.get("/hot", response_model=HotBugListView)
