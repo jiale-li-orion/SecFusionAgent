@@ -4,7 +4,7 @@ from typing import Any
 
 import pytest
 
-from packages.intelligence.hot_cache.contracts import HotBugRecord
+from packages.intelligence.hot_cache.contracts import HotBugCacheEntry, HotBugRecord
 from packages.intelligence.normalization.hot_bug import HotBugIngress
 from packages.intelligence.normalization.nvd import NVDHotBugNormalizer
 from packages.monitoring.hot_window import HotWindowCollector
@@ -26,6 +26,16 @@ class MemoryCache:
 
     async def get(self, source_id: str, external_object_id: str) -> HotBugRecord | None:
         return self.records.get((source_id, external_object_id))
+
+    async def get_entry(
+        self,
+        source_id: str,
+        external_object_id: str,
+    ) -> HotBugCacheEntry | None:
+        record = self.records.get((source_id, external_object_id))
+        if record is None:
+            return None
+        return HotBugCacheEntry(record=record)
 
     async def admit(self, record: HotBugRecord, *, ttl_seconds: int) -> None:
         self.records[(record.source_id, record.external_object_id)] = record

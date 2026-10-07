@@ -877,7 +877,7 @@ def run_gate(api_base: str, web_url: str | None) -> list[GateResult]:
                 allowed_states = {"resolved", "conflict", "unknown", "missing"}
                 if not isinstance(dimensions, list) or len(dimensions) != 12:
                     raise RuntimeError("enrichment-v1 Product state must expose 12 dimensions")
-                states = {
+                states: set[Any] = {
                     item.get("status")
                     for item in dimensions
                     if isinstance(item, dict)

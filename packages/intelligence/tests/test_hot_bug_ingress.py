@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from packages.intelligence.hot_cache.contracts import HotBugRecord
+from packages.intelligence.hot_cache.contracts import HotBugCacheEntry, HotBugRecord
 from packages.intelligence.normalization.hot_bug import HotBugIngress
 from packages.intelligence.normalization.nvd import NVDHotBugNormalizer
 from packages.sources.contracts import AcquisitionTrigger, IngestEnvelope
@@ -22,6 +22,17 @@ class FakeHotBugCache:
 
     async def get(self, source_id: str, external_object_id: str) -> HotBugRecord | None:
         return self.records.get((source_id, external_object_id))
+
+    async def get_entry(
+        self,
+        source_id: str,
+        external_object_id: str,
+    ) -> HotBugCacheEntry | None:
+        key = (source_id, external_object_id)
+        record = self.records.get(key)
+        if record is None:
+            return None
+        return HotBugCacheEntry(record=record, ttl_seconds=self.ttls.get(key))
 
     async def admit(self, record: HotBugRecord, *, ttl_seconds: int) -> None:
         key = (record.source_id, record.external_object_id)

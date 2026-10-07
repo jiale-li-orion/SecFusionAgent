@@ -70,7 +70,9 @@ async def test_redis_hot_cache_ranked_read_uses_existing_hot_signals() -> None:
 
     await cache.touch(first.source_id, first.external_object_id)
     await cache.touch(first.source_id, first.external_object_id)
-    await client.sadd(cache.ACTIVE_KEY, second.cache_key)
+    # redis-py declares SADD as ``Awaitable[int] | int``, so mypy cannot prove
+    # the fake client returns an awaitable. The fake is async at runtime.
+    await cast(Any, client.sadd(cache.ACTIVE_KEY, second.cache_key))
     await cache.pin(third.source_id, third.external_object_id)
 
     entries = await cache.list_ranked(limit=3)

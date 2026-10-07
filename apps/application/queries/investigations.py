@@ -17,6 +17,7 @@ from apps.application.views.investigations import (
     EvidenceNeedSummaryView,
     InvestigationActivitySummaryView,
     InvestigationFindingView,
+    InvestigationOriginScope,
     InvestigationPage,
     InvestigationView,
 )
@@ -186,7 +187,7 @@ class InvestigationQueries:
         )
 
 
-def _origin_scope(principal: str | None) -> str:
+def _origin_scope(principal: str | None) -> InvestigationOriginScope:
     if principal is None:
         return "unknown"
     if principal.startswith("system:benchmark"):
