@@ -46,7 +46,9 @@ The guided product story is URL-addressable. Add `guide=live` to keep the curren
 
 `make product-visual-check` runs Chromium against the live local Product at `http://127.0.0.1:8000/product`. It resolves current Hot / Case / Task / Proof coordinates, checks all six Product spaces at 1440×1000, 1366×768, 1024×768, and 390×844, rejects document-level horizontal overflow or collapsed primary regions, checks the reduced-motion WORLD fallback, and writes review screenshots under `/tmp/secfusion-product-visual`.
 
-Install the browser runtime once with `uv run playwright install chromium`. Keep this gate separate from the fast `make product-check`; run it whenever composition, responsive layout, navigation shell, or cinematic state changes.
+`make product-interaction-check` complements the geometry gate. It hit-tests visible interactive controls so decorative layers cannot silently intercept clicks, then exercises the stateful WORLD time window, START execution-profile / advanced controls, and OBSERVATORY mode switch. Keep both browser gates separate from the fast `make product-check`; run the interaction gate whenever z-index, pointer-event ownership, or interactive composition changes.
+
+Install the browser runtime once with `uv run playwright install chromium`. Run `make product-visual-check` whenever composition, responsive layout, navigation shell, or cinematic state changes.
 
 ## Current product state
 
