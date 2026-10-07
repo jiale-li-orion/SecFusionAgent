@@ -1506,12 +1506,6 @@ body {
   position: relative;
 }
 
-.agent-runtime-readout {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
 .agent-runtime-readout > span {
   width: 7px;
   height: 7px;
@@ -1581,31 +1575,8 @@ body {
   background: linear-gradient(transparent, rgba(168,139,255,.1), transparent);
 }
 
-.role-entity {
-  z-index: 1;
-  align-self: center;
-  cursor: pointer;
-  clip-path: none;
-  border: 0 !important;
-  background: transparent !important;
-  color: inherit;
-  font: inherit;
-  display: grid;
-  grid-template-columns: 132px minmax(0,1fr);
-  align-items: center;
-  gap: 14px;
-  box-shadow: none;
-  text-align: left;
-}
-
 .role-entity.role-live {
   background: radial-gradient(circle at 28% 50%, color-mix(in srgb, currentColor 4%, transparent), transparent 36%);
-}
-
-.role-entity .role-sigil {
-  border-radius: 50%;
-  background: transparent;
-  box-shadow: none;
 }
 
 .role-entity .oracle-sigil {
@@ -1671,20 +1642,6 @@ body {
   line-height: 1.55;
   max-width: 270px;
   font-size: 10.5px; color: #9c98a2;
-}
-
-.role-coordinates span {
-  padding: 3px 5px;
-  font: 5.5px ui-monospace, monospace;
-}
-
-.role-entity-runtime {
-  justify-items: end;
-}
-
-.role-entity-runtime b {
-  color: #d3dbd7;
-  font-weight: 650;
 }
 
 .role-entity-runtime small {
@@ -1950,15 +1907,6 @@ body {
   border-bottom: 1px solid rgba(255,255,255,.035);
 }
 
-.skill-codex,
-.experience-memory {
-  min-width: 0;
-}
-
-.skill-codex .skill-codex-body {
-  border: 0;
-}
-
 .skill-codex .skill-family-list button {
   border-radius: 0;
   border-color: transparent;
@@ -1972,10 +1920,6 @@ body {
   text-align: left;
   min-height: 76px;
   padding: 10px 5px 10px 0;
-}
-
-.skill-codex .skill-record {
-  border-radius: 0;
 }
 
 .skill-codex .skill-status,
@@ -1994,10 +1938,6 @@ body {
   min-height: 76px;
   grid-template-columns: 42px minmax(0,1fr);
   padding: 8px 18px 8px 0;
-}
-
-.experience-memory .experience-arrow {
-  transform: rotate(90deg);
 }
 
 .experience-memory .experience-empty {
@@ -2932,10 +2872,6 @@ body {
 
 .role-entity + .role-entity {
   border-left: 0;
-}
-
-.role-entity::before {
-  height: 1px;
 }
 
 .task-runtime-lens {
@@ -4735,6 +4671,20 @@ body {
   border-left: 1px solid rgba(255,179,92,.05);
 }
 .role-entity {
+  z-index: 1;
+  align-self: center;
+  cursor: pointer;
+  clip-path: none;
+  border: 0 !important;
+  background: transparent !important;
+  color: inherit;
+  font: inherit;
+  display: grid;
+  grid-template-columns: 132px minmax(0,1fr);
+  align-items: center;
+  gap: 14px;
+  box-shadow: none;
+  text-align: left;
   position: absolute;
   min-height: 230px;
   padding: 18px 14px 12px;
@@ -5021,11 +4971,9 @@ body {
   top: 74px;
   transform: translateX(-50%);
 }
-.role-theater::after {
-  border-style: dashed;
-}
 
 .role-entity::before {
+  height: 1px;
   content: "";
   position: absolute;
   inset: 8% 4%;
@@ -5042,6 +4990,9 @@ body {
 }
 
 .role-entity .role-sigil {
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
   width: 122px;
   height: 122px;
   margin: 0;
@@ -5075,12 +5026,15 @@ body {
 }
 
 .role-coordinates span {
+  padding: 3px 5px;
+  font: 5.5px ui-monospace, monospace;
   border: 0;
   border-left: 1px solid rgba(255,255,255,.05);
   background: transparent;
 }
 
 .role-entity-runtime {
+  justify-items: end;
   position: absolute;
   right: 5px;
   bottom: 4px;
@@ -5094,6 +5048,8 @@ body {
 }
 
 .role-entity-runtime b {
+  color: #d3dbd7;
+  font-weight: 650;
   font-size: 24px;
 }
 
@@ -5127,6 +5083,7 @@ body {
 
 .skill-codex,
 .experience-memory {
+  min-width: 0;
   border: 0;
 }
 
@@ -6129,14 +6086,6 @@ body {
   box-shadow: 0 14px 38px rgba(67,91,108,.09);
 }
 
-.skill-codex .skill-family-list::before {
-  display: block;
-  margin: 2px 0 10px 8px;
-  color: #5f586a;
-  font: 7px ui-monospace,monospace;
-  letter-spacing: .16em;
-}
-
 .skill-codex .skill-family-list button strong {
   color: #a6a0ac;
   font-size: 10px;
@@ -6146,26 +6095,6 @@ body {
   color: #5f626c;
   font-size: 7.5px;
   font-style: normal;
-}
-
-.skill-codex .skill-detail {
-  position: relative;
-}
-.skill-codex .skill-detail::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 6px;
-  width: 1px;
-  background: linear-gradient(180deg,rgba(168,139,255,.13),rgba(168,139,255,.025),transparent);
-}
-.skill-codex .skill-detail::after {
-  content: "PROCEDURAL MANUSCRIPT";
-  position: absolute;
-  right: 0;
-  font: 6.5px ui-monospace,monospace;
-  letter-spacing: .13em;
 }
 
 .skill-detail-head {
@@ -6183,6 +6112,7 @@ body {
 }
 
 .skill-codex .skill-record {
+  border-radius: 0;
   position: relative;
   border: 0;
   border-left: 1px solid rgba(168,139,255,.08);
@@ -6199,11 +6129,6 @@ body {
   border-radius: 50%;
   background: #7e6d9a;
   box-shadow: 0 0 12px rgba(168,139,255,.22);
-}
-
-.skill-record-title {
-  grid-template-columns: auto 1fr auto;
-  justify-content: space-between;
 }
 .skill-record-title span,
 .skill-record-title b {
@@ -6234,10 +6159,6 @@ body {
   font-size: 9px;
   line-height: 1.45;
 }
-.experience-memory .experience-pipeline::before {
-  content: "";
-  position: absolute;
-}
 .experience-memory .experience-stage-icon {
   position: relative;
   z-index: 2;
@@ -6264,6 +6185,7 @@ body {
   font: 16px ui-monospace,monospace;
 }
 .experience-memory .experience-arrow {
+  transform: rotate(90deg);
   display: none;
 }
 
@@ -6586,6 +6508,9 @@ body {
   font-size: 8.5px;
 }
 .agent-runtime-readout {
+  display: flex;
+  align-items: center;
+  gap: 20px;
   min-height: 44px;
 }
 .agent-runtime-readout > div small {
@@ -6595,6 +6520,7 @@ body {
   font-size: 15px;
 }
 .role-theater::after {
+  border-style: dashed;
   content: "AGENT MACHINE";
   width: auto;
   height: auto;
@@ -9906,20 +9832,6 @@ body {
   background: rgba(184,95,54,.04);
 }
 
-.experience-list button {
-  appearance: none;
-  display: grid;
-  grid-template-columns: 24px minmax(0,1fr) auto;
-  gap: 8px;
-  align-items: start;
-  padding: 9px 7px;
-  border: 0;
-  border-left: 2px solid transparent;
-  color: #697279;
-  text-align: left;
-  cursor: pointer;
-}
-
 .experience-list button:hover,
 .experience-list button.selected {
   border-left-color: rgba(114,215,255,.34);
@@ -9962,12 +9874,6 @@ body {
   font-weight: 500;
 }
 
-.experience-inspector-head {
-  display: grid;
-  gap: 22px;
-  border-bottom: 1px solid rgba(255,255,255,.04);
-}
-
 .experience-inspector-head > div {
   display: grid;
   gap: 3px;
@@ -9993,13 +9899,6 @@ body {
   overflow-wrap: anywhere;
   color: #667178;
   font-size: 7.5px;
-}
-
-.experience-vector {
-  display: grid;
-  gap: 14px;
-  align-items: start;
-  border-bottom: 1px solid rgba(255,255,255,.03);
 }
 
 .experience-vector > div {
@@ -10435,8 +10334,6 @@ body {
 .dossier-masthead > div:first-child > small { color:#736e65; }
 .dossier-masthead .intel-search { width:100%; margin:0 0 6px; align-self:end; }
 .case-docket-heading h1 span { color:#a99482; }
-.runtime-stage-caption p { font:7px ui-monospace,monospace; letter-spacing:.12em; }
-.runtime-stage-caption h1 { font-weight:650; letter-spacing:-.05em; }
 .runtime-stage-caption h1 span { color:#9487ad; }
 .observatory-switchboard-heading p { font:7px ui-monospace,monospace;
   grid-column: 2;
@@ -10693,9 +10590,6 @@ body {
 }
 .single-role-topology .role-focus-column::before { top: 24%; }
 .single-role-topology .role-focus-column::after { top: 64%; }
-.runtime-focus-enrichmentrole .single-role-topology .role-focus-column {
-  background: linear-gradient(180deg,transparent,rgba(255,179,92,.2) 18%,rgba(255,179,92,.1) 78%,transparent);
-}
 
 .single-role-topology .task-crystal {
   width: 190px;
@@ -10928,19 +10822,6 @@ body {
   color: #4f5960;
   font: 6.5px ui-monospace,monospace;
   font-weight: 500;
-}
-
-.experience-pattern-core {
-  position: relative;
-  display: grid;
-  place-items: center;
-  align-content: center;
-  gap: 5px;
-  padding: 18px;
-  text-align: center;
-  background:
-    radial-gradient(circle at 50% 48%,rgba(168,139,255,.09),transparent 50%),
-    rgba(12,13,19,.38);
 }
 .experience-pattern-core::before,
 .experience-pattern-core::after {
@@ -11318,12 +11199,6 @@ body {
     justify-self: end;
   }
 }
-
-.skill-record {
-  padding: 12px 0 16px;
-  border-top: 1px solid rgba(168,139,255,.06);
-  background: transparent;
-}
 .skill-record.status-validated {
   border-top-color: rgba(201,244,91,.12);
 }
@@ -11332,6 +11207,8 @@ body {
 }
 
 .skill-record-title {
+  grid-template-columns: auto 1fr auto;
+  justify-content: space-between;
   display: flex;
   gap: 18px;
   align-items: start;
@@ -11392,15 +11269,6 @@ body {
   color: #796d62;
   font-size: 8.5px;
   line-height: 1.5;
-}
-
-.skill-record-body {
-  align-items: start;
-}
-
-.skill-governance {
-  display: grid;
-  gap: 9px;
 }
 
 .skill-governance-ref,
@@ -12926,6 +12794,7 @@ body {
     linear-gradient(180deg,transparent 33%,rgba(255,179,92,.03) 33%,rgba(255,179,92,.03) 33.2%,transparent 33.2%,transparent 66.8%,rgba(255,179,92,.03) 66.8%,rgba(255,179,92,.03) 67%,transparent 67%);
 }
 .runtime-focus-enrichmentrole .single-role-topology .role-focus-column {
+  background: linear-gradient(180deg,transparent,rgba(255,179,92,.2) 18%,rgba(255,179,92,.1) 78%,transparent);
   display: none;
 }
 .runtime-focus-enrichmentrole .single-role-topology::after {
@@ -13683,12 +13552,12 @@ body {
   padding-left: 10px;
   border-left: 1px solid rgba(168,139,255,.14);
 }
-.runtime-stage-caption p {
+.runtime-stage-caption p { font:7px ui-monospace,monospace; letter-spacing:.12em;
   margin: 0 0 3px;
   font-size: 7.5px;
   color: #665e72;
 }
-.runtime-stage-caption h1 {
+.runtime-stage-caption h1 { font-weight:650; letter-spacing:-.05em;
   color: #b9b3c1;
   opacity: .82;
 }
@@ -13832,6 +13701,7 @@ body {
 }
 
 .skill-codex .skill-codex-body {
+  border: 0;
   min-height: 500px;
 }
 
@@ -13847,6 +13717,11 @@ body {
 }
 
 .skill-codex .skill-family-list::before {
+  display: block;
+  margin: 2px 0 10px 8px;
+  color: #5f586a;
+  font: 7px ui-monospace,monospace;
+  letter-spacing: .16em;
   content: "FAMILY INDEX";
   margin-left: 0;
 }
@@ -13858,15 +13733,28 @@ body {
 }
 
 .skill-codex .skill-detail {
+  position: relative;
   min-width: 0;
   padding: 0 0 0 8px;
 }
 
 .skill-codex .skill-detail::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 6px;
+  width: 1px;
+  background: linear-gradient(180deg,rgba(168,139,255,.13),rgba(168,139,255,.025),transparent);
   display: none;
 }
 
 .skill-codex .skill-detail::after {
+  content: "PROCEDURAL MANUSCRIPT";
+  position: absolute;
+  right: 0;
+  font: 6.5px ui-monospace,monospace;
+  letter-spacing: .13em;
   top: 4px;
   color: #5b5365;
 }
@@ -13878,6 +13766,9 @@ body {
 }
 
 .skill-record {
+  padding: 12px 0 16px;
+  border-top: 1px solid rgba(168,139,255,.06);
+  background: transparent;
   position: relative;
   padding-left: 24px;
   border-left: 1px solid rgba(168,139,255,.11);
@@ -13896,11 +13787,14 @@ body {
 }
 
 .skill-record-body {
+  align-items: start;
   display: grid;
   margin-top: 18px;
 }
 
 .skill-governance {
+  display: grid;
+  gap: 9px;
   position: relative;
   padding-left: 18px;
   border-left: 1px solid rgba(168,139,255,.07);
@@ -13946,6 +13840,8 @@ body {
 }
 
 .experience-memory .experience-pipeline::before {
+  content: "";
+  position: absolute;
   left: 4%;
   right: 4%;
   top: 40px;
@@ -13975,6 +13871,17 @@ body {
 }
 
 .experience-list button {
+  appearance: none;
+  display: grid;
+  grid-template-columns: 24px minmax(0,1fr) auto;
+  gap: 8px;
+  align-items: start;
+  padding: 9px 7px;
+  border: 0;
+  border-left: 2px solid transparent;
+  color: #697279;
+  text-align: left;
+  cursor: pointer;
   min-height: 78px;
 }
 
@@ -13983,6 +13890,9 @@ body {
 }
 
 .experience-inspector-head {
+  display: grid;
+  gap: 22px;
+  border-bottom: 1px solid rgba(255,255,255,.04);
   grid-template-columns: minmax(0,1fr) 240px;
   min-height: 92px;
   align-items: end;
@@ -14005,10 +13915,24 @@ body {
 }
 
 .experience-pattern-core {
+  position: relative;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 5px;
+  padding: 18px;
+  text-align: center;
+  background:
+    radial-gradient(circle at 50% 48%,rgba(168,139,255,.09),transparent 50%),
+    rgba(12,13,19,.38);
   min-height: 240px;
 }
 
 .experience-vector {
+  display: grid;
+  gap: 14px;
+  align-items: start;
+  border-bottom: 1px solid rgba(255,255,255,.03);
   grid-template-columns: 170px minmax(0,1fr);
   padding: 13px 0;
 }
