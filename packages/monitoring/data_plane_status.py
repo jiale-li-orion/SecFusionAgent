@@ -14,7 +14,6 @@ from zoneinfo import ZoneInfo
 import boto3
 from sqlalchemy import text
 
-from apps.runtime_models import register_runtime_models
 from packages.shared.config import get_settings
 from packages.shared.db import create_engine, create_session_factory
 from packages.sources.inventory import load_source_inventory
@@ -132,7 +131,6 @@ def _artifact_inventory(settings: Any) -> tuple[dict[str, int], int, int]:
 
 
 async def data_plane_status() -> dict[str, Any]:
-    register_runtime_models()
     settings = get_settings()
     inventory = load_source_inventory()
     contract = inventory.monitoring_measurement
