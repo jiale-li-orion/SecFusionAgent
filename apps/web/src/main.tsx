@@ -4,11 +4,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import { I18nProvider } from './lib/i18n'
-import './styles.css'
-import './cinematic.css'
-import './cinematic-seams.css'
-import './surface-authority.css'
-import './layout-authority.css'
+import { AuthProvider } from './components/auth/AuthProvider'
+import './product-foundation.css'
+import './product-spaces.css'
+import './account-space.css'
 
 const productBase = import.meta.env.BASE_URL.replace(/\/$/, '') || '/'
 
@@ -27,7 +26,7 @@ createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <BrowserRouter basename={productBase}>
         <I18nProvider>
-          <App />
+          <AuthProvider><App /></AuthProvider>
         </I18nProvider>
       </BrowserRouter>
     </QueryClientProvider>

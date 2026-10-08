@@ -1,34 +1,36 @@
 import { useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 
-import { type IntelligenceEnrichmentState, type KnowledgeClaim } from '../../lib/api'
+import { type IntelligenceEnrichmentState, type KnowledgeRelation, type KnowledgeClaim } from '../../lib/api'
 import { useI18n } from '../../lib/i18n'
 
 const enrichmentDimensions = [
-  { key: 'identity', label: 'IDENTITY', test: /title|description|status|assigner|identifier|cve/i },
-  { key: 'severity', label: 'SEVERITY', test: /cvss|severity|score/i },
-  { key: 'weakness', label: 'WEAKNESS', test: /weakness|cwe/i },
-  { key: 'product_package', label: 'PRODUCT / PACKAGE', test: /product|package|vendor|component/i },
-  { key: 'version_applicability', label: 'VERSION APPLICABILITY', test: /version|affected|not_affected|fixed|under_investigation|applicab/i },
-  { key: 'fix_remediation', label: 'FIX / REMEDIATION', test: /fix|remediation|patch|upgrade|commit/i },
-  { key: 'exploit_state', label: 'EXPLOIT STATE', test: /exploit|kev|poc|weapon/i },
-  { key: 'exploit_likelihood', label: 'EXPLOIT LIKELIHOOD', test: /epss|likelihood|probab/i },
-  { key: 'advisory_reference', label: 'ADVISORY / REFERENCE', test: /advisory|reference|url|bulletin/i },
-  { key: 'asset_exposure', label: 'ASSET EXPOSURE', test: /asset|exposure|internet|deployment/i },
-  { key: 'research_paper', label: 'RESEARCH / PAPER', test: /research|paper|academic|publication/i },
-  { key: 'incident_context', label: 'INCIDENT CONTEXT', test: /incident|campaign|attack|observed_in_the_wild/i },
+  { key: 'identity', label: 'Identity', zh: '漏洞身份' },
+  { key: 'severity', label: 'Severity', zh: '严重性' },
+  { key: 'weakness', label: 'Weakness', zh: '漏洞类型' },
+  { key: 'product_package', label: 'Product / package', zh: '产品与软件包' },
+  { key: 'version_applicability', label: 'Version applicability', zh: '版本适用性' },
+  { key: 'fix_remediation', label: 'Fix / remediation', zh: '修复与缓解' },
+  { key: 'exploit_state', label: 'Exploit state', zh: '公开利用证据' },
+  { key: 'exploit_likelihood', label: 'Exploit likelihood', zh: '利用可能性' },
+  { key: 'advisory_reference', label: 'Advisory / reference', zh: '公告与参考资料' },
+  { key: 'asset_exposure', label: 'Asset exposure', zh: '资产暴露' },
+  { key: 'research_paper', label: 'Research / paper', zh: '相关研究' },
+  { key: 'incident_context', label: 'Incident context', zh: '事件背景' },
 ] as const
 
 type EnrichmentVisualStatus = IntelligenceEnrichmentState['dimensions'][number]['status'] | 'not_materialized'
 
-export function EnrichmentConstellation({ claims, cveId, state, stateLoading, stateError }: { claims: KnowledgeClaim[]; cveId: string; state: IntelligenceEnrichmentState | null; stateLoading: boolean; stateError: boolean }) {
+export function EnrichmentConstellation({ claims, relations, cveId, state, stateLoading, stateError, onEvidence }: { claims: KnowledgeClaim[]; relations: KnowledgeRelation[]; cveId: string; state: IntelligenceEnrichmentState | null; stateLoading: boolean; stateError: boolean; onEvidence: (ref: string) => void }) {
   const { text } = useI18n()
   const reduceMotion = Boolean(useReducedMotion())
   const [focusedDimension, setFocusedDimension] = useState<string | null>(null)
   const stateByDimension = new Map(state?.dimensions.map((item) => [item.dimension, item]) ?? [])
   const dimensions = enrichmentDimensions.map((dimension, index) => {
-    const matchedClaims = claims.filter((claim) => dimension.test.test(claim.predicate))
     const authoritativeState = stateByDimension.get(dimension.key)
+    const factRefs = new Set(authoritativeState?.accepted_fact_refs ?? [])
+    const matchedClaims = claims.filter(claim => factRefs.has(`claim:${claim.claim_id}`))
+    const matchedRelations = relations.filter(relation => factRefs.has(`relation:${relation.relation_id}`))
     const status: EnrichmentVisualStatus = authoritativeState?.status ?? 'not_materialized'
     const angle = -Math.PI / 2 + (index / enrichmentDimensions.length) * Math.PI * 2
     return {
@@ -36,6 +38,7 @@ export function EnrichmentConstellation({ claims, cveId, state, stateLoading, st
       status,
       authoritativeState,
       matchedClaims,
+      matchedRelations,
       x: 50 + Math.cos(angle) * 40,
       y: 50 + Math.sin(angle) * 37,
     }
@@ -49,14 +52,14 @@ export function EnrichmentConstellation({ claims, cveId, state, stateLoading, st
   return (
     <section className={`enrichment-constellation ${focused ? 'dimension-focused' : ''}`}>
       <div className="enrichment-head">
-        <div><small>ENRICHMENT-V1</small><strong>12-DIMENSION EVIDENCE CONSTELLATION</strong></div>
+        <div><small>{text('证据补全', 'EVIDENCE COVERAGE')}</small><strong>{text('围绕漏洞，已经知道什么', 'What we know about this vulnerability')}</strong></div>
         <span>{stateLoading
-          ? text('解析权威 enrichment state…', 'resolving authoritative enrichment state…')
+          ? text('正在读取证据覆盖…', 'Loading evidence coverage…')
           : stateError
-            ? text('四态读取失败 · 不从 Claim 数量推断', 'four-state read failed · claim counts are not used as status')
+            ? text('暂时无法读取维度状态', 'Dimension states are temporarily unavailable')
             : !state
-              ? text('当前对象尚未形成四态快照', 'four-state snapshot not materialized for this object')
-            : `${counts.resolved} resolved · ${counts.conflict} conflict · ${counts.unknown} unknown · ${counts.missing} missing`}</span>
+              ? text('正在整理这个对象的证据', 'Organizing evidence for this object')
+            : text(`${counts.resolved} 已有证据 · ${counts.conflict} 冲突 · ${counts.unknown} 未知 · ${counts.missing} 待补全`, `${counts.resolved} supported · ${counts.conflict} conflict · ${counts.unknown} unknown · ${counts.missing} missing`)}</span>
       </div>
       <div className="enrichment-orbit">
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
@@ -72,22 +75,22 @@ export function EnrichmentConstellation({ claims, cveId, state, stateLoading, st
           ))}
         </svg>
         <button className="enrichment-core" onClick={() => setFocusedDimension(null)}>
-          <small>CANONICAL</small>
-          <strong>{focused ? focused.label : cveId}</strong>
-          <span>{focused ? enrichmentStatusLabel(focused.status, text) : state ? `WORLD REV ${state.world_revision}` : text(`${claims.length} 条可见 Claims`, `${claims.length} visible claims`)}</span>
+          <small>{text('漏洞档案', 'VULNERABILITY')}</small>
+          <strong>{focused ? text(focused.zh, focused.label) : cveId}</strong>
+          <span>{focused ? enrichmentStatusLabel(focused.status, text) : text('选择维度，查看事实与来源', 'Select a dimension for facts and sources')}</span>
         </button>
         {dimensions.map((item, index) => (
           <motion.button
             key={item.key}
             className={`enrichment-dimension status-${item.status} ${focusedDimension === item.key ? 'selected' : ''} ${focused && focusedDimension !== item.key ? 'dimmed' : ''}`}
-            style={{ left: `${item.x}%`, top: `${item.y}%`, x: '-50%', y: '-50%' }}
+            style={{ left: `${item.x}%`, top: `${item.y}%` }}
             onClick={() => setFocusedDimension((current) => current === item.key ? null : item.key)}
             initial={reduceMotion ? false : { opacity: 0, scale: .82 }}
             animate={{ opacity: focused && focusedDimension !== item.key ? .18 : 1, scale: focusedDimension === item.key ? 1.08 : 1 }}
             transition={{ delay: reduceMotion ? 0 : index * .025, duration: reduceMotion ? 0 : .25 }}
           >
             <span>{String(index + 1).padStart(2, '0')}</span>
-            <strong>{item.label}</strong>
+            <strong>{text(item.zh, item.label)}</strong>
             <small>{enrichmentStatusLabel(item.status, text)}</small>
           </motion.button>
         ))}
@@ -99,19 +102,18 @@ export function EnrichmentConstellation({ claims, cveId, state, stateLoading, st
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 12 }}
             >
-              <small>{focused.key.toUpperCase()} / ENRICHMENT DIMENSION</small>
-              <strong>{focused.label}</strong>
-              <span>{enrichmentStatusLabel(focused.status, text)} · {focused.authoritativeState ? `REV ${focused.authoritativeState.world_revision}` : text('尚无权威 revision', 'NO AUTHORITATIVE REVISION')}</span>
+              <small>{text('维度详情', 'DIMENSION DETAIL')}</small>
+              <strong>{text(focused.zh, focused.label)}</strong>
+              <span>{enrichmentStatusLabel(focused.status, text)}</span>
               <div>
                 {focused.matchedClaims.slice(0, 4).map((claim) => (
-                  <p key={claim.claim_id}><b>{humanize(claim.predicate)}</b>{formatValue(claim.value)}</p>
+                  <div className="dimension-fact" key={claim.claim_id}><p><b>{humanize(claim.predicate)}</b>{formatValue(claim.value)}</p>{claim.evidence.map((ref, index) => <button key={ref.evidence_ref} onClick={() => onEvidence(ref.evidence_ref)}>{text(`查看来源 ${index + 1}`, `View source ${index + 1}`)}</button>)}</div>
                 ))}
-                {focused.matchedClaims.length === 0 && <p><b>{enrichmentStatusLabel(focused.status, text)}</b>{enrichmentStatusExplanation(focused.status, text)}</p>}
-                {focused.authoritativeState?.conflict_refs.length ? <p><b>CONFLICT REFS</b>{focused.authoritativeState.conflict_refs.join(' · ')}</p> : null}
-                {focused.authoritativeState?.attempted_operator_refs.length ? <p><b>ATTEMPTED OPERATORS</b>{focused.authoritativeState.attempted_operator_refs.join(' · ')}</p> : null}
-                {focused.authoritativeState?.blocked_attempt_refs.length ? <p><b>BLOCKED ATTEMPTS</b>{focused.authoritativeState.blocked_attempt_refs.join(' · ')}</p> : null}
+                {focused.matchedRelations.slice(0, 4).map(relation => <div className="dimension-fact" key={relation.relation_id}><p><b>{humanize(relation.relation_type)}</b>{String(relation.target.properties.title ?? relation.target.properties.name ?? relation.target.canonical_key)}</p>{relation.evidence.map((ref, index) => <button key={ref.evidence_ref} onClick={() => onEvidence(ref.evidence_ref)}>{text(`查看来源 ${index + 1}`, `View source ${index + 1}`)}</button>)}</div>)}
+                {focused.matchedClaims.length === 0 && focused.matchedRelations.length === 0 && <p><b>{enrichmentStatusLabel(focused.status, text)}</b>{enrichmentStatusExplanation(focused.status, text)}</p>}
+                {focused.authoritativeState && <details className="dimension-technical"><summary>{text('处理详情', 'Processing details')}</summary><p>REV {focused.authoritativeState.world_revision}</p>{focused.authoritativeState.attempted_operator_refs.length > 0 && <p>{focused.authoritativeState.attempted_operator_refs.join(' · ')}</p>}{focused.authoritativeState.blocked_attempt_refs.length > 0 && <p>{text('受阻尝试', 'Blocked attempts')} · {focused.authoritativeState.blocked_attempt_refs.length}</p>}</details>}
               </div>
-              <em>{text('再次点击该维度以退出聚焦', 'CLICK DIMENSION AGAIN TO RELEASE FOCUS')}</em>
+              <em>{text('再次点击该维度以收起详情', 'Select the dimension again to close details')}</em>
             </motion.aside>
           )}
         </AnimatePresence>
@@ -122,19 +124,19 @@ export function EnrichmentConstellation({ claims, cveId, state, stateLoading, st
 
 
 function enrichmentStatusLabel(status: EnrichmentVisualStatus, text: (zh: string, en: string) => string) {
-  if (status === 'resolved') return text('已解析', 'RESOLVED')
+  if (status === 'resolved') return text('已有证据', 'Supported')
   if (status === 'conflict') return text('冲突', 'CONFLICT')
-  if (status === 'unknown') return text('明确未知', 'EXPLICIT UNKNOWN')
-  if (status === 'missing') return text('缺失', 'MISSING')
-  return text('尚未形成', 'NOT MATERIALIZED')
+  if (status === 'unknown') return text('已查询，仍未知', 'Queried; still unknown')
+  if (status === 'missing') return text('缺少证据', 'Evidence missing')
+  return text('尚未加载', 'Not loaded')
 }
 
 function enrichmentStatusExplanation(status: EnrichmentVisualStatus, text: (zh: string, en: string) => string) {
   if (status === 'unknown') return text('权威查询或成功 operator 已明确返回未知；这与尚未获取证据不同。', 'An authoritative lookup or successful operator explicitly returned unknown; this differs from missing evidence.')
-  if (status === 'missing') return text('当前 world revision 没有满足该维度 completion predicate 的 canonical fact。', 'No canonical fact satisfies this dimension completion predicate at the current world revision.')
-  if (status === 'conflict') return text('当前 canonical facts 形成互不相容的值或适用性状态，冲突被保留。', 'Current canonical facts contain incompatible values or applicability states; the conflict is preserved.')
-  if (status === 'resolved') return text('当前 world revision 已有满足 completion predicate 的 canonical fact。', 'A canonical fact satisfies the completion predicate at the current world revision.')
-  return text('当前对象尚未形成该维度的权威 enrichment state；页面不从可见 Claim 数量推断状态。', 'No authoritative enrichment state has been materialized for this dimension; the UI does not infer status from visible claim count.')
+  if (status === 'missing') return text('尚未收集到支持这一维度的证据，可以在下方选择补全。', 'Supporting evidence has not been collected. Select this dimension below to enrich it.')
+  if (status === 'conflict') return text('来源给出了不同的取值或适用性判断，需要进一步核验。', 'Sources disagree on values or applicability. Further verification is needed.')
+  if (status === 'resolved') return text('已有证据支持这一维度，相关事实可在档案中查看。', 'Evidence supports this dimension. Related facts are available in the dossier.')
+  return text('维度状态正在读取，加载后可查看事实与来源。', 'The dimension state is loading. Facts and sources will become available.')
 }
 
 function humanize(value: string) { return value.replaceAll('_', ' ').replaceAll('-', ' ').toUpperCase() }

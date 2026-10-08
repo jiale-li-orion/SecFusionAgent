@@ -3,231 +3,30 @@ import path from 'node:path'
 import process from 'node:process'
 import postcss from 'postcss'
 
-const layoutFile = path.resolve('src/layout-authority.css')
-const surfaceFile = path.resolve('src/surface-authority.css')
-const cinematicFiles = [
-  path.resolve('src/cinematic.css'),
-  path.resolve('src/cinematic-seams.css'),
-]
-const shorthandExpansion = new Map(Object.entries({
-  margin: ['margin-top', 'margin-right', 'margin-bottom', 'margin-left'],
-  padding: ['padding-top', 'padding-right', 'padding-bottom', 'padding-left'],
-  inset: ['top', 'right', 'bottom', 'left'],
-  overflow: ['overflow-x', 'overflow-y'],
-  border: [
-    'border-top', 'border-right', 'border-bottom', 'border-left',
-    'border-top-color', 'border-right-color', 'border-bottom-color', 'border-left-color',
-    'border-top-style', 'border-right-style', 'border-bottom-style', 'border-left-style',
-    'border-top-width', 'border-right-width', 'border-bottom-width', 'border-left-width',
-  ],
-  background: [
-    'background-color', 'background-image', 'background-position', 'background-size',
-    'background-repeat', 'background-origin', 'background-clip', 'background-attachment',
-  ],
-  font: ['font-style', 'font-variant', 'font-weight', 'font-stretch', 'font-size', 'line-height', 'font-family'],
-  flex: ['flex-grow', 'flex-shrink', 'flex-basis'],
-  transition: ['transition-property', 'transition-duration', 'transition-timing-function', 'transition-delay'],
-  animation: [
-    'animation-name', 'animation-duration', 'animation-timing-function', 'animation-delay',
-    'animation-iteration-count', 'animation-direction', 'animation-fill-mode', 'animation-play-state',
-  ],
-}))
-
-function declarationCovers(laterProperty, earlierProperty) {
-  return laterProperty === earlierProperty
-    || shorthandExpansion.get(laterProperty)?.includes(earlierProperty)
+const activeStyles = ['product-foundation.css', 'product-spaces.css', 'account-space.css']
+const legacyStyles = ['styles.css', 'cinematic.css', 'cinematic-seams.css', 'surface-authority.css', 'layout-authority.css']
+const main = fs.readFileSync(path.resolve('src/main.tsx'), 'utf8')
+const violations = []
+const importedStyles = [...main.matchAll(/import\s+['"]\.\/([^'"]+\.css)['"]/g)].map(match => match[1])
+if (JSON.stringify(importedStyles) !== JSON.stringify(activeStyles)) violations.push('main.tsx must load only the independent foundation, product spaces and account styles, in that order')
+for (const file of legacyStyles) {
+  if (main.includes(`'./${file}'`) || main.includes(`"./${file}"`)) violations.push(`main.tsx still imports the retired ${file}`)
 }
-const visualProperties = new Set([
-  'accent-color',
-  'appearance',
-  'box-shadow',
-  'caret-color',
-  'color',
-  'cursor',
-  'fill',
-  'fill-opacity',
-  'font-family',
-  'font-weight',
-  'letter-spacing',
-  'mix-blend-mode',
-  'opacity',
-  'outline',
-  'outline-color',
-  'outline-offset',
-  'outline-style',
-  'outline-width',
-  'scrollbar-color',
-  'scrollbar-width',
-  'stroke',
-  'stroke-opacity',
-  'stroke-width',
-  'text-decoration',
-  'text-decoration-color',
-  'text-decoration-line',
-  'text-decoration-style',
-  'text-shadow',
-  'text-transform',
-])
-
-function canonicalProperty(property) {
-  return property.replace(/^-(?:webkit|moz|ms|o)-/, '')
-}
-
-function atRuleContext(node) {
-  const context = []
-  for (let parent = node.parent; parent && parent.type !== 'root'; parent = parent.parent) {
-    if (parent.type === 'atrule') context.push(`@${parent.name} ${parent.params}`)
-  }
-  return context.reverse().join(' > ')
-}
-
-function declarationIndex(file) {
-  const root = postcss.parse(fs.readFileSync(file, 'utf8'), { from: file })
-  const index = new Map()
-  root.walkRules((rule) => {
-    const context = atRuleContext(rule)
-    for (const selector of rule.selectors) {
-      const key = `${context}\n${selector.trim()}`
-      let properties = index.get(key)
-      if (!properties) {
-        properties = new Map()
-        index.set(key, properties)
-      }
-      for (const declaration of rule.nodes.filter((node) => node.type === 'decl')) {
-        properties.set(declaration.prop, { important: declaration.important })
-      }
+for (const file of activeStyles) {
+  if (!main.includes(`'./${file}'`)) violations.push(`main.tsx does not import ${file}`)
+  const root = postcss.parse(fs.readFileSync(path.resolve('src', file), 'utf8'), { from: file })
+  root.walkAtRules('import', rule => violations.push(`${file}:${rule.source.start.line} imports another CSS cascade`))
+  root.walkDecls(decl => {
+    if (!decl.important) return
+    let allowed = false
+    for (let parent = decl.parent; parent; parent = parent.parent) {
+      if (parent.type === 'atrule' && parent.name === 'media' && parent.params.includes('prefers-reduced-motion')) allowed = true
     }
+    if (!allowed) violations.push(`${file}:${decl.source.start.line} uses !important outside reduced-motion accessibility`)
   })
-  return index
 }
-
-function findDeadCinematicDeclarations() {
-  const authorityIndexes = [declarationIndex(surfaceFile), declarationIndex(layoutFile)]
-  const violations = []
-
-  for (const file of cinematicFiles) {
-    const root = postcss.parse(fs.readFileSync(file, 'utf8'), { from: file })
-    root.walkRules((rule) => {
-      const context = atRuleContext(rule)
-      const selectors = rule.selectors.map((selector) => selector.trim())
-      for (const declaration of rule.nodes.filter((node) => node.type === 'decl')) {
-        const fullyOverridden = selectors.every((selector) => authorityIndexes.some((index) => {
-          const laterDeclarations = index.get(`${context}\n${selector}`)
-          if (!laterDeclarations) return false
-          return [...laterDeclarations.entries()].some(([laterProperty, later]) => (
-            declarationCovers(laterProperty, declaration.prop)
-            && (!declaration.important || later.important)
-          ))
-        }))
-        if (!fullyOverridden) continue
-        violations.push({
-          file,
-          line: declaration.source?.start?.line ?? 0,
-          property: declaration.prop,
-          selector: rule.selector,
-        })
-      }
-    })
-  }
-  return violations
+if (violations.length) {
+  console.error(violations.join('\n'))
+  process.exit(1)
 }
-
-function ownsVisualSemantics(property) {
-  const name = canonicalProperty(property)
-  return visualProperties.has(name)
-    || name === 'background'
-    || name.startsWith('background-')
-    || name === 'border'
-    || name.startsWith('border-')
-    || name === 'filter'
-    || name === 'backdrop-filter'
-    || name === 'animation'
-    || name.startsWith('animation-')
-    || name === 'transition'
-    || name.startsWith('transition-')
-}
-
-function ownsGeometry(property) {
-  const name = canonicalProperty(property)
-  return name === 'display'
-    || name === 'position'
-    || name === 'top'
-    || name === 'right'
-    || name === 'bottom'
-    || name === 'left'
-    || name === 'inset'
-    || name.startsWith('inset-')
-    || name === 'width'
-    || name === 'height'
-    || name.startsWith('min-width')
-    || name.startsWith('max-width')
-    || name.startsWith('min-height')
-    || name.startsWith('max-height')
-    || name === 'margin'
-    || name.startsWith('margin-')
-    || name === 'padding'
-    || name.startsWith('padding-')
-    || name === 'gap'
-    || name === 'row-gap'
-    || name === 'column-gap'
-    || name === 'overflow'
-    || name.startsWith('overflow-')
-    || name === 'z-index'
-    || name === 'box-sizing'
-    || name === 'order'
-    || name === 'transform'
-    || name === 'transform-origin'
-    || name === 'aspect-ratio'
-    || name.startsWith('grid')
-    || name.startsWith('flex')
-    || name.startsWith('align-')
-    || name.startsWith('justify-')
-    || name.startsWith('place-')
-}
-
-function findViolations(file, predicate) {
-  const root = postcss.parse(fs.readFileSync(file, 'utf8'), { from: file })
-  const violations = []
-
-  root.walkDecls((declaration) => {
-    if (!predicate(declaration.prop)) return
-    violations.push({
-      line: declaration.source?.start?.line ?? 0,
-      property: declaration.prop,
-      selector: declaration.parent?.selector ?? '<at-rule>',
-    })
-  })
-
-  return violations
-}
-
-const layoutViolations = findViolations(layoutFile, ownsVisualSemantics)
-const surfaceViolations = findViolations(surfaceFile, ownsGeometry)
-const deadCinematicDeclarations = findDeadCinematicDeclarations()
-
-if (layoutViolations.length === 0 && surfaceViolations.length === 0 && deadCinematicDeclarations.length === 0) {
-  console.log('CSS authority: layout owns geometry; surface owns visual semantics; cinematic carries no exact dead authority overrides.')
-  process.exit(0)
-}
-
-if (layoutViolations.length > 0) {
-  console.error('CSS authority violation: move visual semantics out of layout-authority.css.')
-  for (const violation of layoutViolations) {
-    console.error(`  src/layout-authority.css:${violation.line} ${violation.selector} -> ${violation.property}`)
-  }
-}
-
-if (surfaceViolations.length > 0) {
-  console.error('CSS authority violation: move geometry out of surface-authority.css.')
-  for (const violation of surfaceViolations) {
-    console.error(`  src/surface-authority.css:${violation.line} ${violation.selector} -> ${violation.property}`)
-  }
-}
-
-if (deadCinematicDeclarations.length > 0) {
-  console.error('CSS authority violation: cinematic contains declarations fully shadowed by final authority layers.')
-  for (const violation of deadCinematicDeclarations) {
-    console.error(`  ${path.relative(process.cwd(), violation.file)}:${violation.line} ${violation.selector} -> ${violation.property}`)
-  }
-}
-process.exit(1)
+console.log('CSS authority: independent foundation, product spaces and account styles; legacy cascades are not loaded; no override escalation.')

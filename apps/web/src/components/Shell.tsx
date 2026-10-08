@@ -1,33 +1,31 @@
 import { useDeferredValue, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
-  Activity,
   ArrowUpRight,
-  Bot,
-  BrainCircuit,
   CircleDot,
-  Radar,
   Search,
-  Sparkles,
-  Telescope,
   Waypoints,
   X,
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { BrandMark, ProductGlyph } from './instrument/ProductGlyph'
+import { AccountControl } from './AccountControl'
+import { useAuth } from '../lib/auth'
 import { useI18n } from '../lib/i18n'
 import { getAgentRuntime, getHotWorld, listIncidents, listInvestigations, searchIntelligence } from '../lib/api'
 import { buildCommandItems, buildContextTrace, checkReadiness, shouldSearchGlobalKnowledge, type CommandObjectItem, type CommandObjectKind } from '../lib/shellPresentation'
 
 const nav = [
-  { to: '/', label: 'WORLD', zh: '世界', sub: 'Evidence World', subZh: '证据世界', icon: Radar },
-  { to: '/intelligence', label: 'INTELLIGENCE', zh: '情报', sub: 'Objects & Knowledge', subZh: '对象与知识', icon: BrainCircuit },
-  { to: '/investigations', label: 'INVESTIGATIONS', zh: '调查', sub: 'Continuous Inquiry', subZh: '持续调查', icon: Telescope },
-  { to: '/agents', label: 'AGENTS', zh: '智能体', sub: 'Runtime & Memory', subZh: '运行与记忆', icon: Bot },
-  { to: '/observatory', label: 'OBSERVATORY', zh: '观测', sub: 'Operations & Health', subZh: '运行与健康', icon: Activity },
+  { to: '/', label: 'WORLD', compact: 'WORLD', zh: '世界', sub: 'Evidence World', subZh: '证据世界', kind: 'world' },
+  { to: '/intelligence', label: 'INTELLIGENCE', compact: 'INTEL', zh: '情报', sub: 'Objects & Knowledge', subZh: '对象与知识', kind: 'intelligence' },
+  { to: '/investigations', label: 'INVESTIGATIONS', compact: 'CASES', zh: '调查', sub: 'Continuous Inquiry', subZh: '持续调查', kind: 'investigations' },
+  { to: '/agents', label: 'AGENTS', compact: 'AGENTS', zh: '智能体', sub: 'Runtime & Memory', subZh: '运行与记忆', kind: 'agents' },
+  { to: '/observatory', label: 'OBSERVATORY', compact: 'HEALTH', zh: '观测', sub: 'Operations & Health', subZh: '运行与健康', kind: 'observatory' },
 ]
 
 export function Shell({ children }: { children: React.ReactNode }) {
+  const auth = useAuth()
   const { language, setLanguage, text } = useI18n()
   const navigate = useNavigate()
   const location = useLocation()
@@ -46,8 +44,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
     retry: false,
   })
   const storyHot = useQuery({ queryKey: ['command-hot'], queryFn: () => getHotWorld(8), enabled: searchOpen, staleTime: 20_000 })
-  const storyCases = useQuery({ queryKey: ['command-cases'], queryFn: () => listInvestigations(20), enabled: searchOpen, staleTime: 15_000 })
-  const storyAgents = useQuery({ queryKey: ['command-agents'], queryFn: getAgentRuntime, enabled: searchOpen, staleTime: 15_000 })
+  const storyCases = useQuery({ queryKey: ['command-cases'], queryFn: () => listInvestigations(20), enabled: searchOpen && auth.authenticated, staleTime: 15_000 })
+  const storyAgents = useQuery({ queryKey: ['command-agents'], queryFn: getAgentRuntime, enabled: searchOpen && auth.authenticated, staleTime: 15_000 })
   const commandIncidents = useQuery({ queryKey: ['command-incidents'], queryFn: () => listIncidents(8), enabled: searchOpen, staleTime: 20_000 })
   const commandKnowledge = useQuery({
     queryKey: ['command-knowledge', deferredSearchValue],
@@ -138,7 +136,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <a className="product-skip-link" href="#product-main">{text('跳到产品主内容', 'SKIP TO PRODUCT CONTENT')}</a>
       <aside className="instrument-bar" aria-label={text('SecFusion 产品导航', 'SecFusion product navigation')}>
         <button className="instrument-brand" onClick={() => navigate('/')} aria-label={text('返回 SecFusionAgent 首页', 'SecFusionAgent home')}>
-          <span className="brand-sigil"><Waypoints size={18} /></span>
+          <span className="brand-sigil"><BrandMark /></span>
           <span className="brand-copy">
             <strong>SECFUSION</strong>
             <small>EVIDENCE INTELLIGENCE</small>
@@ -146,21 +144,23 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </button>
 
         <nav className="instrument-nav" aria-label={text('主导航', 'Primary navigation')}>
-          {nav.map(({ to, label, zh, sub, subZh, icon: Icon }) => (
+          {nav.map(({ to, label, compact, zh, sub, subZh, kind }) => (
             <NavLink
               key={to}
               to={to}
               end={to === '/'}
+              aria-label={text(zh, label)}
               onClick={() => setSearchOpen(false)}
               className={({ isActive }) => `instrument-nav-item ${isActive ? 'active' : ''}`}
             >
-              <Icon size={14} strokeWidth={1.7} />
-              <span className="nav-copy"><strong>{language === 'zh' ? zh : label}</strong><small>{language === 'zh' ? subZh : sub}</small></span>
+              <ProductGlyph kind={kind} size={23} />
+              <span className="nav-copy"><strong className="nav-label-full">{text(zh, label)}</strong><strong className="nav-label-compact">{text(zh, compact)}</strong><small>{text(subZh, sub)}</small></span>
             </NavLink>
           ))}
         </nav>
 
         <div className="instrument-actions">
+          <AccountControl />
           <button className="command-trigger" onClick={() => { setCommandIndex(0); setCommandKeyboardActive(false); setSearchOpen(true) }} aria-label={text('打开对象定位', 'Open command search')}>
             <Search size={14} />
             <span>{text('定位对象', 'LOCATE OBJECT')}</span>
@@ -183,14 +183,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
             {readiness.isLoading ? 'SYNC' : readiness.data ? 'READY' : 'DEGRADED'}
           </button>
           <button className="global-start" onClick={() => navigate('/start')}>
-            <span className="global-start-glyph"><Sparkles size={14} /></span>
+            <span className="global-start-glyph"><ProductGlyph kind="start" size={19} /></span>
             <strong>{text('启动任务', 'START')}</strong>
           </button>
         </div>
       </aside>
 
       <div className="shell-scan" aria-hidden="true" />
-      <AnimatePresence>
+      <main id="product-main" className="product-workspace" tabIndex={-1}><div className="studio-topbar"><span><BrandMark size={17} />SECFUSION / <b>{shellSpace.toUpperCase()}</b></span><div className="studio-topbar-actions"><button className="studio-start-action" onClick={() => navigate('/start')} aria-label={text('启动任务', 'Start a task')}><ProductGlyph kind="start" size={19}/><span>{text('启动任务', 'Start')}</span></button><button aria-label={text('搜索情报与调查', 'Search intelligence and investigations')} onClick={() => { setSearchOpen(true); setCommandIndex(0) }}><Search size={14}/>{text('搜索情报与调查', 'Search intelligence & investigations')}<kbd>⌘K</kbd></button></div></div>      <AnimatePresence>
         {contextTrace.length > 1 && (
           <motion.nav
             key={`${location.pathname}:${location.search}`}
@@ -223,7 +223,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </motion.nav>
         )}
       </AnimatePresence>
-      <main id="product-main" className="product-workspace" tabIndex={-1}>{children}</main>
+<div className="studio-page-content">{children}</div></main>
 
       <AnimatePresence>
         {searchOpen && (
@@ -307,8 +307,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
 }
 
 function CommandObjectIcon({ kind }: { kind: CommandObjectKind }) {
-  if (kind === 'CASE') return <Telescope size={14} />
-  if (kind === 'TASK') return <Bot size={14} />
-  if (kind === 'INCIDENT') return <Radar size={14} />
-  return <BrainCircuit size={14} />
+  if (kind === 'CASE') return <ProductGlyph kind="investigations" size={19} />
+  if (kind === 'TASK') return <ProductGlyph kind="agents" size={19} />
+  if (kind === 'INCIDENT') return <ProductGlyph kind="incidents" size={19} />
+  return <ProductGlyph kind="intelligence" size={19} />
 }

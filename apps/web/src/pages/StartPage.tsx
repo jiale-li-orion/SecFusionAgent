@@ -1,6 +1,8 @@
+import { SpaceHeading } from '../components/instrument/SpaceHeading'
 import { SessionHistory } from '../components/SessionHistory'
+import { AccountConversations } from '../components/start/AccountConversations'
 import { useEffect, useMemo, useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion, useReducedMotion } from 'motion/react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
@@ -12,7 +14,8 @@ import {
   SlidersHorizontal,
   Telescope,
 } from 'lucide-react'
-import { askQuestion, getDecision, getInvestigation, type QuestionResult, type TaskKind } from '../lib/api'
+import { askQuestion, cancelInvestigation, getDecision, getInvestigation, type QuestionResult, type TaskKind } from '../lib/api'
+import { MissionTarget } from '../components/start/MissionTarget'
 import { MissionField } from '../components/start/MissionField'
 import { MissionOutcome } from '../components/start/MissionOutcome'
 import { AlchemistBoundary } from '../components/start/AlchemistBoundary'
@@ -28,7 +31,7 @@ const modes = [
     title: '快速回答',
     taskKind: 'lookup' as TaskKind,
     icon: Gauge,
-    description: '当前 Evidence World 已满足回答条件。ORACLE 直接收束现有上下文。',
+    description: '围绕已选对象，用现有证据回答具体问题。',
     tempo: 'interactive',
     durable: 'no durable Case',
     outcome: 'Decision',
@@ -40,7 +43,7 @@ const modes = [
     title: '证据检索',
     taskKind: 'retrieve' as TaskKind,
     icon: ScanSearch,
-    description: '扩大本地检索窗口，把尚未进入当前上下文的 Evidence 拉近。',
+    description: '从本地情报中寻找支撑答案的材料，可从一个问题开始。',
     tempo: 'interactive',
     durable: 'upgrade when needed',
     outcome: 'Decision / escalate',
@@ -52,7 +55,7 @@ const modes = [
     title: '精准核验',
     taskKind: 'verify_version_fix' as TaskKind,
     icon: FlaskConical,
-    description: '围绕版本、修复边界或来源冲突建立 durable Case，ARGUS 按 EvidenceNeed 推进。',
+    description: '核对受影响版本、修复边界、适用性与来源冲突。',
     tempo: 'multi-step',
     durable: 'durable Case',
     outcome: 'Investigation / Decision',
@@ -64,7 +67,7 @@ const modes = [
     title: '深度调查',
     taskKind: 'investigate_incident' as TaskKind,
     icon: Telescope,
-    description: '进入多步追索；Skill、Capability 与 delegated enrichment 按任务状态出现。',
+    description: '围绕已选对象展开多步调查，按证据缺口选择工具和来源。',
     tempo: 'deep runtime',
     durable: 'durable Case',
     outcome: 'Investigation',
@@ -76,7 +79,7 @@ const modes = [
     title: '持续守望',
     taskKind: 'watch_incident' as TaskKind,
     icon: Eye,
-    description: 'Case 进入 waiting；外部世界或依赖变化后，从原状态继续下一次 episode。',
+    description: '持续跟踪已选对象，在新材料或依赖到达后继续调查。',
     tempo: 'waiting',
     durable: 'durable waiting Case',
     outcome: 'Wake episode',
@@ -94,16 +97,24 @@ export function StartPage() {
   const cveParam = params.get('cve')?.toUpperCase() ?? ''
   const objectParam = params.get('object') ?? ''
   const questionParam = params.get('question') ?? ''
+  const targetLabelParam = params.get('targetLabel') ?? ''
   const originSpace = params.get('from')
   const originRef = params.get('origin')
   const reduceMotion = Boolean(useReducedMotion())
-  const [modeId, setModeId] = useState(() => modes.some((mode) => mode.id === profileParam) ? profileParam : 'VERIFY')
-  const [question, setQuestion] = useState(questionParam)
-  const [target, setTarget] = useState(cveParam || (objectParam ? `object:${objectParam}` : ''))
-  const [liveResult, setResult] = useState<QuestionResult | null>(null)
+  const coordinate = JSON.stringify([params.get('session'), params.get('turn'), params.get('case'), params.get('decision'), params.get('request'), profileParam, questionParam, cveParam, objectParam, targetLabelParam])
+  const initialDraft = { coordinate, modeId: modes.some(mode => mode.id === profileParam) ? profileParam : 'RETRIEVE', question: questionParam, targetLabel: targetLabelParam, target: cveParam || (objectParam ? `object:${objectParam}` : '') }
+  const [draftState, setDraft] = useState<typeof initialDraft | null>(null)
+  const { modeId, question, targetLabel, target } = draftState?.coordinate === coordinate ? draftState : initialDraft
+  function updateDraft(values: Partial<typeof initialDraft>) {
+    setDraft(current => ({ ...(current?.coordinate === coordinate ? current : initialDraft), ...values }))
+  }
+  const setModeId = (value: string) => updateDraft({ modeId: value })
+  const setQuestion = (value: string) => updateDraft({ question: value })
+  const setTarget = (value: string) => updateDraft({ target: value })
+  const setTargetLabel = (value: string) => updateDraft({ targetLabel: value })
   const savedDecision = params.get('decision')
   const savedCase = params.get('case')
-  const sessionId = liveResult?.session_id ?? params.get('session') ?? undefined
+  const sessionId = params.get('session') ?? undefined
   const decisionQuery = useQuery({ queryKey: ['decision', savedDecision], queryFn: () => getDecision(savedDecision!), enabled: Boolean(savedDecision), retry: false })
   const caseQuery = useQuery({ queryKey: ['start-case', savedCase], queryFn: () => getInvestigation(savedCase!), enabled: Boolean(savedCase && !savedDecision), retry: false, refetchInterval: (query) => ['active', 'waiting'].includes(query.state.data?.status ?? '') ? 5000 : false })
   const restored: QuestionResult | null = decisionQuery.data ? {
@@ -113,13 +124,13 @@ export function StartPage() {
     mode: 'accepted', investigation: caseQuery.data, session_id: sessionId ?? '',
     execution_profile: caseQuery.data.execution_profile ?? profileParam, request_id: params.get('request') ?? '', turn_index: Number(params.get('turn')) || 1,
   } : null
-  const currentCase = liveResult?.mode === 'accepted' ? caseQuery.data : restored?.investigation ? caseQuery.data : null
+  const currentCase = restored?.investigation ? caseQuery.data : null
   const result: QuestionResult | null = currentCase ? {
-    ...(liveResult ?? restored!),
-    mode: currentCase.latest_decision ? 'completed' : 'accepted',
-    decision: currentCase.latest_decision,
+    ...restored!,
+    mode: currentCase.status === 'resolved' && currentCase.latest_decision ? 'completed' : 'accepted',
+    decision: currentCase.status === 'resolved' ? currentCase.latest_decision : null,
     investigation: currentCase,
-  } : liveResult ?? restored
+  } : restored
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [advancedOpen, setAdvancedOpen] = useState(false)
@@ -132,6 +143,24 @@ export function StartPage() {
   const [agentTurns, setAgentTurns] = useState(8)
   const [toolCalls, setToolCalls] = useState(12)
   const selected = useMemo(() => modes.find((mode) => mode.id === modeId)!, [modeId])
+
+  const cancellation = useMutation({
+    mutationFn: cancelInvestigation,
+    onSuccess: (updated) => {
+      queryClient.setQueryData(['start-case', updated.case_id], updated)
+      void queryClient.invalidateQueries({ queryKey: ['investigations'] })
+      void queryClient.invalidateQueries({ queryKey: ['question-session', sessionId] })
+    },
+  })
+
+  function newSession() {
+    const next = new URLSearchParams(params)
+    ;['session', 'decision', 'case', 'turn', 'request', 'question'].forEach(key => next.delete(key))
+    setQuestion('')
+    setError('')
+    cancellation.reset()
+    setParams(next, { replace: true })
+  }
 
   useEffect(() => {
     document.getElementById('mission-outcome')?.scrollIntoView({ behavior: reduceMotion ? 'instant' : 'smooth', block: 'start' })
@@ -167,7 +196,7 @@ export function StartPage() {
         agentTurns,
         toolCalls,
       })
-      setResult(response)
+      void queryClient.invalidateQueries({ queryKey: ['account-conversations'] })
       if (response.decision || response.investigation) {
         const next = new URLSearchParams(params)
         if (response.mode === 'completed' && response.decision) {
@@ -175,6 +204,7 @@ export function StartPage() {
           next.set('decision', response.decision.decision_id)
           next.delete('case')
         } else if (response.investigation) {
+          queryClient.setQueryData(['start-case', response.investigation.case_id], response.investigation)
           next.set('case', response.investigation.case_id)
           next.delete('decision')
         }
@@ -184,11 +214,12 @@ export function StartPage() {
         next.set('request', response.request_id)
         next.set('profile', modeId)
         next.set('question', question.trim())
+        if (targetLabel) next.set('targetLabel', targetLabel)
         if (parsedTarget) next.set(parsedTarget.kind === 'cve' ? 'cve' : 'object', parsedTarget.value)
         setParams(next, { replace: true })
       }
     } catch (exc) {
-      setError(exc instanceof Error ? exc.message : text('请求失败', 'Request failed'))
+      setError(exc instanceof Error && 'code' in exc && exc.code === 'deadline_exceeded' ? text('本次回答超过了等待时限。可以重试，或在高级选项中增加回答等待时间。', 'The answer exceeded the time limit. Retry or increase the response time in advanced options.') : exc instanceof Error && 'code' in exc && exc.code === 'lifecycle_conflict' && !parsedTarget && !sessionId ? text('现有材料不足以回答这个问题。请在下方选择调查对象，再继续获取证据。', 'The available material is insufficient. Choose an investigation target below to gather more evidence.') : exc instanceof Error ? exc.message : text('请求失败', 'Request failed'))
     } finally {
       setBusy(false)
     }
@@ -196,39 +227,35 @@ export function StartPage() {
 
   return (
     <section
-      className={`start-space profile-${selected.id.toLowerCase()} role-${selected.role.toLowerCase()} ${originSpace && originRef ? 'has-origin' : ''} ${busy ? 'launch-active' : ''}`}
+      className={`start-space studio-start profile-${selected.id.toLowerCase()} role-${selected.role.toLowerCase()} ${originSpace && originRef ? 'has-origin' : ''} ${busy ? 'launch-active' : ''}`}
       data-profile={selected.id}
       data-role={selected.role}
     >
-      <header className="mission-briefing">
-        <div>
-          <p>{text('命名问题，也选择求知的代价', 'NAME THE QUESTION; CHOOSE THE PRICE OF KNOWING')}</p>
-          <h1>{text('启动', 'START')} <span>{text('任务', 'MISSION')}</span></h1>
-          <small>{text(
-            'DIRECT 直接收束，RETRIEVE 扩大证据上下文，VERIFY 建立 durable verification，INVESTIGATE 进入多步追索，WATCH 保持 waiting Case 等待世界变化。',
-            'DIRECT closes from current evidence. RETRIEVE expands local context. VERIFY opens durable verification. INVESTIGATE enters multi-step execution. WATCH keeps a waiting Case ready for world change.',
-          )}</small>
-        </div>
+      <SpaceHeading index="06" eyebrow="START / MISSION CONTROL" title={text('发起探索', 'Start an inquiry')} description={text('定义问题，选择路径。让证据决定下一步。', 'Define the question. Choose a path. Let evidence guide what follows.')}>
         <div className="start-route-legend">
           <span><i className="oracle" />DIRECT / RETRIEVE → ORACLE</span>
           <span><i className="argus" />VERIFY / INVESTIGATE / WATCH → ARGUS</span>
         </div>
-      </header>
+      </SpaceHeading>
+
+      <AccountConversations currentSessionId={sessionId} />
 
       {originSpace && originRef && (
         <div className="mission-origin">
-          <div><small>{text('任务来源坐标', 'MISSION ORIGIN')}</small><strong>{originSpace.toUpperCase()} → {modeId}</strong><span className="mono">{originRef}</span></div>
+          <div><small>{text('正在继续了解', 'CONTINUING FROM')}</small><strong>{targetLabel || target || originSpace.toUpperCase()}</strong></div>
+          {originSpace === 'world' && <button onClick={() => navigate(`/?${new URLSearchParams({ story: originRef })}`)}>{text('返回世界', 'Back to world')}</button>}
           {originSpace === 'intelligence' && <button onClick={() => navigate(originToIntelligence(originRef))}>{text('返回原档案', 'BACK TO DOSSIER')}</button>}
         </div>
       )}
 
-      <MissionField modes={modes} selected={selected} busy={busy} onSelect={(id) => { setModeId(id); setResult(null); setError('') }}>
-        <AlchemistBoundary caseId={result?.mode === 'accepted' ? result.investigation?.case_id ?? null : null} />
+      <div className="vision-start-desk">
+      <MissionField modes={modes} selected={selected} busy={busy} onSelect={(id) => { setModeId(id); setError('') }}>
+        <AlchemistBoundary caseId={result?.investigation?.case_id ?? null} active={['active', 'waiting'].includes(result?.investigation?.status ?? '')} />
       </MissionField>
 
       <div className="payload-deck">
         <div className="payload-deck-head">
-          <div><small>{text('任务载荷', 'MISSION PAYLOAD')}</small><strong>{selected.id} → {selected.role}</strong></div>
+          <div><small>{text('02 / 提出问题', '02 / YOUR QUESTION')}</small><strong>{text(selected.title, modeTitleEn(selected.id))}</strong></div>
           <button className={`advanced-toggle ${advancedOpen ? 'active' : ''}`} onClick={() => setAdvancedOpen((value) => !value)}>
             <SlidersHorizontal size={13} />
             <span>{advancedOpen ? text('收起执行边界', 'HIDE EXECUTION BOUNDS') : text('展开执行边界', 'SHOW EXECUTION BOUNDS')}</span>
@@ -236,19 +263,10 @@ export function StartPage() {
         </div>
 
         <div className="payload-grid">
-          <label className="payload-field target">
-            <span>{sessionId ? text('目标 / 由当前会话继承', 'TARGET / CARRIED BY SESSION') : selected.id === 'RETRIEVE' ? text('目标 / 可选', 'TARGET / OPTIONAL') : text('目标 / 必填', 'TARGET / REQUIRED')}</span>
-            <input
-              className="mono"
-              value={target}
-              onChange={(event) => setTarget(event.target.value)}
-              disabled={Boolean(sessionId) || busy}
-              placeholder="CVE-2026-… / object:<id>"
-            />
-          </label>
+          <MissionTarget value={target} label={targetLabel} optional={Boolean(sessionId) || selected.id === 'RETRIEVE'} disabled={Boolean(sessionId) || busy} onChange={(value, label) => { setTarget(value); setTargetLabel(label); setError('') }} />
 
           <label className="payload-field prompt">
-            <span>{text('问题核心', 'QUESTION')}</span>
+            <span>{text('你想确认什么？', 'What do you want to establish?')}</span>
             <textarea
               value={question}
               onChange={(event) => setQuestion(event.target.value)}
@@ -260,7 +278,7 @@ export function StartPage() {
 
           <button className={`payload-launch role-${selected.role.toLowerCase()}`} onClick={launch} disabled={busy || !question.trim() || (selected.id !== 'RETRIEVE' && !sessionId && !target.trim())}>
             <span><Send size={16} /></span>
-            <small>{busy ? text('请求执行中', 'REQUEST IN FLIGHT') : text(`${selected.role} 接管任务`, `${selected.role} TAKES OWNERSHIP`)}</small>
+            <small>{busy ? text('请求执行中', 'REQUEST IN FLIGHT') : text(selected.role === 'ORACLE' ? '形成有引用的回答' : '创建可持续的调查', selected.role === 'ORACLE' ? 'An answer with citations' : 'A continuing investigation')}</small>
             <strong>{busy ? text('启动中…', 'LAUNCHING…') : sessionId ? text('继续当前会话', 'CONTINUE SESSION') : text(`启动 ${selected.title}`, `START ${modeTitleEn(selected.id)}`)}</strong>
           </button>
         </div>
@@ -300,7 +318,8 @@ export function StartPage() {
           </motion.section>
         )}
 
-        {sessionId && <div className="mission-session-strip"><span>{text('同一会话保留目标与上下文，可切换模式继续追问。', 'Target and context carry across turns. Switch modes to continue.')}</span><button onClick={() => { const next = new URLSearchParams(params); ['session', 'decision', 'case', 'turn', 'request', 'question'].forEach((key) => next.delete(key)); setParams(next, { replace: true }) }} disabled={busy}>{text('开启新会话', 'NEW SESSION')}</button></div>}
+        {sessionId && <div className="mission-session-strip"><span>{text('同一会话保留目标与上下文，可切换模式继续追问。', 'Target and context carry across turns. Switch modes to continue.')}</span><button onClick={newSession} disabled={busy}>{text('开启新会话', 'NEW SESSION')}</button></div>}
+      </div>
       </div>
         {sessionId && <SessionHistory sessionId={sessionId} />}
         {decisionQuery.isLoading && <p role="status">{text('恢复已保存的研判…', 'RESTORING SAVED DECISION…')}</p>}
@@ -321,7 +340,7 @@ export function StartPage() {
                 <small>{text('请求失败', 'REQUEST FAILED')}</small>
                 <strong>{error}</strong>
               </>
-            ) : result ? <MissionOutcome result={result} target={target} /> : null}
+            ) : result ? <MissionOutcome result={result} target={target} cancelling={cancellation.isPending} cancelError={cancellation.error?.message} onCancel={caseId => cancellation.mutate(caseId)} /> : null}
           </motion.div>
         )}
     </section>

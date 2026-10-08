@@ -42,7 +42,6 @@ textarea:focus-visible {
 
 /* Shared semantic atoms. Page geometry and space identity live elsewhere. */
 .lime{ color: var(--lime) !important; }
-.intel-heading{ align-items: center; }
 .claim-list{ display: grid; }
 .claim-copy{ min-width: 0; display: grid; gap: 5px; }
 .claim-copy small{ color: #72808a; font-size: 7px; letter-spacing: .11em; }
@@ -75,24 +74,14 @@ textarea:focus-visible {
 .task-identity > div{ display: flex; justify-content: space-between; color: #72808a; font-size: 8px; }
 .event-seq{ color: #596973; font-size: 7px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 .event-node{ width: 7px; height: 7px; border-radius: 50%; background: var(--violet); box-shadow: 0 0 9px rgba(168,139,255,.23); z-index: 1; }
-.investigation-heading{ align-items: center; }
 .stream-state.stream-live{ color: var(--lime); border-color: rgba(184,243,90,.18); }
 .stream-state.stream-retrying{ color: var(--amber); border-color: rgba(255,191,97,.18); }
-.case-state-badge{ justify-self: end; padding: 5px 7px; border: 1px solid currentColor; border-radius: 999px; color: #829099; font-size: 7px; text-transform: uppercase; letter-spacing: .09em; }
-.case-state-badge.state-active{ color: var(--lime); }
-.case-state-badge.state-waiting{ color: var(--amber); }
-.case-state-badge.state-failed{ color: var(--coral); }
 .finding-evidence{ display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .finding-evidence button{ display: inline-flex; align-items: center; gap: 3px; border: 1px solid rgba(184,243,90,.16); border-radius: 999px; padding: 4px 6px; color: #b7d989; background: rgba(184,243,90,.025); font-size: 6.5px; cursor: pointer; }
 .finding-evidence button:hover{ border-color: rgba(184,243,90,.42); }
 .finding-evidence span{ color: #63705e; font-size: 6.5px; }
 .need-roles{ display: flex; gap: 4px; flex-wrap: wrap; }
 .need-roles span{ padding: 3px 5px; border-radius: 999px; border: 1px solid rgba(100,217,255,.12); color: #7697a2; font-size: 6.5px; }
-.decision-oracle{ display: flex; align-items: center; gap: 10px; position: relative; z-index: 1; }
-.decision-oracle > div:last-child{ display: grid; gap: 3px; }
-.decision-oracle small{ color: #728469; font-size: 7px; letter-spacing: .12em; }
-.decision-oracle strong{ color: #dbe7d0; font-size: 12px; }
-.decision-waiting{ position: relative; z-index: 1; margin: 14px 0 0 55px; color: #778078; font-size: 9px; line-height: 1.55; }
 .decision-content{ display: grid; gap: 7px; margin-top: 13px; position: relative; z-index: 1; }
 .decision-conclusion{ display: grid; grid-template-columns: 28px minmax(0,1fr); gap: 8px; padding: 10px; border-left: 1px solid rgba(184,243,90,.14); }
 .decision-conclusion > span{ color: #607055; font-size: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
@@ -104,7 +93,6 @@ textarea:focus-visible {
 .event-failed .event-symbol, .event-conflict_changed .event-symbol{ color: var(--coral); }
 .event-decision_ready .event-symbol{ color: var(--violet); }
 .event-evidence{ justify-self: start; padding: 3px 5px; border-radius: 999px; border: 1px solid rgba(184,243,90,.1); color: #728766; font-size: 6px; }
-.observatory-heading{ align-items: center; }
 .mode-cursor{ position: absolute; left: 3px; top: 3px; width: calc(50% - 3px); height: 34px; border-radius: 999px; border: 1px solid rgba(184,243,90,.18); background: rgba(184,243,90,.07); box-shadow: inset 0 0 18px rgba(184,243,90,.035); pointer-events: none; }
 .live-metric-icon{ width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; border: 1px solid color-mix(in srgb,currentColor 20%,transparent); background: color-mix(in srgb,currentColor 5%,transparent); }
 .panel-head-icon{ width: 30px; height: 30px; display: grid; place-items: center; border-radius: 9px; color: #84c8da; background: rgba(100,217,255,.045); }
@@ -124,8 +112,6 @@ textarea:focus-visible {
 .unevaluated-dot{ width: 6px; height: 6px; border-radius: 50%; background: var(--amber); }
 .unevaluated-list strong{ color: #b3a997; font-size: 8px; font-family: ui-monospace,SFMono-Regular,Menlo,monospace; }
 .unevaluated-list small{ grid-column: 2; color: #6e675c; font-size: 7px; }
-.case-session-composer.enabled input:focus{ border-color: rgba(184,243,90,.35); box-shadow: 0 0 0 3px rgba(184,243,90,.035); }
-.case-session-composer.disabled{ opacity: .45; }
 .skill-glyph{ width: 31px; height: 31px; display: grid; place-items: center; border-radius: 9px; color: var(--violet); background: rgba(168,139,255,.055); }
 .skill-detail-stack{ display: grid; gap: 12px; }
 .skill-status-stack{ display: flex; gap: 5px; align-items: start; }
@@ -134,7 +120,6 @@ textarea:focus-visible {
 .skill-guards small{ color: #8a765b; font-size: 6.5px; letter-spacing: .1em; }
 .experience-body{ padding: 14px; }
 .case-cancel-error{ margin-top: 4px; max-width: 180px; color: #d98c90; font-size: 7px; font-style: normal; line-height: 1.35; }
-.progressive-narrative{ margin: 0; }
 .relation-section.graph-mode{ padding: 0; }
 .graph-reset{ min-height: 27px; border: 1px solid rgba(190,216,224,.08); border-radius: 999px; padding: 0 8px; background: rgba(255,255,255,.015); color: #687780; font-size: 6.5px; letter-spacing: .07em; cursor: pointer; }
 .graph-reset{ color: #9fa9ad; border-radius: 8px; }

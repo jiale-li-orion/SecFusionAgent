@@ -16,6 +16,7 @@ export type WorldOverview = {
   categories: Array<{ category: string; healthy: number; degraded: number; blocked: number }>
   sources: Array<{
     source_id: string
+    source_name: string | null
     measurement_category: string
     health: string
     latest_scheduled_status: string | null
@@ -81,6 +82,37 @@ export async function getWorldKnowledgeChanges(limit = 12): Promise<{ items: Wor
   return response.json() as Promise<{ items: WorldKnowledgeChange[] }>
 }
 
+export type WorldStory = {
+  story_id: string
+  category: string
+  kind: string
+  happened_at: string
+  observed_at: string
+  published_at: string | null
+  headline: string
+  excerpt: string | null
+  excerpt_origin: string | null
+  facts: Record<string, unknown>
+  evidence: {
+    observation_id: string
+    document_revision_id: string | null
+    external_revision: string | null
+    chunk_id: string | null
+    locator: Record<string, unknown>
+  } | null
+  source_id: string | null
+  source_name: string | null
+  object_id: string | null
+  incident_id: string | null
+  external_ref: string | null
+}
+
+export async function getWorldStories(limit = 10): Promise<{ items: WorldStory[] }> {
+  const response = await fetch(`/api/v1/world/stories?limit=${limit}`)
+  if (!response.ok) throw new Error(`World stories read failed (${response.status})`)
+  return response.json() as Promise<{ items: WorldStory[] }>
+}
+
 export type WorldIncidentCandidate = {
   candidate_id: string
   incident_type: string
@@ -102,6 +134,7 @@ export async function getWorldIncidentCandidates(limit = 24): Promise<{ total: n
 }
 
 export type HotBug = {
+  source_name?: string | null
   source_id: string
   external_object_id: string
   external_revision: string | null
@@ -123,8 +156,18 @@ export type HotBug = {
   ttl_seconds: number | null
 }
 
-export async function getHotWorld(limit = 6): Promise<{ items: HotBug[] }> {
+export async function getHotWorld(limit = 6): Promise<{ resident_total: number; items: HotBug[] }> {
   const response = await fetch(`/api/v1/world/hot?limit=${limit}`)
   if (!response.ok) throw new Error(`Hot world read failed (${response.status})`)
-  return response.json() as Promise<{ items: HotBug[] }>
+  return response.json() as Promise<{ resident_total: number; items: HotBug[] }>
+}
+
+export type WorldFormation = {
+  generated_at: string
+  processing: Array<{ run_id: string; processor_name: string; status: string; started_at: string; finished_at: string | null; source_name: string | null; external_object_id: string | null; committed_at: string | null; revision: number | null }>
+}
+export async function getWorldFormation(): Promise<WorldFormation> {
+  const response = await fetch('/api/v1/world/formation')
+  if (!response.ok) throw new Error(`World formation read failed (${response.status})`)
+  return response.json() as Promise<WorldFormation>
 }

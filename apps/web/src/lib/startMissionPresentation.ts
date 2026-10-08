@@ -44,11 +44,11 @@ export function modeTitleEn(id: string) {
 
 export function modeDescriptionEn(id: string) {
   return ({
-    DIRECT: 'Current Evidence World is sufficient. ORACLE closes directly from the bounded context.',
-    RETRIEVE: 'Expand the local retrieval window and bring additional Evidence into the current context.',
-    VERIFY: 'Open a durable Case around version, fix-boundary, applicability, or source conflict; ARGUS advances by EvidenceNeed.',
-    INVESTIGATE: 'Enter multi-step execution where Skill, Capability, and delegated Enrichment follow task state.',
-    WATCH: 'Keep the Case waiting and resume a new episode when the external world or a dependency changes.',
+    DIRECT: 'Answer a specific question about the selected object using existing evidence.',
+    RETRIEVE: 'Search local intelligence for evidence supporting an answer. Start with a question.',
+    VERIFY: 'Verify affected versions, fix boundaries, applicability and source conflicts.',
+    INVESTIGATE: 'Investigate the selected object across multiple steps, choosing tools and sources around evidence gaps.',
+    WATCH: 'Track the selected object and continue when new evidence or dependencies arrive.',
   } as Record<string, string>)[id] ?? id
 }
 

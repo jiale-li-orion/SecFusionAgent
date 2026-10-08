@@ -1,3 +1,5 @@
+import { productFetch } from './request'
+
 export async function listAgentTasks(input: {
   roleId?: string
   status?: string
@@ -9,7 +11,7 @@ export async function listAgentTasks(input: {
   if (input.status) params.set('status', input.status)
   if (input.caseId) params.set('case_id', input.caseId)
   params.set('limit', String(input.limit ?? 72))
-  const response = await fetch(`/api/v1/tasks?${params.toString()}`)
+  const response = await productFetch(`/api/v1/tasks?${params.toString()}`)
   if (!response.ok) throw new Error(`Task list read failed (${response.status})`)
   return response.json() as Promise<AgentTaskPage>
 }
@@ -140,13 +142,13 @@ export type AgentTaskDetail = {
 }
 
 export async function getAgentRuntime(): Promise<AgentRuntimeOverview> {
-  const response = await fetch('/api/v1/agents/runtime?task_limit=72')
+  const response = await productFetch('/api/v1/agents/runtime?task_limit=72')
   if (!response.ok) throw new Error(`Agent runtime read failed (${response.status})`)
   return response.json() as Promise<AgentRuntimeOverview>
 }
 
 export async function getAgentTask(runId: string): Promise<AgentTaskDetail> {
-  const response = await fetch(`/api/v1/tasks/${encodeURIComponent(runId)}`)
+  const response = await productFetch(`/api/v1/tasks/${encodeURIComponent(runId)}`)
   if (!response.ok) throw new Error(response.status === 404 ? 'Task not found' : `Task read failed (${response.status})`)
   return response.json() as Promise<AgentTaskDetail>
 }
@@ -222,31 +224,31 @@ export type AgentLearningOverview = {
 }
 
 export async function getAgentLearning(): Promise<AgentLearningOverview> {
-  const response = await fetch('/api/v1/agents/learning')
+  const response = await productFetch('/api/v1/agents/learning')
   if (!response.ok) throw new Error(`Agent learning read failed (${response.status})`)
   return response.json() as Promise<AgentLearningOverview>
 }
 
 export async function getAgentSkills(): Promise<ProductSkill[]> {
-  const response = await fetch('/api/v1/agents/skills')
+  const response = await productFetch('/api/v1/agents/skills')
   if (!response.ok) throw new Error(`Agent skills read failed (${response.status})`)
   return response.json() as Promise<ProductSkill[]>
 }
 
 export async function getAgentSkill(skillRef: string): Promise<ProductSkill> {
-  const response = await fetch(`/api/v1/agents/skills/${encodeURIComponent(skillRef)}`)
+  const response = await productFetch(`/api/v1/agents/skills/${encodeURIComponent(skillRef)}`)
   if (!response.ok) throw new Error(response.status === 404 ? 'Skill not found' : `Agent skill read failed (${response.status})`)
   return response.json() as Promise<ProductSkill>
 }
 
 export async function getAgentExperiences(): Promise<ProductExperience[]> {
-  const response = await fetch('/api/v1/agents/experiences')
+  const response = await productFetch('/api/v1/agents/experiences')
   if (!response.ok) throw new Error(`Agent experiences read failed (${response.status})`)
   return response.json() as Promise<ProductExperience[]>
 }
 
 export async function getAgentExperience(experienceRef: string): Promise<ProductExperience> {
-  const response = await fetch(`/api/v1/agents/experiences/${encodeURIComponent(experienceRef)}`)
+  const response = await productFetch(`/api/v1/agents/experiences/${encodeURIComponent(experienceRef)}`)
   if (!response.ok) throw new Error(response.status === 404 ? 'Experience not found' : `Agent experience read failed (${response.status})`)
   return response.json() as Promise<ProductExperience>
 }

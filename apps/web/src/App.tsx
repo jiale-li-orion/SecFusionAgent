@@ -2,6 +2,7 @@ import { Component, Suspense, lazy, type ErrorInfo, type ReactNode } from 'react
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { Shell } from './components/Shell'
+import { RequireAccount } from './components/auth/RequireAccount'
 
 const WorldPage = lazy(() => import('./pages/WorldPage').then((module) => ({ default: module.WorldPage })))
 const StartPage = lazy(() => import('./pages/StartPage').then((module) => ({ default: module.StartPage })))
@@ -9,6 +10,7 @@ const IntelligencePage = lazy(() => import('./pages/IntelligencePage').then((mod
 const InvestigationsPage = lazy(() => import('./pages/InvestigationsPage').then((module) => ({ default: module.InvestigationsPage })))
 const AgentsPage = lazy(() => import('./pages/AgentsPage').then((module) => ({ default: module.AgentsPage })))
 const ObservatoryPage = lazy(() => import('./pages/ObservatoryPage').then((module) => ({ default: module.ObservatoryPage })))
+const AuthPage = lazy(() => import('./pages/AuthPage').then((module) => ({ default: module.AuthPage })))
 
 export default function App() {
   const location = useLocation()
@@ -17,7 +19,7 @@ export default function App() {
   const routeSpace = routeSpaceName(location.pathname)
 
   return (
-    <ProductErrorBoundary key={`${location.pathname}:${location.search}`}>
+    <ProductErrorBoundary key={`${location.pathname}:${location.pathname === '/' ? '' : location.search}`}>
       <Shell>
         <Suspense fallback={<ProductSpaceLoader space={routeSpace} />}>
           <AnimatePresence mode="wait" initial={false}>
@@ -31,10 +33,11 @@ export default function App() {
             >
               <Routes location={location}>
                 <Route path="/" element={<WorldPage />} />
-                <Route path="/start" element={<StartPage key={`start:${location.search}`} />} />
+                <Route path="/auth" element={<AuthPage />} />
+                <Route path="/start" element={<RequireAccount><StartPage key={`start:${location.search}`} /></RequireAccount>} />
                 <Route path="/intelligence" element={<IntelligencePage key={`intelligence:${location.search}`} />} />
-                <Route path="/investigations" element={<InvestigationsPage key={`investigations:${location.search}`} />} />
-                <Route path="/agents" element={<AgentsPage />} />
+                <Route path="/investigations" element={<RequireAccount><InvestigationsPage key={`investigations:${location.search}`} /></RequireAccount>} />
+                <Route path="/agents" element={<RequireAccount><AgentsPage /></RequireAccount>} />
                 <Route path="/observatory" element={<ObservatoryPage key={`observatory:${location.search}`} />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
@@ -83,6 +86,7 @@ class ProductErrorBoundary extends Component<{ children: ReactNode }, ProductErr
 }
 
 function routeSpaceName(pathname: string) {
+  if (pathname.startsWith('/auth')) return 'auth'
   if (pathname.startsWith('/start')) return 'start'
   if (pathname.startsWith('/intelligence')) return 'intelligence'
   if (pathname.startsWith('/investigations')) return 'investigations'
@@ -102,6 +106,7 @@ function routeTransition(pathname: string, reduceMotion = false) {
 
 function ProductSpaceLoader({ space }: { space: ReturnType<typeof routeSpaceName> }) {
   const label = {
+    auth: 'PREPARING YOUR ACCOUNT',
     world: 'RESOLVING EVIDENCE WORLD',
     start: 'PREPARING MISSION CONTROL',
     intelligence: 'OPENING CANONICAL DOSSIER',

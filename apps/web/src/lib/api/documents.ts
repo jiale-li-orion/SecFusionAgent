@@ -17,6 +17,9 @@ export type ProductDocument = {
     parser_version: string
     created_at: string
   } | null
+  source_excerpt: string | null
+  excerpt_chunk_id: string | null
+  excerpt_locator: Record<string, unknown>
   chunk_count: number
   index_status_counts: Record<string, number>
   embedded_chunk_count: number

@@ -1,23 +1,28 @@
+import { RoleSigil } from '../instrument/RoleSigil'
+import { ProductGlyph } from '../instrument/ProductGlyph'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion, useReducedMotion } from 'motion/react'
-import { Activity, BadgeCheck, BrainCircuit, CircleAlert, CircleDot, FileWarning, Link2, MessageSquareText, OctagonX, Orbit, Radar, SearchCheck, Sparkles, TerminalSquare } from 'lucide-react'
+import { Activity, BadgeCheck, BrainCircuit, CircleAlert, CircleDot, FileWarning, Link2, MessageSquareText, OctagonX, Orbit, SearchCheck, Sparkles, TerminalSquare } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 import { askQuestion, cancelInvestigation, evidenceBoundObjectIds, getEvidence, type EvidenceDetail, type InvestigationFinding, type InvestigationView, type ProductRuntimeEvent, type QuestionResult, type TaskKind } from '../../lib/api'
-import { eventState, type CaseStateFocus, type EventCue } from '../../lib/investigationPresentation'
+import { eventState, investigationStopMessage, type CaseStateFocus, type EventCue } from '../../lib/investigationPresentation'
 import { useI18n } from '../../lib/i18n'
 import { DecisionReport } from '../DecisionReport'
 import { SessionHistory } from '../SessionHistory'
 
 const liveStatuses = new Set(['active', 'waiting'])
+const busyEpisodeStatuses = new Set(['submitted', 'queued', 'running', 'waiting_input', 'waiting_dependency'])
 
 export function CaseWorkspace({ investigation, events, eventCue, initialFocus, onEvidence, sessionId, reduceMotion, onFollowUpComplete }: { investigation: InvestigationView; events: ProductRuntimeEvent[]; eventCue: EventCue | null; initialFocus: CaseStateFocus | null; onEvidence: (ref: string) => void; sessionId: string | null; reduceMotion: boolean; onFollowUpComplete: () => void }) {
   const { text } = useI18n()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [followUp, setFollowUp] = useState('')
+  const [conversationMount, setConversationMount] = useState<HTMLElement | null>(null)
+  useEffect(() => { setConversationMount(document.getElementById('case-conversation-mount')) }, [investigation.case_id])
   const [followUpBusy, setFollowUpBusy] = useState(false)
   const [sessionTurns, setSessionTurns] = useState<Array<{ kind: 'user' | 'system'; text: string; result?: QuestionResult }>>([])
   const [cancelBusy, setCancelBusy] = useState(false)
@@ -31,10 +36,13 @@ export function CaseWorkspace({ investigation, events, eventCue, initialFocus, o
   const latestTaskRunId = [...events].reverse().find((event) => event.task_run_id)?.task_run_id ?? null
   const continuationKind = continuationTaskKind(investigation.current_activity.task_kind, investigation.execution_profile)
   const waitingForInput = investigation.current_activity.task_status === 'waiting_input' || investigation.terminal_reason === 'decision_requires_continuation'
+  const episodeBusy = busyEpisodeStatuses.has(investigation.current_activity.task_status ?? '')
+  const continuesSameCase = liveStatuses.has(investigation.case_lifecycle ?? investigation.status) && !episodeBusy
+  const canSubmitFollowUp = Boolean(sessionId && !episodeBusy)
 
   async function sendFollowUp() {
     const question = followUp.trim()
-    if (!question || !sessionId || followUpBusy) return
+    if (!question || !sessionId || episodeBusy || followUpBusy) return
     setFollowUpBusy(true)
     setSessionTurns((current) => [...current, { kind: 'user', text: question }])
     setFollowUp('')
@@ -53,27 +61,67 @@ export function CaseWorkspace({ investigation, events, eventCue, initialFocus, o
     }
   }
   async function cancelCase() {
-    if (cancelBusy || !liveStatuses.has(investigation.status)) return
+    if (cancelBusy || !investigation.can_cancel) return
     setCancelBusy(true)
     setCancelError('')
     try {
       await cancelInvestigation(investigation.case_id)
       onFollowUpComplete()
     } catch (error) {
-      setCancelError(error instanceof Error ? error.message : text('取消 Case 失败', 'Cancel failed'))
+      setCancelError(error instanceof Error ? error.message : text('取消调查 失败', 'Cancel failed'))
     } finally {
       setCancelBusy(false)
     }
   }
 
+  const conversation = (
+      <section className="conversation-shell">
+        <div className="conversation-title"><MessageSquareText size={15} /><div><small>{text('持续交互', 'CONTINUOUS INTERACTION')}</small><strong>{text('调查会话', 'INVESTIGATION SESSION')}</strong></div><span>{sessionId ? text('保留当前调查上下文', 'CONTEXT RETAINED') : text('该历史 Case 没有 Product session', 'NO PRODUCT SESSION FOR THIS HISTORICAL CASE')}</span></div>
+        <div className="conversation-preview">
+          {sessionId && <SessionHistory sessionId={sessionId} />}
+          <div className="system-message"><ProductGlyph kind="agents" size={18} /><ProgressiveReveal text={latestNarrative(events, investigation)} /></div>
+          {sessionTurns.map((turn, index) => <motion.div key={`${turn.kind}:${index}`} className={`session-turn turn-${turn.kind}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}><small>{turn.kind === 'user' ? 'YOU' : 'SECFUSION'}</small><p>{turn.text}</p>{turn.result?.decision && <DecisionReport decision={turn.result.decision} onEvidence={onEvidence} />}</motion.div>)}
+          <div id="case-session-composer" className={`case-session-composer ${sessionId ? 'enabled' : 'disabled'}`}>
+            <div className="case-injection-coordinate">
+              <span className="case-injection-glyph"><TerminalSquare size={13} /></span>
+              <div>
+                <small>{text(continuesSameCase ? '继续当前调查' : '发起后续调查', continuesSameCase ? 'CONTINUE THIS INVESTIGATION' : 'START A FOLLOW-UP INVESTIGATION')}</small>
+                <strong>{investigation.current_activity.actor_role ?? 'InvestigationRole'} · {continuationKind}</strong>
+              </div>
+              <em>{sessionId ? text('会话上下文已保留', 'session context retained') : text('历史 Case 未绑定会话', 'historical case has no session')}</em>
+            </div>
+            <div className="case-injection-channel" aria-hidden="true"><i /><span>{text(continuesSameCase ? '继续写入同一 Case' : '继承目标与历史，创建后续 Case', continuesSameCase ? 'CONTINUE THE SAME CASE' : 'CARRY CONTEXT INTO A FOLLOW-UP CASE')}</span><i /></div>
+            <div className="case-injection-input">
+              <input id="case-followup-input" aria-describedby="case-injection-contract" value={followUp} onChange={(event) => setFollowUp(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void sendFollowUp() } }} disabled={!canSubmitFollowUp || followUpBusy} placeholder={sessionId ? episodeBusy ? text('当前运行回合结束后可追加下一步调查意图', 'Wait for the current runtime episode before adding the next intent') : text('补充信息，或提出下一步调查问题…', 'Inject the next investigation intent…') : text('该历史 Case 没有会话；可从下方重新发起', 'This historical Case has no session; start a follow-up below')} />
+              {sessionId ? <button onClick={() => void sendFollowUp()} disabled={!canSubmitFollowUp || !followUp.trim() || followUpBusy}>{followUpBusy ? text('提交中…', 'ADMITTING…') : text(continuesSameCase ? '继续调查' : '发起后续调查', continuesSameCase ? 'CONTINUE INVESTIGATION' : 'START FOLLOW-UP')}</button> : <button onClick={() => {
+                const target = investigation.target_object_ids[0]
+                const query = new URLSearchParams({ profile: investigation.execution_profile ?? 'INVESTIGATE', from: 'case', origin: `case:${investigation.case_id}` })
+                if (target) query.set('object', target)
+                query.set('question', text(`继续调查：${investigation.goal}`, `Follow up on: ${investigation.goal}`))
+                navigate(`/start?${query.toString()}`)
+              }}>{text('围绕当前目标发起新调查', 'START FROM THIS CASE TARGET')}</button>}
+            </div>
+            <small id="case-injection-contract" className="case-injection-contract">{episodeBusy
+              ? text('当前 InvestigationRole 仍有一个未结束的运行回合。为了避免并发修改同一 Case，系统会等它结束后再接受新的调查回合。', 'An InvestigationRole episode is still active. To avoid concurrent mutation of the same Case, a new investigation episode is admitted only after the current one ends.')
+              : text(continuesSameCase ? '这次追问会继续写入当前 durable Case，并保留既有目标、证据和状态。' : '当前 Case 已经结束；追问会沿同一 session 保留目标和历史，并建立新的 follow-up Case。', continuesSameCase ? 'This follow-up continues the current durable Case while preserving its targets, evidence, and state.' : 'This Case is terminal; a follow-up retains session targets and history, then opens a new follow-up Case.')}</small>
+          </div>
+        </div>
+      </section>
+  )
+
   return (
     <div className="case-workspace-stack">
       <article className="case-hero">
         <div className="case-hero-main">
-          <span className="case-hero-sigil"><Radar size={25} /></span>
-          <div><small>CASE / {investigation.execution_profile ?? 'RUNTIME'} / {investigation.origin_scope.toUpperCase()}</small><strong>{investigation.goal}</strong><span className="mono">{investigation.case_id}</span></div>
+          <span className="case-hero-sigil"><ProductGlyph kind="investigations" size={33} /></span>
+          <div>
+            <small>{investigation.execution_profile ?? 'RUNTIME'} · {investigation.origin_scope.toUpperCase()}</small>
+            <strong>{investigation.goal}</strong>
+            <p>{text(`${investigation.confirmed_findings.length} 条确认事实 · ${investigation.conflicts.length} 条来源冲突 · ${investigation.unknowns.length} 个未决问题 · ${investigation.open_evidence_needs.length} 个证据缺口`, `${investigation.confirmed_findings.length} findings · ${investigation.conflicts.length} conflicts · ${investigation.unknowns.length} unknowns · ${investigation.open_evidence_needs.length} evidence needs`)}</p>
+            <details className="case-technical-coordinate"><summary>{text('技术坐标', 'TECHNICAL COORDINATE')}</summary><span className="mono">CASE {investigation.case_id}</span><span>REV {investigation.revision}</span></details>
+          </div>
         </div>
-        <div className="case-hero-state"><span className={`case-state-badge state-${investigation.status}`}>{investigation.status}</span><strong>REV {investigation.revision}</strong><small>{investigation.current_activity.actor_role ?? 'runtime'} · {investigation.current_activity.phase}</small>{investigation.can_cancel && <button className="case-cancel-button" onClick={() => void cancelCase()} disabled={cancelBusy}><OctagonX size={12} /> {cancelBusy ? text('取消中…', 'CANCELLING…') : text('取消 Case', 'CANCEL CASE')}</button>}{cancelError && <em className="case-cancel-error">{cancelError}</em>}</div>
+        <div className="case-hero-state"><span className={`case-state-badge state-${investigation.status}`}>{investigation.status}</span>{investigation.can_cancel && <button className="case-cancel-button" onClick={() => void cancelCase()} disabled={cancelBusy}><OctagonX size={12} /> {cancelBusy ? text('取消中…', 'CANCELLING…') : text('取消调查', 'CANCEL CASE')}</button>}{cancelError && <em className="case-cancel-error">{cancelError}</em>}</div>
       </article>
       {investigation.target_object_ids.length > 0 && (
         <div className="case-target-strip">
@@ -93,15 +141,16 @@ export function CaseWorkspace({ investigation, events, eventCue, initialFocus, o
         >
           <TerminalSquare size={16} />
           <div>
-            <small>{text('运行终止 / 可诊断失败', 'RUNTIME TERMINATION / DIAGNOSABLE FAILURE')}</small>
-            <strong>{investigation.terminal_reason}</strong>
+            <small>{text('本轮运行已停止', 'EPISODE STOPPED')}</small>
+            <strong>{investigationStopMessage(investigation.terminal_reason, text)}</strong>
+            <details><summary>{text('查看原因代码', 'Reason code')}</summary><code>{investigation.terminal_reason}</code></details>
           </div>
           {latestTaskRunId && (
             <button onClick={() => {
               const query = new URLSearchParams({ run: latestTaskRunId, from: 'case', caseRef: investigation.case_id })
               navigate(`/agents?${query.toString()}`)
             }}>
-              {text('打开 Task Trace', 'OPEN TASK TRACE')}
+              {text('查看执行记录', 'OPEN TASK TRACE')}
             </button>
           )}
         </motion.section>
@@ -152,30 +201,8 @@ export function CaseWorkspace({ investigation, events, eventCue, initialFocus, o
         <DecisionPanel investigation={investigation} onEvidence={onEvidence} />
       </motion.div>
 
-      <section className="conversation-shell">
-        <div className="conversation-title"><MessageSquareText size={15} /><div><small>{text('持续交互', 'CONTINUOUS INTERACTION')}</small><strong>{text('Case 会话', 'CASE SESSION')}</strong></div><span>{sessionId ? text('绑定当前 Case', 'BOUND TO CURRENT CASE') : text('从 START 进入后绑定会话', 'OPEN FROM START TO BIND SESSION')}</span></div>
-        <div className="conversation-preview">
-          {sessionId && <SessionHistory sessionId={sessionId} />}
-          <div className="system-message"><Sparkles size={14} /><ProgressiveReveal text={latestNarrative(events, investigation)} /></div>
-          {sessionTurns.map((turn, index) => <motion.div key={`${turn.kind}:${index}`} className={`session-turn turn-${turn.kind}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}><small>{turn.kind === 'user' ? 'YOU' : 'SECFUSION'}</small><p>{turn.text}</p>{turn.result?.decision && <DecisionReport decision={turn.result.decision} onEvidence={onEvidence} />}</motion.div>)}
-          <div id="case-session-composer" className={`case-session-composer ${sessionId ? 'enabled' : 'disabled'}`}>
-            <div className="case-injection-coordinate">
-              <span className="case-injection-glyph"><TerminalSquare size={13} /></span>
-              <div>
-                <small>{text('继续当前调查', 'CONTINUE THIS INVESTIGATION')}</small>
-                <strong>{investigation.current_activity.actor_role ?? 'InvestigationRole'} · {continuationKind}</strong>
-              </div>
-              <em className="mono">REV {investigation.revision} · {sessionId ? `SESSION ${sessionId.slice(0, 8)}` : 'SESSION UNBOUND'}</em>
-            </div>
-            <div className="case-injection-channel" aria-hidden="true"><i /><span>{text('同一 durable Case', 'SAME DURABLE CASE')}</span><i /></div>
-            <div className="case-injection-input">
-              <input id="case-followup-input" aria-describedby="case-injection-contract" value={followUp} onChange={(event) => setFollowUp(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void sendFollowUp() } }} disabled={!sessionId || followUpBusy} placeholder={sessionId ? text('写入下一步调查意图…', 'Inject the next investigation intent…') : text('从 START 进入调查后绑定 durable session', 'Launch from START to bind a durable session')} />
-              <button onClick={() => void sendFollowUp()} disabled={!sessionId || !followUp.trim() || followUpBusy}>{followUpBusy ? text('准入中…', 'ADMITTING…') : text('继续调查', 'CONTINUE INVESTIGATION')}</button>
-            </div>
-            <small id="case-injection-contract" className="case-injection-contract">{text('追问会保留当前调查的目标、证据和历史记录。', 'Follow-ups retain this investigation’s targets, evidence, and history.')}</small>
-          </div>
-        </div>
-      </section>
+      {conversationMount ? createPortal(conversation, conversationMount) : conversation}
+
     </div>
   )
 }
@@ -194,7 +221,6 @@ function StateColumn({ title, tone, icon: Icon, items, onEvidence, active, dimme
         {items.slice(0, 8).map((item, index) => (
           <motion.article key={`${item.proposition}:${index}`} className="state-item" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
             <strong>{item.proposition}</strong>
-            <small>revision {item.updated_revision}</small>
             <EvidenceButtons refs={item.evidence_refs} onEvidence={onEvidence} />
           </motion.article>
         ))}
@@ -227,12 +253,12 @@ function DecisionPanel({ investigation, onEvidence }: { investigation: Investiga
   const decision = investigation.latest_decision
   return (
     <section className={`decision-panel ${decision ? 'ready' : ''}`}>
-      <div className="decision-oracle"><div className="oracle-mini"><div /><div /><Sparkles size={19} /></div><div><small>ORACLE / DECISION</small><strong>{decision ? text('DECISION 已就绪', 'DECISION READY') : text('等待 Evidence', 'WAITING FOR EVIDENCE')}</strong></div></div>
+      <div className="decision-oracle"><RoleSigil role="DecisionRole" live={false}/><div><small>ORACLE / DECISION</small><strong>{decision ? text('研判已生成', 'DECISION READY') : liveStatuses.has(investigation.status) ? text('研判尚未生成', 'Decision pending') : text('本次调查未生成研判', 'No decision from this investigation')}</strong></div></div>
       {decision ? (
         <div className="decision-content">
           <DecisionReport decision={decision} onEvidence={onEvidence} />
         </div>
-      ) : <p className="decision-waiting">{text('ARGUS 正围绕 EvidenceNeed 推进。证据边界满足后，Decision 收束。', 'ARGUS is advancing around the current EvidenceNeed. Decision closes when the evidence boundary is satisfied.')}</p>}
+      ) : <p className="decision-waiting">{liveStatuses.has(investigation.status) ? text('查看当前进展和证据缺口；运行结束后可补充信息，继续调查。', 'Review progress and evidence needs. Add information after the current episode to continue.') : text('本次运行已经结束。可查看终止原因，或保留已有上下文继续调查。', 'This run has ended. Inspect its stop reason or start a follow-up with the retained context.')}</p>}
     </section>
   )
 }
@@ -299,13 +325,14 @@ export function RadioState({ state }: { state: string }) { return state === 'liv
 function latestNarrative(events: ProductRuntimeEvent[], investigation: InvestigationView) { const latest = events[events.length - 1]; return latest?.summary ?? `${investigation.current_activity.actor_role ?? 'Runtime'} is ${investigation.current_activity.phase}.` }
 
 function ProgressiveReveal({ text }: { text: string }) {
+  const reduced = useReducedMotion()
   return (
     <motion.p
       key={text}
       className="progressive-narrative"
-      initial={{ opacity: .25, clipPath: 'inset(0 100% 0 0)' }}
+      initial={reduced ? false : { opacity: .25, clipPath: 'inset(0 100% 0 0)' }}
       animate={{ opacity: 1, clipPath: 'inset(0 0% 0 0)' }}
-      transition={{ duration: .46, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: reduced ? 0 : .46, ease: [0.22, 1, 0.36, 1] }}
     >
       {text}
     </motion.p>

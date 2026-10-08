@@ -21,13 +21,13 @@ export function SkillFamilyDetail({ family, primaryDetail }: { family: SkillFami
     <div className="skill-record-stack">{records.map((item) => (
       <article key={item.skill_ref} className={`skill-record status-${item.status}`}>
         <div className="skill-record-title">
-          <div><small>{item.source_type}</small><strong>{item.skill_id}@{item.version}</strong><span className="mono">{item.skill_ref}</span></div>
+          <div><small>{item.source_type}</small><strong>{family.label} · v{item.version}</strong><span className="mono">{item.skill_ref}</span></div>
           <b>{item.status}</b>
         </div>
         {item.status === 'candidate' && (
           <div className="skill-candidate-boundary">
             <span>CANDIDATE</span>
-            <p>{text('候选程序仍等待 validation / promotion；页面不把 seed presence 写成在线生效。', 'Candidate procedure awaits validation / promotion; seed presence is not presented as online activation.')}</p>
+            <p>{text('候选版本，尚待验证后启用。', 'Candidate version awaiting validation before activation.')}</p>
           </div>
         )}
         <div className="skill-record-body">
@@ -38,14 +38,14 @@ export function SkillFamilyDetail({ family, primaryDetail }: { family: SkillFami
             {item.fallbacks.length > 0 && <div className="skill-guards"><small>{text('回退路径', 'FALLBACKS')}</small><p>{item.fallbacks.map(presentGuard).join(' · ')}</p></div>}
             {item.stop_conditions.length > 0 && <div className="skill-guards"><small>{text('停止条件', 'STOP CONDITIONS')}</small><p>{item.stop_conditions.map(presentGuard).join(' · ')}</p></div>}
           </section>
-          <aside className="skill-governance">
+          <details className="skill-governance"><summary>{text("验证与来源记录", "Validation and provenance")}</summary>
             <SkillGovernanceRef label="VALIDATION" values={item.validation_ref ? [item.validation_ref] : []} empty={text('尚无 validation ref', 'no validation ref')} />
             <SkillGovernanceRef label="SUPPORT TRAJECTORY" values={item.supporting_trajectory_refs} empty="—" />
             <SkillGovernanceRef label="EXPERIENCE PATTERN" values={item.supporting_experience_pattern_refs} empty="—" />
             <SkillGovernanceRef label="VALIDATION CASE" values={item.validation_case_refs} empty="—" />
             <SkillGovernanceRef label="PROMOTION HISTORY" values={item.promotion_history} empty="—" />
             <div className="skill-origin"><small>PROVENANCE ORIGIN</small><strong>{item.provenance_origin}</strong></div>
-          </aside>
+          </details>
         </div>
       </article>
     ))}</div>
@@ -97,7 +97,7 @@ export function ExperienceMemory({ stats, experiences, skills }: { stats: AgentL
   }) : []
   return <div className="experience-body">
     <div className="experience-pipeline">{stages.map(([label, count], index) => <div key={label} className="experience-stage"><span className="experience-stage-icon"><BrainCircuit size={16} /></span><div><small>STAGE {String(index + 1).padStart(2,'0')}</small><strong>{label}</strong><b>{count}</b></div>{index < stages.length - 1 && <ChevronRight size={14} className="experience-arrow" />}</div>)}</div>
-    {experiences.length === 0 ? <div className="experience-empty"><Orbit size={30} /><div><strong>{text('尚无 durable Experience', 'NO DURABLE EXPERIENCE YET')}</strong><p>{text('Trajectory 已进入经验流水线；durable Experience 尚未形成时，界面保持空态，不制造学习结果。', 'Trajectories have entered the learning pipeline. Until a durable Experience is persisted, this surface remains empty rather than inventing a learned result.')}</p></div></div> : <div className="experience-workbench">
+    {experiences.length === 0 ? <div className="experience-empty"><Orbit size={30} /><div><strong>{text('尚无 durable Experience', 'NO DURABLE EXPERIENCE YET')}</strong><p>{text('尚未形成可复用经验。完成的调查轨迹经评估后会留存在这里。', 'No reusable experience has formed yet. Evaluated investigation experience will appear here.')}</p></div></div> : <div className="experience-workbench">
       <div className="experience-list">{experiences.map((item, index) => <button key={item.experience_version_id} className={item.experience_version_id === selectedExperience?.experience_version_id ? 'selected' : ''} onClick={() => setSelectedExperienceId(item.experience_version_id)}><span>{String(index + 1).padStart(2,'0')}</span><div><small>{item.status} · v{item.version}</small><strong>{item.name}</strong><em>{item.task_signature}</em></div><b>{item.success_count}/{item.failure_count}/{item.partial_count}</b></button>)}</div>
       {selectedExperience && <div className="experience-inspector">
         <div className="experience-inspector-head"><div><small>{text('持久 Experience', 'DURABLE EXPERIENCE')}</small><strong>{selectedExperience.name}</strong><span className="mono">{selectedExperience.experience_version_id}</span></div><div><small>{text('结果历史', 'OUTCOME HISTORY')}</small><strong>{selectedExperience.success_count} / {selectedExperience.failure_count} / {selectedExperience.partial_count}</strong><span>{text('成功 · 失败 · 部分完成', 'success · failure · partial')}</span></div></div>

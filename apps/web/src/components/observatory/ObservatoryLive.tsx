@@ -1,13 +1,16 @@
 import { useMemo, useState } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useNavigate } from 'react-router-dom'
-import { Activity, Binary, Boxes, BrainCircuit, CircleGauge, Clock3, DatabaseZap, Eye, Fingerprint, Gauge, RadioTower, ScanLine, ServerCog, ShieldCheck, Sparkles, TriangleAlert, Waypoints } from 'lucide-react'
+import { Binary, Boxes, BrainCircuit, CircleGauge, Clock3, DatabaseZap, Eye, Fingerprint, RadioTower, ScanLine, ServerCog, ShieldCheck, Sparkles, Waypoints } from 'lucide-react'
 
 import { getAgentRuntime, type SystemOverview, type WorldOverview } from '../../lib/api'
 import { useI18n } from '../../lib/i18n'
+import { useAuth } from '../../lib/auth'
+import { AccountLoginPrompt } from '../auth/RequireAccount'
 import { bytes, compactNumber, linePath, observatoryWindows, pct, seconds, snapshotAge, type ObservatoryWindow } from '../../lib/observatoryPresentation'
 import { dominantRuntimeName, rankRuntimeCounts, runtimeToken } from '../../lib/runtimePresentation'
 import { PanelHead } from './ObservatoryPrimitives'
+import { WorkerHealth } from './WorkerHealth'
 
 function AgentLiveInstrument({ runtime }: { runtime: Awaited<ReturnType<typeof getAgentRuntime>> }) {
   const { text } = useI18n()
@@ -48,22 +51,28 @@ function AgentLiveInstrument({ runtime }: { runtime: Awaited<ReturnType<typeof g
 export function LiveObservatory({ world, agents, system, windowKey, setWindowKey }: { world: WorldOverview | null; agents: Awaited<ReturnType<typeof getAgentRuntime>> | null; system: SystemOverview | null; windowKey: ObservatoryWindow; setWindowKey: (value: ObservatoryWindow) => void }) {
   const { text } = useI18n()
   const navigate = useNavigate()
-  const [focus, setFocus] = useState<'world' | 'sources' | 'agents' | 'system' | null>(null)
+  const { authenticated } = useAuth()
+  const [focus, setFocus] = useState<'world' | 'sources' | 'agents' | 'system' | null>('sources')
   const current = world?.windows[windowKey]
   const hours = windowKey === '1h' ? 1 : windowKey === '6h' ? 6 : windowKey === '24h' ? 24 : 168
   const series = useMemo(() => (world?.hourly_series ?? []).slice(-hours), [world?.hourly_series, hours])
-  const activeTasks = agents?.roles.reduce((sum, role) => sum + role.active_tasks, 0) ?? 0
+  const agentSummary = agents ? text(`当前账户与公共任务中有 ${agents.roles.reduce((sum, role) => sum + role.active_tasks, 0)} 个活动任务、${agents.roles.reduce((sum, role) => sum + role.total_tasks, 0)} 次持久执行。`, `Your account and public tasks include ${agents.roles.reduce((sum, role) => sum + role.active_tasks, 0)} active tasks and ${agents.roles.reduce((sum, role) => sum + role.total_tasks, 0)} retained runs.`) : authenticated ? text('账户任务状态尚未载入。', 'Account task status is not loaded yet.') : text('登录后可查看与你有关的任务运行状态。', 'Sign in to inspect task activity for your account.')
   const totalSources = world ? world.source_health.healthy + world.source_health.degraded + world.source_health.blocked : 0
-  const chooseFocus = (next: 'world' | 'sources' | 'agents' | 'system') => setFocus((current) => current === next ? null : next)
+  const chooseFocus = (next: 'world' | 'sources' | 'agents' | 'system') => setFocus(next)
 
   return (
     <>
       <div className="live-command-strip">
-        <LiveMetric icon={RadioTower} label="SOURCE HEALTH" value={world ? `${world.source_health.healthy}/${totalSources}` : '—'} detail={world ? `${(world.healthy_rate * 100).toFixed(1)}% healthy` : 'loading'} tone="lime" active={focus === 'sources'} onClick={() => chooseFocus('sources')} />
-        <LiveMetric icon={DatabaseZap} label="FRESH CHANGES" value={current ? compactNumber(current.fresh_external_changes) : '—'} detail={`${windowKey} operational window`} tone="cyan" active={focus === 'world'} onClick={() => chooseFocus('world')} />
-        <LiveMetric icon={Clock3} label="QUEUE P95" value={seconds(current?.queue_delay_p95_seconds)} detail="scheduled acquisition" tone="violet" active={focus === 'world'} onClick={() => chooseFocus('world')} />
-        <LiveMetric icon={Gauge} label="EXECUTION P95" value={seconds(current?.execution_p95_seconds)} detail={current?.scheduled_run_success_rate != null ? `${pct(current.scheduled_run_success_rate)} run success` : 'execution runtime'} tone="amber" active={focus === 'world'} onClick={() => chooseFocus('world')} />
-        <LiveMetric icon={Waypoints} label="AGENT TASKS" value={String(activeTasks)} detail={`${agents?.roles.reduce((sum, role) => sum + role.total_tasks, 0) ?? 0} durable runs`} tone="blue" active={focus === 'agents'} onClick={() => chooseFocus('agents')} />
+        <p>{world && current ? text(
+          `这份 ${windowKey === '168h' ? '7 天' : windowKey} 运行窗口覆盖 ${totalSources} 个来源，其中 ${world.source_health.healthy} 个健康。窗口内出现 ${compactNumber(current.fresh_external_changes)} 次外部新变化；采集队列 p95 为 ${seconds(current.queue_delay_p95_seconds)}，执行 p95 为 ${seconds(current.execution_p95_seconds)}，计划采集成功率为 ${current.scheduled_run_success_rate == null ? '未测量' : pct(current.scheduled_run_success_rate)}。${agentSummary}`,
+          `This ${windowKey === '168h' ? '7-day' : windowKey} operational window covers ${totalSources} sources, with ${world.source_health.healthy} healthy. It contains ${compactNumber(current.fresh_external_changes)} fresh external changes; acquisition queue p95 is ${seconds(current.queue_delay_p95_seconds)}, execution p95 is ${seconds(current.execution_p95_seconds)}, and scheduled-run success is ${current.scheduled_run_success_rate == null ? 'not measured' : pct(current.scheduled_run_success_rate)}. ${agentSummary}`,
+        ) : text('正在读取来源、数据流、Agent 与服务状态。', 'Reading source, data-plane, Agent, and service state.')}</p>
+        <div className="observatory-focus-tabs" aria-label={text('聚焦运行面', 'Focus operational surface')}>
+          <button className={focus === 'sources' ? 'active' : ''} onClick={() => chooseFocus('sources')}>{text('来源', 'SOURCES')}</button>
+          <button className={focus === 'world' ? 'active' : ''} onClick={() => chooseFocus('world')}>{text('数据流', 'DATA PLANE')}</button>
+          <button className={focus === 'agents' ? 'active' : ''} onClick={() => chooseFocus('agents')}>{text('智能体', 'AGENTS')}</button>
+          <button className={focus === 'system' ? 'active' : ''} onClick={() => chooseFocus('system')}>{text('服务', 'SYSTEM')}</button>
+        </div>
       </div>
 
       <div className="live-window-row">
@@ -72,7 +81,7 @@ export function LiveObservatory({ world, agents, system, windowKey, setWindowKey
       </div>
 
       <div className={`observatory-live-grid ${focus ? `has-observatory-focus focus-${focus}` : ''}`}>
-        <section className={`telemetry-panel telemetry-wide ${focus === 'world' ? 'focus-selected' : focus ? 'focus-dimmed' : ''}`}>
+        {focus === 'world' && <section className={`telemetry-panel telemetry-wide ${focus === 'world' ? 'focus-selected' : focus ? 'focus-dimmed' : ''}`}>
           <PanelHead eyebrow="DATA PLANE" title={text('世界活动', 'WORLD ACTIVITY')} meta={text(`${series.length} 个小时样本`, `${series.length} hourly samples`)} icon={ScanLine} />
           <div className="telemetry-charts">
             <TelemetryChart title="FRESH / BACKFILL" series={series} lines={[{ key: 'fresh_external_changes', label: 'fresh', tone: 'cyan' }, { key: 'backfill_observations', label: 'backfill', tone: 'violet' }]} />
@@ -89,9 +98,9 @@ export function LiveObservatory({ world, agents, system, windowKey, setWindowKey
             <MeasurementFact label="EVIDENCE OBJECTS" value={current ? `${current.evidence_artifacts_present}/${current.evidence_artifacts}` : '—'} />
             <MeasurementFact label="EVIDENCE BYTES" value={current ? bytes(current.evidence_physical_bytes) : '—'} />
           </div>
-        </section>
+        </section>}
 
-        <section className={`telemetry-panel source-spectrum ${focus === 'sources' ? 'focus-selected' : focus ? 'focus-dimmed' : ''}`}>
+        {focus === 'sources' && <section className={`telemetry-panel source-spectrum ${focus === 'sources' ? 'focus-selected' : focus ? 'focus-dimmed' : ''}`}>
           <PanelHead eyebrow="SOURCE CONSTELLATION" title={text('健康频谱', 'HEALTH SPECTRUM')} meta={text('8 类产品来源', '8 product categories')} icon={RadioTower} />
           <div className="spectrum-list">
             {(world?.categories ?? []).map((category) => {
@@ -108,9 +117,10 @@ export function LiveObservatory({ world, agents, system, windowKey, setWindowKey
             })}
             {!world && <SourceSpectrumBlueprint />}
           </div>
-        </section>
+        </section>}
 
-        <section className={`telemetry-panel agent-spectrum ${focus === 'agents' ? 'focus-selected' : focus ? 'focus-dimmed' : ''}`}>
+        {focus === 'agents' && !authenticated && <AccountLoginPrompt title={text('查看你的任务运行', 'Inspect your task activity')} description={text('登录后查看任务、模型调用与执行结果。', 'Sign in to inspect your tasks, model calls and execution outcomes.')} />}
+        {focus === 'agents' && authenticated && <section className={`telemetry-panel agent-spectrum ${focus === 'agents' ? 'focus-selected' : focus ? 'focus-dimmed' : ''}`}>
           <PanelHead eyebrow="AGENT RUNTIME" title={text('ROLE 活动', 'ROLE ACTIVITY')} meta={text('实时 + durable 历史', 'live + durable history')} icon={Sparkles} />
           <div className="agent-spectrum-list">
             {(agents?.roles ?? []).map((role) => {
@@ -123,22 +133,12 @@ export function LiveObservatory({ world, agents, system, windowKey, setWindowKey
             })}
             {!agents && <AgentSpectrumBlueprint />}
           </div>
-          <div className="capability-activity-summary"><Binary size={13} /><span>{text('持久化 CapabilityInvocation', 'Persisted CapabilityInvocation')}</span><strong>{agents?.recent_capabilities.length ?? 0}</strong></div>
+          <div className="capability-activity-summary"><Binary size={13} /><span>{text('持久化 CapabilityInvocation', 'Persisted CapabilityInvocation')}</span><strong>{agents ? agents.recent_capabilities.length : '—'}</strong></div>
           {agents && <AgentLiveInstrument runtime={agents} />}
-        </section>
+        </section>}
 
-        <section
+        {focus === 'system' && <section
           className={`telemetry-panel system-status-panel ${focus === 'system' ? 'focus-selected' : focus ? 'focus-dimmed' : ''}`}
-          role="button"
-          tabIndex={0}
-          aria-pressed={focus === 'system'}
-          onClick={() => chooseFocus('system')}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' || event.key === ' ') {
-              event.preventDefault()
-              chooseFocus('system')
-            }
-          }}
         >
           <PanelHead eyebrow="SYSTEM" title={text('管线完整性', 'PIPELINE INTEGRITY')} meta={text('仅显示实测事实', 'measured facts only')} icon={ServerCog} />
           <div className="system-status-grid">
@@ -163,11 +163,8 @@ export function LiveObservatory({ world, agents, system, windowKey, setWindowKey
             <SystemBacklog label="STREAM UNACKED" value={system?.task_event_stream_pending} />
             <SystemBacklog label="RUNTIME POLICY" value={system ? runtimeToken(system.runtime_policy_status) : null} />
           </div>
-          <div className="system-measurement-boundary">
-            <TriangleAlert size={12} />
-            <span>{text('Worker process health 尚无 heartbeat owner；当前不伪造 worker 在线率。', 'Worker process health has no heartbeat owner yet; no worker uptime is inferred.')}</span>
-          </div>
-        </section>
+          <WorkerHealth probe={system?.worker_probe ?? null} />
+        </section>}
       </div>
     </>
   )
@@ -187,7 +184,7 @@ function TelemetryChart({ title, series, lines }: { title: string; series: Array
   return <div className={`telemetry-chart ${series.length ? '' : 'chart-unresolved'}`}><div className="chart-head"><strong>{title}</strong><div>{lines.map((line) => <span key={line.key} className={`tone-${line.tone}`}><i />{line.label} · {sampleValue(lastSample?.[line.key]) == null ? '—' : line.key.endsWith('_seconds') ? seconds(sampleValue(lastSample?.[line.key])) : compactNumber(sampleValue(lastSample?.[line.key])!)}</span>)}</div></div><div className="chart-canvas"><svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none"><defs><linearGradient id={`fade-${title.replaceAll(' ', '-')}`} x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="currentColor" stopOpacity=".16"/><stop offset="1" stopColor="currentColor" stopOpacity="0"/></linearGradient></defs>{[.25,.5,.75].map((part) => <line key={part} x1="0" x2={width} y1={height * part} y2={height * part} className="chart-gridline" />)}{paths.map((path) => <motion.path key={`${path.key}:${revision}`} className={`chart-line tone-${path.tone}`} d={path.d} fill="none" initial={reduceMotion ? false : { pathLength: 0, opacity: .28 }} animate={{ pathLength: 1, opacity: 1 }} transition={{ duration: reduceMotion ? 0 : .58, ease: [0.22, 1, 0.36, 1] }} />)}{series.length === 1 && lines.map(line => {
       const value = sampleValue(series[0][line.key])
       return value == null ? null : <circle key={line.key} className={`chart-sample tone-${line.tone}`} cx={width / 2} cy={height - Math.min(value / max, 1) * (height - 10) - 5} r="4" />
-    })}</svg>{series.length === 0 && <div className="chart-await"><ScanLine size={16}/><strong>{text('等待运行样本', 'AWAITING OPERATIONAL SAMPLES')}</strong><small>{text('保留测量网格 · 不生成合成曲线', 'grid retained · no synthetic curve')}</small></div>}<div className="chart-scanline" /></div></div>
+    })}</svg>{series.length === 0 && <div className="chart-await"><ScanLine size={16}/><strong>{text('等待运行样本', 'AWAITING OPERATIONAL SAMPLES')}</strong><small>{text('数据到达后显示趋势', 'Trends appear when samples arrive')}</small></div>}<div className="chart-scanline" /></div></div>
 }
 
 function SourceSpectrumBlueprint() {
@@ -217,14 +214,13 @@ function AgentSpectrumBlueprint() {
         <div key={role} className="agent-spectrum-row agent-spectrum-blueprint">
           <div className="agent-spectrum-icon"><CircleGauge size={18} /></div>
           <div><small>{role}</small><strong>{alias}</strong><span>{profile}</span></div>
-          <div className="agent-spectrum-offline">{text('RUNTIME 离线', 'RUNTIME OFFLINE')}</div>
+          <div className="agent-spectrum-offline">{text('运行数据尚未载入', 'Runtime data not loaded')}</div>
         </div>
       ))}
     </>
   )
 }
 
-function LiveMetric({ icon: Icon, label, value, detail, tone, active, onClick }: { icon: typeof Activity; label: string; value: string; detail: string; tone: string; active?: boolean; onClick?: () => void }) { return <button type="button" className={`live-metric tone-${tone} ${active ? 'focus-selected' : ''}`} onClick={onClick}><span className="live-metric-icon"><Icon size={17} /></span><div><small>{label}</small><strong>{value}</strong><span>{detail}</span></div></button> }
 
 function SystemFact({ icon: Icon, label, value }: { icon: typeof Boxes; label: string; value: string }) { return <div className="system-fact"><Icon size={16} /><small>{label}</small><strong>{value}</strong></div> }
 

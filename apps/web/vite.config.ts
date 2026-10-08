@@ -16,10 +16,6 @@ export default defineConfig({
             || id.includes('/node_modules/react-dom/')
             || id.includes('/node_modules/scheduler/')
           ) return 'react-core'
-          if (
-            id.includes('/node_modules/three/')
-            || id.includes('/node_modules/@react-three/fiber/')
-          ) return 'three-runtime'
           return undefined
         },
       },

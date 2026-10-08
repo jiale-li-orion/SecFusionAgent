@@ -64,7 +64,7 @@ WORLD           live Evidence World / Data Plane
 INTELLIGENCE    dossiers, relationships and evidence
 INVESTIGATIONS  durable cases and continuous user interaction
 AGENTS          Role / Task / Capability / Skill / Experience
-OBSERVATORY     live runtime + frozen proof
+OBSERVATORY     live runtime / health / service state
 
                 [ START ]
 ```
@@ -119,7 +119,7 @@ WORLD answers:
 
 > What is SecFusion observing now, how is information flowing through the system, what is hot, what is being enriched, and what has become durable evidence/knowledge?
 
-This is the main visual proof of M1–M3 automation.
+The opening composition puts a real source object in the foreground and other observed objects in depth. Source processing and retained evidence are inspectable from that object.
 
 ### 4.2 Stable topology
 
@@ -169,27 +169,29 @@ Insight
 Experience
 ```
 
-### 4.3 Live motion semantics
+### 4.3 Spatial focus and source facts
 
-The WORLD canvas may use 2.5D/WebGL, but animation is state-driven.
+WORLD uses DOM text and an SVG depth field. One observed object occupies the foreground;
+real peers occupy orbital positions. Clicking a peer changes the narrative and visual focus.
+Motion follows focus changes, respects reduced motion, and never impersonates ingestion,
+promotion, new observations or execution. The eight source directions expose individual
+source inspection; they are not status cards or dashboard totals.
 
-| Motion / visual state | Fact source |
-|---|---|
-| source pulse | scheduled acquisition success/no-change |
-| incoming particle | fresh external change / observation |
-| dashed/ghost trail | backfill observation |
-| path transit | source retention/processing path |
-| hot-object elevation | recency/access/workflow/domain-priority signals |
-| active/pinned orbit | active/pinned Hot Bug state |
-| field flash | `changed_fields` |
-| processor branch lights | actual deterministic/graph/semantic/provider-backed execution |
-| crystallization into center | promotion / durable Evidence or Knowledge commit |
-| core ripple | KnowledgeChange / canonical write |
-| source flicker | degraded health |
-| dim/lock | blocked source |
-| fallback edge | actual provider/capability fallback |
+`GET /api/v1/world/stories` returns heterogeneous source facts, original excerpts,
+publication/observation times and exact revision/observation/locator coordinates. The query
+chooses the latest document revision, bounds reads per source, and interleaves categories
+and sources. Broad independent/news feeds require a typed link to the managed corpus,
+unless their registered authority scope already covers AI/model/Agent material. Original
+source abstracts have priority over document bodies. No keyword scoring, fabricated
+importance paragraphs, title special cases or backend language templates are used.
 
-Ambient drift may exist only to communicate that the system is online; it cannot impersonate a processing event.
+The initial story query is independent of Hot, source health, candidate and measurement
+reads. The Application read service merges concurrent cold reads, warms at bootstrap within
+a five-second deadline, and retains the original generated_at in a 15-second snapshot. Hot refresh starts after story data arrives; source health starts when inspected.
+Coordinates stay in inspection. Original content keeps its language; Product actions and
+inspection labels support Chinese and English. `进入对象` opens the existing dossier and
+`继续调查` carries the object/incident/question into START. Hot state stays distinct from
+durable Evidence/Knowledge.
 
 ### 4.4 Hot Pool
 
@@ -676,8 +678,7 @@ Status:
 | Trajectory read | A/D | Experience support records expose bounded trajectory coordinates; raw trace stays backend-owned |
 | model attempt/retry read | A | persisted ModelRequest / ModelAttempt projection in Agent runtime |
 | true token streaming | C | new provider/runtime stream contract required |
-| Agent regression proof | A | frozen benchmark / controlled-runtime coordinates in OBSERVATORY |
-| formal competition proof | A | `/api/v1/observatory/proof*` |
+| Agent regression / competition evaluation | engineering-only | remains backend-owned; not rendered in Product navigation |
 
 Product implementation closes these seams through Product/Application read models rather than a parallel diagnostic transport.
 
@@ -732,24 +733,21 @@ There is no separate guided or demo path.
 7. ProductEvent/SSE;
 8. real vertical path: `WORLD → START → Investigation → Decision → Evidence`.
 
-### P1 — full competition capability exposure — closed
+### P1 — full competition capability exposure — active polish
 
 - intelligence search / incident / graph;
 - Skill / Experience / Trajectory read surfaces;
 - Agent task/delegation/capability visuals;
 - Observatory full curves;
-- benchmark proof drill-down;
 - explicit cancel; resume remains split between runtime dependency wake and durable Case/session continuation;
 - degraded/fallback/recovery UX.
 
-### P2 — cinematic finish and deployment — closed for Product v1
+### P2 — cinematic finish and deployment — active polish
 
 - Evidence World 2.5D/WebGL refinement;
 - Role sigil motion system;
 - responsive/reduced-motion/accessibility;
 - reverse proxy / production Compose / TLS seam;
-- explicit demo access control;
-- curated frozen demo cases;
 - performance/visual regression checks.
 
 Current closure evidence:
@@ -757,9 +755,8 @@ Current closure evidence:
 - `make product-check` owns static Product contract checks, build/bundle budgets, deploy checks and Product/API/runtime regression tests;
 - `make product-live-gate` validates the live Product data path against the running API;
 - `make product-visual-check` resolves current Product objects and browser-checks all six spaces at desktop, projector, tablet and mobile viewports, plus reduced-motion WORLD;
-- `guide=live` and `guide=frozen` make the current-runtime and persisted-proof demo paths reproducible across navigation and refresh;
 - Nginx/Compose deployment remains fail-closed behind Basic Auth, with `/healthz` as the sole unauthenticated health route;
-- worker-process uptime stays explicitly unavailable until a heartbeat owner exists; true provider token streaming stays outside Product v1 until the runtime exposes a real stream contract.
+- worker availability uses bounded Celery control probes; worker-process uptime remains unavailable; true provider token streaming stays outside Product v1 until the runtime exposes a real stream contract.
 
 ---
 
@@ -831,7 +828,7 @@ Each primary product space should have one memorable visual event:
 - `AGENTS`: Role accepts Task / delegation appears / recovery episode resumes;
 - `INVESTIGATIONS`: ProductEvent stream changes Case state and a Decision converges from Evidence;
 - `INTELLIGENCE`: focused graph expands around a selected object and evidence remains inspectable;
-- `OBSERVATORY`: live runtime motion collapses into a frozen, drillable proof state.
+- `OBSERVATORY`: source/task/service state changes redraw the live instrument without leaving the operational surface.
 
 These moments may use stronger camera movement, masking, parallax, line-draw, particle transit, digit-roll and spatial transitions than ordinary enterprise software.
 
@@ -883,3 +880,88 @@ Visual ambition does not relax truthfulness:
 The rule is:
 
 > **Be loud about what the system really did. Never invent something merely because it looks impressive.**
+
+
+## 18. Product reading and runtime boundaries (2026-10-08)
+
+WORLD places source convergence in the main canvas, keeps selected source material alongside it, and exposes four explicit views: signals, source paths, Hot browsing, and processing/retention. Hot displays the actual resident count separately from the ranked 64-item reading window. A successful ProcessingRun is shown as a knowledge commit only when a linked KnowledgeRevision exists. Source/view/Hot coordinates remain URL-addressable.
+
+START uses an explicit task selector, a natural question, real intelligence search for targets, and persisted outcomes. INTELLIGENCE opens an object chosen by the user or a recent heterogeneous source item, rather than auto-selecting a CVE. The latest document revision exposes an exact source chunk excerpt and locator; index details are disclosed on demand. Empty graphs do not fill the reading view.
+
+INVESTIGATIONS uses natural document flow and truthful terminal states. Follow-ups retain the session and follow the existing continuation contract. AGENTS exposes role ownership and real tasks with bounded recent history; technical coordinates wrap. OBSERVATORY does not label a pending runtime read as offline or substitute zero for an unknown capability count.
+
+QA deadline failures terminate the actual run and return a retryable problem. Research/document investigations use the non-vulnerability planner schema and local perception instead of CVE-only enrichment delegation. Runtime schema and evidence gates remain authoritative.
+
+调查的 INSPECT 感知同时读取对象的结构化事实和当前 DocumentRevision 的正文片段；正文使用独立 document 物理读取算子，保持片段、版本、来源与对应 Observation 的 EvidenceLink 引用。未分块的新版本不会回退到历史正文。正文不是新生成的 Knowledge；确认事实仍须经过 StatePatch 和既有证据校验。
+
+真实论文联调已验证同一 Case/Session 的继续调查、正文感知、确认事实和自动 M6 finalization：Case resolved、持久研判和来源引用可查询。引用读取同时接受既有裸 Evidence ID 和 evidence: 前缀，保持与对应状态投影一致；缺失的 EvidenceLink 仍不能生成引用。
+
+## 19. Six-space visual composition (2026-10-08)
+
+The six spaces are designed as one instrument, with a consistent navigation frame and readable DOM typography. WORLD now gives the source constellation and layered evidence core the primary canvas; the selected source material stays in an adjacent reading panel. Eight source ports expose actual health. Route curves describe configured topology, and the revision transition is keyed to an actual KnowledgeChange. The ranked Hot window and full residency remain separate measures.
+
+START presents five mission pods with a shared selection transition and the selected canonical role sigil. INTELLIGENCE presents heterogeneous source covers and a focused dossier. INVESTIGATIONS keeps the continuing conversation beside its evidence state; historical execution events expand on demand. AGENTS gives ORACLE, ARGUS and ALCHEMIST distinct dark sphere, optical lens and layered processor portraits; task ownership, history, skills and experience retain their actual reads. Empty memory no longer invents seed records or promotion stages. OBSERVATORY presents two measured hourly waveforms with independent, explicitly labelled peaks and actual source health.
+
+CSS geometry and visual semantics remain in their authority layers. Old WORLD, START, role and shell rules and the superseded source-row layout are removed. Narrow screens use a source grid, compact source covers, stacked workspaces and bottom navigation; the task launcher remains available in the top bar. Reduced-motion users receive immediate state reveals. Visual work takes priority in this pass; the existing API contracts and real runtime outcomes remain connected.
+
+
+## 20. Material identity and product symbols (2026-10-08)
+
+All six spaces share an obsidian and smoked-glass palette, platinum hairlines and restrained cyan, violet and warm metal accents. The brand monogram and semantic navigation/source/mission symbols are authored SVG geometry; familiar search, close and directional controls retain their standard affordances. Manrope is self-hosted as a 161 KB variable font, with native CJK sans fallbacks and its SIL OFL license distributed with the Web app.
+
+ORACLE, ARGUS and ALCHEMIST use material portraits: an orbital dark sphere, optical aperture and layered evidence processor. Category covers use separate folio, lattice, fissure, seal and coordinate compositions. WORLD uses a layered archive sculpture, while source health, KnowledgeChange and Hot counts remain real reads. These visual assets represent product identity and source categories; they do not create runtime events or inferred relationships. Hover elevation is brief and disabled for reduced motion. Previous flat role sigils, intersecting cover rectangles and fluorescent primary actions are retired, including stale selected-case overrides.
+
+## 21. Object-led composition (2026-10-08)
+
+This composition supersedes the equal-card layouts recorded in sections 19–20. The material portraits and self-hosted typography remain; the primary page structure changes.
+
+- WORLD gives the selected, genuinely retained material the primary headline and source excerpt. A spatial material stage supplies click-to-focus neighbours, with no hover-driven story replacement. The eight source directions remain unboxed controls. The full Hot residency count opens the existing bounded, paginated Hot read; it is not the size of the current story projection. Artwork represents categories, not processing activity.
+- INTELLIGENCE uses a selected folio and a horizontally browsable collection shelf. Selecting a shelf item previews its original title and excerpt; the explicit dossier action opens its canonical object or incident. The loaded projection is not presented as a complete archive.
+- START composes the five genuine execution profiles as an approach rail, their actual assigned role as a material portrait, and the existing question/target controls as the adjoining desk. Profile submission, restored results and Session continuity keep their existing backend contracts.
+- AGENTS lets the focused role, or otherwise the selected Task owner, occupy the main portrait. Other canonical roles remain available through smaller selectors. Execution and memory are separate rendered workspaces. Opening a referenced Skill switches to memory before reading the corresponding family. Live accents still require measured active Tasks.
+- INVESTIGATIONS collapses historical case selection into an optional index. The current goal, editorial findings and actual decision occupy the reading space; continuous conversation remains adjacent through the existing portal. Evidence controls still resolve actual source material. Technical revision labels are removed from individual finding prose.
+- OBSERVATORY gives the two independently scaled, measured curves a continuous stage, followed by the source health spectrum. Source/data/agent/service selectors render one corresponding detail surface at a time. Window selection updates the actual hourly series and window totals.
+
+The shared navigation is a compact rail on desktop and a top navigation on narrow screens. Mobile status reads have the full available width. Category artwork never supplies fabricated source facts, and role artwork never fabricates runtime events. Obsolete atlas, card catalogue, role-card and mission-card selectors are removed from the final style authorities.
+
+
+## 22. Independent editorial visual system (2026-10-08)
+
+This is the current visual implementation contract. It supersedes the style stack, palette and navigation arrangements described in sections 19–21. `main.tsx` loads `product-foundation.css`, `product-spaces.css`, and the dedicated `account-space.css`. The five legacy stylesheets are not part of the application bundle. The first file owns the reset, typography, navigation and shared primitives; the second owns the six spaces and their dossier, memory, evidence and narrow-screen compositions. Account forms and conversation lists own their separate space styles; do not reintroduce a legacy cascade or override layer. The CSS authority check validates these imports and disallows specificity escalation through `!important` outside reduced-motion accessibility.
+
+The visual frame uses warm ivory, forest ink, copper accents and generous type. Desktop navigation is horizontal. WORLD and AGENTS use dark material stages; INTELLIGENCE is an editorial collection; START places execution approach and question desk side by side; INVESTIGATIONS is a reading workspace with a continuous conversation; OBSERVATORY uses measured curves and a genuine source-health spectrum. Narrow WORLD brings its material stage before the long source headline. Empty dossier sidebars do not reserve a blank column. Original document excerpts precede structured object facets.
+
+`HeroArtifact` renders category and role identity as real WebGL material sculptures, with category/role SVG fallback. These are decorative identities, not evidence edges, activity indicators or runtime events. Offscreen rendering and hidden tabs pause; reduced motion produces a still image. Camera framing adapts to narrow portraits. Actual status, residency, source health, records, revisions, tasks and citations continue to come from Product API reads.
+
+The skills memory is a codex with version headers, readable procedures and folded validation/provenance. Search results and evidence inspection have explicit overlay ownership. The deployed backend contracts, profile routing, existing Case/Session continuity, evidence gate and event streaming are unchanged by this visual implementation.
+
+
+## 23. Material studio (2026-10-08)
+
+`HeroArtifact` owns one decorative WebGL canvas per primary material stage. `artifactShader` owns bounded SDF geometry and procedural studio lighting: paired orbital rings and a ceramic core, convex optical lens and eight iris blades, four framed glass folios with a central spine, interlocking development frames, a bevelled asset crystal, and fractured vulnerability columns. Optical surfaces trace the inner non-glass structure and combine transmission with Fresnel reflection; platinum, ceramic and copper remain separate materials. The render is not a runtime state read or activity signal.
+
+The portrait preserves canvas aspect ratio and caps render size at 720×480 with a maximum 1.5 pixel ratio. Motion draws at most every 80ms; elapsed visible time drives subtle pose changes. Offscreen/hidden tabs pause, reduced motion draws a still pose, and pointer parallax ignores touch. Shader/context failure uses the corresponding category/role SVG; context loss returns to that fallback. Small source covers and role selectors remain SVG so a collection does not create one GL context per item.
+
+Warm ivory, forest ink and copper material controls remain owned by the existing foundation/spaces files. Navigation, selected roles, catalogue covers, action hover and input focus have restrained surface highlights and depth. The account space has its own component styles; no legacy cascade or decorative fake processing is introduced. The Nginx authentication prompt uses the product name; its access boundary and existing credential configuration are unchanged.
+
+Finals readiness is reviewed outside normal product flows in the dated Wiki report, against all eleven finals rubric rows. Historical numeric target checks are not a current deployment score or a complete finals assessment.
+
+## 24. Accounts and completed product actions (2026-10-08)
+
+Accounts are a Product/Application authority, added at the user's request. `/auth` uses the same ivory, forest and glass material language; its styles live in the dedicated `account-space.css`, alongside the foundation and six-space styles. It does not import or override the retired CSS stack.
+
+Registration, sign-in, current account and sign-out use `/api/v1/auth/{register,login,me,logout}`. The browser stores no password or token in localStorage. A random HttpOnly, SameSite=Lax cookie resolves to a hashed, expiring, revocable PostgreSQL session; the server derives `user:{id}`. `X-Principal` is not an identity source. Mutations require the same-origin CSRF header and origin checks. Account and private API responses are not cacheable. Production cookies require HTTPS.
+
+WORLD, public dossiers and aggregate operations remain readable without an account. START, investigations, private runtime/task reads, enrichment submission, interests and recommendations require sign-in. Case, question-session, Decision, task, model-attempt and A2A reads enforce durable ownership. System tasks acting for another account are private. Public procedural memory excludes user-derived provenance. Existing anonymous/local records are not automatically assigned to a new account.
+
+Account changes clear query/mutation caches and remount page state. A 401 expires the frontend session; a response from an older account epoch cannot erase a newer login. START lists the account's recent conversations from `/questions/sessions`; each link restores the persisted session/turn/target/outcome. Sign-out revokes the server session, including continued SSE access.
+
+INTELLIGENCE persists explicit keywords, followed objects and interested/ignored/neutral feedback. Recommendations use current accepted, evidence-backed canonical matches; each item explains its match and provides source links. Ignoring supports undo. There is no inferred demographic profile or claim of learned personalization.
+
+For vulnerabilities, selected enrichment dimensions submit a real idempotent EnrichmentRole task. The UI follows its actual lifecycle and refreshes the dossier after termination. The production composition binds FIRST EPSS and Red Hat CSAF/VEX providers. Dimension details resolve authoritative accepted_fact_refs rather than guessing their coverage from predicate names.
+
+START treats persisted URL coordinates and current queries as the outcome authority. New conversation clears prior session/result coordinates; restored history retains its target. An accepted or failed Case is never rendered as a completed answer.
+
+OBSERVATORY worker health now reports bounded Celery ping and active-queue replies with measured time, consumer names and available/unobserved/unknown queue states. It is a control-plane availability probe, not a durable worker heartbeat or process uptime. WORLD operational aggregation uses bounded historical reads, a shared refresh and a 60-second maximum successful overview age; a refresh timeout returns unavailable without retimestamping old data.
+
+Public system-task and procedural-memory links can read a pure system Case and its decision after sign-in. The controller must be system-owned and every linked task must exclude user ownership/delegation. This read permission does not add the Case to personal lists or permit cancel/continuation. Account changes notify other tabs through BroadcastChannel without transmitting identity or credentials; window focus always rechecks the session.

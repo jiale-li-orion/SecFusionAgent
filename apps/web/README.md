@@ -1,81 +1,59 @@
-# `apps.web` — SecFusion Product App
+# `apps.web` — SecFusion Product Web
 
-`apps.web` is the user-facing SecFusionAgent product frontend.
+`apps.web` is the six-space user product. [`SPEC.md`](SPEC.md) defines behavior; the project Wiki and the 2026-10-08 UI design cache define the evidence-led visual direction. Product facts come from Application/API read models, never presentation fixtures or benchmark snapshots. Evaluation remains an engineering capability outside user navigation.
 
-The authoritative Product UI contract is [`SPEC.md`](SPEC.md). Product exposes Evidence Plane, Agent Runtime, Investigation/Decision and live Operations. Competition evaluation remains an internal engineering capability.
+## Spaces and user flow
 
-## Boundary
+| Space | Product question | Live contract |
+| --- | --- | --- |
+| WORLD | What is entering and changing now? | Source material, Evidence/Knowledge formation, incidents, Hot resident count and bounded ranking window |
+| INTELLIGENCE | What is known about this object? | Dossier, relations, source excerpt, twelve enrichment dimensions, selected-dimension EnrichmentRole task, personal recommendations |
+| INVESTIGATIONS | What is being followed? | Durable Case, state, activity, citations and continuation |
+| AGENTS | What did the system do? | Role/Task/Capability/Skill/Experience read models with measured state |
+| OBSERVATORY | Is the service operating? | Measured source/runtime health, queues, Celery worker control probe and explicit unavailable states |
+| START | What should the system answer or investigate? | DIRECT/RETRIEVE/VERIFY/INVESTIGATE/WATCH, account-bound session, Decision or Case result |
 
-The Product App is independent from:
+WORLD's Hot resident total is distinct from the bounded displayed ranking window; a list of 64 is not a claim that only 64 CVEs exist. A source story retains the original headline/excerpt and has an evidence/source path. Missing, unknown and conflicting enrichment dimensions remain explicit. Completed START answers and failed/accepted Cases use their persisted state; the URL carries the session/Decision coordinates so refresh can restore the result. New session clears the prior target and result.
 
-- the project Wiki/Website, which explains the architecture and competition evidence;
-- the retired Runtime Workbench surface; Product UI uses Product/Application contracts only;
-- A2A transport DTOs, which are protocol compatibility rather than Product presentation contracts.
+The user flow is register/sign in → save interests → inspect evidence-based recommendations and feedback → ask/investigate → resume a recent conversation → sign out/sign in again. `/auth?mode=login|register&returnTo=...` uses a same-origin account session. Protected actions and private reads require the server session; the browser does not send a user-selected principal. Account changes clear query state and close old streams.
 
-The Product browser must use stable Product/Application routes and Product-safe read models. It must not query internal persistence models or depend on Workbench responses.
+## Visual ownership
 
-## Styling ownership
+`src/main.tsx` imports the active CSS in order:
 
-The stylesheet order is intentional and forms a small authority stack:
+1. `product-foundation.css`: tokens, typography, interaction primitives, shell and shared responsive rules.
+2. `product-spaces.css`: the distinct WORLD, INTELLIGENCE, INVESTIGATIONS, AGENTS, OBSERVATORY and START compositions.
+3. `account-space.css`: the account realm and auth control surfaces.
 
-- `styles.css` owns shared product primitives and low-level defaults.
-- `cinematic.css` owns the default visual language of the six product spaces.
-- `cinematic-seams.css` owns late cross-space product seams and navigational surfaces that must stay after the base cinematic layer but before final authorities.
-- `surface-authority.css` owns the small set of intentional late visual overrides: palette, borders, shadows, typography emphasis, and motion styling.
-- `layout-authority.css` owns geometry, responsive composition, overflow, safe areas, readable type floors, and z-index.
+The retired `styles.css`, `cinematic.css`, `cinematic-seams.css`, `surface-authority.css` and `layout-authority.css` remain out of the import graph. Do not restart an override cascade. `npm run lint:css-authority` enforces active ownership. Main identity objects use shared WebGL materials with SVG fallback and reduced-motion behavior; small cards reuse the same visual identities without opening extra GL contexts. Every animated live fact must resolve to a real source, state or measurement.
 
-Do not fix layout by appending visual overrides to `layout-authority.css`, or fix visual semantics by moving geometry into `surface-authority.css`. `npm run lint:css-authority` enforces this boundary. Page-specific composition should stay page-specific; avoid introducing a generic page shell that collapses WORLD, INTELLIGENCE, INVESTIGATIONS, AGENTS, OBSERVATORY, and START into the same layout.
+## Local integration
 
-## Product spaces
-
-```text
-WORLD           Evidence World / Data Plane
-INTELLIGENCE    dossiers, graph and evidence
-INVESTIGATIONS  durable cases and continuous interaction
-AGENTS          Role / Task / Capability / Skill / Experience
-OBSERVATORY     live operations and service health
-
-                START
-```
-
-`START` exposes the canonical DIRECT / RETRIEVE / VERIFY / INVESTIGATE / WATCH interaction modes.
-
-Completed START results display the full persisted answer, typed conclusions, conflicts, unknowns and assumptions. Citations open Evidence directly even for a generic RETRIEVE without a selected target. The URL carries `decision` and, when present, `session` so refresh restores the result through `GET /api/v1/decisions/{id}`. Follow-up sends the same session without rebinding its target; “New session” explicitly clears that binding. Ctrl/Cmd+Enter submits the question.
-
-## Local frontend/backend integration
-
-Start the API from a shell that has loaded the repository's local experiment environment when model-backed QA is needed:
+Start the API after infrastructure/migrations are available:
 
 ```bash
-. ./activate.sh
 .venv/bin/uvicorn apps.api.main:app --host 127.0.0.1 --port 8000
 ```
 
-In a second terminal:
+Then start the Web process:
 
 ```bash
 cd apps/web
+npm ci
 npm run dev
 ```
 
-Open `http://localhost:5173/product/`. To use another API port, set `SECFUSION_API_PROXY=http://127.0.0.1:8001` when starting Vite. The proxy setting is development-only; production uses the existing Nginx same-origin routes. An API started without model configuration can serve Knowledge and Evidence while returning an explicit dependency error for model-backed QA.
+Open `http://localhost:5173/product/`. Set `SECFUSION_API_PROXY=http://127.0.0.1:8001` if the API is on another port. Vite proxies `/api`; production Nginx serves the same-origin paths. Configure `SECFUSION_AUTH_ALLOWED_ORIGINS` for the exact external HTTPS origin when the reverse proxy changes the browser origin. An absent model provider yields an explicit dependency error for model-backed QA; source/Knowledge reads remain available.
 
-The user-facing app contains no demonstration guide or frozen benchmark view. WORLD keeps source geometry, recent Knowledge changes, Hot objects and its detail panel in distinct regions. START uses five profile cards with a separate question console; asynchronous accepted Cases update into their persisted Decision when the worker completes M5 → M6.
+The API routes are documented in [`../api/README.md`](../api/README.md); account/session and personalization behavior is specified in the [Wiki](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Product-Accounts-and-Personalization). The site has no guided competition demo, frozen-proof screen or manufactured delay.
 
-## Browser regression gate
+## Focused checks
 
-`make product-visual-check` runs Chromium against the live local Product at `http://127.0.0.1:8000/product`. It resolves current Hot / Case / Task coordinates, checks all six Product spaces at 1440×1000, 1366×768, 1024×768, and 390×844, rejects document-level horizontal overflow or collapsed primary regions, checks the reduced-motion WORLD fallback, and writes review screenshots under `/tmp/secfusion-product-visual`.
+```bash
+npm run build
+npm run lint
+make product-visual-check
+make product-interaction-check
+```
 
-`make product-interaction-check` complements the geometry gate. It hit-tests visible interactive controls so decorative layers cannot silently intercept clicks, then exercises the stateful WORLD time window, START execution-profile / advanced controls, and OBSERVATORY time window and refresh. Keep both browser gates separate from the fast `make product-check`; run the interaction gate whenever z-index, pointer-event ownership, or interactive composition changes.
-
-`uv run python scripts/check_product_decision_flow.py` checks persisted Decision → target-free citation → Evidence → Escape/focus recovery → refresh at desktop and mobile widths. It only reads existing results and makes no model calls. Override `--api-base` and `--product-base` for a separate Vite/API integration environment.
-
-Install the browser runtime once with `uv run playwright install chromium`. Run `make product-visual-check` whenever composition, responsive layout, navigation shell, or cinematic state changes.
-
-## Current product state
-
-The former Runtime Workbench UI and `/api/v1/workbench/*` transport have been retired. Runtime facts required by the competition are exposed through Product-safe read models used by WORLD, INTELLIGENCE, INVESTIGATIONS, AGENTS and OBSERVATORY.
-
-## Truthfulness rule
-
-Live visuals must be driven by runtime facts. Benchmark results are not exposed as live Product facts. The frontend may add presentation aliases and cinematic motion, but it may not fabricate source health, Hot CVEs, Agent activity, Skill status, tool calls, token streaming, or monetary cost.
+The browser gates read the live app at the configured local Product URL and inspect desktop/mobile geometry and controls. `uv run python scripts/check_product_decision_flow.py` covers persisted Decision → citation → Evidence → refresh without model calls. Run the relevant gate when changing shell/layout or a cross-page interaction; screenshots and runtime data stay outside Git.

@@ -1,6 +1,8 @@
+import { RoleConstellation } from '../components/agents/RoleConstellation'
+import { SpaceHeading } from '../components/instrument/SpaceHeading'
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { motion, useReducedMotion } from 'motion/react'
+import { useReducedMotion } from 'motion/react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   BookOpenCheck,
@@ -11,7 +13,7 @@ import {
   TimerReset,
   Waypoints,
 } from 'lucide-react'
-import { getAgentExperiences, getAgentLearning, getAgentRuntime, getAgentSkill, getAgentSkills, getAgentTask, type AgentRoleRuntime } from '../lib/api'
+import { getAgentExperiences, getAgentLearning, getAgentRuntime, getAgentSkill, getAgentSkills, getAgentTask } from '../lib/api'
 import { ExperienceMemory, SkillFamilyDetail } from '../components/agents/LearningSurfaces'
 import { RuntimeActivityView, TaskCard, TaskDossier, TaskTopology } from '../components/agents/RuntimeSurfaces'
 import { groupSkillFamilies, skillFamilyKeyFromRef } from '../lib/agentLearning'
@@ -52,145 +54,30 @@ function ModelRuntimeRibbon({ runtime }: { runtime: Awaited<ReturnType<typeof ge
   )
 }
 
-function RoleBlueprint({
-  blueprint,
-  index,
-  loading,
-  focusedRole,
-  onFocus,
-}: {
-  blueprint: (typeof roleBlueprints)[number]
-  index: number
-  loading: boolean
-  focusedRole: string | null
-  onFocus: (role: string | null) => void
-}) {
-  const { text } = useI18n()
-  const presentation = rolePresentation[blueprint.role_id]
-  return (
-    <motion.button
-      className={`role-entity role-${blueprint.role_id.toLowerCase()} tone-${blueprint.tone} role-blueprint ${focusedRole === blueprint.role_id ? 'role-focused' : ''} ${focusedRole && focusedRole !== blueprint.role_id ? 'role-dimmed' : ''}`}
-      onClick={() => onFocus(focusedRole === blueprint.role_id ? null : blueprint.role_id)}
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: focusedRole && focusedRole !== blueprint.role_id ? .28 : 1, y: 0, scale: focusedRole === blueprint.role_id ? 1.025 : 1 }}
-      transition={{ delay: index * .06 }}
-    >
-      <RoleSigil role={blueprint.role_id} live={false} />
-      <div className="role-entity-copy">
-        <small>{text(blueprint.cn, blueprint.role_id)} / {blueprint.role_id}@1</small>
-        <strong>{blueprint.alias}</strong>
-        <p>{presentation ? text(presentation.copy, presentation.copyEn) : blueprint.state}</p>
-        <div className="role-coordinates"><span>{blueprint.profile}</span><span>{blueprint.state}</span><span>{text('规范 Role', 'CANONICAL ROLE')}</span></div>
-      </div>
-      <div className="role-entity-runtime blueprint">
-        <b>—</b>
-        <small>{loading ? text('解析中', 'RESOLVING') : text('RUNTIME 离线', 'RUNTIME OFFLINE')}</small>
-        <span>{text('结构保持可见', 'structure remains visible')}</span>
-      </div>
-    </motion.button>
-  )
-}
-
 function TaskTopologyBlueprint({ loading }: { loading: boolean }) {
   const { text } = useI18n()
-  const nodes = [
-    { x: 17, y: 30, role: 'ORACLE', label: 'Decision Task' },
-    { x: 50, y: 24, role: 'ARGUS', label: 'Investigation Task' },
-    { x: 50, y: 62, role: 'ARGUS', label: 'Waiting / Recovery' },
-    { x: 83, y: 42, role: 'ALCHEMIST', label: 'Enrichment Child' },
-  ]
-  return (
-    <div className="task-topology task-topology-blueprint">
-      <div className="task-topology-head">
-        <div className="task-role-axis"><span>ORACLE</span><span>ARGUS</span><span>ALCHEMIST</span></div>
-        <div><small>{text('规范执行拓扑', 'CANONICAL EXECUTION TOPOLOGY')}</small><strong>{loading ? text('解析 durable TaskRun…', 'resolving durable TaskRun…') : text('runtime 读取失败 · 保留结构场', 'runtime read failed · structural field retained')}</strong></div>
-      </div>
-      <div className="task-topology-canvas">
-        <div className="task-role-column role-decision" /><div className="task-role-column role-investigation" /><div className="task-role-column role-enrichment" />
-        <svg className="task-topology-edges blueprint" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-          <path d="M 50 24 C 62 24, 70 34, 83 42" />
-          <path d="M 83 42 C 70 52, 62 62, 50 62" />
-          <path d="M 50 62 C 35 62, 26 44, 17 30" />
-        </svg>
-        {nodes.map((node) => (
-          <div
-            key={node.label}
-            className="task-crystal task-crystal-blueprint"
-            style={{ left: `${node.x}%`, top: `${node.y}%` }}
-          >
-            <span className="task-crystal-core" />
-            <span className="task-crystal-copy"><small>{node.role}</small><strong>{node.label}</strong><em>{text('结构位置', 'schema position')}</em></span>
-          </div>
-        ))}
-        <div className="task-topology-watermark">{text('TASK / 委派 / 恢复场', 'TASK / DELEGATION / RECOVERY FIELD')}</div>
-      </div>
-    </div>
-  )
+  return <div className="task-ledger-empty">{loading ? text('读取执行记录…', 'Loading execution records…') : text('暂无可读执行记录。', 'No execution records available.')}</div>
 }
 
 function TaskLensBlueprint() {
   const { text } = useI18n()
-  return (
-    <div className="task-lens-blueprint">
-      <Waypoints size={30} />
-      <small>{text('选中 Task 档案', 'SELECTED TASK DOSSIER')}</small>
-      <strong>{text('Task 运行镜片', 'Task runtime lens')}</strong>
-      <div className="task-lens-schema">
-        <span>ROLE / PROFILE</span><span>{text('父子关系', 'PARENT / CHILD')}</span><span>{text('事件时间线', 'EVENT TIMELINE')}</span><span>{text('能力调用', 'CAPABILITY INVOCATION')}</span>
-      </div>
-      <p>{text('选中真实 Task 后展开 durable events、CapabilityInvocation、budget、stop reason 与 evidence refs。', 'Select a real Task to inspect durable events, CapabilityInvocation, budget, stop reason, and evidence refs.')}</p>
-    </div>
-  )
+  return <div className="memory-empty"><Waypoints size={28} /><strong>{text('打开一次真实执行', 'Inspect a real execution')}</strong><p>{text('选择任务，查看角色协作、调用过程、证据与终止原因。', 'Select a task to inspect collaboration, calls, evidence and its stop reason.')}</p></div>
 }
 
 function SkillBlueprintList() {
   const { text } = useI18n()
-  return (
-    <>
-      {['VerifyFixBoundary', 'ResolveSourceConflict', 'TraceIncidentEvidence', 'AssessApplicability'].map((label, index) => (
-        <div key={label} className="skill-blueprint-row">
-          <span className="skill-glyph"><BookOpenCheck size={14} /></span>
-          <span><small>{text('候选 / 种子家族', 'CANDIDATE / SEED FAMILY')}</small><strong>{label}</strong><em>{text('durable procedure 槽位', 'durable procedure slot')}</em></span>
-          <b>{String(index + 1).padStart(2, '0')}</b>
-        </div>
-      ))}
-    </>
-  )
+  return <p className="memory-empty">{text('暂无已保存的技能。', 'No saved skills yet.')}</p>
 }
 
 function SkillBlueprintDetail() {
   const { text } = useI18n()
-  return (
-    <div className="skill-blueprint-detail">
-      <BrainCircuit size={30} />
-      <small>{text('SKILL 版本 / 程序记忆', 'SKILL VERSION / PROCEDURAL MEMORY')}</small>
-      <strong>{text('Skill Codex 结构', 'Skill Codex structure')}</strong>
-      <div><span>{text('触发', 'trigger')}</span><span>{text('前置条件', 'preconditions')}</span><span>{text('程序', 'procedure')}</span><span>{text('验证', 'validation')}</span></div>
-      <p>{text('Skill 保存可复用调查程序；事实读取始终回到当前 Evidence World。', 'Skill stores reusable investigation procedure; factual authority remains in the current Evidence World.')}</p>
-    </div>
-  )
+  return <div className="memory-empty"><BrainCircuit size={25} /><strong>{text('可复用的调查方法', 'Reusable investigation methods')}</strong><p>{text('选择已保存的技能，查看它的适用条件、执行步骤和版本记录。', 'Select a saved skill to read its conditions, procedure and version history.')}</p></div>
 }
 
 function ExperienceBlueprint() {
   const { text } = useI18n()
-  return (
-    <div className="experience-blueprint">
-      {['TRAJECTORY', 'EXPERIENCE CANDIDATE', 'EXPERIENCE PATTERN', 'SKILL PATCH', 'M7 REPLAY'].map((label, index) => (
-        <div key={label} className="experience-blueprint-stage">
-          <span>{String(index + 1).padStart(2, '0')}</span>
-          <strong>{label}</strong>
-          <small>{index === 4 ? text('promotion 前验证', 'validate before promotion') : text('durable 演化阶段', 'durable evolution stage')}</small>
-        </div>
-      ))}
-    </div>
-  )
+  return <p className="memory-empty">{text('暂无已保存的经验。调查产生的经验经评估后会保留在这里。', 'No saved experiences yet. Evaluated investigation experience will appear here.')}</p>
 }
-
-const roleBlueprints = [
-  { role_id: 'DecisionRole', alias: 'ORACLE', cn: '判谕者', tone: 'cyan', profile: 'DIRECT / RETRIEVE', state: 'M4.LightweightContext' },
-  { role_id: 'InvestigationRole', alias: 'ARGUS', cn: '百眼调查者', tone: 'violet', profile: 'VERIFY / INVESTIGATE / WATCH', state: 'M4.InvestigationState' },
-  { role_id: 'EnrichmentRole', alias: 'ALCHEMIST', cn: '炼证者', tone: 'amber', profile: 'ENRICHMENT', state: 'M3.EnrichmentState' },
-] as const
 
 export function AgentsPage() {
   const { text } = useI18n()
@@ -230,7 +117,8 @@ export function AgentsPage() {
     [focusedRole, runtime?.recent_tasks],
   )
   const focusedActiveTasks = useMemo(() => visibleTasks.filter((task) => activeStatuses.has(task.status)), [visibleTasks])
-  const focusedRecentTasks = useMemo(() => visibleTasks.filter((task) => !activeStatuses.has(task.status)).slice(0, 22), [visibleTasks])
+  const [historyExpanded, setHistoryExpanded] = useState(false)
+  const focusedRecentTasks = useMemo(() => visibleTasks.filter((task) => !activeStatuses.has(task.status)).slice(0, historyExpanded ? 22 : 6), [visibleTasks, historyExpanded])
   const activeCount = runtime?.roles.reduce((sum, role) => sum + role.active_tasks, 0) ?? 0
   const totalRuns = runtime?.roles.reduce((sum, role) => sum + role.total_tasks, 0) ?? 0
 
@@ -254,33 +142,30 @@ export function AgentsPage() {
   function selectTask(runId: string) {
     const nextParams = new URLSearchParams(params)
     nextParams.set('run', runId)
+    nextParams.delete('role')
     setParams(nextParams, { replace: true })
   }
 
   function inspectSkillRef(skillRef: string) {
     const key = skillFamilyKeyFromRef(skillRef)
     if (key) setSelectedSkillFamily(key)
+    const next = new URLSearchParams(params)
+    next.set('section', 'memory')
+    setParams(next, { replace: true })
     requestAnimationFrame(() => document.getElementById('skill-codex')?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
   }
 
   return (
-    <section className={`agents-space ${runtime ? 'runtime-loaded' : 'runtime-unresolved'}`}>
-      <header className="runtime-stage-caption">
-        <div>
-          <p>{text('三种 Role，一条可追溯的行动链', 'THREE ROLES; ONE TRACEABLE CHAIN OF ACTION')}</p>
-          <h1>{text('智能体', 'AGENT')} <span>{text('运行场', 'MACHINE')}</span></h1>
-          <small>{text(
-            'DecisionRole、InvestigationRole、EnrichmentRole 通过 Task、父子委派、CapabilityInvocation、Skill 与 Experience 串成一条持久执行链。',
-            'DecisionRole, InvestigationRole, and EnrichmentRole connect through Task, parent-child delegation, CapabilityInvocation, Skill, and Experience into one durable execution chain.',
-          )}</small>
-        </div>
+    <section className={`agents-space studio-agents ${runtime ? 'runtime-loaded' : 'runtime-unresolved'}`}>
+      <SpaceHeading index="04" eyebrow="AGENTS / EXECUTION" title={text('智能体协作', 'Agents')} description={text('观察研判、调查与富化如何接力，追踪每一次真实执行。', 'Follow reasoning, investigation and enrichment through their actual execution.')}>
         <div className="agent-runtime-readout">
           <span className={activeCount > 0 ? 'live' : ''} />
-          <div><small>{text('活跃任务', 'ACTIVE TASKS')}</small><strong>{runtime ? activeCount : '—'}</strong></div>
-          <div><small>{text('持久运行', 'DURABLE RUNS')}</small><strong>{runtime ? totalRuns : '—'}</strong></div>
-          <div><small>{text('能力调用', 'CAPABILITY INVOCATIONS')}</small><strong>{runtime?.recent_capabilities.length ?? '—'}</strong></div>
+          <p>{runtime ? text(
+            `${activeCount} 个任务正在执行 · 累计 ${totalRuns} 次运行。选中任务，查看执行过程和终止原因。`,
+            `${activeCount} tasks are active now, while ${totalRuns} durable runs remain inspectable. The current projection contains ${runtime.recent_capabilities.length} persisted CapabilityInvocation records. Select any task to inspect why it stopped, which capabilities it invoked, what budget it consumed, and how it relates to a preceding investigation or delegated child task.`,
+          ) : text('正在读取持久 Task、Role 与 Capability 运行事实。', 'Reading durable Task, Role, and Capability runtime facts.')}</p>
         </div>
-      </header>
+      </SpaceHeading>
       {origin === 'case' && originCaseRef && (
         <div className="agent-origin case-origin">
           <span>CASE → TASK</span>
@@ -289,6 +174,7 @@ export function AgentsPage() {
         </div>
       )}
 
+      <div className="studio-section-switch"><button className={sectionParam !== 'memory' ? 'active' : ''} onClick={() => { const next = new URLSearchParams(params); next.delete('section'); setParams(next, { replace: true }); document.getElementById('agent-runtime-field')?.scrollIntoView({ behavior: reduceMotion ? 'instant' : 'smooth' }) }}>{text('任务与协作', 'Execution & collaboration')}</button><button className={sectionParam === 'memory' ? 'active' : ''} onClick={() => { const next = new URLSearchParams(params); next.set('section', 'memory'); setParams(next, { replace: true }) }}>{text('技能与经验', 'Skills & experience')}</button></div>
       {(runtimeQuery.isError || learningQuery.isError || skillsQuery.isError || experiencesQuery.isError) && (
         <div className="agent-seam-fault">
           <TerminalSquare size={14} />
@@ -306,23 +192,16 @@ export function AgentsPage() {
         </div>
       )}
 
-      <div className={`role-theater ${focusedRole ? `has-role-focus focus-${focusedRole.toLowerCase()}` : ''}`}>
-        <div className="role-axis" />
-        {roleBlueprints.map((blueprint, index) => {
-          const role = runtime?.roles.find((item) => item.role_id === blueprint.role_id)
-          return role
-            ? <RoleCard key={role.role_id} role={role} index={index} focusedRole={focusedRole} taskOwner={selectedTaskRole === role.role_id} onFocus={focusRole} reduceMotion={reduceMotion} />
-            : <RoleBlueprint key={blueprint.role_id} blueprint={blueprint} index={index} loading={runtimeQuery.isLoading} focusedRole={focusedRole} onFocus={focusRole} />
-        })}
-      </div>
+      {sectionParam !== 'memory' && <>
+      <RoleConstellation runtime={runtime?.roles} selected={selectedTaskRole} focused={focusedRole} onFocus={focusRole} />
 
-      {runtime && <ModelRuntimeRibbon runtime={runtime} />}
+      {runtime && <details className="agent-model-details"><summary>{text("模型与运行统计", "Model and runtime statistics")}</summary><ModelRuntimeRibbon runtime={runtime} /></details>}
       {detailQuery.data && <RuntimeActivityView detail={detailQuery.data} onSkillSelect={inspectSkillRef} onTaskSelect={selectTask} />}
 
       <div id="agent-runtime-field" className={`agent-runtime-grid ${focusedRole ? `runtime-focus-${focusedRole.toLowerCase()}` : ''}`}>
         <section className={`task-field ${focusedRole ? 'role-owned-field' : ''}`}>
           <div className="instrument-section-head">
-            <div><small>{text('持久 Task 场', 'DURABLE TASK FIELD')}</small><strong>{text('执行 / 委派拓扑', 'EXECUTION / DELEGATION TOPOLOGY')}</strong></div>
+            <div><small>{text('任务执行', 'DURABLE TASK FIELD')}</small><strong>{text('执行与协作', 'EXECUTION / DELEGATION TOPOLOGY')}</strong></div>
             <span>{focusedRole ? text(`${visibleTasks.length} 个 ${rolePresentation[focusedRole]?.alias ?? focusedRole} Task · 再点 Role 解除聚焦`, `${visibleTasks.length} ${rolePresentation[focusedRole]?.alias ?? focusedRole} tasks · click role again to release`) : text(`已加载 ${runtime?.recent_tasks.length ?? 0} 个 Task · 仅展示真实 parent/child 边`, `${runtime?.recent_tasks.length ?? 0} loaded · real parent/child edges only`)}</span>
           </div>
 
@@ -335,13 +214,14 @@ export function AgentsPage() {
               <div className="task-ledger-title"><CircleDot size={12} /><strong>{text('实时执行', 'LIVE EXECUTION')}</strong><span>{focusedActiveTasks.length}</span></div>
               <div>
                 {focusedActiveTasks.map((task) => <TaskCard key={task.run_id} task={task} selected={task.run_id === selectedTask} onSelect={selectTask} />)}
-                {runtime && focusedActiveTasks.length === 0 && <div className="task-ledger-empty">{text('当前 Role focus 没有活动 durable Task。', 'No active durable tasks in current role focus.')}</div>}
+                {runtime && focusedActiveTasks.length === 0 && <div className="task-ledger-empty">{text('当前所选角色没有执行中的任务。', 'No active durable tasks in current role focus.')}</div>}
               </div>
             </div>
             <div className="task-ledger-column history">
-              <div className="task-ledger-title"><TimerReset size={12} /><strong>{text('近期终态历史', 'RECENT TERMINAL HISTORY')}</strong><span>{focusedRecentTasks.length}</span></div>
+              <div className="task-ledger-title"><TimerReset size={12} /><strong>{text('近期执行', 'RECENT TERMINAL HISTORY')}</strong><span>{focusedRecentTasks.length}</span></div>
               <div>
                 {focusedRecentTasks.map((task) => <TaskCard key={task.run_id} task={task} selected={task.run_id === selectedTask} onSelect={selectTask} />)}
+                {visibleTasks.filter(task => !activeStatuses.has(task.status)).length > 6 && <button className="agent-history-toggle" onClick={() => setHistoryExpanded(v => !v)}>{historyExpanded ? text("收起历史", "Less history") : text("查看更多运行", "More runs")}</button>}
               </div>
             </div>
           </div>
@@ -356,7 +236,8 @@ export function AgentsPage() {
         </aside>
       </div>
 
-      <div id="agent-memory-field" className="agent-memory-complex">
+      </>}
+      {sectionParam === 'memory' && <div id="agent-memory-field" className="agent-memory-complex">
         <section id="skill-codex" className="skill-codex">
           <div className="instrument-section-head"><div><small>{text('SKILL 典藏', 'SKILL CODEX')}</small><strong>{text('持久程序记忆', 'DURABLE PROCEDURAL MEMORY')}</strong></div><span>{text(String(skillsQuery.data?.length ?? 0) + ' 条记录 · ' + String(skillFamilies.length) + ' 个家族', String(skillsQuery.data?.length ?? 0) + ' records · ' + String(skillFamilies.length) + ' families')}</span></div>
           <div className="skill-codex-body">
@@ -377,101 +258,7 @@ export function AgentsPage() {
             ? <ExperienceMemory stats={learning} experiences={experiencesQuery.data} skills={skillsQuery.data} />
             : <ExperienceBlueprint />}
         </section>
-      </div>
+      </div>}
     </section>
-  )
-}
-
-function RoleCard({ role, index, focusedRole, taskOwner, onFocus, reduceMotion }: { role: AgentRoleRuntime; index: number; focusedRole: string | null; taskOwner: boolean; onFocus: (role: string | null) => void; reduceMotion: boolean }) {
-  const { text } = useI18n()
-  const presentation = rolePresentation[role.role_id] ?? { alias: role.role_id, cn: '', tone: 'cyan', copy: role.state_model, copyEn: role.state_model }
-  const live = role.active_tasks > 0
-  const failed = role.status_counts.failed ?? 0
-  const blocked = role.status_counts.blocked ?? 0
-  return (
-    <motion.button
-      className={`role-entity role-${role.role_id.toLowerCase()} tone-${presentation.tone} ${live ? 'role-live' : ''} ${taskOwner ? 'task-owner' : ''} ${focusedRole === role.role_id ? 'role-focused' : ''} ${focusedRole && focusedRole !== role.role_id ? 'role-dimmed' : ''}`}
-      onClick={() => onFocus(focusedRole === role.role_id ? null : role.role_id)}
-      initial={reduceMotion ? false : { opacity: 0, y: 16 }}
-      animate={{ opacity: focusedRole && focusedRole !== role.role_id ? .28 : 1, y: 0, scale: focusedRole === role.role_id ? 1.025 : 1 }}
-      transition={{ delay: reduceMotion ? 0 : index * .08, duration: reduceMotion ? 0 : undefined }}
-    >
-      <RoleSigil role={role.role_id} live={live} />
-      <div className="role-entity-copy">
-        <small>{text(presentation.cn, role.role_id)} / {role.role_id}@{role.version}{taskOwner ? ' · TASK OWNER' : ''}</small>
-        <strong>{presentation.alias}</strong>
-        <p>{text(presentation.copy, presentation.copyEn)}</p>
-        <div className="role-coordinates"><span>{role.planner_profile}</span><span>{role.state_model}</span><span>{role.default_execution_profile}</span></div>
-      </div>
-      <div className="role-entity-runtime">
-        <b>{role.active_tasks}</b>
-        <small>{live ? text('活动任务', 'ACTIVE TASKS') : text('空闲', 'IDLE')}</small>
-        <span>{text(`${role.total_tasks} 次 durable run`, `${role.total_tasks} durable runs`)}</span>
-        {(failed > 0 || blocked > 0) && <em>{text(`${failed} 失败 · ${blocked} 阻塞`, `${failed} failed · ${blocked} blocked`)}</em>}
-      </div>
-    </motion.button>
-  )
-}
-
-function RoleSigil({ role, live }: { role: string; live: boolean }) {
-  if (role === 'DecisionRole') {
-    return (
-      <div className={`role-sigil oracle-sigil ${live ? 'live' : ''}`} aria-hidden="true">
-        <svg className="role-sigil-svg" viewBox="0 0 120 120">
-          <circle className="sigil-field" cx="60" cy="60" r="47" />
-          <path className="oracle-axis" d="M60 7V113" />
-          <path className="oracle-axis oracle-axis-horizontal" d="M12 60H108" />
-          <ellipse className="oracle-orbit orbit-a" cx="60" cy="60" rx="45" ry="17" transform="rotate(-18 60 60)" />
-          <ellipse className="oracle-orbit orbit-b" cx="60" cy="60" rx="45" ry="17" transform="rotate(56 60 60)" />
-          <circle className="oracle-eclipse-outer" cx="60" cy="60" r="20" />
-          <circle className="oracle-eclipse-inner" cx="60" cy="60" r="11" />
-          <circle className="sigil-node node-north" cx="60" cy="13" r="2" />
-          <circle className="sigil-node node-east" cx="106" cy="60" r="2" />
-          <circle className="sigil-node node-south" cx="60" cy="107" r="2" />
-          <circle className="sigil-node node-west" cx="14" cy="60" r="2" />
-        </svg>
-      </div>
-    )
-  }
-  if (role === 'InvestigationRole') {
-    return (
-      <div className={`role-sigil argus-sigil ${live ? 'live' : ''}`} aria-hidden="true">
-        <svg className="role-sigil-svg" viewBox="0 0 120 120">
-          <circle className="sigil-field" cx="60" cy="60" r="47" />
-          <path className="argus-eye-shell" d="M15 60Q36 31 60 31Q84 31 105 60Q84 89 60 89Q36 89 15 60Z" />
-          <ellipse className="argus-lens" cx="60" cy="60" rx="20" ry="28" />
-          <circle className="argus-pupil" cx="60" cy="60" r="8" />
-          <path className="argus-scan scan-a" d="M28 39Q60 12 92 39" />
-          <path className="argus-scan scan-b" d="M28 81Q60 108 92 81" />
-          <g className="argus-apertures">
-            <circle cx="29" cy="35" r="4" /><circle cx="91" cy="35" r="4" />
-            <circle cx="18" cy="72" r="3.5" /><circle cx="102" cy="72" r="3.5" />
-            <circle cx="60" cy="104" r="4" />
-          </g>
-          <path className="argus-focal-axis" d="M60 8V25M60 95V112" />
-        </svg>
-      </div>
-    )
-  }
-  return (
-    <div className={`role-sigil alchemist-sigil ${live ? 'live' : ''}`} aria-hidden="true">
-      <svg className="role-sigil-svg" viewBox="0 0 120 120">
-        <circle className="sigil-field" cx="60" cy="60" r="47" />
-        <g className="alchemist-processors">
-          <circle className="processor-segment processor-deterministic" cx="60" cy="60" r="41" pathLength="100" />
-          <circle className="processor-segment processor-graph" cx="60" cy="60" r="41" pathLength="100" />
-          <circle className="processor-segment processor-semantic" cx="60" cy="60" r="41" pathLength="100" />
-          <circle className="processor-segment processor-provider" cx="60" cy="60" r="41" pathLength="100" />
-        </g>
-        <path className="alchemist-lattice" d="M60 31L89 60L60 89L31 60Z" />
-        <path className="alchemist-lattice inner" d="M60 43L77 60L60 77L43 60Z" />
-        <path className="alchemist-cross" d="M60 18V43M102 60H77M60 102V77M18 60H43" />
-        <circle className="alchemist-core" cx="60" cy="60" r="7" />
-        <circle className="sigil-node node-north" cx="60" cy="18" r="2" />
-        <circle className="sigil-node node-east" cx="102" cy="60" r="2" />
-        <circle className="sigil-node node-south" cx="60" cy="102" r="2" />
-        <circle className="sigil-node node-west" cx="18" cy="60" r="2" />
-      </svg>
-    </div>
   )
 }

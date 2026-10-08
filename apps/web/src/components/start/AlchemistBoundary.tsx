@@ -4,14 +4,14 @@ import { useNavigate } from 'react-router-dom'
 import { getAgentTask, getInvestigationActivity } from '../../lib/api'
 import { useI18n } from '../../lib/i18n'
 
-export function AlchemistBoundary({ caseId }: { caseId: string | null }) {
+export function AlchemistBoundary({ caseId, active = true }: { caseId: string | null; active?: boolean }) {
   const { text } = useI18n()
   const navigate = useNavigate()
   const activityQuery = useQuery({
     queryKey: ['start-case-activity', caseId],
     queryFn: () => getInvestigationActivity(caseId!),
     enabled: Boolean(caseId),
-    refetchInterval: caseId ? 4_000 : false,
+    refetchInterval: caseId && active ? 4_000 : false,
   })
   const enrichmentEvent = useMemo(() => (
     [...(activityQuery.data?.events ?? [])]
@@ -23,12 +23,14 @@ export function AlchemistBoundary({ caseId }: { caseId: string | null }) {
     queryKey: ['start-enrichment-task', enrichmentRunId],
     queryFn: () => getAgentTask(enrichmentRunId!),
     enabled: Boolean(enrichmentRunId),
-    refetchInterval: enrichmentRunId ? 5_000 : false,
+    refetchInterval: (query) => enrichmentRunId && active && !['completed', 'blocked', 'failed', 'cancelled', 'timed_out', 'superseded'].includes(query.state.data?.task.status ?? '') ? 5_000 : false,
   })
   const task = taskQuery.data?.task ?? null
   const parent = taskQuery.data?.parent ?? null
   const delegatedChild = Boolean(task?.parent_run_id && parent)
   const status = task?.status ?? enrichmentEvent?.status ?? null
+
+  if (!caseId) return null
 
   return (
     <div className={`alchemist-boundary ${enrichmentRunId ? 'runtime-active' : 'runtime-dormant'} ${delegatedChild ? 'delegated-child' : ''}`}>
@@ -36,11 +38,11 @@ export function AlchemistBoundary({ caseId }: { caseId: string | null }) {
       {!caseId ? (
         <small>{text('真实 Enrichment 子任务创建后，ALCHEMIST 进入运行链。', 'ALCHEMIST enters the runtime when a real Enrichment child task is created.')}</small>
       ) : activityQuery.isError ? (
-        <small>{text('Case activity 当前不可读；不推断 Enrichment 子任务。', 'Case activity is unreadable; no Enrichment child is inferred.')}</small>
+        <small>{text('暂时无法读取调查中的情报补全状态。', 'Intelligence enrichment status is temporarily unavailable.')}</small>
       ) : activityQuery.isLoading ? (
-        <small>{text('正在观察 durable Case 的 EnrichmentRole TaskRun…', 'Watching the durable Case for an EnrichmentRole TaskRun…')}</small>
+        <small>{text('正在读取调查中的情报补全任务…', 'Loading enrichment tasks for this investigation…')}</small>
       ) : !enrichmentRunId ? (
-        <small>{text('当前 Case 尚未出现真实 EnrichmentRole TaskRun；边界保持休眠。', 'No real EnrichmentRole TaskRun has appeared in this Case; the boundary remains dormant.')}</small>
+        <small>{text('本次调查暂未调用情报补全。', 'This investigation has not requested intelligence enrichment.')}</small>
       ) : (
         <button
           type="button"

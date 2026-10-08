@@ -1,4 +1,4 @@
-import { productHeaders } from './request'
+import { productFetch, productHeaders } from './request'
 
 export type TaskKind =
   | 'lookup'
@@ -18,13 +18,7 @@ export type QuestionResult = {
   mode: 'completed' | 'accepted'
   execution_profile: 'DIRECT' | 'RETRIEVE' | 'VERIFY' | 'INVESTIGATE' | 'WATCH' | string
   decision?: DecisionView | null
-  investigation?: {
-    case_id: string
-    status: string
-    goal: string
-    current_activity?: unknown
-    [key: string]: unknown
-  } | null
+  investigation?: InvestigationView | null
 }
 
 export type InvestigationFinding = {
@@ -60,6 +54,7 @@ export type DecisionView = {
 export type InvestigationView = {
   case_id: string
   continuation_session_id: string | null
+  case_lifecycle: string | null
   origin_scope: 'product' | 'benchmark' | 'system' | 'unknown'
   can_cancel: boolean
   revision: number
@@ -102,19 +97,19 @@ export type ProductRuntimeEvent = {
 }
 
 export async function listInvestigations(limit = 40): Promise<{ items: InvestigationView[]; next_cursor: string | null; has_more: boolean }> {
-  const response = await fetch(`/api/v1/investigations?origin_scope=product&limit=${limit}`, { headers: productHeaders() })
+  const response = await productFetch(`/api/v1/investigations?origin_scope=product&limit=${limit}`, { headers: productHeaders() })
   if (!response.ok) throw new Error(`Investigation index read failed (${response.status})`)
   return response.json()
 }
 
 export async function getInvestigation(caseId: string): Promise<InvestigationView> {
-  const response = await fetch(`/api/v1/investigations/${encodeURIComponent(caseId)}`, { headers: productHeaders() })
+  const response = await productFetch(`/api/v1/investigations/${encodeURIComponent(caseId)}`, { headers: productHeaders() })
   if (!response.ok) throw new Error(response.status === 404 ? 'Investigation not found' : `Investigation read failed (${response.status})`)
   return response.json()
 }
 
 export async function getInvestigationActivity(caseId: string): Promise<{ case_id: string; events: ProductRuntimeEvent[] }> {
-  const response = await fetch(`/api/v1/investigations/${encodeURIComponent(caseId)}/activity`)
+  const response = await productFetch(`/api/v1/investigations/${encodeURIComponent(caseId)}/activity`, { headers: productHeaders() })
   if (!response.ok) throw new Error(`Runtime activity read failed (${response.status})`)
   return response.json()
 }
@@ -134,7 +129,7 @@ export async function askQuestion(input: {
   agentTurns?: number
   toolCalls?: number
 }): Promise<QuestionResult> {
-  const response = await fetch('/api/v1/questions', {
+  const response = await productFetch('/api/v1/questions', {
     method: 'POST',
     headers: productHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({
@@ -157,13 +152,13 @@ export async function askQuestion(input: {
   const body = await response.json().catch(() => null)
   if (!response.ok && response.status !== 202) {
     const detail = body?.detail ?? body?.title ?? `Request failed (${response.status})`
-    throw new Error(String(detail))
+    throw Object.assign(new Error(String(detail)), { code: body?.code, context: body?.context })
   }
   return body as QuestionResult
 }
 
 export async function cancelInvestigation(caseId: string): Promise<InvestigationView> {
-  const response = await fetch(`/api/v1/investigations/${encodeURIComponent(caseId)}/cancel`, {
+  const response = await productFetch(`/api/v1/investigations/${encodeURIComponent(caseId)}/cancel`, {
     method: 'POST',
     headers: productHeaders(),
   })
@@ -176,22 +171,44 @@ export async function cancelInvestigation(caseId: string): Promise<Investigation
 }
 
 export async function getDecision(decisionId: string): Promise<DecisionView> {
-  const response = await fetch(`/api/v1/decisions/${encodeURIComponent(decisionId)}`, { headers: productHeaders() })
+  const response = await productFetch(`/api/v1/decisions/${encodeURIComponent(decisionId)}`, { headers: productHeaders() })
   if (!response.ok) throw new Error(response.status === 404 ? 'Decision not found' : `Decision read failed (${response.status})`)
   return response.json()
 }
 
 
+export type QuestionSessionTurn = {
+  turn_index: number
+  request_id: string
+  question: string
+  task_kind: string
+  target_object_ids: string[]
+  knowledge_revision: number | null
+  context_id: string | null
+  decision_ref: string | null
+  investigation_ref: string | null
+  created_at: string
+}
+
 export type QuestionSessionHistory = {
   session_id: string
-  turns: Array<{
-    turn_index: number; question: string; task_kind: string; created_at: string
-    decision_ref: string | null; investigation_ref: string | null
-  }>
+  turns: QuestionSessionTurn[]
+}
+
+export type AccountConversation = {
+  session_id: string
+  updated_at: string
+  latest_turn: QuestionSessionTurn
+}
+
+export async function listAccountConversations(limit = 20, signal?: AbortSignal): Promise<{ items: AccountConversation[]; has_more: boolean }> {
+  const response = await productFetch(`/api/v1/questions/sessions?limit=${limit}`, { headers: productHeaders(), signal })
+  if (!response.ok) throw new Error(`Conversation list read failed (${response.status})`)
+  return response.json()
 }
 
 export async function getQuestionSession(sessionId: string): Promise<QuestionSessionHistory> {
-  const response = await fetch(`/api/v1/questions/sessions/${encodeURIComponent(sessionId)}`, { headers: productHeaders() })
+  const response = await productFetch(`/api/v1/questions/sessions/${encodeURIComponent(sessionId)}`, { headers: productHeaders() })
   if (!response.ok) throw new Error(response.status === 403 ? 'Session access denied' : `Session read failed (${response.status})`)
   return response.json()
 }

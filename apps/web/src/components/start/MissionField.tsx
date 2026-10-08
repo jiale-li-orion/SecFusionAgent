@@ -1,34 +1,20 @@
+import { HeroArtifact } from '../instrument/HeroArtifact'
+import { motion, useReducedMotion } from 'motion/react'
+import { ProductGlyph } from '../instrument/ProductGlyph'
 import type { LucideIcon } from 'lucide-react'
 import { ArrowRight, CircleDot } from 'lucide-react'
 import { useI18n } from '../../lib/i18n'
 import { modeDescriptionEn, modeTitleEn } from '../../lib/startMissionPresentation'
 
-type MissionMode = {
-  id: string; title: string; icon: LucideIcon; role: string; description: string
-  tempo: string; durable: string; outcome: string; capability: string
-}
+type MissionMode = { id: string; title: string; icon: LucideIcon; role: string; description: string; tempo: string; durable: string; outcome: string; capability: string }
 
-export function MissionField({ modes, selected, busy, onSelect, children }: {
-  modes: MissionMode[]; selected: MissionMode; busy: boolean
-  onSelect: (id: string) => void; children: React.ReactNode
-}) {
-  const { text } = useI18n()
-  const Icon = selected.icon
-  return <div className="start-theater mission-field-rebuilt">
-    <header className="mission-field-heading"><span>01 / {text('选择求知方式', 'CHOOSE HOW TO INVESTIGATE')}</span><small>{text('从当前证据，到持续调查', 'FROM CURRENT EVIDENCE TO CONTINUOUS INVESTIGATION')}</small></header>
-    <div className="mission-profile-options" role="group" aria-label={text('执行模式', 'Execution mode')}>
-      {modes.map((mode, index) => <button key={mode.id} data-mission-mode={mode.id} className={`mission-profile-option ${selected.id === mode.id ? 'active' : ''}`} aria-pressed={selected.id === mode.id} disabled={busy} onClick={() => onSelect(mode.id)}>
-        <span className="mission-profile-number">0{index + 1}<mode.icon size={20} /></span>
-        <strong>{mode.id}</strong><span>{text(mode.title, modeTitleEn(mode.id))}</span><small>{mode.role}</small>
-      </button>)}
-    </div>
-    <section className={`mission-profile-detail role-${selected.role.toLowerCase()}`} aria-live="polite">
-      <div className="mission-profile-identity"><span><Icon size={32} /></span><div><small>{text('当前执行路径', 'SELECTED EXECUTION PATH')}</small><h2>{text(selected.title, modeTitleEn(selected.id))}</h2></div><b>{selected.role}</b></div>
-      <p>{text(selected.description, modeDescriptionEn(selected.id))}</p>
-      <dl><div><dt>{text('响应节奏', 'TEMPO')}</dt><dd>{selected.tempo}</dd></div><div><dt>{text('持久状态', 'DURABILITY')}</dt><dd>{selected.durable}</dd></div><div><dt>{text('结果形态', 'OUTCOME')}</dt><dd>{selected.outcome}</dd></div><div><dt>{text('允许能力', 'CAPABILITY')}</dt><dd>{selected.capability}</dd></div></dl>
-      <div className="mission-execution-path"><span>{text('问题与目标', 'QUESTION + TARGET')}</span><ArrowRight size={15} /><strong>{selected.role}</strong><ArrowRight size={15} /><span>{selected.role === 'ORACLE' ? text('有引用的研判', 'CITED DECISION') : text('持续调查与研判', 'DURABLE CASE + DECISION')}</span></div>
-    </section>
-    <div className="mission-runtime-boundary">{children}</div>
-    {busy && <p className="mission-submit-status" role="status"><CircleDot size={16} />{text('正在提交，等待真实运行结果…', 'SUBMITTING · WAITING FOR THE RUNTIME…')}</p>}
+export function MissionField({ modes, selected, busy, onSelect, children }: { modes: MissionMode[]; selected: MissionMode; busy: boolean; onSelect: (id: string) => void; children: React.ReactNode }) {
+  const {text}=useI18n();const reduced=useReducedMotion()
+  return <div className="vision-mission">
+    <div className="vision-mission-rail"><span>{text('选择如何展开','CHOOSE AN APPROACH')}</span><div className="mission-profile-options" role="group" aria-label={text('执行模式','Execution mode')}>{modes.map((mode,index)=><button key={mode.id} data-mission-mode={mode.id} className={`vision-mode ${selected.id===mode.id?'active':''}`} aria-pressed={selected.id===mode.id} disabled={busy} onClick={()=>onSelect(mode.id)}><small>0{index+1}</small><ProductGlyph kind={mode.id} size={25}/><span><strong>{text(mode.title,modeTitleEn(mode.id))}</strong><small>{mode.id}</small></span><ArrowRight size={15}/></button>)}</div></div>
+    <motion.div key={selected.role} className="vision-mission-sculpture" initial={reduced?false:{opacity:0,scale:.96}} animate={{opacity:1,scale:1}} transition={{duration:.35}}><HeroArtifact kind={selected.role==='ORACLE'?'DecisionRole':'InvestigationRole'}/><span>{selected.role}</span></motion.div>
+    <section className="vision-mission-intent" aria-live="polite"><small>{text('当前执行方式','SELECTED APPROACH')}</small><h2>{text(selected.title,modeTitleEn(selected.id))}</h2><p>{text(selected.description,modeDescriptionEn(selected.id))}</p><div className="vision-mission-path"><span>{text('问题与目标','QUESTION + TARGET')}</span><ArrowRight size={14}/><strong>{selected.role}</strong><ArrowRight size={14}/><span>{selected.role==='ORACLE'?text('有引用的研判','CITED DECISION'):text('持续调查','CONTINUING CASE')}</span></div></section>
+    <div className="vision-mission-boundary">{children}</div>
+    {busy&&<p className="mission-submit-status" role="status"><CircleDot size={16}/>{text('正在提交，等待运行结果…','Submitting, awaiting the runtime…')}</p>}
   </div>
 }

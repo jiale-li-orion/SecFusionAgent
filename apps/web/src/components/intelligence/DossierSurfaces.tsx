@@ -1,4 +1,4 @@
-import { BadgeCheck, ExternalLink, FileSearch, Fingerprint, GitBranch, Radar } from 'lucide-react'
+import { BadgeCheck, BookOpenText, Boxes, ExternalLink, FileSearch, GitBranch, GitPullRequest, Package, Radar, Server } from 'lucide-react'
 
 import { getDocumentByObject, getKnowledgeObject, listIncidents, type HotBug, type IncidentDetail, type KnowledgeClaim } from '../../lib/api'
 import { formatDate, formatValue, humanize } from '../../lib/intelligencePresentation'
@@ -132,119 +132,108 @@ export function IncidentArchiveRail({
 
 export function IntelligenceArchiveBlueprint({ target }: { target?: string }) {
   const { text } = useI18n()
-  const groups = ['IDENTITY & SEVERITY', 'AFFECTED & FIX', 'EXPLOIT & LIKELIHOOD', 'SOURCE & TIMELINE']
-  const nodes = [
-    { x: 18, y: 28, label: 'Product / Version' },
-    { x: 81, y: 25, label: 'Advisory / Fix' },
-    { x: 77, y: 72, label: 'Incident / Exploit' },
-    { x: 22, y: 74, label: 'Research / Asset' },
-  ]
-  return (
-    <section className="intel-blueprint">
-      <div className="intel-blueprint-claims">
-        {groups.map((group, index) => (
-          <div key={group}>
-            <span>{String(index + 1).padStart(2, '0')}</span>
-            <small>{text('CLAIM 分组', 'CLAIM GROUP')}</small>
-            <strong>{group}</strong>
-            <i />
-            <i />
-          </div>
-        ))}
-      </div>
-      <div className="intel-blueprint-graph">
-        <div className="instrument-section-head">
-          <div><small>{text('聚焦知识图谱', 'FOCUSED KNOWLEDGE GRAPH')}</small><strong>{text('关系邻域', 'RELATION NEIGHBORHOOD')}</strong></div>
-          <span>{text('目标解析后显示 canonical edges', 'canonical edges appear here when target resolves')}</span>
-        </div>
-        <div className="intel-blueprint-graph-stage">
-          <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-            {nodes.map((node) => <path key={node.label} d={`M 50 50 Q 50 42 ${node.x} ${node.y}`} />)}
-          </svg>
-          <div className="intel-blueprint-core">
-            <Fingerprint size={22} />
-            <strong>{target ?? 'CANONICAL OBJECT'}</strong>
-            <small>VULNERABILITY</small>
-          </div>
-          {nodes.map((node) => (
-            <div
-              key={node.label}
-              className="intel-blueprint-node"
-              style={{ left: `${node.x}%`, top: `${node.y}%` }}
-            >
-              <GitBranch size={12} />
-              <span><small>{text('关系槽位', 'RELATION SLOT')}</small><strong>{node.label}</strong></span>
-            </div>
-          ))}
-          <div className="intel-blueprint-caption">TARGET → CLAIM → RELATION → EVIDENCE</div>
-        </div>
-      </div>
-    </section>
-  )
+  return <section className="intel-empty-reading"><BookOpenText size={32} /><h2>{target ? text('正在打开对象', 'Opening object') : text('找到你要理解的对象。', 'Find the object you want to understand.')}</h2><p>{target ? target : text('输入论文标题、项目名、漏洞编号或资产名称，查看已有事实、关系与来源。也可以从世界动态进入一份档案。', 'Search a paper, project, vulnerability or asset to read its facts, relationships and sources.')}</p></section>
 }
 
 export function HotWorkingSetPanel({ item }: { item: HotBug }) {
   const { text } = useI18n()
-  return (
-    <section className="hot-dossier">
-      <div className="hot-dossier-head">
-        <div>
-          <small>{text('HOT WORKING SET · 尚未 promotion', 'HOT WORKING SET · NOT YET PROMOTED')}</small>
-          <strong>{item.cve_id ?? item.external_object_id}</strong>
-          <p>{text(
-            '对象已被 Data Plane 捕获并进入 Redis Hot Layer；canonical Knowledge 等待 promotion / retention policy 推进至 Evidence Core。',
-            'The Data Plane has captured this object into the Redis Hot Layer. Canonical Knowledge remains pending until promotion / retention policy advances it into the Evidence Core.',
-          )}</p>
-        </div>
-        <span className={`hot-status ${item.pinned ? 'pinned' : item.active ? 'active' : ''}`}>{item.pinned ? 'PINNED' : item.active ? 'ACTIVE' : 'HOT'}</span>
-      </div>
-      <div className="hot-dossier-grid">
-        <HotFact label="SOURCE" value={item.source_id} />
-        <HotFact label="REVISION" value={item.external_revision ?? 'content revision'} mono />
-        <HotFact label="CVSS" value={item.cvss_score != null ? `${item.cvss_score.toFixed(1)} ${item.cvss_severity ?? ''}` : '—'} />
-        <HotFact label="STATUS" value={item.status ?? '—'} />
-        <HotFact label="TTL" value={item.ttl_seconds != null ? `${Math.round(item.ttl_seconds / 60)} min` : item.pinned ? 'persisted' : '—'} />
-        <HotFact label="FETCHED" value={formatDate(item.fetched_at)} />
-      </div>
-      {item.title && <div className="hot-text"><small>{text('标题', 'TITLE')}</small><strong>{item.title}</strong></div>}
-      {item.description && <div className="hot-text"><small>{text('描述', 'DESCRIPTION')}</small><p>{item.description}</p></div>}
-      <div className="hot-signal-row">
-        <div><small>{text('变化字段', 'CHANGED FIELDS')}</small><span>{item.changed_fields.length ? item.changed_fields.join(' · ') : text('无', 'none')}</span></div>
-        <div><small>{text('优先级信号', 'PRIORITY SIGNALS')}</small><span>{item.priority_signals.length ? item.priority_signals.join(' · ') : text('无', 'none')}</span></div>
-      </div>
-    </section>
-  )
-}
-
-function HotFact({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
-  return <div className="hot-fact"><small>{label}</small><strong className={mono ? 'mono' : ''}>{value}</strong></div>
+  return <section className="hot-dossier">
+    <div className="hot-dossier-head"><div><small>{text('热区观测', 'HOT OBSERVATION')} · {item.source_name ?? item.source_id}</small><strong>{item.title ?? item.cve_id ?? item.external_object_id}</strong><p>{formatDate(item.updated_at ?? item.fetched_at)} · {text('缓存中的上游记录', 'Cached upstream record')}</p></div><span className="hot-status">{item.pinned ? text('已固定', 'Pinned') : item.active ? text('正在使用', 'In use') : text('热区', 'Hot')}</span></div>
+    {item.description && <div className="hot-text"><small>{text('来源描述', 'SOURCE DESCRIPTION')}</small><p>{item.description}</p></div>}
+    {item.cvss_score != null && <p>{text('严重程度', 'Severity')} · {item.cvss_score.toFixed(1)} {item.cvss_severity}</p>}
+    {item.affected_products.length > 0 && <p>{text('受影响产品', 'Affected products')} · {item.affected_products.join(' · ')}</p>}
+    {item.canonical_url && <a className="document-canonical-link" href={item.canonical_url} target="_blank" rel="noreferrer">{text('阅读原始来源', 'Read original source')} <ExternalLink size={12} /></a>}
+    <details className="hot-technical-coordinate"><summary>{text('观测详情与技术坐标', 'Observation details')}</summary><div><span>{text('来源', 'Source')}</span><b>{item.source_id}</b></div><div><span>{text('上游修订', 'Revision')}</span><b>{item.external_revision ?? '—'}</b></div><div><span>{text('外部对象', 'External object')}</span><b>{item.external_object_id}</b></div><div><span>{text('缓存剩余时间', 'Cache TTL')}</span><b>{item.ttl_seconds == null ? '—' : `${Math.round(item.ttl_seconds / 60)} min`}</b></div><div><span>{text('优先级信号', 'Priority signals')}</span><b>{item.priority_signals.join(' · ') || '—'}</b></div><div><span>{text('变化字段', 'Changed fields')}</span><b>{item.changed_fields.join(' · ') || '—'}</b></div><p>{text('这里保留的是热缓存记录；持久化事实会在核验任务和证据视角中呈现。', 'This is a hot cache record. Persisted facts are available through verification and evidence views.')}</p></details>
+  </section>
 }
 
 export function ObjectFacetField({ obj }: { obj: Awaited<ReturnType<typeof getKnowledgeObject>> }) {
   const { text } = useI18n()
+  const profile = objectFacetProfile(obj.object_type)
   const identifiers = Object.entries(obj.external_identifiers)
-  const properties = Object.entries(obj.properties).filter(([, value]) => value != null).slice(0, 10)
+  const properties = orderedFacetEntries(obj.object_type, obj.properties)
+  const claimFacts = obj.claims
+    .filter((claim) => claim.value != null)
+    .slice(0, 6)
+  const evidenceCount = new Set([
+    ...obj.claims.flatMap((claim) => claim.evidence.map((item) => item.evidence_ref)),
+    ...obj.relations.flatMap((relation) => relation.evidence.map((item) => item.evidence_ref)),
+  ]).size
+  const Icon = profile.icon
   return (
-    <section className="object-facet-field">
+    <section className={`object-facet-field object-kind-${profile.kind}`}>
       <div className="enrichment-head">
-        <div><small>{text('规范对象切面', 'CANONICAL OBJECT FACETS')}</small><strong>{obj.object_type.toUpperCase()}</strong></div>
-        <span>{text(`${identifiers.length} 个 identifier namespace · ${properties.length} 个可见属性`, `${identifiers.length} identifier namespaces · ${properties.length} visible properties`)}</span>
+        <div><small>{text(profile.kickerZh, profile.kickerEn)}</small><strong>{profile.title}</strong></div>
+        <span>{text(`${identifiers.length} 个标识命名空间 · ${obj.relations.length} 条关系`, `${identifiers.length} identifier namespaces · ${obj.relations.length} relations`)}</span>
+      </div>
+      <div className="object-facet-stage">
+        <div className="object-facet-core">
+          <span><Icon size={24} /></span>
+          <div><small>{obj.object_type.toUpperCase()}</small><strong>{objectPrimaryLabel(obj)}</strong></div>
+        </div>
+        <p className="object-facet-summary">{text(`${obj.claims.length} 条已有事实 · ${obj.relations.length} 条关联 · ${evidenceCount} 份证据`, `${obj.claims.length} facts · ${obj.relations.length} relationships · ${evidenceCount} evidence references`)}</p>
       </div>
       <div className="object-facet-body">
-        <div className="object-identifier-field">
-          {identifiers.map(([namespace, values]) => (
-            <div key={namespace}><small>{namespace}</small><strong>{values.join(' · ')}</strong></div>
-          ))}
-          {identifiers.length === 0 && <div><small>IDENTIFIERS</small><strong>{text('无持久化标识', 'none persisted')}</strong></div>}
-        </div>
-        <div className="object-property-field">
+        <details className="object-identifier-field object-facet-column"><summary>{text('对象标识', 'Object identifiers')}</summary><p className="mono">{obj.canonical_key}</p>{identifiers.map(([namespace, values]) => <div key={namespace}><small>{namespace}</small><strong>{values.join(' · ')}</strong></div>)}</details>
+        <div className="object-property-field object-facet-column">
+          <small className="object-facet-column-label">{text('对象事实', 'OBJECT FACTS')}</small>
           {properties.map(([key, value]) => (
             <div key={key}><small>{humanize(key)}</small><strong>{formatValue(value)}</strong></div>
           ))}
+          {claimFacts.map((claim) => (
+            <div key={claim.claim_id} className="object-claim-fact"><small>{humanize(claim.predicate)}</small><strong>{formatValue(claim.value)}</strong><em>{claim.evidence.length} evidence</em></div>
+          ))}
+          {properties.length === 0 && claimFacts.length === 0 && <div><small>FACTS</small><strong>{text('当前对象仅有关系或标识信息', 'identity / relation only')}</strong></div>}
         </div>
       </div>
+      {obj.relations.length > 0 && (
+        <div className="object-relation-preview">
+          <small>{text('关系邻域预览', 'RELATION NEIGHBORHOOD')}</small>
+          <div>{obj.relations.slice(0, 6).map((relation) => <span key={relation.relation_id}><b>{humanize(relation.relation_type)}</b>{relation.target.properties.display_name ? formatValue(relation.target.properties.display_name) : relation.target.canonical_key}</span>)}</div>
+        </div>
+      )}
     </section>
   )
+}
+
+function objectFacetProfile(objectType: string) {
+  if (objectType === 'Repo') return { kind: 'development', icon: GitBranch, title: 'DEVELOPMENT INDEX', kickerZh: '开发资产档案', kickerEn: 'DEVELOPMENT DOSSIER' }
+  if (objectType === 'Issue' || objectType === 'PullRequest' || objectType === 'Commit' || objectType === 'Release') return { kind: 'development', icon: GitPullRequest, title: 'CHANGE OBJECT', kickerZh: '开发变更档案', kickerEn: 'DEVELOPMENT CHANGE' }
+  if (objectType === 'Document' || objectType === 'ResearchWork') return { kind: 'document', icon: BookOpenText, title: objectType === 'ResearchWork' ? 'RESEARCH CORPUS' : 'NORMATIVE / DOCUMENT', kickerZh: objectType === 'ResearchWork' ? '研究资料档案' : '文档与规范档案', kickerEn: objectType === 'ResearchWork' ? 'RESEARCH DOSSIER' : 'DOCUMENT DOSSIER' }
+  if (objectType === 'InternetAsset') return { kind: 'asset', icon: Server, title: 'ASSET OBSERVATION', kickerZh: '互联网资产观测', kickerEn: 'INTERNET ASSET DOSSIER' }
+  if (objectType === 'Package' || objectType === 'SoftwareVersion' || objectType === 'Product') return { kind: 'software', icon: Package, title: 'SOFTWARE IDENTITY', kickerZh: '软件与版本档案', kickerEn: 'SOFTWARE DOSSIER' }
+  return { kind: 'canonical', icon: Boxes, title: 'CANONICAL OBJECT', kickerZh: '规范对象档案', kickerEn: 'CANONICAL OBJECT DOSSIER' }
+}
+
+function orderedFacetEntries(objectType: string, properties: Record<string, unknown>) {
+  const priority = objectType === 'Repo'
+    ? ['full_name', 'owner', 'name', 'html_url']
+    : objectType === 'InternetAsset'
+      ? ['ip', 'port', 'protocol', 'hostname', 'provider', 'country', 'organization']
+      : objectType === 'SoftwareVersion'
+        ? ['package_name', 'ecosystem', 'version']
+        : objectType === 'Package'
+          ? ['name', 'package_name', 'ecosystem']
+          : objectType === 'Document' || objectType === 'ResearchWork'
+            ? ['title', 'source_family', 'authors', 'published_at']
+            : []
+  const entries = Object.entries(properties).filter(([, value]) => value != null)
+  return entries
+    .sort(([left], [right]) => {
+      const li = priority.indexOf(left)
+      const ri = priority.indexOf(right)
+      return (li === -1 ? 999 : li) - (ri === -1 ? 999 : ri) || left.localeCompare(right)
+    })
+    .slice(0, 8)
+}
+
+function objectPrimaryLabel(obj: Awaited<ReturnType<typeof getKnowledgeObject>>) {
+  for (const key of ['display_name', 'title', 'full_name', 'name', 'ip', 'package_name', 'version']) {
+    const value = obj.properties[key]
+    if (typeof value === 'string' && value.trim()) return value
+  }
+  const identifier = Object.values(obj.external_identifiers).flat()[0]
+  return identifier ?? obj.canonical_key
 }
 
 export function DocumentIndexDossier({
@@ -269,9 +258,9 @@ export function DocumentIndexDossier({
     <section className="document-index-dossier">
       <div className="document-index-head">
         <div>
-          <small>MANAGED DOCUMENT / INDEX PROVENANCE</small>
+          <small>{text("来源文档", "SOURCE DOCUMENT")}</small>
           <strong>{revision?.title ?? document.external_object_id}</strong>
-          <span className="mono">{document.document_id}</span>
+          <span>{revision?.published_at ? formatDate(revision.published_at) : formatDate(document.created_at)}</span>
         </div>
         <div>
           <small>{text('来源', 'SOURCE')}</small>
@@ -279,8 +268,10 @@ export function DocumentIndexDossier({
           <span>{revision ? `${revision.parser_name}@${revision.parser_version}` : text('无 revision', 'no revision')}</span>
         </div>
       </div>
+      {document.source_excerpt && <div className="document-source-excerpt"><small>{text("正文节选", "SOURCE EXCERPT")}</small><p>{document.source_excerpt}</p></div>}
+      <details className="document-index-details"><summary>{text("修订、索引与来源坐标", "Revision, index and provenance")}</summary>
       <div className="document-index-measures">
-        <div><small>CHUNKS</small><strong>{document.chunk_count}</strong><span>{text('正文不在 Product read 中暴露', 'content withheld from Product read')}</span></div>
+        <div><small>CHUNKS</small><strong>{document.chunk_count}</strong><span>{text('来源分段', 'Source chunks')}</span></div>
         <div><small>EMBEDDED</small><strong>{document.embedded_chunk_count}</strong><span>{document.embedding_models.join(' · ') || text('未记录 embedding model', 'no embedding model recorded')}</span></div>
         <div><small>INDEX STATE</small><strong>{indexed.map(([status, count]) => `${count} ${status}`).join(' · ') || '—'}</strong><span>{text('持久 chunk 状态', 'persisted chunk state')}</span></div>
         <div><small>SECTIONS</small><strong>{document.sections.length}</strong><span>{document.sections.slice(0, 3).join(' · ') || '—'}</span></div>
@@ -302,6 +293,7 @@ export function DocumentIndexDossier({
           <span>{document.insight ? `${humanize(document.insight.change_type)} · ${humanize(document.insight.evidence_maturity)}` : text('未持久化 InsightCandidate', 'no persisted InsightCandidate')}</span>
         </div>
       </div>
+      <p className="mono">{document.excerpt_chunk_id} · {JSON.stringify(document.excerpt_locator)}</p></details>
       {document.canonical_url && <a className="document-canonical-link" href={document.canonical_url} target="_blank" rel="noreferrer">{text('打开规范文档来源', 'OPEN CANONICAL DOCUMENT SOURCE')} <ExternalLink size={12} /></a>}
     </section>
   )

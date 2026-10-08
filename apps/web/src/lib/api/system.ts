@@ -10,6 +10,16 @@ export type SystemBacklog = {
   oldest_pending_at: string | null
 }
 
+export type SystemWorkerProbe = {
+  status: 'healthy' | 'degraded' | 'unavailable'
+  scope: string
+  checked_at: string
+  completed_at: string
+  failure_code: string | null
+  workers: Array<{ name: string; availability: string; ping_responded: boolean; queue_response_received: boolean; queue_names: string[]; checked_at: string; failure_code: string | null }>
+  queues: Array<{ queue_name: string; availability: 'available' | 'unobserved' | 'unknown'; consumer_names: string[]; checked_at: string; failure_code: string | null }>
+}
+
 export type SystemOverview = {
   generated_at: string
   overall: string
@@ -19,6 +29,7 @@ export type SystemOverview = {
   task_event_stream_pending: number | null
   runtime_policy_status: string
   model_provider_status: string
+  worker_probe?: SystemWorkerProbe | null
   measurement_boundaries: Record<string, string>
 }
 
