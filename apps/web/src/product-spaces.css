@@ -4869,45 +4869,50 @@
     font-size: 9px;
   }
   .vision-atlas-space {
-    min-height: 320px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    min-height: 0;
+  }
+  .vision-orbits {
+    height: 260px;
   }
   .vision-material-focus {
-    width: 90%;
-    left: 5%;
-    top: 20px;
-    height: 270px;
+    position: relative;
+    inset: auto;
+    z-index: 1;
+    width: 100%;
+    height: auto;
   }
   .vision-material-focus .hero-artifact {
-    height: 225px;
+    height: 220px;
   }
   .vision-material-focus>span {
     font-size: 10px;
   }
-  .vision-material-neighbour {
-    width: 47%;
-    padding: 9px 7px;
+  .vision-material-satellites {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: repeat(2,minmax(0,1fr));
+    gap: 9px;
+  }
+  .vision-material-satellites .vision-material-neighbour {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    min-height: 70px;
+    padding: 9px;
   }
   .vision-neighbour-art {
-    width: 20px;
-    height: 34px;
+    width: 26px;
+    height: 36px;
   }
   .vision-neighbour-copy small {
-    font-size: 6px;
+    font-size: 7px;
   }
   .vision-neighbour-copy strong {
-    font-size: 8px;
-  }
-  .material-position-0 {
-    top: 0;
-  }
-  .material-position-1 {
-    top: 20px;
-  }
-  .material-position-2 {
-    bottom: 22px;
-  }
-  .material-position-3 {
-    bottom: 0;
+    font-size: 9px;
   }
   .vision-world-measures {
     gap: 12px;

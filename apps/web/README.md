@@ -21,6 +21,8 @@ The INTELLIGENCE Incidents filter shows a separate candidate watch from live inc
 
 WORLD only offers the multi-step investigation action when the focused material has a canonical object or CVE target. A candidate without one opens its signal/provenance detail and original source instead of sending the user to an unlaunchable investigation form. The SPA router keeps the configured base URL's trailing slash, so returning to WORLD at `/product/` survives a browser refresh in development.
 
+The WORLD material atlas uses orbit placement on wide screens and a separate focus-then-neighbours composition below 600px. On narrow screens the source cards follow the central artifact in a grid, keeping their labels and actions clear of the 3D object and its category caption.
+
 The user flow is register/sign in → save interests → inspect evidence-based recommendations and feedback → ask/investigate → resume a recent conversation → sign out/sign in again. `/auth?mode=login|register&returnTo=...` uses a same-origin account session. Protected actions and private reads require the server session; the browser does not send a user-selected principal. Account changes clear query state and close old streams.
 
 Submitting a free-text INTELLIGENCE search issues a request for the exact current input before opening an object. The deferred suggestion list is only a preview; pressing Enter while it is updating cannot open a result from an earlier query.
