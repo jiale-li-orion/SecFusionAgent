@@ -471,7 +471,16 @@ async def get_agent_task_detail(
                 latency_ms=item.latency_ms,
                 input_tokens=_optional_int(item.usage_json.get("input_tokens")),
                 output_tokens=_optional_int(item.usage_json.get("output_tokens")),
+                total_tokens=_optional_int(item.usage_json.get("total_tokens")),
                 reasoning_tokens=_optional_int(item.usage_json.get("reasoning_tokens")),
+                usage_source=str(item.usage_json.get("measurement_source") or "unavailable"),
+                budget_settlement=(
+                    str(item.response_metadata_json["budget_settlement"])
+                    if item.response_metadata_json.get("budget_settlement") else None
+                ),
+                budget_committed_model_tokens=_optional_int(
+                    item.response_metadata_json.get("budget_committed_model_tokens")
+                ),
                 started_at=item.started_at,
             )
             for item in model_attempts

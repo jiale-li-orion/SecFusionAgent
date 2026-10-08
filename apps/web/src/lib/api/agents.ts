@@ -152,7 +152,11 @@ export type AgentTaskDetail = {
     latency_ms: number | null
     input_tokens: number | null
     output_tokens: number | null
+    total_tokens: number | null
     reasoning_tokens: number | null
+    usage_source: string
+    budget_settlement: string | null
+    budget_committed_model_tokens: number | null
     started_at: string
   }>
   context: {

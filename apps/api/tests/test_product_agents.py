@@ -173,10 +173,18 @@ async def _database():
                     failure_detail=None,
                     response_schema_digest="f" * 64,
                     response_artifact_ref="artifact:model-response",
-                    usage_json={},
+                    usage_json={
+                        "input_tokens": 24,
+                        "output_tokens": 6,
+                        "total_tokens": 30,
+                        "measurement_source": "provider_exact",
+                    },
                     cost_json={},
                     cache_usage_json={},
-                    response_metadata_json={},
+                    response_metadata_json={
+                        "budget_settlement": "provider_exact",
+                        "budget_committed_model_tokens": 30,
+                    },
                     latency_ms=180,
                 ),
             ]
@@ -249,6 +257,10 @@ async def test_product_agent_runtime_exposes_roles_tasks_and_safe_event_summary(
             "wall_seconds": 300.0,
         }
         assert detail_body["budget"]["remaining"]["agent_turns"] == 8.0
+        assert detail_body["model_attempts"][1]["total_tokens"] == 30
+        assert detail_body["model_attempts"][1]["usage_source"] == "provider_exact"
+        assert detail_body["model_attempts"][1]["budget_settlement"] == "provider_exact"
+        assert detail_body["model_attempts"][1]["budget_committed_model_tokens"] == 30
         assert "payload_ref" not in detail.text
         assert "idempotency_key" not in detail.text
     finally:

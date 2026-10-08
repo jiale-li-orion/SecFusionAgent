@@ -5,6 +5,12 @@ const aliases: Record<string, string> = {
   watch: 'observatory', monitor: 'observatory', lookup: 'intelligence',
   verify: 'vulnerability', trace: 'investigations', deep: 'intelligence',
   wide: 'world', full: 'world',
+  researchwork: 'academic', document: 'academic',
+  normativedocument: 'normative', requirement: 'normative', control: 'normative',
+  repository: 'development', repo: 'development', issue: 'development',
+  pullrequest: 'development', commit: 'development', release: 'development',
+  incident: 'incidents', internetasset: 'assets', asset: 'assets',
+  product: 'vendor', package: 'vendor', softwareversion: 'vendor',
 }
 
 /** Eight source seals and six space marks share a machined rim, not an icon font. */

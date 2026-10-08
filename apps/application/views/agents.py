@@ -121,7 +121,11 @@ class AgentModelAttemptView(BaseModel):
     latency_ms: int | None = None
     input_tokens: int | None = None
     output_tokens: int | None = None
+    total_tokens: int | None = None
     reasoning_tokens: int | None = None
+    usage_source: str = "unavailable"
+    budget_settlement: str | None = None
+    budget_committed_model_tokens: int | None = None
     started_at: datetime
 
 
