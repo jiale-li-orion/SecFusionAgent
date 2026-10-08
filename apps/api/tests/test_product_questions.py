@@ -174,6 +174,7 @@ async def test_question_stream_uses_authenticated_session_and_emits_durable_resu
                     "question": "Verify this CVE",
                     "cve_id": "CVE-2026-61616",
                     "task_kind": "verify_version_fix",
+                    "interactive_timeout_seconds": 90,
                 },
             )
         assert denied.status_code == 401

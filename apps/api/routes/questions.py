@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 
 import httpx
 from fastapi import APIRouter, Query, Request, Response, status
@@ -24,6 +25,7 @@ from packages.shared.config import get_settings
 from packages.task_runtime.contracts.models import TaskKind
 
 router = APIRouter(prefix="/api/v1/questions", tags=["questions"])
+logger = logging.getLogger(__name__)
 
 
 class AskQuestionRequest(BaseModel):
@@ -34,7 +36,7 @@ class AskQuestionRequest(BaseModel):
     task_kind: TaskKind = TaskKind.LOOKUP
     required_source_roles: list[str] = Field(default_factory=list)
     priority: int = Field(default=50, ge=0, le=100)
-    interactive_timeout_seconds: int = Field(default=5, ge=1, le=30)
+    interactive_timeout_seconds: int = Field(default=5, ge=1, le=120)
     retrieval_limit: int = Field(default=8, ge=1, le=20)
     allow_wait: bool = True
     investigation_timeout_seconds: int = Field(default=300, ge=30, le=3600)
@@ -190,6 +192,9 @@ async def stream_question(
             except ApplicationError as exc:
                 await queue.put(("error", {"code": exc.code, "message": str(exc)}))
             except Exception:
+                logger.exception(
+                    "Question stream execution failed: request_id=%s", context.request_id
+                )
                 await queue.put(
                     ("error", {"code": "question_failed", "message": "Question execution failed"})
                 )

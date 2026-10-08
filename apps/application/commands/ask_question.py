@@ -24,6 +24,7 @@ from apps.application.commands.start_investigation import (
 )
 from apps.application.errors import (
     DeadlineExceededError,
+    DecisionValidationError,
     DependencyUnavailableError,
     LifecycleConflictError,
     ResourceNotFoundError,
@@ -95,7 +96,7 @@ class AskQuestionCommand(BaseModel):
     task_kind: TaskKind = TaskKind.LOOKUP
     required_source_roles: list[str] = Field(default_factory=list)
     priority: int = Field(default=50, ge=0, le=100)
-    interactive_timeout_seconds: int = Field(default=5, ge=1, le=30)
+    interactive_timeout_seconds: int = Field(default=5, ge=1, le=120)
     retrieval_limit: int = Field(default=8, ge=1, le=20)
     allow_wait: bool = True
     investigation_timeout_seconds: int = Field(default=300, ge=30, le=3600)
@@ -313,19 +314,25 @@ class AskQuestionUseCase:
                 include_report=True,
             )
             if isinstance(proposal, DecisionDraft):
-                decision = DecisionService().decide(
-                    context.state,
-                    proposal,
-                    citation_sources=context.citation_sources,
-                )
+                try:
+                    decision = DecisionService().decide(
+                        context.state,
+                        proposal,
+                        citation_sources=context.citation_sources,
+                    )
+                except ValueError as exc:
+                    raise DecisionValidationError(
+                        "The generated answer did not pass evidence validation. Please retry."
+                    ) from exc
             else:
                 proposal = DecisionService().request_continuation(context.state, proposal)
         except Exception as exc:
-            stop_reason = (
-                "question_deadline_exceeded"
-                if isinstance(exc, TimeoutError)
-                else "question_reasoning_failed"
-            )
+            if isinstance(exc, TimeoutError):
+                stop_reason = "question_deadline_exceeded"
+            elif isinstance(exc, DecisionValidationError):
+                stop_reason = "question_decision_rejected"
+            else:
+                stop_reason = "question_reasoning_failed"
             async with session.begin():
                 await self._execution.finish(
                     session,

@@ -42,3 +42,8 @@ class DependencyUnavailableError(ApplicationError):
 class DeadlineExceededError(ApplicationError):
     code = "deadline_exceeded"
     retryable = True
+
+
+class DecisionValidationError(ApplicationError):
+    code = "decision_validation_failed"
+    retryable = True

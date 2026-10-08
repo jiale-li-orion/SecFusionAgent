@@ -38,6 +38,7 @@ _STATUS_BY_CODE = {
     "capability_unavailable": 503,
     "budget_exhausted": 409,
     "deadline_exceeded": 409,
+    "decision_validation_failed": 409,
     "rate_limited": 429,
     "idempotency_conflict": 409,
 }

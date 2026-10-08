@@ -481,6 +481,36 @@ async def test_lookup_question_runs_read_only_decision_without_durable_case() ->
 
 
 @pytest.mark.asyncio
+async def test_lookup_rejects_unsupported_model_fact_with_retryable_error() -> None:
+    from apps.application.errors import DecisionValidationError
+
+    engine, factory = await _factory()
+    provider = _Provider(DecisionPlannerResponse(action=FinalDecisionProposal(
+        conclusions=[DecisionConclusion(
+            statement="An unsupported reformulation of the vulnerability fact.",
+            type=ConclusionType.FACT,
+            evidence_refs=[f"evidence:{EVIDENCE_ID}"],
+        )],
+        stop_reason="evidence_sufficient",
+    )))
+    try:
+        async with factory() as session:
+            with pytest.raises(DecisionValidationError) as failure:
+                await _use_case(provider).execute(session, AskQuestionCommand(
+                    principal="user:test", request_id="question-invalid-decision",
+                    question=f"What is the CVSS score for {CVE}?", cve_id=CVE,
+                ))
+            assert failure.value.retryable
+            assert "evidence validation" in failure.value.detail
+        async with factory() as session:
+            run = await session.scalar(select(TaskRunModel))
+            assert run is not None and run.status == "failed"
+            assert run.stop_reason == "question_decision_rejected"
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_lookup_idempotency_replays_decision_without_second_model_call() -> None:
     engine, factory = await _factory()
     provider = _Provider(
