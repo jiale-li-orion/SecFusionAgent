@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Awaitable, Callable
-from typing import Any, TypeVar
+from typing import Any, Literal, TypeVar
 
 import httpx
 from pydantic import BaseModel, JsonValue
@@ -96,6 +96,19 @@ def select_discovered_chat_model(model_ids: list[str]) -> str:
     )
 
 
+def _use_json_object_format(payload: dict[str, Any], schema: dict[str, Any]) -> None:
+    payload["response_format"] = {"type": "json_object"}
+    system_content = payload["messages"][0]["content"]
+    if not isinstance(system_content, str):
+        raise RuntimeError("structured model system instruction must be text")
+    rendered_schema = json.dumps(schema, ensure_ascii=False, separators=(",", ":"))
+    payload["messages"][0]["content"] = (
+        f"{system_content}\n\n"
+        "Return only one JSON object that conforms exactly to this JSON "
+        f"Schema: {rendered_schema}"
+    )
+
+
 class OpenAICompatibleProvider:
     """Small OpenAI-compatible adapter for M3 semantic extraction and embeddings."""
 
@@ -113,6 +126,7 @@ class OpenAICompatibleProvider:
         max_tokens: int | None = None,
         temperature: float | None = 0.0,
         reasoning_effort: str | None = None,
+        response_format: Literal["auto", "json_schema", "json_object"] = "auto",
         on_delta: Callable[[str, str], Awaitable[None]] | None = None,
     ) -> None:
         self._client = client
@@ -124,6 +138,9 @@ class OpenAICompatibleProvider:
         self._max_tokens = max_tokens
         self._temperature = temperature
         self._reasoning_effort = reasoning_effort
+        if response_format not in {"auto", "json_schema", "json_object"}:
+            raise ValueError("unsupported model response format")
+        self._response_format = response_format
         self._on_delta = on_delta
         self.name = chat_model or "openai-compatible"
         self.version = self.ADAPTER_VERSION
@@ -171,25 +188,13 @@ class OpenAICompatibleProvider:
             payload["max_tokens"] = self._max_tokens
         if self._reasoning_effort is not None:
             payload["reasoning_effort"] = self._reasoning_effort
+        if self._response_format == "json_object":
+            _use_json_object_format(payload, schema)
         response_format_fallback = False
         response = await self._chat_completion(payload)
-        if response.status_code in {400, 422}:
+        if self._response_format == "auto" and response.status_code in {400, 422}:
             response_format_fallback = True
-            payload["response_format"] = {"type": "json_object"}
-            fallback_schema = json.dumps(
-                schema,
-                ensure_ascii=False,
-                separators=(",", ":"),
-            )
-            system_content = payload["messages"][0]["content"]
-            if not isinstance(system_content, str):
-                raise RuntimeError("structured model system instruction must be text")
-            payload["messages"][0]["content"] = (
-                f"{system_content}\n\n"
-                "The provider does not support strict json_schema response format for this "
-                "request. Return only one JSON object that conforms exactly to this JSON "
-                f"Schema: {fallback_schema}"
-            )
+            _use_json_object_format(payload, schema)
             response = await self._chat_completion(payload)
         data = _response_json(response)
         try:
@@ -226,8 +231,9 @@ class OpenAICompatibleProvider:
             else self._chat_model
         )
         response_metadata: dict[str, JsonValue] = {
-            "response_format": "json_object" if response_format_fallback else "json_schema",
+            "response_format": payload["response_format"]["type"],
             "response_format_fallback": response_format_fallback,
+            "http_exchanges": 2 if response_format_fallback else 1,
             "http_status": response.status_code,
             "max_tokens": self._max_tokens,
             "temperature": self._temperature,

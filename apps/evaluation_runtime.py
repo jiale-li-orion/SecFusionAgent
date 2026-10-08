@@ -1789,6 +1789,7 @@ async def capture_current_deployment_revision(
         "model_max_tokens": settings.model_max_tokens,
         "model_temperature": settings.model_temperature,
         "model_reasoning_effort": settings.model_reasoning_effort,
+        "model_response_format": settings.model_response_format,
         "model_max_attempts": settings.model_max_attempts,
         "model_retry_base_seconds": settings.model_retry_base_seconds,
         "model_retry_max_seconds": settings.model_retry_max_seconds,

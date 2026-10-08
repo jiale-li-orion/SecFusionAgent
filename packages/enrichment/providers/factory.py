@@ -28,5 +28,6 @@ def create_configured_ai_provider(
         max_tokens=settings.model_max_tokens,
         temperature=settings.model_temperature,
         reasoning_effort=settings.model_reasoning_effort,
+        response_format=settings.model_response_format,
         on_delta=on_delta,
     )

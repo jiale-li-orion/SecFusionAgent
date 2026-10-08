@@ -281,6 +281,7 @@ make qa-live
 ```
 
 If `/models` exposes exactly one plausible chat model, the probe resolves it automatically. Multi-model endpoints require `SECFUSION_MODEL_NAME` so the formal deployment remains deterministic. `make qa-live-preflight` validates the reviewed QA gold against the current Knowledge head without a model call. `make qa-live` freezes one clean DeploymentRevision, runs Product + session QA, reruns the selected M1/M3/fault suites under the same deployment, regenerates `CompetitionReport`, and updates generated evidence blocks. Provider endpoint identity and retry/timeout policy enter the DeploymentRevision digest; the API key does not.
+When the probe reports `response_format_fallback: true`, set `SECFUSION_MODEL_RESPONSE_FORMAT=json_object` for that provider and probe again before running Product QA. This pins the known dialect to one HTTP exchange per recorded attempt; the configured dialect also enters the DeploymentRevision digest.
 
 Stop the local stack with:
 

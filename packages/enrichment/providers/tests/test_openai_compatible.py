@@ -14,6 +14,7 @@ from packages.enrichment.providers.openai_compatible import (
 from packages.shared.model_provider import (
     ModelProviderMalformedOutputError,
     ModelProviderRateLimited,
+    ModelProviderResponseError,
     StructuredModelRequest,
 )
 
@@ -156,6 +157,65 @@ async def test_structured_generation_falls_back_to_json_object() -> None:
         )
     assert result.value == "fallback"
     assert attempts == 2
+
+
+@pytest.mark.asyncio
+async def test_configured_json_object_uses_one_exchange_with_schema_validation() -> None:
+    attempts = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        payload = json.loads(request.content)
+        assert payload["response_format"] == {"type": "json_object"}
+        assert '"value"' in payload["messages"][0]["content"]
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": '{"value":"direct"}'}}]},
+            request=request,
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        provider = OpenAICompatibleProvider(
+            client,
+            base_url="https://provider.example/v1",
+            chat_model="model-a",
+            response_format="json_object",
+        )
+        result = await provider.generate_structured_result(
+            StructuredModelRequest(system_instruction="extract", data={"text": "hello"}),
+            Result,
+        )
+    assert result.output.value == "direct"
+    assert attempts == 1
+    assert result.response_metadata is not None
+    assert result.response_metadata["response_format_fallback"] is False
+    assert result.response_metadata["http_exchanges"] == 1
+
+
+@pytest.mark.asyncio
+async def test_configured_json_schema_does_not_negotiate_after_rejection() -> None:
+    attempts = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        assert json.loads(request.content)["response_format"]["type"] == "json_schema"
+        return httpx.Response(400, json={"error": "unsupported"}, request=request)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        provider = OpenAICompatibleProvider(
+            client,
+            base_url="https://provider.example/v1",
+            chat_model="model-a",
+            response_format="json_schema",
+        )
+        with pytest.raises(ModelProviderResponseError):
+            await provider.generate_structured_result(
+                StructuredModelRequest(system_instruction="extract", data={"text": "hello"}),
+                Result,
+            )
+    assert attempts == 1
 
 
 @pytest.mark.asyncio
