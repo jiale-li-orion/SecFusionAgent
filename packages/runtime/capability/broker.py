@@ -124,6 +124,8 @@ class CapabilityBroker:
             raise CapabilityDenied("execution_envelope_task_run_mismatch")
         if envelope.task_contract_id != request.task_contract_id:
             raise CapabilityDenied("execution_envelope_task_contract_mismatch")
+        if envelope.case_id != request.case_id:
+            raise CapabilityDenied("execution_envelope_case_mismatch")
         if envelope.policy_revision != self._policy.policy_revision:
             raise CapabilityDenied("execution_envelope_policy_revision_mismatch")
         if request.capability_id not in set(envelope.capability_scope):

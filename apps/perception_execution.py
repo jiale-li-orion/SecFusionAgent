@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from decimal import Decimal
 from typing import Protocol, cast
 
@@ -193,7 +194,7 @@ class _SandboxCapabilityExecutor:
                     "requested_timeout_seconds": min(
                         self._invocation.exec_request.requested_timeout_seconds,
                         timeout_seconds,
-                    )
+                    ),
                 }
             )
             result = await self._sandbox_broker.exec(
@@ -253,16 +254,22 @@ class BrokeredPhysicalObservationPort:
         self,
         *,
         capability_broker: CapabilityBroker,
-        capability_executor: CapabilityExecutor,
+        capability_executor: CapabilityExecutor | None,
         sandbox_broker: SandboxBroker,
         resolver: PerceptionExecutionResolver,
         session_factory: async_sessionmaker[AsyncSession],
         promotion_port: ObservationPromotionPort | None = None,
         interpreter: PhysicalObservationInterpreter | None = None,
         execution_service: ExecutionRunService | None = None,
+        capability_executor_factory: (
+            Callable[[AsyncSession, TaskContract, ExecutionEnvelope], CapabilityExecutor] | None
+        ) = None,
     ) -> None:
         self._capability_broker = capability_broker
         self._capability_executor = capability_executor
+        self._capability_executor_factory = capability_executor_factory
+        if capability_executor is None and capability_executor_factory is None:
+            raise ValueError("physical observation requires a capability executor")
         self._sandbox_broker = sandbox_broker
         self._resolver = resolver
         self._session_factory = session_factory
@@ -297,6 +304,12 @@ class BrokeredPhysicalObservationPort:
         )
         async with self._session_factory() as session:
             task, envelope = await self._load_execution(session, task_run_id)
+            executor = (
+                self._capability_executor_factory(session, task, envelope)
+                if self._capability_executor_factory is not None
+                else self._capability_executor
+            )
+            assert executor is not None
             if resolved.request.task_run_id != task_run_id:
                 raise ValueError("resolved CapabilityRequest escapes perception TaskRun")
             try:
@@ -305,7 +318,7 @@ class BrokeredPhysicalObservationPort:
                     task=task,
                     envelope=envelope,
                     request=resolved.request,
-                    executor=self._capability_executor,
+                    executor=executor,
                     estimated_budget=resolved.estimated_budget,
                     grants=resolved.grants,
                     healthy_refs=resolved.healthy_refs,

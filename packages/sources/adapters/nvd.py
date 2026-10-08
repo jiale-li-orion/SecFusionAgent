@@ -39,10 +39,12 @@ class NVDAdapter:
         *,
         api_key: str | None = None,
         now: Callable[[], datetime] | None = None,
+        request_timeout_seconds: float | None = None,
     ) -> None:
         self._client = client
         self._api_key = api_key
         self._now = now or (lambda: datetime.now(UTC))
+        self._request_timeout_seconds = request_timeout_seconds
 
     async def discover(
         self,
@@ -140,7 +142,15 @@ class NVDAdapter:
         base_url = str(source.discovery_method.get("base_url") or self.DEFAULT_BASE_URL)
         headers = {"apiKey": self._api_key} if self._api_key else {}
         try:
-            response = await self._client.get(base_url, params=params, headers=headers)
+            if self._request_timeout_seconds is None:
+                response = await self._client.get(base_url, params=params, headers=headers)
+            else:
+                response = await self._client.get(
+                    base_url,
+                    params=params,
+                    headers=headers,
+                    timeout=self._request_timeout_seconds,
+                )
         except httpx.HTTPError as exc:
             raise SourceFetchFailed(f"NVD request failed: {exc.__class__.__name__}") from exc
         if response.status_code in {401, 403}:

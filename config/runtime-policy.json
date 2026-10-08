@@ -41,6 +41,33 @@
       "constraints": [],
       "obligations": [],
       "advice": []
+    },
+    {
+      "policy_id": "nvd-cve-capability-visible",
+      "policy_revision": "policy-v1",
+      "decision_points": ["capability_visibility"],
+      "principal_patterns": ["user:*", "system:*"],
+      "action_patterns": ["read_cve"],
+      "resource_patterns": ["capability:nvd.read_cve"],
+      "authorization": "permit"
+    },
+    {
+      "policy_id": "nvd-cve-capability-invoke",
+      "policy_revision": "policy-v1",
+      "decision_points": ["capability_invocation"],
+      "principal_patterns": ["user:*", "system:*"],
+      "action_patterns": ["read_cve"],
+      "resource_patterns": ["source:nvd-cves-2"],
+      "authorization": "permit"
+    },
+    {
+      "policy_id": "nvd-cve-observation-promote",
+      "policy_revision": "policy-v1",
+      "decision_points": ["observation_promotion"],
+      "principal_patterns": ["user:*", "system:*"],
+      "action_patterns": ["promote_observation"],
+      "resource_patterns": ["source:nvd-cves-2"],
+      "authorization": "permit"
     }
   ]
 }

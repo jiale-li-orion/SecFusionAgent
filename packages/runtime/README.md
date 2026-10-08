@@ -6,7 +6,7 @@
 
 `capability/` defines provider-neutral ToolImplementation, CapabilityContract, CapabilityBinding, CapabilityCard/SchemaView, requests, invocation plans/results and EphemeralObservation. Capability visibility is distinct from invocation authorization: a tool can be discoverable for planning while a concrete resource/action invocation is denied later.
 
-`CapabilityRegistry` resolves healthy bindings and detects native schema drift. `CapabilityBroker` revalidates TaskContract/ExecutionEnvelope ceilings, invokes the Policy engine, reserves/commits budget, maps canonical arguments to the selected implementation, bounds timeout by the absolute execution deadline and persists `capability_invocations`. Tool output becomes an EphemeralObservation; it does not enter Evidence/Knowledge automatically. Provider SDK schemas stay behind binding/executor adapters.
+`CapabilityRegistry` resolves healthy bindings and detects native schema drift. `CapabilityBroker` revalidates TaskContract/ExecutionEnvelope ceilings and Case identity, invokes the Policy engine, reserves/commits budget, maps canonical arguments to the selected implementation, bounds timeout by the absolute execution deadline and persists `capability_invocations`. Tool output becomes an EphemeralObservation; it does not enter Evidence/Knowledge automatically. Provider SDK schemas stay behind binding/executor adapters. The production NVD adapter in `apps/nvd_observation.py` is the first narrow external binding; it promotes the raw provider response only through the separate EvidenceIngress gate.
 
 ## Budget and execution
 
@@ -22,7 +22,7 @@
 
 Prompt/Role text cannot bypass PolicyDecision. Side-effect commit, credential issuance, network egress, sandbox selection and child execution remain explicit decision points.
 
-`TASK_ADMISSION` is evaluated after a domain compiler has produced a prospective TaskContract but before any TaskRun exists; its PolicyRequest therefore uses `intent_ref` plus the prospective contract coordinates rather than inventing a fake run ID. `WATCH_RESUME` is enforced before a relevant world change can create a fresh WATCH TaskRun. The production runtime policy catalog is loaded from `config/runtime-policy.json`; policy revision must match the TaskContract revision, implicit deny remains the default for unmatched decision points, and unmet obligations prevent TaskRun creation. Capability visibility/invocation policies still require a production Capability catalog before active external observation can be enabled in the worker-side Investigation composition.
+`TASK_ADMISSION` is evaluated after a domain compiler has produced a prospective TaskContract but before any TaskRun exists; its PolicyRequest therefore uses `intent_ref` plus the prospective contract coordinates rather than inventing a fake run ID. `WATCH_RESUME` is enforced before a relevant world change can create a fresh WATCH TaskRun. The production runtime policy catalog is loaded from `config/runtime-policy.json`; policy revision must match the TaskContract revision, implicit deny remains the default for unmatched decision points, and unmet obligations prevent TaskRun creation. NVD CVE read visibility, invocation and observation promotion each have a specific allow rule; other external capabilities remain denied.
 
 ## Sandbox
 
@@ -40,7 +40,7 @@ Capability/Policy/Budget/Execution/Sandbox control-plane contracts and durable a
 
 TD2 的 capability stack 已有具体实现：`CapabilityRegistry.visible_capabilities/schema_view/resolve_binding` 负责 discovery/binding；`CapabilityBroker.invoke` 做 invocation-time validation、Policy、Budget 与 executor 调用；`BudgetGovernor` 持有 durable reserve/commit/release；`ExecutionRunService` 持有 ExecutionEnvelope lifecycle；`SandboxBroker` 持有 sandbox create/exec/export/destroy 语义；`RetrievalInvocationService` 持有 Product retrieval request/result/reuse 的 operational record。Identity/network/audit 当前作为 ExecutionEnvelope、Policy、Sandbox 和 owner-local audit state 存在，没有为了目录图额外造空 package。
 
-现在最大的 gap 是 production composition 而不是 contract shape。`apps.investigation_runtime` 当前只开放 local Perception 与 delegation，没有把真实 search/browser/repository/asset capability catalog 接进 active Role。后续应该通过现有 Registry/Binding/Broker 接入这些 executor；直接让 InvestigationRole 调 provider 虽然 demo 更快，但会破坏 TD2 的控制面边界。
+生产组合现已接入受限的 NVD CVE 官方读取，并通过 Registry/Binding/Broker、采集运行记录、临时 Artifact 和 Evidence 提升闭合来源路径。更广的 search/browser/repository/asset capability 和 sandbox 仍未接入；后续继续沿同一控制面扩展。
 
 ## Dependency boundary
 

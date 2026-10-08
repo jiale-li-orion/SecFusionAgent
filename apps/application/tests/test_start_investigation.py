@@ -101,6 +101,7 @@ async def test_start_investigation_builds_real_domain_runtime_coordinate() -> No
             )
             assert execution is not None
             assert execution.envelope_json["trace_context"]["request_id"] == "request-product-1"
+            assert execution.envelope_json["capability_scope"] == ["nvd.read_cve"]
             budget = await session.scalar(
                 select(BudgetAccountModel).where(BudgetAccountModel.task_run_id == run.run_id)
             )

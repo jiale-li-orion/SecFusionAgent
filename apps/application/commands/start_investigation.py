@@ -183,7 +183,7 @@ class InvestigationTaskLauncher:
             investigation_state_ref=f"case:{case_id}@{state.case_revision}",
             object_refs=list(case.target_object_ids),
             policy_context_ref=f"policy-context:{policy.policy_revision}",
-            capability_envelope_ref="capability:investigation:local-v1",
+            capability_envelope_ref="capability:investigation:nvd-v1",
             budget_ref=budget_ref,
         )
         await create_task_run(
@@ -226,7 +226,7 @@ class InvestigationTaskLauncher:
                 role_revision="InvestigationRole@1",
                 context_manifest_revision=1,
                 execution_profile=profile,
-                capability_scope=[],
+                capability_scope=["nvd.read_cve"],
                 deadline_at=datetime.now(UTC) + timedelta(seconds=timeout_seconds),
                 budget_ref=budget_ref,
                 policy_revision=policy.policy_revision,

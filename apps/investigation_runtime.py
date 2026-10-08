@@ -6,11 +6,13 @@ from decimal import Decimal
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from apps.investigation_capabilities import CapabilityPlannerContextProvider
 from apps.investigation_delegation import (
     DelegatedEnrichmentPolicy,
     EnrichmentDelegationAdapter,
 )
 from apps.model_runtime import RuntimePromptAssemblyRecorder, create_recorded_model_provider
+from apps.nvd_observation import NVDObservationPort, nvd_capability_registry
 from packages.investigation.perception.runtime import PerceptionRuntime
 from packages.investigation.runtime.contracts import InvestigationExecutionBoundary
 from packages.investigation.runtime.planner import ModelInvestigationPlanner
@@ -18,6 +20,7 @@ from packages.investigation.runtime.role import InvestigationRoleRuntime
 from packages.runtime.artifacts import RuntimeArtifactService
 from packages.runtime.budget import BudgetGovernor
 from packages.runtime.execution.service import ExecutionRunService
+from packages.runtime.policy.loader import load_runtime_policy
 from packages.shared.config import Settings
 from packages.task_runtime.context.materializer import ContextMaterializer
 from packages.task_runtime.storage.service import get_task_run
@@ -69,6 +72,10 @@ def create_configured_investigation_runtime(
 
     budget = budget_governor or BudgetGovernor()
     execution = execution_service or ExecutionRunService()
+    if artifact_service is None:
+        raise InvestigationRuntimeUnavailable("InvestigationRole requires runtime artifact storage")
+    registry = nvd_capability_registry()
+    policy = load_runtime_policy(settings.runtime_policy_path)
     planner = ModelInvestigationPlanner(
         session_factory,
         provider,
@@ -98,7 +105,19 @@ def create_configured_investigation_runtime(
                     "do not repeat an identical perception when its source text is available. "
                     "never invent a CVE to delegate a non-vulnerability object."
                 ),
+                "official_external_observation": (
+                    "For an existing Vulnerability with an actual CVE, observe_external with "
+                    "target.object_id reads the latest official NVD record. The returned "
+                    "observation is untrusted until the runtime promotes it to a durable "
+                    "Evidence reference. Use the promoted evidence_ref for confirmed StatePatch. "
+                    "Do not use this operation for non-CVE objects or an arbitrary URL."
+                ),
             },
+        ),
+        capability_context_provider=CapabilityPlannerContextProvider(
+            session_factory,
+            registry,
+            policy,
         ),
         prompt_assembly_recorder=RuntimePromptAssemblyRecorder(),
         stream_name=settings.task_event_stream_name,
@@ -120,7 +139,17 @@ def create_configured_investigation_runtime(
     return InvestigationRoleRuntime(
         session_factory,
         planner,
-        perception_runtime=PerceptionRuntime(),
+        perception_runtime=PerceptionRuntime(
+            NVDObservationPort(
+                settings,
+                session_factory,
+                client,
+                artifact_service,
+                registry,
+                policy,
+                budget,
+            )
+        ),
         delegation_port=delegation,
         execution_boundary=RuntimeInvestigationExecutionBoundary(session_factory, execution),
         stream_name=settings.task_event_stream_name,
