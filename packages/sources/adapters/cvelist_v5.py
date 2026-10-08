@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import re
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -27,6 +28,8 @@ class CVEListV5Adapter:
         "https://raw.githubusercontent.com/CVEProject/cvelistV5/main/cves/deltaLog.json"
     )
     DEFAULT_RAW_ROOT = "https://raw.githubusercontent.com/CVEProject/cvelistV5/main/cves"
+    TRANSPORT_ATTEMPTS = 3
+    RETRY_DELAY_SECONDS = 0.5
 
     def __init__(self, client: httpx.AsyncClient) -> None:
         self._client = client
@@ -173,10 +176,19 @@ class CVEListV5Adapter:
         ]
 
     async def _get_json(self, url: str) -> Any:
-        try:
-            response = await self._client.get(url, follow_redirects=True)
-        except httpx.HTTPError as exc:
-            raise SourceFetchFailed(f"cvelistV5 request failed: {exc.__class__.__name__}") from exc
+        response: httpx.Response | None = None
+        for attempt in range(self.TRANSPORT_ATTEMPTS):
+            try:
+                response = await self._client.get(url, follow_redirects=True)
+                break
+            except httpx.TransportError as exc:
+                if attempt + 1 >= self.TRANSPORT_ATTEMPTS:
+                    raise SourceFetchFailed(
+                        f"cvelistV5 request failed: {exc.__class__.__name__}"
+                    ) from exc
+                await asyncio.sleep(self.RETRY_DELAY_SECONDS * (attempt + 1))
+        if response is None:
+            raise RuntimeError("cvelistV5 transport retry loop produced no response")
         if response.status_code == 429:
             raise SourceRateLimited("cvelistV5 rate limit reached")
         if response.is_error:

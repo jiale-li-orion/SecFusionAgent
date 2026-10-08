@@ -164,3 +164,20 @@ async def test_cvelist_bootstrap_uses_newest_entry_regardless_of_upstream_order(
     assert len(batch.items) == 1
     assert batch.items[0].external_revision == "2026-09-26T01:14:00+00:00"
     assert batch.next_cursor["last_fetch_time"] == "2026-09-26T01:15:00+00:00"
+
+
+@pytest.mark.asyncio
+async def test_cvelist_retries_one_transient_proxy_disconnect() -> None:
+    attempts = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise httpx.ConnectError("temporary proxy disconnect", request=request)
+        return httpx.Response(200, json=DELTA, request=request)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        batch = await CVEListV5Adapter(client).discover(SOURCE, SourceState())
+    assert attempts == 2
+    assert len(batch.items) == 1

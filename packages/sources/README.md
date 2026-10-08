@@ -91,7 +91,8 @@ bounds each poll by `discovery_method.max_items`. During catch-up, the cursor re
 per-CVE processed revision marker and `backfill_pending=true`; newly disclosed changes
 are selected before historical backlog, while unfinished refs remain eligible. The
 high-water timestamp advances only after all refs in that interval have been fetched
-and admitted. A failed poll retains its prior cursor and safely replays accepted refs.
+and admitted. Transient transport disconnects receive a bounded retry; a failed poll
+retains its prior cursor and safely replays accepted refs.
 
 FIRST EPSS is modeled as its own fixed on-demand source (`first-epss`) rather than as a field owned by GitHub Advisory. The adapter preserves the provider score date as `external_revision` / `updated_at`, and the M3 mapper carries `source_semantics=first_epss` plus `score_date` into canonical EPSS claims. This lets evaluation and replay distinguish daily point-in-time scores instead of treating EPSS as an unversioned mutable scalar. CLI refresh paths synchronize version-controlled source definitions into PostgreSQL before creating AcquisitionRuns, so newly added providers cannot fail the source foreign-key boundary merely because the registry has not been manually seeded yet.
 
