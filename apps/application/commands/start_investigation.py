@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -19,7 +20,11 @@ from apps.application.queries.investigations import InvestigationQueries
 from apps.application.views.investigations import StartInvestigationResult
 from apps.task_admission import create_task_contract_service
 from packages.intelligence.knowledge.read import get_vulnerability_by_cve
-from packages.intelligence.storage.knowledge_models import KnowledgeRevisionModel, ObjectModel
+from packages.intelligence.storage.knowledge_models import (
+    ExternalIdentifierModel,
+    KnowledgeRevisionModel,
+    ObjectModel,
+)
 from packages.investigation.cases.service import CaseService
 from packages.investigation.state.contracts import CaseLifecycle, EvidenceNeedContract
 from packages.investigation.state.service import InvestigationStateService
@@ -168,6 +173,9 @@ class InvestigationTaskLauncher:
             raise PermissionDeniedError(str(exc)) from exc
 
         run_id = str(uuid4())
+        capability_scope = await _investigation_capability_scope(
+            session, list(case.target_object_ids)
+        )
         budget_ref = f"budget:{run_id}"
         execution_id = f"execution:{run_id}"
         profile = _execution_profile(task_kind)
@@ -183,7 +191,11 @@ class InvestigationTaskLauncher:
             investigation_state_ref=f"case:{case_id}@{state.case_revision}",
             object_refs=list(case.target_object_ids),
             policy_context_ref=f"policy-context:{policy.policy_revision}",
-            capability_envelope_ref="capability:investigation:nvd-v1",
+            capability_envelope_ref=(
+                "capability:investigation:nvd-v1"
+                if capability_scope
+                else "capability:investigation:local-v1"
+            ),
             budget_ref=budget_ref,
         )
         await create_task_run(
@@ -226,7 +238,7 @@ class InvestigationTaskLauncher:
                 role_revision="InvestigationRole@1",
                 context_manifest_revision=1,
                 execution_profile=profile,
-                capability_scope=["nvd.read_cve"],
+                capability_scope=capability_scope,
                 deadline_at=datetime.now(UTC) + timedelta(seconds=timeout_seconds),
                 budget_ref=budget_ref,
                 policy_revision=policy.policy_revision,
@@ -457,6 +469,43 @@ async def _resolve_target(session: AsyncSession, command: StartInvestigationComm
             context={"cve_id": command.cve_id.upper()},
         )
     return vulnerability.object_id
+
+
+async def _investigation_capability_scope(
+    session: AsyncSession, target_object_ids: list[str]
+) -> list[str]:
+    if not target_object_ids:
+        return []
+    candidates = list(
+        await session.scalars(
+            select(ObjectModel).where(
+                ObjectModel.object_id.in_(target_object_ids),
+                ObjectModel.object_type == "Vulnerability",
+                ObjectModel.superseded_revision.is_(None),
+            )
+        )
+    )
+    if not candidates:
+        return []
+    identifiers = (
+        await session.execute(
+            select(ExternalIdentifierModel.object_id, ExternalIdentifierModel.value).where(
+                ExternalIdentifierModel.object_id.in_([item.object_id for item in candidates]),
+                ExternalIdentifierModel.namespace == "cve",
+            )
+        )
+    ).all()
+    by_object: dict[str, list[str]] = {}
+    for object_id, value in identifiers:
+        by_object.setdefault(object_id, []).append(value)
+    return (
+        ["nvd.read_cve"]
+        if any(
+            len(values) == 1 and re.fullmatch(r"CVE-\d{4}-\d{4,}", values[0], re.IGNORECASE)
+            for values in by_object.values()
+        )
+        else []
+    )
 
 
 def _execution_profile(task_kind: TaskKind) -> ExecutionProfile:

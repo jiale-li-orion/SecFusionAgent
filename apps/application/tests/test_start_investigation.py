@@ -111,6 +111,53 @@ async def test_start_investigation_builds_real_domain_runtime_coordinate() -> No
 
 
 @pytest.mark.asyncio
+async def test_non_cve_investigation_does_not_advertise_nvd_capability() -> None:
+    engine, factory = await _factory()
+    async with factory() as session, session.begin():
+        revision = KnowledgeRevisionModel(committed_at=NOW)
+        session.add(revision)
+        await session.flush()
+        session.add(
+            ObjectModel(
+                object_id="paper-object",
+                object_type="ResearchWork",
+                canonical_key="paper:test-research-work",
+                properties={"title": "Research work"},
+                created_revision=revision.revision,
+            )
+        )
+    settings = get_settings()
+    try:
+        async with factory() as session:
+            result = await StartInvestigationUseCase(
+                policy_path=settings.runtime_policy_path,
+                task_event_stream_name=settings.task_event_stream_name,
+            ).execute(
+                session,
+                StartInvestigationCommand(
+                    principal="user:test",
+                    request_id="request-paper-1",
+                    object_id="paper-object",
+                    goal="Inspect the research work",
+                    evidence_question="What does the paper say?",
+                    task_kind=TaskKind.INVESTIGATE_RELATION,
+                ),
+            )
+        async with factory() as session:
+            run = await session.scalar(
+                select(TaskRunModel).where(TaskRunModel.case_id == result.investigation.case_id)
+            )
+            assert run is not None
+            execution = await session.scalar(
+                select(ExecutionRunModel).where(ExecutionRunModel.task_run_id == run.run_id)
+            )
+            assert execution is not None
+            assert execution.envelope_json["capability_scope"] == []
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_investigation_list_uses_opaque_cursor() -> None:
     engine, factory = await _factory()
     await _seed_vulnerability(factory)
