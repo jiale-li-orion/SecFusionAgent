@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -18,6 +18,7 @@ from packages.sources.contracts import (
 from packages.sources.errors import SourceFetchFailed, SourceRateLimited, SourceSchemaChanged
 
 _CVE_RE = re.compile(r"^CVE-(\d{4})-(\d{4,})$")
+_ONE_MICROSECOND = timedelta(microseconds=1)
 
 
 class CVEListV5Adapter:
@@ -47,18 +48,33 @@ class CVEListV5Adapter:
             if not isinstance(fetch_time, str):
                 raise SourceSchemaChanged("cvelistV5 delta entry has no fetchTime")
             parsed = _parse_datetime(fetch_time)
-            if cursor is None or parsed > cursor:
-                entries.append((parsed, item))
-
+            entries.append((parsed, item))
+        # The upstream delta log is reverse chronological today, but the contract must
+        # not depend on its array order. In particular, taking payload[-1] bootstraps
+        # from the oldest record and turns a hot-window poll into a month-long replay.
+        entries.sort(key=lambda item: item[0], reverse=True)
         if cursor is None and entries:
             initial_entries = _positive_int(
                 source.discovery_method.get("initial_entries"),
                 default=1,
             )
-            entries = entries[-initial_entries:]
+            floor_index = min(initial_entries, len(entries))
+            if floor_index < len(entries):
+                cursor = min(
+                    entries[floor_index][0],
+                    entries[floor_index - 1][0] - _ONE_MICROSECOND,
+                )
+            else:
+                cursor = entries[-1][0] - _ONE_MICROSECOND
 
-        latest_by_cve: dict[str, DiscoveredRef] = {}
-        for _, entry in entries:
+        eligible = [
+            (fetch_time, item)
+            for fetch_time, item in entries
+            if cursor is None or fetch_time > cursor
+        ]
+
+        latest_by_cve: dict[str, tuple[datetime, DiscoveredRef]] = {}
+        for fetch_time, entry in eligible:
             for bucket in ("new", "updated"):
                 changes = entry.get(bucket, [])
                 if not isinstance(changes, list):
@@ -66,19 +82,48 @@ class CVEListV5Adapter:
                 for change in changes:
                     ref = _change_ref(change)
                     previous = latest_by_cve.get(ref.external_object_id)
-                    if previous is None or _ref_updated(ref) >= _ref_updated(previous):
-                        latest_by_cve[ref.external_object_id] = ref
+                    if previous is None or (_ref_updated(ref), fetch_time) > (
+                        _ref_updated(previous[1]), previous[0]
+                    ):
+                        latest_by_cve[ref.external_object_id] = (fetch_time, ref)
 
-        latest_fetch = max((item[0] for item in entries), default=cursor)
-        if latest_fetch is None and payload:
-            tail = payload[-1]
-            if isinstance(tail, dict) and isinstance(tail.get("fetchTime"), str):
-                latest_fetch = _parse_datetime(tail["fetchTime"])
-        next_cursor = dict(state.cursor)
-        if latest_fetch is not None:
-            next_cursor["last_fetch_time"] = latest_fetch.isoformat()
+        completed_raw = state.cursor.get("processed_revisions")
+        completed = (
+            {
+                key: value
+                for key, value in completed_raw.items()
+                if isinstance(key, str) and isinstance(value, str)
+            }
+            if isinstance(completed_raw, dict)
+            else {}
+        )
+        pending = [
+            (fetch_time, ref, _processed_marker(fetch_time, ref))
+            for fetch_time, ref in latest_by_cve.values()
+            if completed.get(ref.external_object_id) != _processed_marker(fetch_time, ref)
+        ]
+        pending.sort(
+            key=lambda item: (item[0], _ref_updated(item[1]), item[1].external_object_id),
+            reverse=True,
+        )
+        limit = _positive_int(source.discovery_method.get("max_items"), default=150)
+        selected = pending[:limit]
+        backfill_pending = len(pending) > len(selected)
+        if backfill_pending:
+            completed.update({ref.external_object_id: marker for _, ref, marker in selected})
+            next_cursor = {
+                "last_fetch_time": cursor.isoformat() if cursor is not None else None,
+                "processed_revisions": completed,
+                "backfill_pending": True,
+            }
+        else:
+            latest_fetch = max((item[0] for item in eligible), default=cursor)
+            next_cursor = {
+                "last_fetch_time": latest_fetch.isoformat() if latest_fetch is not None else None,
+                "backfill_pending": False,
+            }
         return DiscoveryBatch(
-            items=sorted(latest_by_cve.values(), key=lambda item: item.external_object_id),
+            items=[ref for _, ref, _ in selected],
             next_cursor=next_cursor,
         )
 
@@ -218,6 +263,10 @@ def _optional_datetime(value: Any) -> datetime | None:
 
 def _ref_updated(ref: DiscoveredRef) -> datetime:
     return ref.updated_at or datetime.min.replace(tzinfo=UTC)
+
+
+def _processed_marker(fetch_time: datetime, ref: DiscoveredRef) -> str:
+    return f"{fetch_time.isoformat()}|{ref.external_revision or ''}"
 
 
 def _positive_int(value: Any, *, default: int) -> int:
