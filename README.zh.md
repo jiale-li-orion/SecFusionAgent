@@ -81,6 +81,8 @@ pytest      领域、重放、状态迁移与契约测试
 
 上方正式评测数字只适用于记录的部署和样本，不代表当前版本整体准确率或覆盖率。[决赛标准复查](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Finals-Readiness-Review-2026-10-08)按赛题保留持续监测广度、开放维度富化、当前版本 QA 质量和运维验收的剩余边界。
 
+[生产部署手册](deploy/PRODUCT-DEPLOY.md)规定私有 TLS 边界、重启策略、版本化应用镜像、数据库与证据文件备份，以及考虑数据库版本的回退步骤。本地开发环境与生产发布分别管理。
+
 ## 系统概览
 
 公开文档站提供两张由 authoritative specification 生成的 Archify 交互视图：

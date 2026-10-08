@@ -62,9 +62,10 @@ def main() -> int:
     _require(api, "proxy_read_timeout 3600s;", owner="nginx /api")
     _require(
         api,
-        "proxy_set_header X-Forwarded-Proto $scheme;",
+        "proxy_set_header X-Forwarded-Proto $secfusion_forwarded_proto;",
         owner="nginx /api",
     )
+    _require(nginx, "map $http_x_forwarded_proto $secfusion_forwarded_proto", owner="nginx TLS forwarding")
 
     _location_block(nginx, "/health")
 
@@ -84,9 +85,15 @@ def main() -> int:
 
     if "SECFUSION_DEMO_HTPASSWD_PATH" in compose:
         raise RuntimeError("production compose still requires a demo password file")
-    _require(compose, "${SECFUSION_HTTP_PORT:-80}:80", owner="production compose")
+    _require(
+        compose,
+        "${SECFUSION_HTTP_BIND_ADDRESS:-127.0.0.1}:${SECFUSION_HTTP_PORT:-80}:80",
+        owner="production compose",
+    )
+    _require(compose, "${SECFUSION_APP_IMAGE:-secfusion-app:production}", owner="production compose")
+    _require(compose, "${SECFUSION_WEB_IMAGE:-secfusion-product-web:production}", owner="production compose")
 
-    for service in ("postgres", "redis-broker", "redis-cache", "redis-task-bus", "api"):
+    for service in ("postgres", "redis-broker", "redis-cache", "redis-task-bus", "api", "product-web"):
         service_match = re.search(
             rf"^\s{{2}}{re.escape(service)}:\n(?P<body>.*?)(?=^\s{{2}}\S|\Z)",
             compose,
@@ -94,8 +101,11 @@ def main() -> int:
         )
         if service_match is None:
             raise RuntimeError(f"production compose missing service {service}")
-        if re.search(r"^\s+ports:\s*$", service_match.group("body"), re.MULTILINE):
+        if service != "product-web" and re.search(r"^\s+ports:\s*$", service_match.group("body"), re.MULTILINE):
             raise RuntimeError(f"{service} must not publish host ports in production")
+        if service != "api" and "restart: unless-stopped" not in service_match.group("body"):
+            raise RuntimeError(f"{service} must restart after host reboot")
+    _require(compose, "restart: unless-stopped", owner="production app runtime")
 
     _require(
         doc,
@@ -117,7 +127,7 @@ def main() -> int:
     print("PASS · account sign-in is the browser entry")
     print("PASS · /healthz is reachable for container health")
     print("PASS · SSE proxy buffering/cache disabled")
-    print("PASS · PostgreSQL/Redis/API have no host port exposure")
+    print("PASS · PostgreSQL/Redis/API have no host port exposure; web binds loopback by default")
     print("PASS · immutable hashed assets")
     print("PASS · browser hardening headers")
     print("PASS · forwarded TLS protocol seam documented and proxied")

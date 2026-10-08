@@ -34,7 +34,8 @@ x-app-env: &app-env
 
 x-app-runtime: &app-runtime
   build: *app-build
-  image: secfusion-app:production
+  image: ${SECFUSION_APP_IMAGE:-secfusion-app:production}
+  restart: unless-stopped
   entrypoint: ["/app/deploy/runtime-entrypoint.sh"]
   environment: *app-env
   volumes:
@@ -55,6 +56,7 @@ services:
       context: ..
       dockerfile: deploy/postgres/Dockerfile
     image: secfusion-postgres:pg16-pgvector
+    restart: unless-stopped
     environment:
       POSTGRES_DB: secfusion
       POSTGRES_USER: secfusion
@@ -69,6 +71,7 @@ services:
 
   redis-broker:
     image: redis:7-alpine
+    restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
     healthcheck: &redis-health
       test: ["CMD", "redis-cli", "ping"]
@@ -80,11 +83,13 @@ services:
 
   redis-cache:
     image: redis:7-alpine
+    restart: unless-stopped
     command: ["redis-server", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lfu"]
     healthcheck: *redis-health
 
   redis-task-bus:
     image: redis:7-alpine
+    restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
     healthcheck: *redis-health
     volumes:
@@ -92,7 +97,8 @@ services:
 
   artifact-store-init:
     build: *app-build
-    image: secfusion-app:production
+    image: ${SECFUSION_APP_IMAGE:-secfusion-app:production}
+    restart: "no"
     user: "0:0"
     entrypoint: ["/bin/sh", "-c"]
     command:
@@ -105,6 +111,7 @@ services:
 
   migrate:
     <<: *app-runtime
+    restart: "no"
     command: ["alembic", "upgrade", "head"]
     depends_on:
       postgres:
@@ -179,12 +186,13 @@ services:
       dockerfile: deploy/product-web/Dockerfile
       args:
         PRODUCT_BASE: /
-    image: secfusion-product-web:production
+    image: ${SECFUSION_WEB_IMAGE:-secfusion-product-web:production}
+    restart: unless-stopped
     depends_on:
       api:
         condition: service_healthy
     ports:
-      - "${SECFUSION_HTTP_PORT:-80}:80"
+      - "${SECFUSION_HTTP_BIND_ADDRESS:-127.0.0.1}:${SECFUSION_HTTP_PORT:-80}:80"
 
 volumes:
   secfusion-artifacts:

@@ -81,6 +81,8 @@ Users can register or sign in at `/product/auth`. Server-side sessions use a has
 
 The formal benchmark numbers above describe their recorded deployment and sample, not the current Product's overall accuracy or coverage. The [finals readiness review](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Finals-Readiness-Review-2026-10-08) tracks remaining monitoring breadth, open-dimension enrichment, current-version QA quality and operational acceptance against the competition rubric.
 
+The [production deployment guide](deploy/PRODUCT-DEPLOY.md) defines the private TLS boundary, reboot restart policy, versioned application images, database/artifact backup and schema-aware rollback procedure. Local development and production releases remain separate environments.
+
 ## System overview
 
 The public documentation site contains two interactive Archify views generated from the authoritative specifications:
