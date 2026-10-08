@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 class RetrievalDisposition(StrEnum):
     EXECUTED = "executed"
     REUSED = "reused"
+    FAILED = "failed"
 
 
 class RetrievalRequestCoordinate(BaseModel):
@@ -62,6 +63,7 @@ class RetrievalInvocation(BaseModel):
     result_refs: list[str] = Field(default_factory=list)
     disposition: RetrievalDisposition
     reuse_of_invocation_id: str | None = None
+    failure_class: str | None = None
     started_at: datetime
     finished_at: datetime
 

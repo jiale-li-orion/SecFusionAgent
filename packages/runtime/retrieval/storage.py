@@ -25,6 +25,7 @@ class RetrievalInvocationModel(Base):
     result_refs: Mapped[list[str]] = mapped_column(JSON, nullable=False)
     result_count: Mapped[int] = mapped_column(Integer, nullable=False)
     disposition: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    failure_class: Mapped[str | None] = mapped_column(String(128))
     reuse_of_invocation_id: Mapped[str | None] = mapped_column(
         String(36),
         ForeignKey("retrieval_invocations.invocation_id", ondelete="SET NULL"),

@@ -12,7 +12,7 @@
 - pinned Knowledge revision;
 - result limit and source scope;
 - ordered `document-chunk:*` result refs;
-- disposition: `executed` or `reused`;
+- disposition: `executed`, `reused`, or `failed`;
 - `reuse_of_invocation_id` when replaying a prior result set;
 - start/finish timestamps.
 
@@ -35,9 +35,9 @@ The prior ordered chunk refs are then re-read through `LexicalRetrievalOperator.
 
 `ContextManifest.retrieval_invocation_refs` links Task/Context provenance to these records. QuestionSession does not copy retrieval payloads and Knowledge does not store cache state.
 
-## Current failure boundary
+## Failed attempt boundary
 
-Successful Product RETRIEVE calls and exact reuses are durable once the synchronous Question runtime coordinate is committed. A retrieval failure that occurs before Context/TaskRun creation is not yet independently committed as a failed invocation; adding failed-attempt durability requires an independent short-transaction recorder similar to ModelAttempt and must not create an otherwise-empty Product session as a side effect.
+Successful Product RETRIEVE calls and exact reuses are durable once the synchronous Question runtime coordinate is committed. If physical lexical search or exact-ref replay fails before Context/TaskRun creation, Application rolls back the provisional command transaction and records a `failed` invocation in a short transaction. The failure row retains the request coordinate, prospective session/turn coordinate, timing and exception class without raw query text or an empty Product session. Failed invocations cannot satisfy future exact reuse. Migration `20261009_0033` adds `failure_class` to the existing durable table. If the database itself is unavailable, attempt persistence may also fail; the original retrieval failure remains the returned error.
 
 ## Verification
 

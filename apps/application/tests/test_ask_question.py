@@ -508,6 +508,46 @@ async def test_lookup_idempotency_replays_decision_without_second_model_call() -
 
 
 @pytest.mark.asyncio
+async def test_pre_context_retrieval_failure_records_attempt_without_empty_session() -> None:
+    class TimedOutRetrieval(LexicalRetrievalOperator):
+        async def search(
+            self, session, *, query: str, limit: int = 20,
+            source_ids: Sequence[str] | None = None,
+        ) -> list[RetrievedCandidate]:
+            raise TimeoutError("fixture retrieval timeout")
+
+    engine, factory = await _factory()
+    try:
+        async with factory() as session:
+            with pytest.raises(TimeoutError):
+                await _use_case(_FailingProvider(), retrieval=TimedOutRetrieval()).execute(
+                    session,
+                    AskQuestionCommand(
+                        principal="user:test",
+                        request_id="pre-context-retrieval-failure",
+                        idempotency_key="retryable-retrieval-failure",
+                        question="Find evidence about this fix",
+                        cve_id=CVE,
+                        task_kind=TaskKind.RETRIEVE,
+                    ),
+                )
+        async with factory() as session:
+            attempt = await session.scalar(select(RetrievalInvocationModel))
+            assert attempt is not None
+            assert attempt.disposition == "failed"
+            assert attempt.failure_class == "TimeoutError"
+            assert attempt.result_refs == []
+            assert int(await session.scalar(
+                select(func.count()).select_from(QuestionSessionModel)
+            ) or 0) == 0
+            assert int(await session.scalar(
+                select(func.count()).select_from(TaskRunModel)
+            ) or 0) == 0
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_retrieve_session_rejects_stale_live_case_world() -> None:
     engine, factory = await _factory()
     provider = _Provider(

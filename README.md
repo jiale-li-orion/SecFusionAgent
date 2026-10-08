@@ -93,6 +93,8 @@ Users can register or sign in at `/product/auth`. Server-side sessions use a has
 
 Product Question and Investigation writes now accept client `Idempotency-Key` values. The Web keeps the same key while retrying an unfinished submission, so transport retries do not create duplicate Cases, model calls or conversation turns; cancellation also sends the Case revision to reject stale actions. The durable command record is added by migration `20261009_0032`.
 
+Before a RETRIEVE question creates a TaskRun, a failed physical search now leaves a durable failed retrieval attempt with timing and request coordinates. It does not create an empty conversation; successful and reused retrievals keep their existing ContextManifest references. This audit boundary is added by migration `20261009_0033`.
+
 The formal benchmark numbers above describe their recorded deployment and sample, not the current Product's overall accuracy or coverage. The [finals readiness review](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Finals-Readiness-Review-2026-10-08) tracks remaining monitoring breadth, open-dimension enrichment, current-version QA quality and operational acceptance against the competition rubric.
 
 The [production deployment guide](deploy/PRODUCT-DEPLOY.md) defines the private TLS boundary, reboot restart policy, versioned application images, database/artifact backup and schema-aware rollback procedure. Local development and production releases remain separate environments.

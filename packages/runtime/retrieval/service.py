@@ -29,6 +29,10 @@ class RetrievalInvocationService:
                 RetrievalInvocationModel.product_session_id == product_session_id,
                 RetrievalInvocationModel.product_turn_index < before_turn_index,
                 RetrievalInvocationModel.request_digest == request.request_digest,
+                RetrievalInvocationModel.disposition.in_((
+                    RetrievalDisposition.EXECUTED.value,
+                    RetrievalDisposition.REUSED.value,
+                )),
             )
             .order_by(
                 RetrievalInvocationModel.product_turn_index.desc(),
@@ -52,6 +56,8 @@ class RetrievalInvocationService:
         started_at: datetime | None = None,
         finished_at: datetime | None = None,
     ) -> RetrievalInvocation:
+        if disposition is RetrievalDisposition.FAILED:
+            raise ValueError("failed retrieval requires record_failed")
         if disposition is RetrievalDisposition.REUSED and reuse_of_invocation_id is None:
             raise ValueError("reused retrieval invocation requires reuse_of_invocation_id")
         if disposition is RetrievalDisposition.EXECUTED and reuse_of_invocation_id is not None:
@@ -80,6 +86,41 @@ class RetrievalInvocationService:
         await session.flush()
         return _view(model)
 
+    async def record_failed(
+        self,
+        session: AsyncSession,
+        *,
+        request_owner_ref: str,
+        product_session_id: str,
+        product_turn_index: int,
+        request: RetrievalRequestCoordinate,
+        failure_class: str,
+        started_at: datetime,
+    ) -> RetrievalInvocation:
+        model = RetrievalInvocationModel(
+            invocation_id=str(uuid4()),
+            request_owner_ref=request_owner_ref,
+            product_session_id=product_session_id,
+            product_turn_index=product_turn_index,
+            operator=request.operator,
+            operator_revision=request.operator_revision,
+            query_digest=request.query_digest,
+            request_digest=request.request_digest,
+            knowledge_revision=request.knowledge_revision,
+            result_limit=request.limit,
+            source_ids=list(request.source_ids),
+            result_refs=[],
+            result_count=0,
+            disposition=RetrievalDisposition.FAILED.value,
+            failure_class=failure_class[:128],
+            reuse_of_invocation_id=None,
+            started_at=started_at,
+            finished_at=datetime.now(UTC),
+        )
+        session.add(model)
+        await session.flush()
+        return _view(model)
+
 
 def _view(model: RetrievalInvocationModel) -> RetrievalInvocation:
     return RetrievalInvocation(
@@ -98,6 +139,7 @@ def _view(model: RetrievalInvocationModel) -> RetrievalInvocation:
         result_refs=list(model.result_refs),
         disposition=RetrievalDisposition(model.disposition),
         reuse_of_invocation_id=model.reuse_of_invocation_id,
+        failure_class=model.failure_class,
         started_at=model.started_at,
         finished_at=model.finished_at,
     )

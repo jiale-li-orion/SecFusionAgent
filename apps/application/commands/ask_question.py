@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -958,21 +959,43 @@ class AskQuestionUseCase:
         candidates: list[RetrievedCandidate] | None = None
         disposition = RetrievalDisposition.EXECUTED
         reuse_of_invocation_id: str | None = None
-        if reusable is not None:
-            replayed = await self._retrieval.by_chunk_refs(
-                session,
-                refs=reusable.result_refs,
-            )
-            if len(replayed) == len(reusable.result_refs):
-                candidates = replayed
-                disposition = RetrievalDisposition.REUSED
-                reuse_of_invocation_id = reusable.invocation_id
-        if candidates is None:
-            candidates = await self._retrieval.search(
-                session,
-                query=command.question,
-                limit=command.retrieval_limit,
-            )
+        try:
+            if reusable is not None:
+                replayed = await self._retrieval.by_chunk_refs(
+                    session,
+                    refs=reusable.result_refs,
+                )
+                if len(replayed) == len(reusable.result_refs):
+                    candidates = replayed
+                    disposition = RetrievalDisposition.REUSED
+                    reuse_of_invocation_id = reusable.invocation_id
+            if candidates is None:
+                candidates = await self._retrieval.search(
+                    session,
+                    query=command.question,
+                    limit=command.retrieval_limit,
+                )
+        except Exception as exc:
+            # No TaskRun/Context exists yet. Roll back any provisional command
+            # claim, then commit only this failed physical retrieval attempt.
+            await session.rollback()
+            try:
+                await self._retrieval_invocations.record_failed(
+                    session,
+                    request_owner_ref=f"product-request:{command.request_id}",
+                    product_session_id=session_context.session_id,
+                    product_turn_index=turn_index,
+                    request=request,
+                    failure_class=type(exc).__name__,
+                    started_at=started_at,
+                )
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                logging.getLogger(__name__).exception(
+                    "failed to persist retrieval attempt", extra={"request_id": command.request_id}
+                )
+            raise
         invocation = await self._retrieval_invocations.record(
             session,
             request_owner_ref=f"product-request:{command.request_id}",
