@@ -53,8 +53,9 @@ docker compose -f deploy/docker-compose.yml --profile runtime up -d worker worke
 Keep the relay process running while selected sources need it. The proxy setting
 does not become a process-wide `HTTP_PROXY`: model and task workers connect to
 their providers directly. Scheduled collection explicitly proxies only
-`SECFUSION_SOURCE_PROXY_IDS` (CVE Raw, MITRE ATLAS, Meta AI, GitHub repositories
-and BleepingComputer by default); other scheduled sources connect directly.
+`SECFUSION_SOURCE_PROXY_IDS` (CVE Raw, MITRE ATLAS, Meta AI, GitHub repositories,
+BleepingComputer and the SlowMist report download by default); other scheduled
+sources connect directly.
 Set `SECFUSION_SOURCE_PROXY_IDS='["*"]'` only where every scheduled source requires
 the proxy. A proxy may restore reachability without
 overriding upstream 403 or rate-limit responses; source health still reports those

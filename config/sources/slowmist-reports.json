@@ -14,14 +14,16 @@
   "update_semantics": "published_report_revision",
   "discovery_method": {
     "allowed_hosts": [
-      "slowmist.medium.com"
+      "drive.google.com",
+      "drive.usercontent.google.com"
     ],
     "documents": [
       {
         "document_id": "SLOWMIST-2026-H1-SECURITY-AML",
         "title": "SlowMist 2026 Mid-year Blockchain Security and AML Report",
         "document_type": "security_report",
-        "url": "https://slowmist.medium.com/slowmist-2026-mid-year-blockchain-security-and-aml-report-75e0862179ef"
+        "url": "https://drive.google.com/uc?export=download&id=15qFJu9X-mKXO98lG63LLll0PzywT9Xxw",
+        "publisher_page_url": "https://www.slowmist.com/report/"
       }
     ]
   },
@@ -32,7 +34,7 @@
     "external_object_id": "configured report id"
   },
   "rate_limit_policy": {
-    "provider": "medium"
+    "provider": "slowmist-google-drive"
   },
   "access_rights": {
     "classification": "public"

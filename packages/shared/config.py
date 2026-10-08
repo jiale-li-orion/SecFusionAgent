@@ -35,6 +35,7 @@ class Settings(BaseSettings):
             "meta-ai-safety",
             "github-target-repos",
             "bleepingcomputer-news",
+            "slowmist-reports",
         ]
     )
 

@@ -10,6 +10,8 @@
 
 `DiscoveryBatch.rate_limit_state` is the optional provider-budget observation returned by scheduled discovery. It carries provider-reported quota state and the adapter's actual request count for that discovery pass; it does not decide scheduling itself. `github-target-repos` records the GitHub primary-rate-limit headers from the latest response plus the number of repo requests made in the pass, so `packages.monitoring` can choose the next due time without duplicating GitHub protocol logic.
 
+`slowmist-reports` follows the 2026 Mid-year English PDF linked from SlowMist's official report index. The publisher page is retained in request metadata; the download is hosted by Google Drive and needs the configured source proxy on this deployment. `DirectDocumentAdapter` accepts verified PDF bytes even when the response uses `application/octet-stream`, then hands them to the PDF parser. Redirects outside the source's explicit host allowlist remain rejected.
+
 `IngestEnvelope` is the handoff into M1/M2. It carries acquisition-run identity, source/object identity, source timestamps, observation time, provider revision when available, media type, payload/body, request metadata, content hash, and idempotency key. JSON payloads are canonicalized before hashing. The idempotency identity is:
 
 ```text

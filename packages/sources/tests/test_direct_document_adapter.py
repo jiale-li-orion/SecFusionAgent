@@ -109,3 +109,45 @@ async def test_direct_document_classifies_http_403_as_provider_blocked() -> None
                 acquisition_run_id=str(uuid4()),
                 trigger=AcquisitionTrigger.SCHEDULED,
             )
+
+
+@pytest.mark.asyncio
+async def test_direct_document_reads_official_pdf_download_with_octet_stream_header() -> None:
+    source = SOURCE.model_copy(update={"discovery_method": {
+        "allowed_hosts": ["drive.google.com", "drive.usercontent.google.com"],
+        "documents": [{
+            "document_id": "report-2026",
+            "title": "SlowMist 2026 Mid-year Report",
+            "document_type": "security_report",
+            "url": "https://drive.google.com/uc?export=download&id=report-2026",
+            "publisher_page_url": "https://www.slowmist.com/report/",
+        }],
+    }})
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "drive.google.com":
+            return httpx.Response(
+                303,
+                headers={"location": "https://drive.usercontent.google.com/download?id=report-2026"},
+                request=request,
+            )
+        assert request.url.host == "drive.usercontent.google.com"
+        return httpx.Response(
+            200,
+            content=b"%PDF-1.7\nrepresentative report bytes",
+            headers={"content-type": "application/octet-stream"},
+            request=request,
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        adapter = DirectDocumentAdapter(client)
+        batch = await adapter.discover(source, SourceState())
+        envelope = await adapter.fetch(
+            source,
+            batch.items[0],
+            acquisition_run_id=str(uuid4()),
+            trigger=AcquisitionTrigger.SCHEDULED,
+        )
+    assert envelope.media_type == "application/pdf"
+    assert envelope.canonical_url.startswith("https://drive.usercontent.google.com/")
+    assert envelope.request_metadata["publisher_page_url"] == "https://www.slowmist.com/report/"

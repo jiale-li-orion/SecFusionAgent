@@ -63,6 +63,9 @@ class DirectDocumentAdapter:
             kind = item.get("document_type")
             if isinstance(kind, str) and kind:
                 locator["document_type"] = kind
+            publisher_page_url = item.get("publisher_page_url")
+            if isinstance(publisher_page_url, str) and publisher_page_url.startswith("https://"):
+                locator["publisher_page_url"] = publisher_page_url
             refs.append(
                 DiscoveredRef(
                     external_object_id=external_id,
@@ -102,7 +105,14 @@ class DirectDocumentAdapter:
             )
         if response.is_error:
             raise SourceFetchFailed(f"direct document source returned HTTP {response.status_code}")
+        if not _is_allowed_url(str(response.url), _allowed_hosts(source)):
+            raise SourceSchemaChanged("direct document redirected outside configured allowed_hosts")
         media_type = response.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+        if (
+            media_type in {"application/octet-stream", "application/binary"}
+            and response.content.startswith(b"%PDF-")
+        ):
+            media_type = "application/pdf"
         if not media_type:
             media_type = _guess_media_type(str(response.url))
         allowed_media_types = _allowed_media_types(source)
