@@ -70,11 +70,17 @@ async def execute_collection_run(run_id: str, settings: Settings) -> str:
         # public sources less reliable. When configured, source routing is explicit:
         # opted-in sources use the proxy and every other scheduled source goes direct.
         proxy = _collection_proxy(settings, context.source.source_id)
-        async with httpx.AsyncClient(
-            timeout=30.0,
-            proxy=proxy,
-            trust_env=False,
-        ) as client:
+        try:
+            client = httpx.AsyncClient(timeout=30.0, proxy=proxy, trust_env=False)
+        except Exception as exc:
+            failure = classify_source_failure(
+                exc,
+                consecutive_failures=context.state.consecutive_failures,
+            )
+            async with factory() as session, session.begin():
+                await fail_acquisition_run(session, run_id, failure)
+            return failure.status
+        async with client:
             adapter = create_source_adapter(context.source, client, settings)
             try:
                 async with asyncio.timeout(settings.collection_run_timeout_seconds):

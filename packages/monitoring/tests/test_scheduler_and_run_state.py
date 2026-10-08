@@ -22,7 +22,7 @@ from packages.monitoring.run_service import (
     recover_stale_acquisition_runs,
     start_acquisition_run,
 )
-from packages.monitoring.runtime import _collection_proxy
+from packages.monitoring.runtime import _collection_proxy, execute_collection_run
 from packages.monitoring.scheduler.service import schedule_due_sources
 from packages.monitoring.storage.models import AcquisitionRunModel, SourceStateModel
 from packages.monitoring.storage.service import ensure_source_states
@@ -46,6 +46,43 @@ def test_collection_proxy_ignores_empty_configured_proxy() -> None:
     configured = settings.model_copy(update={"upstream_http_proxy": "http://proxy:7890"})
     assert _collection_proxy(configured, "github-target-repos") == "http://proxy:7890"
     assert _collection_proxy(configured, "nvd-cves-2") is None
+
+
+@pytest.mark.asyncio
+async def test_invalid_collection_proxy_finishes_durable_run(tmp_path: Path) -> None:
+    database_url = f"sqlite+aiosqlite:///{tmp_path / 'collection.db'}"
+    engine = create_async_engine(database_url)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    source_id = "github-target-repos"
+    try:
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        definition = next(
+            item for item in load_source_definitions(Path("config/sources"))
+            if item.source_id == source_id
+        )
+        async with factory() as session, session.begin():
+            await sync_source_definitions(session, [definition])
+            await ensure_source_states(session, [source_id])
+            state = await session.get(SourceStateModel, source_id)
+            assert state is not None
+            state.next_due_at = datetime.now(UTC) - timedelta(seconds=1)
+        async with factory() as session, session.begin():
+            run_ids = await schedule_due_sources(session, source_ids={source_id})
+        assert len(run_ids) == 1
+
+        result = await execute_collection_run(
+            run_ids[0],
+            Settings(database_url=database_url, upstream_http_proxy="invalid-proxy"),
+        )
+
+        async with factory() as session:
+            run = await session.get(AcquisitionRunModel, run_ids[0])
+            assert result == "internal_error"
+            assert run is not None and run.status == "internal_error"
+            assert run.finished_at is not None
+    finally:
+        await engine.dispose()
 
 
 async def _database() -> tuple[AsyncEngine, async_sessionmaker[AsyncSession]]:

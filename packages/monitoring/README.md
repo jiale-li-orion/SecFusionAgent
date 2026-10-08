@@ -69,6 +69,9 @@ connection settings.
 An unset or empty proxy value means direct collection for every source, including
 sources named in `SECFUSION_SOURCE_PROXY_IDS`; the empty Compose default must never
 be passed to HTTPX as a proxy URL.
+If HTTP client construction itself fails (for example, a malformed proxy URL),
+the AcquisitionRun is marked with a durable failure and normal backoff instead
+of remaining `running` until stale-run recovery.
 
 `runtime.execute_collection_run` resolves the persisted source definition and dispatches by `RetentionMode`:
 

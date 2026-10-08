@@ -269,6 +269,8 @@ make sync-sources
 
 For unattended operation, use `make data-plane-up`. It completes dependency startup, migrations and registry synchronization, then keeps PostgreSQL, Redis, the acquisition scheduler, Task Event dispatcher/scheduler, a dedicated collection worker and the general enrichment/investigation/indexing worker under Compose restart policy. PostgreSQL and durable Redis roles use named volumes; Evidence/runtime artifacts live in the host-backed content-addressed filesystem; the hot cache remains intentionally rebuildable. `make data-plane-status` checks both the M1–M3 data path and the TD2 Task Event control plane, `make data-plane-metrics` exports rolling runtime metrics, and `make data-plane-logs` tails runtime processes. Closing the invoking shell does not stop collection or queued Role dispatch, and Docker daemon restart brings these services back under `restart: unless-stopped`. A formal live QA batch briefly quiesces the three Knowledge-writer processes to freeze one Knowledge head, then restores them in `finally`; normal operation remains continuously collecting.
 
+`SECFUSION_UPSTREAM_HTTP_PROXY` is optional for scheduled sources. An empty value routes them directly; malformed proxy configuration terminates the affected AcquisitionRun with a durable failure and normal backoff rather than leaving it stuck in `running`. Provider quota still limits how often mutable repository snapshots can be sampled, so historical missed snapshots are not inferred from later state.
+
 For model-backed formal evaluation, configure an OpenAI-compatible endpoint and probe it before spending benchmark calls:
 
 ```bash
