@@ -827,7 +827,7 @@ details[open]>summary {
   }
 }
 
-@media (max-width:1100px) {
+@media (max-width:1250px) {
   .instrument-bar {
     gap: 18px;
     flex-wrap: wrap;

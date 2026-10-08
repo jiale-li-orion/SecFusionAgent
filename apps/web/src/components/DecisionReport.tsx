@@ -4,7 +4,7 @@ import type { DecisionView } from '../lib/api'
 import { useI18n } from '../lib/i18n'
 
 /** Presentation of the persisted M6 result; never a second decision authority. */
-export function DecisionReport({ decision, onEvidence }: { decision: DecisionView; onEvidence: (ref: string) => void }) {
+export function DecisionReport({ decision, onEvidence, dialogue = false }: { decision: DecisionView; onEvidence: (ref: string) => void; dialogue?: boolean }) {
   const { text } = useI18n()
   const refs = [...new Set([
     ...decision.citations.map((citation) => citation.evidence_ref),
@@ -18,17 +18,23 @@ export function DecisionReport({ decision, onEvidence }: { decision: DecisionVie
   const answerFields = Object.keys(decision.answer).length > 0 && <dl className="decision-answer-fields">
     {Object.entries(decision.answer).map(([key, value]) => <div key={key}><dt>{answerLabel(key, text)}</dt><dd><AnswerValue value={value} /></dd></div>)}
   </dl>
+  const conclusions = decision.conclusions.map((conclusion, index) => ({ conclusion, index }))
+  const findings = dialogue ? conclusions.filter(({ conclusion }) => conclusion.type !== 'fact') : conclusions
+  const primary = findings.length > 0 ? findings : conclusions
+  const supportingFacts = dialogue && findings.length > 0 ? conclusions.filter(({ conclusion }) => conclusion.type === 'fact') : []
+  const renderConclusion = ({ conclusion, index }: (typeof conclusions)[number]) => <article key={index}>
+    <small>{String(index + 1).padStart(2, '0')} / {conclusionLabel(conclusion.type, text)}</small>
+    <p>{conclusion.statement}</p>
+    <div className="decision-report-citations">{[...new Set(conclusion.evidence_refs)].map((ref) => <button type="button" key={ref} onClick={() => onEvidence(ref)}><Link2 size={12} />{text('证据', 'EVIDENCE')} {refs.indexOf(ref) + 1}</button>)}</div>
+  </article>
   return (
     <div className="decision-report">
-      {decision.conclusions.length === 0 && answerFields}
+      {(dialogue || decision.conclusions.length === 0) && answerFields}
       <div className="decision-report-conclusions">
-        {decision.conclusions.map((conclusion, index) => <article key={index}>
-          <small>{String(index + 1).padStart(2, '0')} / {conclusionLabel(conclusion.type, text)}</small>
-          <p>{conclusion.statement}</p>
-          <div className="decision-report-citations">{[...new Set(conclusion.evidence_refs)].map((ref) => <button type="button" key={ref} onClick={() => onEvidence(ref)}><Link2 size={12} />{text('证据', 'EVIDENCE')} {refs.indexOf(ref) + 1}</button>)}</div>
-        </article>)}
+        {primary.map(renderConclusion)}
       </div>
-      {decision.conclusions.length > 0 && answerFields && <details className="decision-report-coordinate"><summary>{text('回答补充', 'Additional answer details')}</summary>{answerFields}</details>}
+      {supportingFacts.length > 0 && <details className="decision-report-facts"><summary>{text(`支撑事实 · ${supportingFacts.length}`, `SUPPORTING FACTS · ${supportingFacts.length}`)}</summary><div className="decision-report-conclusions">{supportingFacts.map(renderConclusion)}</div></details>}
+      {!dialogue && decision.conclusions.length > 0 && answerFields && <details className="decision-report-coordinate"><summary>{text('回答补充', 'Additional answer details')}</summary>{answerFields}</details>}
       {boundaries.filter(({ items }) => items.length > 0).map(({ label, items, tone }) => <section className={`decision-report-boundary boundary-${tone}`} key={tone}><h3>{label}</h3><ul>{items.map((item, index) => <li key={index}>{item}</li>)}</ul></section>)}
       {refs.length > 0 && <details className="decision-report-sources"><summary>{text(`全部证据 · ${refs.length}`, `ALL EVIDENCE · ${refs.length}`)}</summary><div className="decision-report-citations">{refs.map((ref, index) => <button type="button" key={ref} onClick={() => onEvidence(ref)} title={ref}><Link2 size={12} />{text('证据', 'EVIDENCE')} {index + 1}</button>)}</div></details>}
       <details className="decision-report-coordinate"><summary>{text('研判坐标', 'DECISION COORDINATES')}</summary><dl><dt>ID</dt><dd>{decision.decision_id}</dd><dt>REV</dt><dd>{decision.case_revision}</dd><dt>STOP</dt><dd>{decision.stop_reason}</dd><dt>TIME</dt><dd>{new Date(decision.created_at).toLocaleString()}</dd></dl></details>
