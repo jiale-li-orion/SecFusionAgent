@@ -47,6 +47,7 @@ export type DecisionView = {
   unknowns: string[]
   assumptions: string[]
   answer: Record<string, unknown>
+  report_paragraphs: Array<{ text: string; evidence_refs: string[] }>
   stop_reason: string
   created_at: string
 }
@@ -259,6 +260,8 @@ export type QuestionSessionTurn = {
 export type QuestionSessionHistory = {
   session_id: string
   turns: QuestionSessionTurn[]
+  has_more: boolean
+  next_before_turn: number | null
 }
 
 export type AccountConversation = {
@@ -267,14 +270,21 @@ export type AccountConversation = {
   latest_turn: QuestionSessionTurn
 }
 
-export async function listAccountConversations(limit = 20, signal?: AbortSignal): Promise<{ items: AccountConversation[]; has_more: boolean }> {
-  const response = await productFetch(`/api/v1/questions/sessions?limit=${limit}`, { headers: productHeaders(), signal })
+export type AccountConversationPage = { items: AccountConversation[]; has_more: boolean; next_cursor: string | null }
+
+export async function listAccountConversations(limit = 20, signal?: AbortSignal, cursor?: string): Promise<AccountConversationPage> {
+  const params = new URLSearchParams({ limit: String(limit) })
+  if (cursor) params.set('cursor', cursor)
+  const response = await productFetch(`/api/v1/questions/sessions?${params}`, { headers: productHeaders(), signal })
   if (!response.ok) throw new Error(`Conversation list read failed (${response.status})`)
   return response.json()
 }
 
-export async function getQuestionSession(sessionId: string): Promise<QuestionSessionHistory> {
-  const response = await productFetch(`/api/v1/questions/sessions/${encodeURIComponent(sessionId)}`, { headers: productHeaders() })
+export async function getQuestionSession(sessionId: string, beforeTurn?: number, signal?: AbortSignal): Promise<QuestionSessionHistory> {
+  const params = new URLSearchParams()
+  if (beforeTurn) params.set('before_turn', String(beforeTurn))
+  const suffix = params.size ? `?${params}` : ''
+  const response = await productFetch(`/api/v1/questions/sessions/${encodeURIComponent(sessionId)}${suffix}`, { headers: productHeaders(), signal })
   if (!response.ok) throw new Error(response.status === 403 ? 'Session access denied' : `Session read failed (${response.status})`)
   return response.json()
 }

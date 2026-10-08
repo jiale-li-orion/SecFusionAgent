@@ -77,6 +77,8 @@ pytest      领域、重放、状态迁移与契约测试
 
 `/product/` 提供相互联通的六个空间：WORLD 追踪实时来源材料和 Hot CVE；INTELLIGENCE 打开证据档案并按所选维度提交富化；INVESTIGATIONS 跟进持久 Case；AGENTS 呈现真实 Role/Task；OBSERVATORY 展示有测量时间的服务和 worker 状态；START 创建或恢复真实问答会话。产品界面不设置比赛演示、冻结证明或人为延时路径。视觉与联调契约见 [`apps/web/README.md`](apps/web/README.md)。
 
+问答页可继续加载更早的账户会话和回合。调查完成后，页面展示由同一份已验证 Decision 生成、带证据引用的自然段落研究报告；结构化回答与结论仍用于审计和评测。
+
 视觉标识现采用独立的“证据汇聚孔径”品牌符号、八类来源与实际来源徽记，以及三位 Agent 各自的 WebGL/SVG 雕塑。它们只表达视觉身份，旁边的运行状态仍由真实 Product read model 提供。
 
 情报页的“漏洞”筛选现读取真实 Hot CVE 窗口，并分别显示载入条数和驻留总量。打开漏洞时保留 Hot 坐标，持久档案独立核验；不会再把近期原文精选窗口为空误呈现为系统没有漏洞。

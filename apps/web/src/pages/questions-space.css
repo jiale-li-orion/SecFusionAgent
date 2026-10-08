@@ -24,6 +24,10 @@
 .qa-session-list a > span { font-size: 12px; line-height: 1.45; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .qa-session-list a small { color: #788d92; font-size: 10px; }
 .qa-session-list a svg { position: absolute; right: 9px; top: 18px; color: #73898b; }
+.qa-load-more { display: block; width: 100%; margin: 12px 0 0; padding: 10px 12px; border: 1px solid rgba(147, 210, 195, .24); border-radius: 9px; background: rgba(147, 210, 195, .06); color: #acd0bd; font-size: 11px; text-align: center; }
+.qa-load-more:hover:not(:disabled) { border-color: rgba(200, 247, 123, .42); color: #d9f6bc; }
+.qa-load-more:disabled { opacity: .56; cursor: wait; }
+.qa-load-turns { max-width: 260px; margin: 0 auto 27px; }
 .qa-rail-foot { display: flex; align-items: start; gap: 8px; margin: 18px 5px 0; padding: 16px 4px 0; border-top: 1px solid var(--qa-line); color: #71878a; font-size: 10px; line-height: 1.5; }
 .qa-rail-foot svg { flex: 0 0 auto; color: #9fc7a5; }
 .qa-dialogue { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: radial-gradient(circle at 48% 20%, rgba(92, 165, 157, .045), transparent 46%); }

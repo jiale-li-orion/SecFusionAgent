@@ -11,6 +11,7 @@ import { askQuestion, cancelInvestigation, evidenceBoundObjectIds, getEvidence, 
 import { eventState, investigationStopMessage, type CaseStateFocus, type EventCue } from '../../lib/investigationPresentation'
 import { useI18n } from '../../lib/i18n'
 import { DecisionReport } from '../DecisionReport'
+import { InvestigationReport } from './InvestigationReport'
 import { SessionHistory } from '../SessionHistory'
 
 const liveStatuses = new Set(['active', 'waiting'])
@@ -173,13 +174,6 @@ export function CaseWorkspace({ investigation, events, eventCue, initialFocus, o
       )}
 
 
-      <div className={`case-state-grid ${stateFocus ? `has-state-focus focus-${stateFocus}` : ''}`}>
-        <StateColumn key={`confirmed:${eventCue?.state === 'confirmed' ? eventCue.eventId : 'stable'}`} title={text('已确认', 'CONFIRMED')} tone="lime" icon={BadgeCheck} items={investigation.confirmed_findings} onEvidence={onEvidence} active={stateFocus === 'confirmed'} dimmed={Boolean(stateFocus && stateFocus !== 'confirmed')} forged={eventCue?.state === 'confirmed'} reduceMotion={reduceMotion} onFocus={() => setStateFocus((current) => current === 'confirmed' ? null : 'confirmed')} />
-        <StateColumn key={`conflicts:${eventCue?.state === 'conflicts' ? eventCue.eventId : 'stable'}`} title={text('冲突', 'CONFLICTS')} tone="amber" icon={CircleAlert} items={investigation.conflicts} onEvidence={onEvidence} active={stateFocus === 'conflicts'} dimmed={Boolean(stateFocus && stateFocus !== 'conflicts')} forged={eventCue?.state === 'conflicts'} reduceMotion={reduceMotion} onFocus={() => setStateFocus((current) => current === 'conflicts' ? null : 'conflicts')} />
-        <StateColumn key={`unknowns:${eventCue?.state === 'unknowns' ? eventCue.eventId : 'stable'}`} title={text('未知', 'UNKNOWNS')} tone="violet" icon={FileWarning} items={investigation.unknowns} onEvidence={onEvidence} active={stateFocus === 'unknowns'} dimmed={Boolean(stateFocus && stateFocus !== 'unknowns')} forged={eventCue?.state === 'unknowns'} reduceMotion={reduceMotion} onFocus={() => setStateFocus((current) => current === 'unknowns' ? null : 'unknowns')} />
-        <EvidenceNeeds key={`needs:${eventCue?.state === 'needs' ? eventCue.eventId : 'stable'}`} investigation={investigation} active={stateFocus === 'needs'} dimmed={Boolean(stateFocus && stateFocus !== 'needs')} forged={eventCue?.state === 'needs'} reduceMotion={reduceMotion} onFocus={() => setStateFocus((current) => current === 'needs' ? null : 'needs')} />
-      </div>
-
       <motion.div
         key={`decision:${eventCue?.state === 'decision' ? eventCue.eventId : 'stable'}`}
         className={`decision-focus-wrap ${stateFocus === 'decision' ? 'state-focused' : stateFocus ? 'state-dimmed' : ''} ${eventCue?.state === 'decision' ? 'state-forged' : ''}`}
@@ -189,7 +183,10 @@ export function CaseWorkspace({ investigation, events, eventCue, initialFocus, o
         role="button"
         tabIndex={0}
         aria-pressed={stateFocus === 'decision'}
-        onClick={() => setStateFocus((current) => current === 'decision' ? null : 'decision')}
+        onClick={(event) => {
+          if ((event.target as HTMLElement).closest('button,a,summary')) return
+          setStateFocus((current) => current === 'decision' ? null : 'decision')
+        }}
         onKeyDown={(event) => {
           if (event.target !== event.currentTarget) return
           if (event.key === 'Enter' || event.key === ' ') {
@@ -200,6 +197,13 @@ export function CaseWorkspace({ investigation, events, eventCue, initialFocus, o
       >
         <DecisionPanel investigation={investigation} onEvidence={onEvidence} />
       </motion.div>
+
+      <div className={`case-state-grid ${stateFocus ? `has-state-focus focus-${stateFocus}` : ''}`}>
+        <StateColumn key={`confirmed:${eventCue?.state === 'confirmed' ? eventCue.eventId : 'stable'}`} title={text('已确认', 'CONFIRMED')} tone="lime" icon={BadgeCheck} items={investigation.confirmed_findings} onEvidence={onEvidence} active={stateFocus === 'confirmed'} dimmed={Boolean(stateFocus && stateFocus !== 'confirmed')} forged={eventCue?.state === 'confirmed'} reduceMotion={reduceMotion} onFocus={() => setStateFocus((current) => current === 'confirmed' ? null : 'confirmed')} />
+        <StateColumn key={`conflicts:${eventCue?.state === 'conflicts' ? eventCue.eventId : 'stable'}`} title={text('冲突', 'CONFLICTS')} tone="amber" icon={CircleAlert} items={investigation.conflicts} onEvidence={onEvidence} active={stateFocus === 'conflicts'} dimmed={Boolean(stateFocus && stateFocus !== 'conflicts')} forged={eventCue?.state === 'conflicts'} reduceMotion={reduceMotion} onFocus={() => setStateFocus((current) => current === 'conflicts' ? null : 'conflicts')} />
+        <StateColumn key={`unknowns:${eventCue?.state === 'unknowns' ? eventCue.eventId : 'stable'}`} title={text('未知', 'UNKNOWNS')} tone="violet" icon={FileWarning} items={investigation.unknowns} onEvidence={onEvidence} active={stateFocus === 'unknowns'} dimmed={Boolean(stateFocus && stateFocus !== 'unknowns')} forged={eventCue?.state === 'unknowns'} reduceMotion={reduceMotion} onFocus={() => setStateFocus((current) => current === 'unknowns' ? null : 'unknowns')} />
+        <EvidenceNeeds key={`needs:${eventCue?.state === 'needs' ? eventCue.eventId : 'stable'}`} investigation={investigation} active={stateFocus === 'needs'} dimmed={Boolean(stateFocus && stateFocus !== 'needs')} forged={eventCue?.state === 'needs'} reduceMotion={reduceMotion} onFocus={() => setStateFocus((current) => current === 'needs' ? null : 'needs')} />
+      </div>
 
       {conversationMount ? createPortal(conversation, conversationMount) : conversation}
 
@@ -256,7 +260,7 @@ function DecisionPanel({ investigation, onEvidence }: { investigation: Investiga
       <div className="decision-oracle"><RoleSigil role="DecisionRole" live={false}/><div><small>ORACLE / DECISION</small><strong>{decision ? text('研判已生成', 'DECISION READY') : liveStatuses.has(investigation.status) ? text('研判尚未生成', 'Decision pending') : text('本次调查未生成研判', 'No decision from this investigation')}</strong></div></div>
       {decision ? (
         <div className="decision-content">
-          <DecisionReport decision={decision} onEvidence={onEvidence} />
+          <InvestigationReport investigation={investigation} onEvidence={onEvidence} />
         </div>
       ) : <p className="decision-waiting">{liveStatuses.has(investigation.status) ? text('查看当前进展和证据缺口；运行结束后可补充信息，继续调查。', 'Review progress and evidence needs. Add information after the current episode to continue.') : text('本次运行已经结束。可查看终止原因，或保留已有上下文继续调查。', 'This run has ended. Inspect its stop reason or start a follow-up with the retained context.')}</p>}
     </section>

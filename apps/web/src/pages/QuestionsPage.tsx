@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence } from 'motion/react'
 import { ArrowUpRight, ChevronRight, CornerDownLeft, Link2, Plus, Radio, Send, ShieldCheck } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { DecisionReport } from '../components/DecisionReport'
 import { EvidenceOverlay } from '../components/investigations/CaseSurfaces'
+import { InvestigationReport } from '../components/investigations/InvestigationReport'
 import { getAgentTask, type AgentTaskDetail } from '../lib/api/agents'
 import { getKnowledgeObject } from '../lib/api/intelligence'
 import {
@@ -92,9 +93,23 @@ export function QuestionsPage() {
     setQuestion(routeQuestion)
   }
 
-  const conversations = useQuery({ queryKey: ['account-conversations'], queryFn: ({ signal }) => listAccountConversations(20, signal) })
-  const history = useQuery({ queryKey: ['question-session', sessionId], queryFn: () => getQuestionSession(sessionId!), enabled: Boolean(sessionId) })
-  const turns = history.data?.turns ?? []
+  const conversations = useInfiniteQuery({
+    queryKey: ['account-conversations', 'pages'],
+    queryFn: ({ pageParam, signal }) => listAccountConversations(20, signal, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: last => last.next_cursor ?? undefined,
+  })
+  const conversationItems = conversations.data?.pages.flatMap(page => page.items) ?? []
+  const history = useInfiniteQuery({
+    queryKey: ['question-session', sessionId, 'pages'],
+    queryFn: ({ pageParam, signal }) => getQuestionSession(sessionId!, pageParam, signal),
+    initialPageParam: undefined as number | undefined,
+    getNextPageParam: last => last.next_before_turn ?? undefined,
+    enabled: Boolean(sessionId),
+  })
+  const turns = history.data?.pages.slice().reverse().flatMap(page => page.turns) ?? []
+  const earliestTurn = turns[0]?.turn_index
+  const { hasNextPage: hasEarlierTurns, isFetchingNextPage: fetchingEarlierTurns, isFetchNextPageError: earlierTurnsFailed, fetchNextPage: fetchEarlierTurns } = history
   const focusTurn = turns.find(turn => turn.turn_index === selectedTurn) ?? turns.at(-1) ?? null
   const targetObjectId = sessionId && focusTurn?.target_object_ids.length === 1 ? focusTurn.target_object_ids[0] : null
   const targetObject = useQuery({ queryKey: ['question-target-object', targetObjectId], queryFn: () => getKnowledgeObject(targetObjectId!), enabled: Boolean(targetObjectId && !target) })
@@ -104,19 +119,24 @@ export function QuestionsPage() {
   const visibleTarget = target || resolvedTarget || (targetObjectId ? `object:${targetObjectId}` : '')
   const caseId = focusTurn?.investigation_ref?.replace(/^case:/, '') ?? params.get('case')
   const caseActivity = useQuery({ queryKey: ['question-case-activity', caseId], queryFn: () => getInvestigationActivity(caseId!), enabled: Boolean(caseId), retry: false })
-  const runIds = useMemo(() => [...new Set([
+  const runIds = [...new Set([
     focusTurn?.context_id?.replace(/^context:/, ''),
     ...(caseActivity.data?.events ?? []).map(item => item.task_run_id),
-  ].filter((id): id is string => Boolean(id)))], [focusTurn?.context_id, caseActivity.data?.events])
+  ].filter((id): id is string => Boolean(id)))]
   const taskQueries = useQueries({ queries: runIds.map(id => ({ queryKey: ['question-task', id], queryFn: () => getAgentTask(id), retry: false })) })
   const tasks = taskQueries.flatMap(query => query.data ? [query.data] : [])
   const caseDetail = useQuery({ queryKey: ['question-case', caseId], queryFn: () => getInvestigation(caseId!), enabled: Boolean(caseId), refetchInterval: query => ['active', 'waiting'].includes(query.state.data?.status ?? '') ? 4000 : false })
-  const auditEvents = useMemo(() => {
-    const map = new Map<string, ProductRuntimeEvent>()
-    for (const item of [...(caseActivity.data?.events ?? []), ...liveEvents.filter(event => event.case_id === caseId)]) map.set(item.event_id, item)
-    return [...map.values()].sort((a, b) => a.occurred_at.localeCompare(b.occurred_at))
-  }, [caseActivity.data?.events, caseId, liveEvents])
+  const auditEventMap = new Map<string, ProductRuntimeEvent>()
+  for (const item of [...(caseActivity.data?.events ?? []), ...liveEvents.filter(event => event.case_id === caseId)]) auditEventMap.set(item.event_id, item)
+  const auditEvents = [...auditEventMap.values()].sort((a, b) => a.occurred_at.localeCompare(b.occurred_at))
   const streamConnected = Boolean(caseId && connectedCaseId === caseId)
+
+  useEffect(() => {
+    if (selectedTurn && earliestTurn && selectedTurn < earliestTurn
+      && hasEarlierTurns && !fetchingEarlierTurns && !earlierTurnsFailed) {
+      void fetchEarlierTurns()
+    }
+  }, [selectedTurn, earliestTurn, hasEarlierTurns, fetchingEarlierTurns, earlierTurnsFailed, fetchEarlierTurns])
 
   useEffect(() => {
     if (!caseId) return
@@ -224,20 +244,24 @@ export function QuestionsPage() {
         <h2>{text('会话', 'Conversations')}</h2>
         {conversations.isLoading && <p className="qa-muted">{text('读取会话…', 'Loading conversations…')}</p>}
         {conversations.isError && <button className="qa-retry" onClick={() => void conversations.refetch()}>{text('重试读取', 'Retry')}</button>}
-        <nav className="qa-session-list">{conversations.data?.items.map(item => {
+        <nav className="qa-session-list">{conversationItems.map(item => {
           const current = item.session_id === sessionId
           const next = new URLSearchParams({ session: item.session_id, turn: String(item.latest_turn.turn_index), profile: profileForTask(item.latest_turn.task_kind) })
           return <Link key={item.session_id} to={`/start?${next}`} className={current ? 'current' : ''}>
             <span>{item.latest_turn.question}</span><small>{formatTime(item.updated_at, language)}</small><ChevronRight size={13} />
           </Link>
         })}</nav>
-        {!conversations.isLoading && !conversations.data?.items.length && <p className="qa-muted">{text('你的第一段证据对话将在这里出现。', 'Your first evidence dialogue will appear here.')}</p>}
+        {conversations.hasNextPage && <button className="qa-load-more" onClick={() => void conversations.fetchNextPage()} disabled={conversations.isFetchingNextPage}>{conversations.isFetchingNextPage ? text('正在读取…', 'Loading…') : text('更早的会话', 'Older conversations')}</button>}
+        {conversations.isFetchNextPageError && <button className="qa-retry" onClick={() => void conversations.fetchNextPage()}>{text('重试读取更早会话', 'Retry older conversations')}</button>}
+        {!conversations.isLoading && !conversationItems.length && <p className="qa-muted">{text('你的第一段证据对话将在这里出现。', 'Your first evidence dialogue will appear here.')}</p>}
         <div className="qa-rail-foot"><ShieldCheck size={15} /><span>{text('会话与调查仅你可见；证据与知识可共享。', 'Your sessions and cases are private; evidence and knowledge are shared.')}</span></div>
       </aside>
 
       <main className="qa-dialogue">
         <div className="qa-dialogue-head"><div><small>ORACLE / ARGUS</small><strong>{sessionId ? text('正在延续同一条证据链', 'Continuing one evidence chain') : text('从一个有意义的问题开始', 'Begin with a meaningful question')}</strong></div><span>{turns.length ? `${turns.length} ${text('回合', 'turns')}` : 'NEW'}</span></div>
         <div className="qa-transcript" aria-live="polite">
+          {history.hasNextPage && <button className="qa-load-more qa-load-turns" onClick={() => void history.fetchNextPage()} disabled={history.isFetchingNextPage}>{history.isFetchingNextPage ? text('正在恢复更早回合…', 'Restoring earlier turns…') : text('查看更早回合', 'Load earlier turns')}</button>}
+          {history.isFetchNextPageError && <button className="qa-retry" onClick={() => void history.fetchNextPage()}>{text('重试恢复更早回合', 'Retry earlier turns')}</button>}
           {history.isLoading && <p className="qa-muted">{text('恢复完整会话…', 'Restoring conversation…')}</p>}
           {history.isError && <div className="qa-error">{text('无法读取这段会话。', 'Could not load this conversation.')}<button onClick={() => void history.refetch()}>{text('重试', 'Retry')}</button></div>}
           {!sessionId && !pendingQuestion && <div className="qa-empty"><div className="qa-empty-orbit"><span /><span /><b /></div><small>QUESTION → EVIDENCE → DECISION</small><h2>{text('答案应该能追到它的来源。', 'Every answer should lead back to its source.')}</h2><p>{text('快速回答、检索、核验、调查与持续守望在同一会话中衔接。选择路径后，系统保留目标和上下文；每个结论都能打开原始证据。', 'Direct answers, retrieval, verification, investigation and watch continue in one session. Every conclusion opens its source evidence.')}</p></div>}
@@ -277,7 +301,7 @@ function ConversationTurn({ turn, active, sessionId, reasoning, onSelect, onEvid
       {decision.isError && <button className="qa-retry" onClick={() => void decision.refetch()}>{text('研判读取失败 · 重试', 'Decision failed · Retry')}</button>}
       {decision.data && <DecisionReport decision={decision.data} onEvidence={onEvidence} dialogue />}
       {reasoning && <details className="qa-reasoning"><summary>{text('本次模型推理流 · 仅当前页面保留', 'Provider reasoning · available until reload')}</summary><pre>{reasoning}</pre></details>}
-      {investigation.data && <div className="qa-case-result"><strong>{caseHeadline}</strong><p>{investigation.data.goal}</p><div><span>{investigation.data.status}</span><span>{investigation.data.confirmed_findings.length} {text('已确认', 'confirmed')}</span><span>{investigation.data.open_evidence_needs.length} {text('证据缺口', 'open needs')}</span></div>{investigation.data.latest_decision && <DecisionReport decision={investigation.data.latest_decision} onEvidence={onEvidence} dialogue />}<Link to={`/investigations?case=${caseId}&session=${sessionId}`}>{text('打开完整调查现场', 'Open full investigation')}<ArrowUpRight size={13} /></Link></div>}
+      {investigation.data && <div className="qa-case-result"><strong>{caseHeadline}</strong>{!investigation.data.latest_decision && <p>{investigation.data.goal}</p>}<div><span>{investigation.data.status}</span><span>{investigation.data.confirmed_findings.length} {text('已确认', 'confirmed')}</span><span>{investigation.data.open_evidence_needs.length} {text('证据缺口', 'open needs')}</span></div>{investigation.data.latest_decision && <InvestigationReport investigation={investigation.data} onEvidence={onEvidence} />}<Link to={`/investigations?case=${caseId}&session=${sessionId}`}>{text('打开完整调查现场', 'Open full investigation')}<ArrowUpRight size={13} /></Link></div>}
       {!turn.decision_ref && !turn.investigation_ref && <p className="qa-muted">{text('本回合没有持久研判或调查引用。', 'No durable decision or case reference for this turn.')}</p>}
     </div>
   </article>
