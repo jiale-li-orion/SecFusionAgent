@@ -6,6 +6,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { DecisionReport } from '../components/DecisionReport'
 import { EvidenceOverlay } from '../components/investigations/CaseSurfaces'
 import { getAgentTask, type AgentTaskDetail } from '../lib/api/agents'
+import { getKnowledgeObject } from '../lib/api/intelligence'
 import {
   getDecision, getInvestigation, getInvestigationActivity, getQuestionSession,
   listAccountConversations, streamQuestion, type ProductRuntimeEvent,
@@ -62,14 +63,18 @@ export function QuestionsPage() {
   const sessionId = params.get('session')
   const selectedTurn = Number(params.get('turn')) || null
   const initialProfile = params.get('profile')?.toUpperCase() ?? 'RETRIEVE'
+  const routeTarget = params.get('cve') ?? (params.get('object') ? `object:${params.get('object')}` : '')
+  const routeQuestion = params.get('question') ?? ''
+  const routeIdentity = JSON.stringify([sessionId, initialProfile, routeTarget, routeQuestion])
+  const [previousRouteIdentity, setPreviousRouteIdentity] = useState(routeIdentity)
   const [profile, setProfile] = useState(profiles.some(item => item.id === initialProfile) ? initialProfile : 'RETRIEVE')
-  const [target, setTarget] = useState(params.get('cve') ?? (params.get('object') ? `object:${params.get('object')}` : ''))
-  const [question, setQuestion] = useState(params.get('question') ?? '')
+  const [target, setTarget] = useState(routeTarget)
+  const [question, setQuestion] = useState(routeQuestion)
   const [showReasoning, setShowReasoning] = useState(false)
   const [reasoningOpen, setReasoningOpen] = useState(false)
   const [draftRaw, setDraftRaw] = useState('')
   const [reasoningRaw, setReasoningRaw] = useState('')
-  const [completedReasoning, setCompletedReasoning] = useState<{ sessionId: string; turnIndex: number; text: string } | null>(null)
+  const [completedReasoning, setCompletedReasoning] = useState<Record<string, string>>({})
   const [streamPhase, setStreamPhase] = useState('')
   const [pendingQuestion, setPendingQuestion] = useState('')
   const [error, setError] = useState('')
@@ -80,10 +85,23 @@ export function QuestionsPage() {
   const bottomRef = useRef<HTMLDivElement>(null)
   const reasoningBuffer = useRef('')
 
+  if (routeIdentity !== previousRouteIdentity) {
+    setPreviousRouteIdentity(routeIdentity)
+    setProfile(profiles.some(item => item.id === initialProfile) ? initialProfile : 'RETRIEVE')
+    setTarget(routeTarget)
+    setQuestion(routeQuestion)
+  }
+
   const conversations = useQuery({ queryKey: ['account-conversations'], queryFn: ({ signal }) => listAccountConversations(20, signal) })
   const history = useQuery({ queryKey: ['question-session', sessionId], queryFn: () => getQuestionSession(sessionId!), enabled: Boolean(sessionId) })
   const turns = history.data?.turns ?? []
   const focusTurn = turns.find(turn => turn.turn_index === selectedTurn) ?? turns.at(-1) ?? null
+  const targetObjectId = sessionId && focusTurn?.target_object_ids.length === 1 ? focusTurn.target_object_ids[0] : null
+  const targetObject = useQuery({ queryKey: ['question-target-object', targetObjectId], queryFn: () => getKnowledgeObject(targetObjectId!), enabled: Boolean(targetObjectId && !target) })
+  const resolvedTarget = targetObject.data?.external_identifiers.cve?.[0]
+    ?? (typeof targetObject.data?.properties.display_name === 'string' ? targetObject.data.properties.display_name : null)
+    ?? targetObject.data?.canonical_key
+  const visibleTarget = target || resolvedTarget || (targetObjectId ? `object:${targetObjectId}` : '')
   const caseId = focusTurn?.investigation_ref?.replace(/^case:/, '') ?? params.get('case')
   const caseActivity = useQuery({ queryKey: ['question-case-activity', caseId], queryFn: () => getInvestigationActivity(caseId!), enabled: Boolean(caseId), retry: false })
   const runIds = useMemo(() => [...new Set([
@@ -136,7 +154,6 @@ export function QuestionsPage() {
     setDraftRaw('')
     setReasoningRaw('')
     setReasoningOpen(showReasoning)
-    setCompletedReasoning(null)
     reasoningBuffer.current = ''
     setStreamPhase('connecting')
     try {
@@ -171,7 +188,7 @@ export function QuestionsPage() {
       if (target.trim()) next.set(objectId ? 'object' : 'cve', objectId ?? cve)
       if (result.mode === 'accepted' && result.investigation) next.set('case', result.investigation.case_id)
       if (result.mode === 'completed' && result.decision) next.set('decision', result.decision.decision_id)
-      if (reasoningBuffer.current) setCompletedReasoning({ sessionId: result.session_id, turnIndex: result.turn_index, text: reasoningBuffer.current })
+      if (reasoningBuffer.current) setCompletedReasoning(current => ({ ...current, [`${result.session_id}:${result.turn_index}`]: reasoningBuffer.current }))
       setParams(next, { replace: true })
       setQuestion('')
       setPendingQuestion('')
@@ -190,7 +207,7 @@ export function QuestionsPage() {
     setPendingQuestion('')
     setDraftRaw('')
     setReasoningRaw('')
-    setCompletedReasoning(null)
+    setCompletedReasoning({})
     setError('')
   }
 
@@ -224,13 +241,13 @@ export function QuestionsPage() {
           {history.isLoading && <p className="qa-muted">{text('恢复完整会话…', 'Restoring conversation…')}</p>}
           {history.isError && <div className="qa-error">{text('无法读取这段会话。', 'Could not load this conversation.')}<button onClick={() => void history.refetch()}>{text('重试', 'Retry')}</button></div>}
           {!sessionId && !pendingQuestion && <div className="qa-empty"><div className="qa-empty-orbit"><span /><span /><b /></div><small>QUESTION → EVIDENCE → DECISION</small><h2>{text('答案应该能追到它的来源。', 'Every answer should lead back to its source.')}</h2><p>{text('快速回答、检索、核验、调查与持续守望在同一会话中衔接。选择路径后，系统保留目标和上下文；每个结论都能打开原始证据。', 'Direct answers, retrieval, verification, investigation and watch continue in one session. Every conclusion opens its source evidence.')}</p></div>}
-          {turns.map(turn => <ConversationTurn key={turn.turn_index} turn={turn} active={focusTurn?.turn_index === turn.turn_index} sessionId={sessionId!} reasoning={completedReasoning?.sessionId === sessionId && completedReasoning.turnIndex === turn.turn_index ? completedReasoning.text : null} onSelect={() => { const next = new URLSearchParams(params); next.set('turn', String(turn.turn_index)); setParams(next, { replace: true }) }} onEvidence={setEvidence} />)}
+          {turns.map(turn => <ConversationTurn key={turn.turn_index} turn={turn} active={focusTurn?.turn_index === turn.turn_index} sessionId={sessionId!} reasoning={completedReasoning[`${sessionId}:${turn.turn_index}`] ?? null} onSelect={() => { const next = new URLSearchParams(params); next.set('turn', String(turn.turn_index)); setParams(next, { replace: true }) }} onEvidence={setEvidence} />)}
           {pendingQuestion && <div className="qa-turn qa-turn-pending"><div className="qa-question"><small>{text('你 · 当前回合', 'YOU · CURRENT TURN')}</small><p>{pendingQuestion}</p></div><div className="qa-answer"><small><i className="qa-live-dot" />{text('正在形成结构化研判', 'STRUCTURED DECISION IN PROGRESS')}</small>{previewStatement(draftRaw) ? <p className="qa-draft-text">{previewStatement(draftRaw)}<span className="qa-caret" /></p> : <p className="qa-muted">{streamPhase === 'connecting' ? text('正在建立安全流…', 'Connecting to the answer stream…') : text('正在检索上下文并核对证据…', 'Retrieving context and checking evidence…')}</p>}{draftRaw && <small className="qa-draft-label">{text('生成中 · 尚未经证据校验', 'GENERATING · NOT YET EVIDENCE-VALIDATED')}</small>}{reasoningRaw && <details open={reasoningOpen} onToggle={event => setReasoningOpen(event.currentTarget.open)} className="qa-reasoning"><summary>{text('模型推理流', 'Model reasoning stream')}</summary><pre>{reasoningRaw}</pre></details>}</div></div>}
           <div ref={bottomRef} />
         </div>
         <div className="qa-compose">
           <div className="qa-profiles" role="group" aria-label={text('问答路径', 'Question path')}>{profiles.map(item => <button key={item.id} className={profile === item.id ? 'selected' : ''} onClick={() => setProfile(item.id)} disabled={busy} title={item.description}><span>{text(item.zh, item.en)}</span><small>{item.id}</small></button>)}</div>
-          <div className="qa-compose-grid"><label className="qa-target"><small>{text('调查对象', 'TARGET')}</small><input value={target} onChange={event => setTarget(event.target.value)} disabled={busy || Boolean(sessionId)} placeholder="CVE-2026-… / object:<id>" /></label><label className="qa-question-input"><small>{text('你的问题', 'YOUR QUESTION')}</small><textarea value={question} onChange={event => setQuestion(event.target.value)} disabled={busy} rows={2} placeholder={text('问一个具体问题；Ctrl / ⌘ + Enter 发送', 'Ask a precise question; Ctrl / ⌘ + Enter to send')} onKeyDown={event => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !event.nativeEvent.isComposing) { event.preventDefault(); void submit() } }} /></label><button className="qa-send" onClick={() => void submit()} disabled={busy || !question.trim()} aria-label={text('发送问题', 'Send question')}><Send size={18} /><span>{busy ? text('运行中', 'RUNNING') : text('发送', 'SEND')}</span></button></div>
+          <div className="qa-compose-grid"><label className="qa-target"><small>{text('调查对象', 'TARGET')}</small><input value={visibleTarget} onChange={event => setTarget(event.target.value)} disabled={busy || Boolean(sessionId)} placeholder="CVE-2026-… / object:<id>" /></label><label className="qa-question-input"><small>{text('你的问题', 'YOUR QUESTION')}</small><textarea value={question} onChange={event => setQuestion(event.target.value)} disabled={busy} rows={2} placeholder={text('问一个具体问题；Ctrl / ⌘ + Enter 发送', 'Ask a precise question; Ctrl / ⌘ + Enter to send')} onKeyDown={event => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !event.nativeEvent.isComposing) { event.preventDefault(); void submit() } }} /></label><button className="qa-send" onClick={() => void submit()} disabled={busy || !question.trim()} aria-label={text('发送问题', 'Send question')}><Send size={18} /><span>{busy ? text('运行中', 'RUNNING') : text('发送', 'SEND')}</span></button></div>
           <div className="qa-compose-foot"><label><input type="checkbox" checked={showReasoning} onChange={event => setShowReasoning(event.target.checked)} disabled={busy} />{text('显示提供方推理流（如有）', 'Show provider reasoning stream, if available')}</label><span><CornerDownLeft size={12} />{text('会话持续保存', 'SESSION SAVED')}</span></div>
           {error && <div className="qa-error" role="alert">{error}</div>}
         </div>

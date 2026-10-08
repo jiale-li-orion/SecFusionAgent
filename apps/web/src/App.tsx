@@ -19,7 +19,7 @@ export default function App() {
   const routeSpace = routeSpaceName(location.pathname)
 
   return (
-    <ProductErrorBoundary key={`${location.pathname}:${location.pathname === '/' ? '' : location.search}`}>
+    <ProductErrorBoundary key={location.pathname === '/start' ? location.pathname : `${location.pathname}:${location.pathname === '/' ? '' : location.search}`}>
       <Shell>
         <Suspense fallback={<ProductSpaceLoader space={routeSpace} />}>
           <AnimatePresence mode="wait" initial={false}>
