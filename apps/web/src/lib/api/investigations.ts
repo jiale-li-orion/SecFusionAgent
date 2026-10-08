@@ -233,7 +233,8 @@ export async function streamQuestion(
       if (name && raw) {
         const data = JSON.parse(raw)
         if (name === 'error') {
-          if (data.code === 'question_failed' || String(data.message).includes('original command failed')) pendingQuestionKeys.delete(fingerprint)
+          // An SSE error is terminal: the server has closed this command, so a retry needs a fresh key.
+          pendingQuestionKeys.delete(fingerprint)
           throw new Error(String(data.message ?? data.code ?? 'Question failed'))
         }
         if (name === 'status') options.onEvent({ event: 'status', phase: String(data.phase), request_id: String(data.request_id) })

@@ -301,7 +301,7 @@ export function StartPage() {
             <AdvancedRange label={text('优先级', 'PRIORITY')} value={priority} min={0} max={100} step={5} onChange={setPriority} suffix="/100" />
             {selected.id === 'DIRECT' || selected.id === 'RETRIEVE' ? (
               <>
-                <AdvancedRange label={text('交互超时', 'INTERACTIVE TIMEOUT')} value={interactiveTimeoutSeconds} min={1} max={30} step={1} onChange={setInteractiveTimeoutSeconds} suffix="s" />
+                <AdvancedRange label={text('交互超时', 'INTERACTIVE TIMEOUT')} value={interactiveTimeoutSeconds} min={1} max={120} step={1} onChange={setInteractiveTimeoutSeconds} suffix="s" />
                 <AdvancedRange label={text('检索上限', 'RETRIEVAL LIMIT')} value={retrievalLimit} min={1} max={20} step={1} onChange={setRetrievalLimit} suffix=" hits" />
               </>
             ) : (

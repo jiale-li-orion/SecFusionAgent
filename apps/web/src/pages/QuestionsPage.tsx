@@ -4,6 +4,7 @@ import { AnimatePresence } from 'motion/react'
 import { ArrowUpRight, ChevronRight, CornerDownLeft, Link2, Plus, Radio, Send, ShieldCheck } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { DecisionReport } from '../components/DecisionReport'
+import { StreamedDecisionDraft } from '../components/questions/StreamedDecisionDraft'
 import { EvidenceOverlay } from '../components/investigations/CaseSurfaces'
 import { InvestigationReport } from '../components/investigations/InvestigationReport'
 import { getAgentTask, type AgentTaskDetail } from '../lib/api/agents'
@@ -32,33 +33,6 @@ const eventNames = [
 
 function profileForTask(task: string) {
   return profiles.find(item => item.task === task)?.id ?? 'INVESTIGATE'
-}
-
-function streamingString(raw: string, start: number): string {
-  let escaped = false
-  let text = ''
-  for (const char of raw.slice(start)) {
-    if (escaped) {
-      text += char === 'n' ? '\n' : char === 't' ? ' ' : char
-      escaped = false
-    } else if (char === '\\') escaped = true
-    else if (char === '"') break
-    else text += char
-  }
-  return text
-}
-
-function previewNarrative(raw: string): string {
-  const reportStart = raw.indexOf('"report_paragraphs"')
-  if (reportStart >= 0) {
-    const paragraphs = [...raw.slice(reportStart).matchAll(/"text"\s*:\s*"/g)]
-      .map(match => streamingString(raw.slice(reportStart), (match.index ?? 0) + match[0].length))
-      .filter(Boolean)
-    if (paragraphs.length) return paragraphs.join('\n\n')
-  }
-  const statements = [...raw.matchAll(/"statement"\s*:\s*"/g)]
-  const last = statements.at(-1)
-  return last?.index === undefined ? '' : streamingString(raw, last.index + last[0].length)
 }
 
 function formatTime(value: string, language: string) {
@@ -95,7 +69,6 @@ export function QuestionsPage() {
   const [connectedCaseId, setConnectedCaseId] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const reasoningBuffer = useRef('')
-  const pendingPreview = useMemo(() => previewNarrative(draftRaw), [draftRaw])
 
   if (routeIdentity !== previousRouteIdentity) {
     setPreviousRouteIdentity(routeIdentity)
@@ -194,7 +167,7 @@ export function QuestionsPage() {
         cveId: !sessionId && /^CVE-\d{4}-\d+$/.test(cve) ? cve : undefined,
         objectId: !sessionId ? objectId : undefined,
         taskKind: selected.task,
-        interactiveTimeoutSeconds: 30,
+        interactiveTimeoutSeconds: 90,
       }, {
         includeReasoning: showReasoning,
         onEvent: event => {
@@ -277,7 +250,7 @@ export function QuestionsPage() {
           {history.isError && <div className="qa-error">{text('无法读取这段会话。', 'Could not load this conversation.')}<button onClick={() => void history.refetch()}>{text('重试', 'Retry')}</button></div>}
           {!sessionId && !pendingQuestion && <div className="qa-empty"><div className="qa-empty-orbit"><span /><span /><b /></div><small>QUESTION → EVIDENCE → DECISION</small><h2>{text('答案应该能追到它的来源。', 'Every answer should lead back to its source.')}</h2><p>{text('快速回答、检索、核验、调查与持续守望在同一会话中衔接。选择路径后，系统保留目标和上下文；每个结论都能打开原始证据。', 'Direct answers, retrieval, verification, investigation and watch continue in one session. Every conclusion opens its source evidence.')}</p></div>}
           {turns.map(turn => <ConversationTurn key={turn.turn_index} turn={turn} active={focusTurn?.turn_index === turn.turn_index} sessionId={sessionId!} reasoning={completedReasoning[`${sessionId}:${turn.turn_index}`] ?? null} onSelect={() => { const next = new URLSearchParams(params); next.set('turn', String(turn.turn_index)); setParams(next, { replace: true }) }} onEvidence={setEvidence} />)}
-          {pendingQuestion && <div className="qa-turn qa-turn-pending"><div className="qa-question"><small>{text('你 · 当前回合', 'YOU · CURRENT TURN')}</small><p>{pendingQuestion}</p></div><div className="qa-answer"><small><i className="qa-live-dot" />{text('正在形成证据研判', 'EVIDENCE DECISION IN PROGRESS')}</small>{pendingPreview ? <p className="qa-draft-text">{pendingPreview}<span className="qa-caret" /></p> : <p className="qa-muted">{streamPhase === 'connecting' ? text('正在建立安全流…', 'Connecting to the answer stream…') : text('正在检索上下文并核对证据…', 'Retrieving context and checking evidence…')}</p>}{draftRaw && <small className="qa-draft-label">{text('生成中 · 尚未经证据校验', 'GENERATING · NOT YET EVIDENCE-VALIDATED')}</small>}{reasoningRaw && <details open={reasoningOpen} onToggle={event => setReasoningOpen(event.currentTarget.open)} className="qa-reasoning"><summary>{text('模型推理流', 'Model reasoning stream')}</summary><pre>{reasoningRaw}</pre></details>}</div></div>}
+          {pendingQuestion && <div className="qa-turn qa-turn-pending"><div className="qa-question"><small>{text('你 · 当前回合', 'YOU · CURRENT TURN')}</small><p>{pendingQuestion}</p></div><StreamedDecisionDraft draftRaw={draftRaw} reasoningRaw={reasoningRaw} reasoningOpen={reasoningOpen} onReasoningOpen={setReasoningOpen} phase={streamPhase} /></div>}
           <div ref={bottomRef} />
         </div>
         <div className="qa-compose">
