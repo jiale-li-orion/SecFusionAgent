@@ -33,6 +33,8 @@ The user flow is register/sign in → save interests → inspect evidence-based 
 
 Submitting a free-text INTELLIGENCE search issues a request for the exact current input before opening an object. The deferred suggestion list is only a preview; pressing Enter while it is updating cannot open a result from an earlier query.
 
+An exact CVE entered in WORLD searches the entire resident Hot pool through `/api/v1/world/hot/search`; title or mechanism text filters only the loaded ranking window. The input explains this scope, and both result types keep their Hot-cache identity separate from durable Knowledge.
+
 ## Visual ownership
 
 `src/main.tsx` imports the active CSS in order:

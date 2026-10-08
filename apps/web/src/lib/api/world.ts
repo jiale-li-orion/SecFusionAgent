@@ -173,6 +173,12 @@ export async function getHotWorld(limit = 6): Promise<{ resident_total: number; 
   return response.json() as Promise<{ resident_total: number; items: HotBug[] }>
 }
 
+export async function searchHotWorldCve(cveId: string): Promise<{ query: string; items: HotBug[] }> {
+  const response = await fetch(`/api/v1/world/hot/search?q=${encodeURIComponent(cveId)}`)
+  if (!response.ok) throw new Error(`Hot CVE search failed (${response.status})`)
+  return response.json() as Promise<{ query: string; items: HotBug[] }>
+}
+
 export type WorldFormation = {
   generated_at: string
   processing: Array<{ run_id: string; processor_name: string; status: string; started_at: string; finished_at: string | null; source_name: string | null; external_object_id: string | null; committed_at: string | null; revision: number | null }>

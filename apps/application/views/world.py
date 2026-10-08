@@ -202,6 +202,11 @@ class HotBugListView(BaseModel):
     items: list[HotBugView] = Field(default_factory=list)
 
 
+class HotBugSearchView(BaseModel):
+    query: str
+    items: list[HotBugView] = Field(default_factory=list)
+
+
 class WorldProcessingView(BaseModel):
     run_id: str
     processor_name: str

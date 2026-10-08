@@ -513,6 +513,39 @@
   font-size: 12px;
 }
 
+.ew-hot-results {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  max-height: 470px;
+  overflow-y: auto;
+  margin-top: 22px;
+  padding: 14px;
+  border: 1px solid #c4d1b321;
+  border-radius: 13px;
+  background: linear-gradient(145deg, #26392d77, #11221b66);
+  scrollbar-color: #566f58 transparent;
+}
+
+.ew-hot-results-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 5px 5px 13px;
+  border-bottom: 1px solid #d0dfbd22;
+}
+
+.ew-hot-results-head small { color: #a4b795; font-size: 9px; letter-spacing: .14em; }
+.ew-hot-results-head strong { color: #edf2db; font-size: 18px; letter-spacing: -.02em; }
+.ew-hot-results-head span { margin-left: auto; color: #9dac95; font-size: 10px; }
+.ew-hot-results>button { display: grid; grid-template-columns: 28px minmax(0,1fr) 16px; align-items: start; gap: 13px; width: 100%; padding: 14px; border: 1px solid transparent; border-radius: 9px; color: #d9e6ce; text-align: left; }
+.ew-hot-results>button:hover,.ew-hot-results>button.selected { border-color: #bcd4a345; background: #b2d3a416; }
+.ew-hot-results>button>span { display: grid; min-width: 0; gap: 3px; }
+.ew-hot-results>button small { color: #a8c198; font-size: 10px; }
+.ew-hot-results>button strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 560; }
+.ew-hot-results>button em { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: #acbba7; font-size: 11px; font-style: normal; line-height: 1.6; }
+
 .ew-hot-orbit {
   position: relative;
   height: 470px;

@@ -296,7 +296,7 @@ uv run uvicorn apps.api.main:app --reload
 GET  /health/live, /health/ready
 POST /api/v1/auth/register, /api/v1/auth/login, /api/v1/auth/logout
 GET  /api/v1/auth/me
-GET  /api/v1/world/overview, /api/v1/world/stories, /api/v1/world/hot
+GET  /api/v1/world/overview, /api/v1/world/stories, /api/v1/world/hot, /api/v1/world/hot/search
 GET  /api/v1/intelligence/objects/{object_id}, /api/v1/intelligence/recommendations
 PUT  /api/v1/intelligence/preferences
 POST /api/v1/intelligence/objects/{object_id}/enrichment/runs

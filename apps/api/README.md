@@ -19,7 +19,7 @@ POST /api/v1/auth/register
 POST /api/v1/auth/login
 GET /api/v1/auth/me
 POST /api/v1/auth/logout
-GET /api/v1/world/overview, /formation, /stories, /hot, /incident-candidates
+GET /api/v1/world/overview, /formation, /stories, /hot, /hot/search, /incident-candidates
 GET /api/v1/intelligence/preferences, /recommendations
 PUT /api/v1/intelligence/preferences
 PUT /api/v1/intelligence/recommendations/{object_id}/feedback
@@ -36,6 +36,8 @@ GET /api/v1/observatory/system
 The vulnerability route calls `packages.intelligence.knowledge.read.get_vulnerability_by_cve` and returns the evidence-rich `KnowledgeObjectView`. HTTP 404 is a transport representation of a missing object; the route does not implement fallback search or enrichment.
 
 `GET /api/v1/world/incident-candidates` reads the Redis candidate working set and its representative signals. It returns a bounded, conservatively screened security-event watch list with source title, summary, URL and observation time. `total` counts presentable candidates; `unfiltered_total` reports the broader signal pool. This read does not promote candidates or expose raw payloads.
+
+`GET /api/v1/world/hot/search?q=CVE-YYYY-NNNN` performs an exact CVE lookup across resident Hot payloads, including records outside the 64-item ranked window. It returns source-specific Hot entries and never presents cache residency as durable Knowledge. General text filtering remains a client-side operation over the loaded ranking window.
 
 `GET /api/v1/a2a/tasks/{task_id}` is the first A2A compatibility transport seam. It maps an existing internal TaskRun/TaskContract/ContextManifest into the A2A 1.0 Task view and returns `application/a2a+json`. `A2A-Version: 1.0` and compatible `1.0.x` requests are accepted. This is intentionally **not** advertised as a complete A2A server yet: SendMessage, SubscribeToTask/SSE, Agent Card discovery, push-registration/authentication and task cancellation remain transport work above the deterministic mapper in `packages.task_runtime.a2a`.
 

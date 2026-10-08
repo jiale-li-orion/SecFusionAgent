@@ -189,6 +189,8 @@ async def test_world_hot_exposes_ranked_product_safe_hot_bug_view(monkeypatch) -
     app = create_app()
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as http:
         response = await http.get("/api/v1/world/hot?limit=5")
+        search = await http.get("/api/v1/world/hot/search?q=CVE-2026-42424")
+        invalid_search = await http.get("/api/v1/world/hot/search?q=42424")
         detail = await http.get("/api/v1/world/hot/nvd-cves-2/CVE-2026-42424")
 
     assert response.status_code == 200
@@ -199,6 +201,10 @@ async def test_world_hot_exposes_ranked_product_safe_hot_bug_view(monkeypatch) -
     assert item["access_count"] == 1.0
     assert item["priority_signals"] == ["critical_severity"]
     assert "raw_payload" not in item
+    assert search.status_code == 200, search.text
+    assert search.json()["query"] == "CVE-2026-42424"
+    assert search.json()["items"][0]["cve_id"] == "CVE-2026-42424"
+    assert invalid_search.status_code == 422
     assert detail.status_code == 200, detail.text
     detail_item = detail.json()
     assert detail_item["external_object_id"] == "CVE-2026-42424"

@@ -100,3 +100,35 @@ async def test_resident_count_excludes_metadata_and_expired_payloads() -> None:
     await cast(Any, client).delete('bug:nvd:resident')
     assert await cache.resident_count() == 0
     await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_find_cve_reaches_resident_record_outside_ranked_window() -> None:
+    client = FakeRedis()
+    cache = RedisHotBugCache(cast(Any, client))
+
+    def record(cve_id: str, source_id: str, hour: int) -> HotBugRecord:
+        return HotBugRecord(
+            acquisition_run_id=f"run-{source_id}-{cve_id}",
+            source_id=source_id,
+            external_object_id=cve_id,
+            fetched_at=datetime(2026, 9, 25, hour, 0, tzinfo=UTC),
+            updated_at=datetime(2026, 9, 25, hour, 0, tzinfo=UTC),
+            content_hash=f"{source_id}-{cve_id}",
+            raw_payload={"cve": {"id": cve_id}},
+            projection={"cve_id": cve_id},
+        )
+
+    older = record("CVE-2026-42424", "nvd-cves-2", 1)
+    newer = record("CVE-2026-42424", "cve-program", 2)
+    latest = record("CVE-2026-99999", "nvd-cves-2", 3)
+    for item in (older, newer, latest):
+        await cache.admit(item, ttl_seconds=600)
+
+    assert [entry.record.external_object_id for entry in await cache.list_ranked(limit=1)] == [
+        latest.external_object_id
+    ]
+    found = await cache.find_cve("cve-2026-42424")
+    assert [item.record.source_id for item in found] == ["cve-program", "nvd-cves-2"]
+    assert await cache.find_cve("CVE-2026-99998") == []
+    await client.aclose()

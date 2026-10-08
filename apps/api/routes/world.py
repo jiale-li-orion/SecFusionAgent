@@ -15,6 +15,7 @@ from apps.application.queries.world import list_world_knowledge_changes, world_s
 from apps.application.queries.world_formation import read_world_formation
 from apps.application.views.world import (
     HotBugListView,
+    HotBugSearchView,
     HotBugView,
     WorldCategoryHealthView,
     WorldFormationView,
@@ -231,6 +232,28 @@ async def hot_world(limit: int = Query(default=18, ge=1, le=64)) -> HotBugListVi
     names = world_source_names()
     return HotBugListView(
         resident_total=resident_total,
+        items=[_hot_view(entry, names.get(entry.record.source_id)) for entry in entries],
+    )
+
+
+@router.get("/hot/search", response_model=HotBugSearchView)
+async def search_hot_world(
+    q: str = Query(min_length=13, max_length=32, pattern=r"(?i)^CVE-\d{4}-\d{4,}$"),
+) -> HotBugSearchView:
+    settings = get_settings()
+    redis = Redis.from_url(settings.redis_hot_cache_url)
+    try:
+        entries = await RedisHotBugCache(redis).find_cve(q)
+    except RedisError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Hot Bug working set is unavailable",
+        ) from exc
+    finally:
+        await redis.aclose()
+    names = world_source_names()
+    return HotBugSearchView(
+        query=q.upper(),
         items=[_hot_view(entry, names.get(entry.record.source_id)) for entry in entries],
     )
 

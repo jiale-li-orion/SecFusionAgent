@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Awaitable
 from typing import Any, cast
 
@@ -147,6 +148,43 @@ class RedisHotBugCache:
                 )
             )
 
+        entries.sort(
+            key=lambda item: (
+                item.pinned,
+                item.active,
+                item.access_count,
+                item.updated_score,
+                item.record.cache_key,
+            ),
+            reverse=True,
+        )
+        return entries[:limit]
+
+    async def find_cve(self, cve_id: str, *, limit: int = 12) -> list[HotBugCacheEntry]:
+        """Read exact CVE matches across resident payloads, beyond the ranked window."""
+        normalized = cve_id.upper()
+        if not re.fullmatch(r"CVE-\d{4}-\d{4,}", normalized) or limit < 1:
+            return []
+        cursor = 0
+        entries: list[HotBugCacheEntry] = []
+        seen: set[str] = set()
+        while True:
+            cursor, keys = await self._client.scan(
+                cursor, match=f"bug:*:{normalized}", count=1000
+            )
+            for raw_key in keys:
+                key = _as_text(raw_key)
+                if key in seen:
+                    continue
+                seen.add(key)
+                source_id = key[4 : -(len(normalized) + 1)]
+                if not source_id:
+                    continue
+                entry = await self.get_entry(source_id, normalized)
+                if entry is not None:
+                    entries.append(entry)
+            if cursor == 0:
+                break
         entries.sort(
             key=lambda item: (
                 item.pinned,
