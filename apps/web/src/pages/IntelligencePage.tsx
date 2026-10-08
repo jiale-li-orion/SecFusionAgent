@@ -77,7 +77,7 @@ export function IntelligencePage() {
   })
 
   const selectedCve = paramObject || paramIncident || paramQuery ? '' : paramCve
-  const entryQuery = useQuery({ queryKey: ['intelligence-recent-sources'], queryFn: () => getWorldStories(12), enabled: !selectedCve && !paramObject && !paramIncident, staleTime: 30_000 })
+  const entryQuery = useQuery({ queryKey: ['intelligence-recent-sources'], queryFn: () => getWorldStories(18), enabled: !selectedCve && !paramObject && !paramIncident, staleTime: 30_000 })
   const selectedObjectId = paramIncident ? '' : paramObject
   const hotCoordinate = params.get('hot')?.split(':')
   const hotDetail = useQuery({ queryKey: ['intelligence-hot-detail', ...(hotCoordinate ?? [])], queryFn: () => getHotWorldItem(hotCoordinate![0], hotCoordinate!.slice(1).join(':')), enabled: Boolean(hotCoordinate && hotCoordinate.length > 1), retry: false })
@@ -309,7 +309,7 @@ export function IntelligencePage() {
               )}
 
               {knowledgeQuery.isError && !hotMatch && <div className="intel-state error-block"><span>{String(knowledgeQuery.error.message)}</span><button className="recovery-action" onClick={() => void knowledgeQuery.refetch()}>{text('重试 Knowledge read', 'RETRY KNOWLEDGE READ')}</button></div>}
-              {!selectedCve && !selectedObjectId && <><IntelligenceIndex stories={entryQuery.data?.items ?? []} loading={entryQuery.isPending} error={entryQuery.isError ? String(entryQuery.error.message) : null} onSelect={item => { if (item.object_id) openSearchResult(item.object_id); else if (item.incident_id) setParams({ incident: item.incident_id }) }} />{auth.authenticated ? <PersonalizedIntelligence /> : <AccountLoginPrompt title={text('找到与你有关的情报', 'Find intelligence relevant to you')} description={text('登录后保存关注的技术与对象，查看带有来源的推荐。', 'Sign in to save technologies and objects you follow, and see recommendations with their sources.')} />}</>}
+              {!selectedCve && !selectedObjectId && <><IntelligenceIndex stories={entryQuery.data?.items ?? []} hot={hotQuery.data?.items ?? []} hotTotal={hotQuery.data?.resident_total ?? 0} loading={entryQuery.isPending} hotLoading={hotQuery.isPending} error={entryQuery.isError ? String(entryQuery.error.message) : null} hotError={hotQuery.isError ? String(hotQuery.error.message) : null} onSelect={item => { if (item.object_id) openSearchResult(item.object_id); else if (item.incident_id) setParams({ incident: item.incident_id }) }} onHotSelect={item => { const cve = item.cve_id ?? item.external_object_id; setParams({ cve, hot: `${item.source_id}:${item.external_object_id}` }) }} />{auth.authenticated ? <PersonalizedIntelligence /> : <AccountLoginPrompt title={text('找到与你有关的情报', 'Find intelligence relevant to you')} description={text('登录后保存关注的技术与对象，查看带有来源的推荐。', 'Sign in to save technologies and objects you follow, and see recommendations with their sources.')} />}</>}
               {!obj && hotMatch && <HotWorkingSetPanel item={hotMatch} />}
               {!obj && (selectedCve || selectedObjectId) && !hotMatch && <IntelligenceArchiveBlueprint target={selectedCve || selectedObjectId} />}
 

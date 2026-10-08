@@ -810,6 +810,22 @@
   overflow-wrap: anywhere;
 }
 
+.vision-hot-authority {
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 23px;
+  padding: 8px 11px;
+  border: 1px solid #b8c9b6;
+  border-radius: 6px;
+  color: #4e6a5d;
+  background: #e7eee4;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.vision-hot-folio h2 { margin: 20px 0 12px; }
+.vision-hot-title { max-width: 55ch; color: var(--ink); font-size: 17px; line-height: 1.45; }
+
 .vision-folio blockquote {
   font-size: 14px;
   line-height: 1.9;
@@ -5033,6 +5049,8 @@
     gap: 20px;
     padding: 25px 0 35px;
   }
+  .vision-hot-folio { flex-direction: column; }
+  .vision-hot-folio .vision-folio-art { height: 180px; }
   .vision-folio-art {
     width: 100%;
     height: 230px;

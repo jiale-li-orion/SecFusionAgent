@@ -79,6 +79,8 @@ The Product Web at `/product/` exposes six connected spaces: WORLD follows live 
 
 The visual identity now uses a dedicated evidence-aperture mark, distinct source-category and publication seals, and three differentiated WebGL/SVG Agent sculptures. These are presentation identities; the states they accompany remain backed by Product read models.
 
+The INTELLIGENCE Vulnerabilities filter shows a bounded live Hot CVE window with its separate resident count. Opening one preserves the Hot coordinate and checks the durable dossier independently, so the catalog no longer implies that an empty recent-document selection means there are no vulnerabilities.
+
 Users can register or sign in at `/product/auth`. Server-side sessions use a hashed opaque token in an HttpOnly cookie; write requests use origin and CSRF checks. Account-owned questions, sessions, Cases, Decisions, Tasks, recommendations and feedback are isolated by the server, while shared Evidence and Knowledge stay readable. A user can save interests, inspect evidence-based recommendations, provide feedback, start an investigation, and resume the same conversation after signing in again. The current implementation does not include email verification, password recovery or OAuth; these are separate account lifecycle work.
 
 The formal benchmark numbers above describe their recorded deployment and sample, not the current Product's overall accuracy or coverage. The [finals readiness review](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Finals-Readiness-Review-2026-10-08) tracks remaining monitoring breadth, open-dimension enrichment, current-version QA quality and operational acceptance against the competition rubric.
