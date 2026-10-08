@@ -109,6 +109,8 @@ TD1 的 M2/M3 information plane 在实现里保持四层分离：`Observation/Ev
 
 HTTP vulnerability read、Product Intelligence 与 M4 Perception 都复用 `knowledge.read` / retrieval seam，而不是各自直查表。这保证用户看到的 current view 与 Agent 看到的 accepted/superseded/evidence 语义一致。当前唯一刻意未补齐的是 historical Knowledge read：M7 replay 在 pinned revision 不可精确读取时 fail closed，直到 M1–M3 提供 versioned historical reader。
 
+当前 Knowledge read 会批量装载关系目标、外部标识符、证据链接和 Observation。单个 CVE 的查询次数不会随着 claim/relation 数量线性增长；大对象的问答上下文仍保留完整的证据引用与原有排序语义。
+
 ## Artifact storage
 
 `storage/artifacts.py` defines the `ArtifactStore` boundary. The default single-host deployment uses `FilesystemArtifactStore`; an explicit S3-compatible implementation remains available for integration/deployment environments. Both are content-addressed by SHA-256, while PostgreSQL stores artifact metadata and URI rather than arbitrary large body bytes. Filesystem writes use a temporary sibling followed by atomic replace and validate the declared content hash; URI resolution is confined to the configured bucket root. `EvidenceIngress` exact replay verifies that the referenced blob still exists and may restore exact content when the same durable backend can recover the bytes. A replay never accepts mismatched content or upgrades missing historical bytes into fabricated evidence.

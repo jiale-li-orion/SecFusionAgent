@@ -5,7 +5,7 @@ from typing import Any, cast
 
 import pytest
 from fakeredis.aioredis import FakeRedis
-from sqlalchemy import func, select
+from sqlalchemy import event, func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from packages.enrichment.runtime.state import EnrichmentStateBuilder, EnrichmentStatus
@@ -158,7 +158,17 @@ async def test_hot_bug_promotion_is_durable_traceable_and_idempotent() -> None:
             assert await _count(session, OutboxEventModel) == 2
             topics = set(await session.scalars(select(OutboxEventModel.topic)))
             assert topics == {"knowledge.changed", "enrichment.requested"}
-            view = await get_vulnerability_by_cve(session, "cve-2026-42424")
+            statements: list[str] = []
+
+            def count_query(_conn: Any, _cursor: Any, statement: str, *_args: Any) -> None:
+                statements.append(statement)
+
+            event.listen(engine.sync_engine, "before_cursor_execute", count_query)
+            try:
+                view = await get_vulnerability_by_cve(session, "cve-2026-42424")
+            finally:
+                event.remove(engine.sync_engine, "before_cursor_execute", count_query)
+            assert len(statements) <= 9
             assert view is not None
             assert view.object_type == "Vulnerability"
             assert view.external_identifiers == {"cve": ["CVE-2026-42424"]}
@@ -168,9 +178,7 @@ async def test_hot_bug_promotion_is_durable_traceable_and_idempotent() -> None:
             assert cvss.qualifier["vocabulary_scope"] == "canonical"
             assert cvss.evidence[0].source_id == source.source_id
             assert cvss.evidence[0].locator["kind"] == "jsonpath"
-            cvss_version = next(
-                claim for claim in view.claims if claim.predicate == "cvss_version"
-            )
+            cvss_version = next(claim for claim in view.claims if claim.predicate == "cvss_version")
             assert cvss_version.value == "3.1"
             weakness = next(
                 relation for relation in view.relations if relation.relation_type == "has-weakness"
@@ -197,9 +205,7 @@ async def test_hot_bug_promotion_is_durable_traceable_and_idempotent() -> None:
             assert vendor_advisory.target.properties["url"] == (
                 "https://example.test/advisories/CVE-2026-42424"
             )
-            assert vendor_advisory.qualifier["source_semantics"] == (
-                "nvd_vendor_advisory_tag"
-            )
+            assert vendor_advisory.qualifier["source_semantics"] == ("nvd_vendor_advisory_tag")
             assert vendor_advisory.evidence[0].locator["path"] == "$.cve.references[0]"
             applicability = next(
                 relation
@@ -215,12 +221,8 @@ async def test_hot_bug_promotion_is_durable_traceable_and_idempotent() -> None:
             }
             assert applicability.qualifier["state"] == "affected"
             assert applicability.qualifier["source_semantics"] == "nvd_cpe"
-            assert applicability.qualifier["platform"] == (
-                "cpe:2.3:a:example:vllm:*:*:*:*:*:*:*:*"
-            )
-            assert applicability.qualifier["version_range"] == {
-                "versionEndExcluding": "0.11.1"
-            }
+            assert applicability.qualifier["platform"] == ("cpe:2.3:a:example:vllm:*:*:*:*:*:*:*:*")
+            assert applicability.qualifier["version_range"] == {"versionEndExcluding": "0.11.1"}
             configuration = applicability.qualifier["configuration"]
             assert isinstance(configuration, dict)
             assert configuration["root_operator"] == "AND"
@@ -358,20 +360,20 @@ async def test_cvelist_hot_bug_can_promote_into_same_canonical_vulnerability_lay
             exact = next(
                 relation
                 for relation in applicability
-                if relation.qualifier.get("scope") == {
+                if relation.qualifier.get("scope")
+                == {
                     "kind": "version_rule",
                     "version": "1.0.0",
                 }
             )
             assert exact.qualifier["state"] == "affected"
             assert exact.qualifier["source_status"] == "affected"
-            assert exact.evidence[0].locator["path"] == (
-                "$.containers.cna.affected[0].versions[0]"
-            )
+            assert exact.evidence[0].locator["path"] == ("$.containers.cna.affected[0].versions[0]")
             ranged = next(
                 relation
                 for relation in applicability
-                if relation.qualifier.get("scope") == {
+                if relation.qualifier.get("scope")
+                == {
                     "kind": "version_rule",
                     "version": "1.1.0",
                     "version_type": "semver",
@@ -382,7 +384,8 @@ async def test_cvelist_hot_bug_can_promote_into_same_canonical_vulnerability_lay
             unaffected = next(
                 relation
                 for relation in applicability
-                if relation.qualifier.get("scope") == {
+                if relation.qualifier.get("scope")
+                == {
                     "kind": "version_rule",
                     "version": "2.0.0",
                 }

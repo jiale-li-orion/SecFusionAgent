@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.intelligence.storage.evidence_models import ObservationModel
@@ -98,7 +98,6 @@ async def get_object_by_id(
     obj = await session.get(ObjectModel, object_id)
     if obj is None:
         return None
-    identifiers = await _identifiers_for_object(session, obj.object_id)
     claims = list(
         await session.scalars(
             select(ClaimModel)
@@ -122,6 +121,24 @@ async def get_object_by_id(
         )
     )
 
+    target_ids = {relation.target_object_id for relation in relations}
+    targets = (
+        {
+            target.object_id: target
+            for target in await session.scalars(
+                select(ObjectModel).where(ObjectModel.object_id.in_(target_ids))
+            )
+        }
+        if target_ids
+        else {}
+    )
+    identifiers = await _identifiers_for_objects(session, {obj.object_id, *target_ids})
+    evidence = await _evidence_for_targets(
+        session,
+        {("claim", claim.claim_id) for claim in claims}
+        | {("relation", relation.relation_id) for relation in relations},
+    )
+
     claim_views = [
         ClaimView(
             claim_id=claim.claim_id,
@@ -130,13 +147,13 @@ async def get_object_by_id(
             origin=claim.origin,
             qualifier=claim.qualifier,
             created_revision=claim.created_revision,
-            evidence=await _evidence_for_target(session, "claim", claim.claim_id),
+            evidence=evidence.get(("claim", claim.claim_id), []),
         )
         for claim in claims
     ]
     relation_views: list[RelationView] = []
     for relation in relations:
-        target = await session.get(ObjectModel, relation.target_object_id)
+        target = targets.get(relation.target_object_id)
         if target is None:
             continue
         relation_views.append(
@@ -151,9 +168,9 @@ async def get_object_by_id(
                     object_type=target.object_type,
                     canonical_key=target.canonical_key,
                     properties=target.properties,
-                    external_identifiers=await _identifiers_for_object(session, target.object_id),
+                    external_identifiers=identifiers.get(target.object_id, {}),
                 ),
-                evidence=await _evidence_for_target(session, "relation", relation.relation_id),
+                evidence=evidence.get(("relation", relation.relation_id), []),
             )
         )
 
@@ -162,48 +179,61 @@ async def get_object_by_id(
         object_type=obj.object_type,
         canonical_key=obj.canonical_key,
         properties=obj.properties,
-        external_identifiers=identifiers,
+        external_identifiers=identifiers.get(obj.object_id, {}),
         claims=claim_views,
         relations=relation_views,
     )
 
 
-async def _identifiers_for_object(
+async def _identifiers_for_objects(
     session: AsyncSession,
-    object_id: str,
-) -> dict[str, list[str]]:
+    object_ids: set[str],
+) -> dict[str, dict[str, list[str]]]:
     identifiers = list(
         await session.scalars(
-            select(ExternalIdentifierModel).where(ExternalIdentifierModel.object_id == object_id)
+            select(ExternalIdentifierModel).where(ExternalIdentifierModel.object_id.in_(object_ids))
         )
     )
-    grouped: dict[str, list[str]] = {}
+    grouped: dict[str, dict[str, list[str]]] = {}
     for item in identifiers:
-        grouped.setdefault(item.namespace, []).append(item.value)
-    for values in grouped.values():
-        values.sort()
+        grouped.setdefault(item.object_id, {}).setdefault(item.namespace, []).append(item.value)
+    for namespaces in grouped.values():
+        for values in namespaces.values():
+            values.sort()
     return grouped
 
 
-async def _evidence_for_target(
+async def _evidence_for_targets(
     session: AsyncSession,
-    target_kind: str,
-    target_id: str,
-) -> list[EvidenceRef]:
+    targets: set[tuple[str, str]],
+) -> dict[tuple[str, str], list[EvidenceRef]]:
+    if not targets:
+        return {}
     links = list(
         await session.scalars(
             select(EvidenceLinkModel).where(
-                EvidenceLinkModel.target_kind == target_kind,
-                EvidenceLinkModel.target_id == target_id,
+                tuple_(EvidenceLinkModel.target_kind, EvidenceLinkModel.target_id).in_(targets)
             )
         )
     )
-    evidence: list[EvidenceRef] = []
+    observations = (
+        {
+            observation.observation_id: observation
+            for observation in await session.scalars(
+                select(ObservationModel).where(
+                    ObservationModel.observation_id.in_({link.observation_id for link in links})
+                )
+            )
+        }
+        if links
+        else {}
+    )
+    evidence: dict[tuple[str, str], list[EvidenceRef]] = {}
     for link in links:
-        observation = await session.get(ObservationModel, link.observation_id)
+        observation = observations.get(link.observation_id)
         if observation is None:
             continue
-        evidence.append(
+        evidence.setdefault((link.target_kind, link.target_id), []).append(
             EvidenceRef(
                 evidence_ref=f"evidence:{link.evidence_link_id}",
                 source_id=observation.source_id,
@@ -218,5 +248,6 @@ async def _evidence_for_target(
                 locator=link.locator,
             )
         )
-    evidence.sort(key=lambda item: (item.observed_at, item.source_id, item.observation_id))
+    for items in evidence.values():
+        items.sort(key=lambda item: (item.observed_at, item.source_id, item.observation_id))
     return evidence
