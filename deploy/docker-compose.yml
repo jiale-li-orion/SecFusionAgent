@@ -30,6 +30,9 @@ x-app-runtime: &app-runtime
     SECFUSION_MODEL_BASE_URL: ${SECFUSION_MODEL_BASE_URL:-}
     SECFUSION_MODEL_API_KEY: ${SECFUSION_MODEL_API_KEY:-}
     SECFUSION_MODEL_NAME: ${SECFUSION_MODEL_NAME:-}
+    HTTP_PROXY: ${SECFUSION_UPSTREAM_HTTP_PROXY:-}
+    HTTPS_PROXY: ${SECFUSION_UPSTREAM_HTTP_PROXY:-}
+    NO_PROXY: ${SECFUSION_NO_PROXY:-localhost,127.0.0.1,postgres,redis-broker,redis-cache,redis-task-bus,api,product-web}
   depends_on:
     postgres:
       condition: service_healthy

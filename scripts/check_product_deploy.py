@@ -32,12 +32,8 @@ def main() -> int:
     compose = COMPOSE.read_text(encoding="utf-8")
     doc = DOC.read_text(encoding="utf-8")
 
-    _require(nginx, 'auth_basic "SecFusion";', owner="nginx")
-    _require(
-        nginx,
-        "auth_basic_user_file /etc/nginx/auth/.htpasswd;",
-        owner="nginx",
-    )
+    if "auth_basic" in nginx or "auth_basic_user_file" in nginx:
+        raise RuntimeError("product entry must use account sessions, not demo Basic Auth")
     _require(nginx, "server_tokens off;", owner="nginx")
     _require(
         nginx,
@@ -53,7 +49,6 @@ def main() -> int:
     ):
         _require(security_headers, header, owner="nginx security headers")
     healthz = _location_block(nginx, "= /healthz")
-    _require(healthz, "auth_basic off;", owner="nginx /healthz")
     _require(
         healthz,
         "include /etc/nginx/snippets/security-headers.conf;",
@@ -71,9 +66,7 @@ def main() -> int:
         owner="nginx /api",
     )
 
-    health = _location_block(nginx, "/health")
-    if "auth_basic off;" in health:
-        raise RuntimeError("proxied /health must remain behind product authentication")
+    _location_block(nginx, "/health")
 
     assets = _location_block(nginx, "/assets/")
     _require(
@@ -89,11 +82,8 @@ def main() -> int:
         owner="nginx /",
     )
 
-    _require(
-        compose,
-        "${SECFUSION_DEMO_HTPASSWD_PATH:?set SECFUSION_DEMO_HTPASSWD_PATH",
-        owner="production compose",
-    )
+    if "SECFUSION_DEMO_HTPASSWD_PATH" in compose:
+        raise RuntimeError("production compose still requires a demo password file")
     _require(compose, "${SECFUSION_HTTP_PORT:-80}:80", owner="production compose")
 
     for service in ("postgres", "redis-broker", "redis-cache", "redis-task-bus", "api"):
@@ -124,8 +114,8 @@ def main() -> int:
     )
 
     print("PRODUCT DEPLOY GATE PASS")
-    print("PASS · fail-closed Basic Auth")
-    print("PASS · /healthz is the sole unauthenticated health route")
+    print("PASS · account sign-in is the browser entry")
+    print("PASS · /healthz is reachable for container health")
     print("PASS · SSE proxy buffering/cache disabled")
     print("PASS · PostgreSQL/Redis/API have no host port exposure")
     print("PASS · immutable hashed assets")

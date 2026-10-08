@@ -28,6 +28,9 @@ x-app-env: &app-env
   SECFUSION_MODEL_BASE_URL: ${SECFUSION_MODEL_BASE_URL:-}
   SECFUSION_MODEL_API_KEY: ${SECFUSION_MODEL_API_KEY:-}
   SECFUSION_MODEL_NAME: ${SECFUSION_MODEL_NAME:-}
+  HTTP_PROXY: ${SECFUSION_UPSTREAM_HTTP_PROXY:-}
+  HTTPS_PROXY: ${SECFUSION_UPSTREAM_HTTP_PROXY:-}
+  NO_PROXY: ${SECFUSION_NO_PROXY:-localhost,127.0.0.1,postgres,redis-broker,redis-cache,redis-task-bus,api,product-web}
 
 x-app-runtime: &app-runtime
   build: *app-build
@@ -180,8 +183,6 @@ services:
     depends_on:
       api:
         condition: service_healthy
-    volumes:
-      - "${SECFUSION_DEMO_HTPASSWD_PATH:?set SECFUSION_DEMO_HTPASSWD_PATH to a readable htpasswd file}:/etc/nginx/auth/.htpasswd:ro"
     ports:
       - "${SECFUSION_HTTP_PORT:-80}:80"
 

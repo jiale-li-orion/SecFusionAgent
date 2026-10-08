@@ -38,25 +38,38 @@ Verify resolution inside `worker` and submit a fresh VERIFY question. Failed Cas
 remain recorded as failed; restoring connectivity does not rewrite their history.
 The override is opt-in and does not change the default or production DNS settings.
 
+When host networking works only through a local HTTP proxy, set
+`SECFUSION_UPSTREAM_HTTP_PROXY` for the containers. For a proxy listening on the
+host's loopback address, the optional development relay can expose it on the Docker
+bridge without binding a public interface:
+
+```bash
+.venv/bin/python scripts/local_proxy_bridge.py --bind 172.17.0.1 --port 17897 --upstream-port 7897
+export SECFUSION_UPSTREAM_HTTP_PROXY=http://172.17.0.1:17897
+docker compose -f deploy/docker-compose.yml --profile runtime up -d worker worker-collection scheduler task-event-dispatcher task-event-scheduler
+```
+
+Keep the relay process running while workers need external providers. Override
+`SECFUSION_NO_PROXY` if the deployment has additional private services or a model
+endpoint that must bypass the proxy. A proxy may restore reachability without
+overriding upstream 403 or rate-limit responses; source health still reports those
+conditions.
+
 ## Boot
 
 ```bash
 cp deploy/.env.production.example deploy/.env.production
 # fill runtime secrets
-mkdir -p deploy/secrets
-docker run --rm httpd:2.4-alpine htpasswd -nbB secfusion 'choose-a-strong-password' \
-  > deploy/secrets/product.htpasswd
-# add SECFUSION_DEMO_HTPASSWD_PATH=./secrets/product.htpasswd to deploy/.env.production
 docker compose --env-file deploy/.env.production -f deploy/docker-compose.production.yml up -d --build
 ```
 
-The product web image builds Vite with `/` as its base path. Nginx disables buffering for `/api/*`, so Investigation SSE can remain streaming through the reverse proxy.
+The product web image builds Vite with `/` as its base path. Nginx disables buffering for `/api/*`, so question-token and Investigation SSE remain streaming through the reverse proxy.
 
 ## Public boundary
 
-Production `product-web` is fail-closed behind Nginx Basic Auth. Compose refuses to start the web container until `SECFUSION_DEMO_HTPASSWD_PATH` resolves to an htpasswd file. `/healthz` is the only unauthenticated web route so container health checks keep working; `/`, `/api/*` and proxied `/health/*` stay behind the outer gate.
+Production `product-web` serves the public Product entry and account sign-in. Private Questions, sessions, Cases, Decisions and Task audit APIs require a server-owned account session; public WORLD and shared Evidence/Knowledge reads remain available. `/healthz` is available for container health checks. Configure `SECFUSION_AUTH_ALLOWED_ORIGINS` to the exact external browser origin, and terminate TLS in front of `product-web` before public access so production Secure session cookies work.
 
-`X-Principal` remains an application principal coordinate, not authentication. Basic Auth is an explicit outer access boundary, not an identity system. When a hostname is available, terminate TLS in front of `product-web` (or extend this Nginx layer with the selected certificate workflow) before exposing credentials over the network.
+`X-Principal` remains an application principal coordinate, not authentication. The API resolves identity from an HttpOnly, Secure account-session cookie and checks Origin/CSRF on writes. A TLS terminator must pass the original scheme to Nginx and onward to FastAPI.
 
 The browser entry serves the live product. Evaluation and competition records remain backend engineering capabilities; demo and frozen-proof navigation are not exposed in the application.
 
