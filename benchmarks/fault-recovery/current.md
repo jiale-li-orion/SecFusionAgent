@@ -1,9 +1,9 @@
 <!-- GENERATED from fault-recovery benchmark JSON; DO NOT EDIT BY HAND. -->
 # Engineering fault/recovery benchmark
 
-- Benchmark run: `dcdd9e23-3fc8-407d-af39-8b5ef93ff62d`
-- Deployment: `deployment:0e16e1b574d5b6383434e7fc80f64cc4`
-- Suite: `engineering-fault-recovery@4`
+- Benchmark run: `ec8557e7-50f8-442c-be4b-92a680bbd2d2`
+- Deployment: `deployment:a811b6b5d5316d9d23d28d2ff132a73f`
+- Suite: `engineering-fault-recovery@5`
 - Fault-recovery success: 100.0%
 
 | Case | Success | Mechanism | Diagnostics |

@@ -13,7 +13,7 @@ English | [中文](README.zh.md)
 | M1 monitoring latency | **p50 357.709s (5.96min) / p95 7241.893s (2.01h) / ≤6h 100.000% (12/12)** |
 | M3 enrichment Precision / Recall | **99.659% / 99.659% (TP=292, FP=1, FN=1)** |
 | Controlled fault recovery | **100.000% (3/3)** |
-| M6 QA | **Accuracy 100.000% / interactive max 4.032s** |
+| M6 QA | **Accuracy 100.000% / interactive max 6.063s** |
 
 **Source runtime contract: 101 catalog entries → 66 executable sources → 39 scheduled monitors; 8 product categories, with active scheduled monitoring in 7/8 categories and `assets` intentionally query-time.**
 **Public continuous-monitoring epoch: `2026-10-02T04:19:42+08:00`; scheduled-source health 29 healthy / 8 degraded / 2 blocked; epoch Evidence integrity 100.000%.**
@@ -42,13 +42,13 @@ This block is rendered from `benchmarks/**/current*.json`. Run `make evidence-do
 | `enrichment_precision` | `m3.micro_precision` | 99.659% | >= 95.000% | **pass** |
 | `enrichment_recall` | `m3.micro_recall` | 99.659% | >= 95.000% | **pass** |
 | `qa_accuracy` | `m6.answer_accuracy` | 100.000% | >= 95.000% | **pass** |
-| `qa_interactive_latency` | `m6.interactive_latency_seconds` | 4.032s | <= 5.000s | **pass** |
+| `qa_interactive_latency` | `m6.interactive_latency_seconds` | 6.063s | <= 5.000s | **fail** |
 
-Current CompetitionReport: `2735331f-1f7d-419c-80d2-72c4ce157b5f` on `deployment:0e16e1b574d5b6383434e7fc80f64cc4`.
+Current CompetitionReport: `a7254bd2-03e2-41ce-8329-8af5a9c248a1` on `deployment:a811b6b5d5316d9d23d28d2ff132a73f`.
 
 M1 fixed window `2026-10-01T10:00:00+00:00` → `2026-10-01T14:02:00+00:00`: 12/12 evaluable samples, p50 357.709s (5.96min), p95 7241.893s (2.01h), within 6h 100.000%; source categories=8.
 
-Selected M3 runs aggregate to TP=292, FP=1, FN=1, precision=99.659%, recall=99.659%. Controlled engineering recovery `engineering-fault-recovery@4` is 100.000% across 3 cases.
+Selected M3 runs aggregate to TP=292, FP=1, FN=1, precision=99.659%, recall=99.659%. Controlled engineering recovery `engineering-fault-recovery@5` is 100.000% across 3 cases.
 
 Evaluation areas not selected into the current CompetitionReport: `M2 parser/entity/evidence diagnostics`, `Agent runtime`, `Long Investigation completion`, `Security adversarial hard gates`, `Security adversarial breadth`. Their separate controlled/diagnostic evidence is not mixed into the report's six-run formal profile.
 

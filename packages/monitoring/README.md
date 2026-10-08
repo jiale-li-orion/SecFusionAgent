@@ -3,7 +3,7 @@
 <!-- BEGIN GENERATED MONITORING STATUS -->
 ## Current M1 evidence (generated)
 
-Suite `m1-monitoring-current@21`, run `651b4167-a2a2-4af3-a74a-0630d5ac1916`, deployment `deployment:0e16e1b574d5b6383434e7fc80f64cc4`.
+Suite `m1-monitoring-current@22`, run `d8c2d686-90a1-4226-ad41-170db40a115b`, deployment `deployment:a811b6b5d5316d9d23d28d2ff132a73f`.
 
 | Measurement | Current result |
 | --- | ---: |

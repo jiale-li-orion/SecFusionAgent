@@ -264,6 +264,23 @@
       "normalized_value_or_target_id": "package:nuget:alastairlundy.cliinvoke.specializations",
       "target_object_type": "Package",
       "qualifier_keys": [
+        "source_semantics",
+        "state",
+        "version_range"
+      ],
+      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\">= 1.0.0-rc.1, <= 1.6.1.1\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100368",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:nuget:alastairlundy.cliinvoke.specializations",
+      "target_object_type": "Package",
+      "qualifier_keys": [
         "ranges",
         "source_semantics",
         "state",
@@ -279,23 +296,6 @@
       "kind": "relation",
       "dimension": "version_applicability",
       "predicate_or_relation_type": "applicability-status",
-      "normalized_value_or_target_id": "package:nuget:alastairlundy.cliinvoke.specializations",
-      "target_object_type": "Package",
-      "qualifier_keys": [
-        "source_semantics",
-        "state",
-        "version_range"
-      ],
-      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\">= 1.0.0-rc.1, <= 1.6.1.1\"}",
-      "temporal_scope": "current",
-      "vocabulary_revision": "enrichment-v1"
-    },
-    {
-      "root_object_key": "cve:CVE-2026-100368",
-      "root_object_type": "Vulnerability",
-      "kind": "relation",
-      "dimension": "version_applicability",
-      "predicate_or_relation_type": "applicability-status",
       "normalized_value_or_target_id": "package:nuget:cliinvoke.specializations",
       "target_object_type": "Package",
       "qualifier_keys": [
@@ -303,7 +303,7 @@
         "state",
         "version_range"
       ],
-      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\">= 3.0.0-alpha.8, <= 3.0.0-alpha.10\"}",
+      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\">= 2.2.0, <= 2.8.4\"}",
       "temporal_scope": "current",
       "vocabulary_revision": "enrichment-v1"
     },
@@ -316,46 +316,11 @@
       "normalized_value_or_target_id": "package:nuget:cliinvoke.specializations",
       "target_object_type": "Package",
       "qualifier_keys": [
-        "ranges",
-        "source_semantics",
-        "state"
-      ],
-      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"3.0.0-alpha.1\"},{\"fixed\":\"3.0.0-beta.1\"}],\"type\":\"ECOSYSTEM\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\"}",
-      "temporal_scope": "current",
-      "vocabulary_revision": "enrichment-v1"
-    },
-    {
-      "root_object_key": "cve:CVE-2026-100368",
-      "root_object_type": "Vulnerability",
-      "kind": "relation",
-      "dimension": "version_applicability",
-      "predicate_or_relation_type": "applicability-status",
-      "normalized_value_or_target_id": "package:nuget:cliinvoke.specializations",
-      "target_object_type": "Package",
-      "qualifier_keys": [
-        "ranges",
         "source_semantics",
         "state",
-        "versions"
+        "version_range"
       ],
-      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"2.9.0\"},{\"fixed\":\"2.9.4\"}],\"type\":\"ECOSYSTEM\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\",\"versions\":[\"2.9.1\",\"2.9.2\",\"2.9.3\"]}",
-      "temporal_scope": "current",
-      "vocabulary_revision": "enrichment-v1"
-    },
-    {
-      "root_object_key": "cve:CVE-2026-100368",
-      "root_object_type": "Vulnerability",
-      "kind": "relation",
-      "dimension": "version_applicability",
-      "predicate_or_relation_type": "applicability-status",
-      "normalized_value_or_target_id": "package:nuget:cliinvoke.specializations",
-      "target_object_type": "Package",
-      "qualifier_keys": [
-        "ranges",
-        "source_semantics",
-        "state"
-      ],
-      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"3.0.0-alpha.8\"},{\"fixed\":\"3.0.0-beta.1\"}],\"type\":\"ECOSYSTEM\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\"}",
+      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\">= 2.9.0, <= 2.9.3\"}",
       "temporal_scope": "current",
       "vocabulary_revision": "enrichment-v1"
     },
@@ -408,23 +373,6 @@
         "state",
         "version_range"
       ],
-      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\">= 2.9.0, <= 2.9.3\"}",
-      "temporal_scope": "current",
-      "vocabulary_revision": "enrichment-v1"
-    },
-    {
-      "root_object_key": "cve:CVE-2026-100368",
-      "root_object_type": "Vulnerability",
-      "kind": "relation",
-      "dimension": "version_applicability",
-      "predicate_or_relation_type": "applicability-status",
-      "normalized_value_or_target_id": "package:nuget:cliinvoke.specializations",
-      "target_object_type": "Package",
-      "qualifier_keys": [
-        "source_semantics",
-        "state",
-        "version_range"
-      ],
       "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\">= 3.0.0-alpha.1, <= 3.0.0-alpha.4\"}",
       "temporal_scope": "current",
       "vocabulary_revision": "enrichment-v1"
@@ -442,7 +390,59 @@
         "state",
         "version_range"
       ],
-      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\">= 2.10.0, <= 2.10.4\"}",
+      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\">= 3.0.0-alpha.8, <= 3.0.0-alpha.10\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100368",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:nuget:cliinvoke.specializations",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "ranges",
+        "source_semantics",
+        "state"
+      ],
+      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"3.0.0-alpha.1\"},{\"fixed\":\"3.0.0-beta.1\"}],\"type\":\"ECOSYSTEM\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100368",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:nuget:cliinvoke.specializations",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "ranges",
+        "source_semantics",
+        "state"
+      ],
+      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"3.0.0-alpha.8\"},{\"fixed\":\"3.0.0-beta.1\"}],\"type\":\"ECOSYSTEM\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100368",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:nuget:cliinvoke.specializations",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "ranges",
+        "source_semantics",
+        "state",
+        "versions"
+      ],
+      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"2.9.0\"},{\"fixed\":\"2.9.4\"}],\"type\":\"ECOSYSTEM\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\",\"versions\":[\"2.9.1\",\"2.9.2\",\"2.9.3\"]}",
       "temporal_scope": "current",
       "vocabulary_revision": "enrichment-v1"
     },
@@ -459,7 +459,7 @@
         "state",
         "version_range"
       ],
-      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\">= 2.2.0, <= 2.8.4\"}",
+      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\">= 2.10.0, <= 2.10.4\"}",
       "temporal_scope": "current",
       "vocabulary_revision": "enrichment-v1"
     },
@@ -699,6 +699,24 @@
       "normalized_value_or_target_id": "package:nuget:alastairlundy.cliinvoke",
       "target_object_type": "Package",
       "qualifier_keys": [
+        "ranges",
+        "source_semantics",
+        "state",
+        "versions"
+      ],
+      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"2.0.0-alpha.1\"},{\"fixed\":\"2.0.2\"}],\"type\":\"ECOSYSTEM\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\",\"versions\":[\"2.0.0\"]}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100369",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:nuget:alastairlundy.cliinvoke",
+      "target_object_type": "Package",
+      "qualifier_keys": [
         "source_semantics",
         "state",
         "version_range"
@@ -713,15 +731,14 @@
       "kind": "relation",
       "dimension": "version_applicability",
       "predicate_or_relation_type": "applicability-status",
-      "normalized_value_or_target_id": "package:nuget:alastairlundy.cliinvoke",
+      "normalized_value_or_target_id": "package:nuget:cliinvoke",
       "target_object_type": "Package",
       "qualifier_keys": [
         "ranges",
         "source_semantics",
-        "state",
-        "versions"
+        "state"
       ],
-      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"2.0.0-alpha.1\"},{\"fixed\":\"2.0.2\"}],\"type\":\"ECOSYSTEM\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\",\"versions\":[\"2.0.0\"]}",
+      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"3.0.0-alpha.1\"},{\"fixed\":\"3.0.0-beta.2\"}],\"type\":\"ECOSYSTEM\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\"}",
       "temporal_scope": "current",
       "vocabulary_revision": "enrichment-v1"
     },
@@ -738,7 +755,7 @@
         "state",
         "version_range"
       ],
-      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\">= 2.0.0, <= 2.8.4\"}",
+      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\">= 2.10.0, <= 2.10.4\"}",
       "temporal_scope": "current",
       "vocabulary_revision": "enrichment-v1"
     },
@@ -769,28 +786,12 @@
       "normalized_value_or_target_id": "package:nuget:cliinvoke",
       "target_object_type": "Package",
       "qualifier_keys": [
-        "source_semantics",
-        "state",
-        "version_range"
-      ],
-      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\">= 3.0.0-alpha.1, <= 3.0.0-beta.1\"}",
-      "temporal_scope": "current",
-      "vocabulary_revision": "enrichment-v1"
-    },
-    {
-      "root_object_key": "cve:CVE-2026-100369",
-      "root_object_type": "Vulnerability",
-      "kind": "relation",
-      "dimension": "version_applicability",
-      "predicate_or_relation_type": "applicability-status",
-      "normalized_value_or_target_id": "package:nuget:cliinvoke",
-      "target_object_type": "Package",
-      "qualifier_keys": [
         "ranges",
         "source_semantics",
-        "state"
+        "state",
+        "versions"
       ],
-      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"3.0.0-alpha.1\"},{\"fixed\":\"3.0.0-beta.2\"}],\"type\":\"ECOSYSTEM\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\"}",
+      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"2.0.0\"},{\"fixed\":\"2.8.5\"}],\"type\":\"ECOSYSTEM\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\",\"versions\":[\"2.0.0\",\"2.0.1\",\"2.1.0\",\"2.1.1\",\"2.1.2\",\"2.1.3\",\"2.1.4\",\"2.1.5\",\"2.2.0\",\"2.2.1\",\"2.3.0\",\"2.3.1\",\"2.3.2\",\"2.3.3\",\"2.3.4\",\"2.4.0\",\"2.4.1\",\"2.4.2\",\"2.4.3\",\"2.4.4\",\"2.4.5\",\"2.5.0\",\"2.5.1\",\"2.5.2\",\"2.5.3\",\"2.5.4\",\"2.6.0\",\"2.6.1\",\"2.7.0\",\"2.7.1\",\"2.7.2\",\"2.8.0\",\"2.8.1\",\"2.8.2\",\"2.8.3\",\"2.8.4\"]}",
       "temporal_scope": "current",
       "vocabulary_revision": "enrichment-v1"
     },
@@ -825,7 +826,24 @@
         "state",
         "version_range"
       ],
-      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\">= 2.10.0, <= 2.10.4\"}",
+      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\">= 2.0.0, <= 2.8.4\"}",
+      "temporal_scope": "current",
+      "vocabulary_revision": "enrichment-v1"
+    },
+    {
+      "root_object_key": "cve:CVE-2026-100369",
+      "root_object_type": "Vulnerability",
+      "kind": "relation",
+      "dimension": "version_applicability",
+      "predicate_or_relation_type": "applicability-status",
+      "normalized_value_or_target_id": "package:nuget:cliinvoke",
+      "target_object_type": "Package",
+      "qualifier_keys": [
+        "source_semantics",
+        "state",
+        "version_range"
+      ],
+      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\">= 3.0.0-alpha.1, <= 3.0.0-beta.1\"}",
       "temporal_scope": "current",
       "vocabulary_revision": "enrichment-v1"
     },
@@ -843,24 +861,6 @@
         "version_range"
       ],
       "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\">= 2.9.0, <= 2.9.3\"}",
-      "temporal_scope": "current",
-      "vocabulary_revision": "enrichment-v1"
-    },
-    {
-      "root_object_key": "cve:CVE-2026-100369",
-      "root_object_type": "Vulnerability",
-      "kind": "relation",
-      "dimension": "version_applicability",
-      "predicate_or_relation_type": "applicability-status",
-      "normalized_value_or_target_id": "package:nuget:cliinvoke",
-      "target_object_type": "Package",
-      "qualifier_keys": [
-        "ranges",
-        "source_semantics",
-        "state",
-        "versions"
-      ],
-      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"2.0.0\"},{\"fixed\":\"2.8.5\"}],\"type\":\"ECOSYSTEM\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\",\"versions\":[\"2.0.0\",\"2.0.1\",\"2.1.0\",\"2.1.1\",\"2.1.2\",\"2.1.3\",\"2.1.4\",\"2.1.5\",\"2.2.0\",\"2.2.1\",\"2.3.0\",\"2.3.1\",\"2.3.2\",\"2.3.3\",\"2.3.4\",\"2.4.0\",\"2.4.1\",\"2.4.2\",\"2.4.3\",\"2.4.4\",\"2.4.5\",\"2.5.0\",\"2.5.1\",\"2.5.2\",\"2.5.3\",\"2.5.4\",\"2.6.0\",\"2.6.1\",\"2.7.0\",\"2.7.1\",\"2.7.2\",\"2.8.0\",\"2.8.1\",\"2.8.2\",\"2.8.3\",\"2.8.4\"]}",
       "temporal_scope": "current",
       "vocabulary_revision": "enrichment-v1"
     },
@@ -927,9 +927,12 @@
       "predicate_or_relation_type": "epss_probability",
       "normalized_value_or_target_id": "0.00274",
       "target_object_type": null,
-      "qualifier_keys": [],
-      "normalized_qualifier": "{}",
-      "temporal_scope": "current",
+      "qualifier_keys": [
+        "score_date",
+        "source_semantics"
+      ],
+      "normalized_qualifier": "{\"score_date\":\"2026-10-01\",\"source_semantics\":\"first_epss\"}",
+      "temporal_scope": "2026-10-01",
       "vocabulary_revision": "enrichment-v1"
     },
     {
@@ -940,12 +943,9 @@
       "predicate_or_relation_type": "epss_probability",
       "normalized_value_or_target_id": "0.00274",
       "target_object_type": null,
-      "qualifier_keys": [
-        "score_date",
-        "source_semantics"
-      ],
-      "normalized_qualifier": "{\"score_date\":\"2026-10-01\",\"source_semantics\":\"first_epss\"}",
-      "temporal_scope": "2026-10-01",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
       "vocabulary_revision": "enrichment-v1"
     },
     {
@@ -1229,11 +1229,12 @@
       "normalized_value_or_target_id": "package:maven:org.jenkins-ci.plugins:fitnesse",
       "target_object_type": "Package",
       "qualifier_keys": [
+        "ranges",
         "source_semantics",
         "state",
-        "version_range"
+        "versions"
       ],
-      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\"<= 1.36\"}",
+      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"0\"},{\"last_affected\":\"1.36\"}],\"type\":\"ECOSYSTEM\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\",\"versions\":[\"1.10\",\"1.11\",\"1.12\",\"1.13\",\"1.14\",\"1.15\",\"1.16\",\"1.24\",\"1.26\",\"1.27\",\"1.28\",\"1.30\",\"1.31\",\"1.33\",\"1.34\",\"1.35\",\"1.36\",\"1.5\",\"1.6\",\"1.7\",\"1.8\",\"1.8.1\",\"1.9\"]}",
       "temporal_scope": "current",
       "vocabulary_revision": "enrichment-v1"
     },
@@ -1246,12 +1247,11 @@
       "normalized_value_or_target_id": "package:maven:org.jenkins-ci.plugins:fitnesse",
       "target_object_type": "Package",
       "qualifier_keys": [
-        "ranges",
         "source_semantics",
         "state",
-        "versions"
+        "version_range"
       ],
-      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"0\"},{\"last_affected\":\"1.36\"}],\"type\":\"ECOSYSTEM\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\",\"versions\":[\"1.10\",\"1.11\",\"1.12\",\"1.13\",\"1.14\",\"1.15\",\"1.16\",\"1.24\",\"1.26\",\"1.27\",\"1.28\",\"1.30\",\"1.31\",\"1.33\",\"1.34\",\"1.35\",\"1.36\",\"1.5\",\"1.6\",\"1.7\",\"1.8\",\"1.8.1\",\"1.9\"]}",
+      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\"<= 1.36\"}",
       "temporal_scope": "current",
       "vocabulary_revision": "enrichment-v1"
     },
@@ -1352,12 +1352,9 @@
       "predicate_or_relation_type": "epss_probability",
       "normalized_value_or_target_id": "0.00359",
       "target_object_type": null,
-      "qualifier_keys": [
-        "score_date",
-        "source_semantics"
-      ],
-      "normalized_qualifier": "{\"score_date\":\"2026-10-01\",\"source_semantics\":\"first_epss\"}",
-      "temporal_scope": "2026-10-01",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
       "vocabulary_revision": "enrichment-v1"
     },
     {
@@ -1368,9 +1365,12 @@
       "predicate_or_relation_type": "epss_probability",
       "normalized_value_or_target_id": "0.00359",
       "target_object_type": null,
-      "qualifier_keys": [],
-      "normalized_qualifier": "{}",
-      "temporal_scope": "current",
+      "qualifier_keys": [
+        "score_date",
+        "source_semantics"
+      ],
+      "normalized_qualifier": "{\"score_date\":\"2026-10-01\",\"source_semantics\":\"first_epss\"}",
+      "temporal_scope": "2026-10-01",
       "vocabulary_revision": "enrichment-v1"
     },
     {
@@ -1570,9 +1570,12 @@
       "predicate_or_relation_type": "epss_probability",
       "normalized_value_or_target_id": "0.00254",
       "target_object_type": null,
-      "qualifier_keys": [],
-      "normalized_qualifier": "{}",
-      "temporal_scope": "current",
+      "qualifier_keys": [
+        "score_date",
+        "source_semantics"
+      ],
+      "normalized_qualifier": "{\"score_date\":\"2026-10-01\",\"source_semantics\":\"first_epss\"}",
+      "temporal_scope": "2026-10-01",
       "vocabulary_revision": "enrichment-v1"
     },
     {
@@ -1583,12 +1586,9 @@
       "predicate_or_relation_type": "epss_probability",
       "normalized_value_or_target_id": "0.00254",
       "target_object_type": null,
-      "qualifier_keys": [
-        "score_date",
-        "source_semantics"
-      ],
-      "normalized_qualifier": "{\"score_date\":\"2026-10-01\",\"source_semantics\":\"first_epss\"}",
-      "temporal_scope": "2026-10-01",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
       "vocabulary_revision": "enrichment-v1"
     },
     {
@@ -1665,11 +1665,12 @@
       "normalized_value_or_target_id": "package:maven:org.jenkins-ci.plugins:assembla",
       "target_object_type": "Package",
       "qualifier_keys": [
+        "ranges",
         "source_semantics",
         "state",
-        "version_range"
+        "versions"
       ],
-      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\"<= 1.4\"}",
+      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"0\"},{\"last_affected\":\"1.4\"}],\"type\":\"ECOSYSTEM\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\",\"versions\":[\"1.2\",\"1.3\",\"1.4\"]}",
       "temporal_scope": "current",
       "vocabulary_revision": "enrichment-v1"
     },
@@ -1682,12 +1683,11 @@
       "normalized_value_or_target_id": "package:maven:org.jenkins-ci.plugins:assembla",
       "target_object_type": "Package",
       "qualifier_keys": [
-        "ranges",
         "source_semantics",
         "state",
-        "versions"
+        "version_range"
       ],
-      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"0\"},{\"last_affected\":\"1.4\"}],\"type\":\"ECOSYSTEM\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\",\"versions\":[\"1.2\",\"1.3\",\"1.4\"]}",
+      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\"<= 1.4\"}",
       "temporal_scope": "current",
       "vocabulary_revision": "enrichment-v1"
     },
@@ -2391,9 +2391,12 @@
       "predicate_or_relation_type": "epss_probability",
       "normalized_value_or_target_id": "0.00572",
       "target_object_type": null,
-      "qualifier_keys": [],
-      "normalized_qualifier": "{}",
-      "temporal_scope": "current",
+      "qualifier_keys": [
+        "score_date",
+        "source_semantics"
+      ],
+      "normalized_qualifier": "{\"score_date\":\"2026-10-01\",\"source_semantics\":\"first_epss\"}",
+      "temporal_scope": "2026-10-01",
       "vocabulary_revision": "enrichment-v1"
     },
     {
@@ -2404,12 +2407,9 @@
       "predicate_or_relation_type": "epss_probability",
       "normalized_value_or_target_id": "0.00572",
       "target_object_type": null,
-      "qualifier_keys": [
-        "score_date",
-        "source_semantics"
-      ],
-      "normalized_qualifier": "{\"score_date\":\"2026-10-01\",\"source_semantics\":\"first_epss\"}",
-      "temporal_scope": "2026-10-01",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
       "vocabulary_revision": "enrichment-v1"
     },
     {
@@ -2614,12 +2614,9 @@
       "predicate_or_relation_type": "epss_probability",
       "normalized_value_or_target_id": "0.01079",
       "target_object_type": null,
-      "qualifier_keys": [
-        "score_date",
-        "source_semantics"
-      ],
-      "normalized_qualifier": "{\"score_date\":\"2026-10-01\",\"source_semantics\":\"first_epss\"}",
-      "temporal_scope": "2026-10-01",
+      "qualifier_keys": [],
+      "normalized_qualifier": "{}",
+      "temporal_scope": "current",
       "vocabulary_revision": "enrichment-v1"
     },
     {
@@ -2630,9 +2627,12 @@
       "predicate_or_relation_type": "epss_probability",
       "normalized_value_or_target_id": "0.01079",
       "target_object_type": null,
-      "qualifier_keys": [],
-      "normalized_qualifier": "{}",
-      "temporal_scope": "current",
+      "qualifier_keys": [
+        "score_date",
+        "source_semantics"
+      ],
+      "normalized_qualifier": "{\"score_date\":\"2026-10-01\",\"source_semantics\":\"first_epss\"}",
+      "temporal_scope": "2026-10-01",
       "vocabulary_revision": "enrichment-v1"
     },
     {
@@ -2722,11 +2722,11 @@
       "normalized_value_or_target_id": "package:npm:knowns",
       "target_object_type": "Package",
       "qualifier_keys": [
-        "ranges",
         "source_semantics",
-        "state"
+        "state",
+        "version_range"
       ],
-      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"0\"},{\"fixed\":\"0.30.0\"}],\"type\":\"SEMVER\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\"}",
+      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\"<= 0.29.1\"}",
       "temporal_scope": "current",
       "vocabulary_revision": "enrichment-v1"
     },
@@ -2739,11 +2739,11 @@
       "normalized_value_or_target_id": "package:npm:knowns",
       "target_object_type": "Package",
       "qualifier_keys": [
+        "ranges",
         "source_semantics",
-        "state",
-        "version_range"
+        "state"
       ],
-      "normalized_qualifier": "{\"source_semantics\":\"github_advisory_range\",\"state\":\"affected\",\"version_range\":\"<= 0.29.1\"}",
+      "normalized_qualifier": "{\"ranges\":[{\"events\":[{\"introduced\":\"0\"},{\"fixed\":\"0.30.0\"}],\"type\":\"SEMVER\"}],\"source_semantics\":\"osv_range\",\"state\":\"affected\"}",
       "temporal_scope": "current",
       "vocabulary_revision": "enrichment-v1"
     },

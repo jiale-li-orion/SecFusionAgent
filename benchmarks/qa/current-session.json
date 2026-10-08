@@ -1,15 +1,15 @@
 {
-  "benchmark_run_id": "99da1f9b-441b-465c-a962-76549a7741c7",
-  "deployment_revision_id": "deployment:0e16e1b574d5b6383434e7fc80f64cc4",
-  "suite_ref": "m6-real-product-qa-session@10",
-  "manifest_digest": "000a4922ba16212a21ccaeed8790f288eefe7df2e91c1dad7a2e07bbb9663a03",
+  "benchmark_run_id": "5e947779-7fba-45ac-8041-ce4287a05230",
+  "deployment_revision_id": "deployment:a811b6b5d5316d9d23d28d2ff132a73f",
+  "suite_ref": "m6-real-product-qa-session@11",
+  "manifest_digest": "27a40aea336148d08bb510b64ce01a0d5b3fc24186ab0613864c79d0f6b69673",
   "gold_revision": "qa-session-gold:8009c0a2345b8f11a2616c708fdf5b84ae93cea7436cbc1406d63d93f0722b06",
   "session_count": 2,
   "execution_mode": "live_external",
-  "world_snapshot_ref": "knowledge-revision:2053",
+  "world_snapshot_ref": "knowledge-revision:3443",
   "session_scores": {
     "qa-session-real-7273-followup": {
-      "session_id": "1f1ffd20-6a5e-40f5-843a-976ef6a9f2f1",
+      "session_id": "77d4a52a-eb1d-40f8-ad13-a4efb3c1ac2d",
       "turn_scores": {
         "cvss": {
           "answer_accuracy": 1.0,
@@ -20,7 +20,7 @@
           "unknown_correctness": 1.0,
           "conflict_handling": 1.0,
           "completion_correctness": 1.0,
-          "interactive_latency_seconds": 2.1842006550000406
+          "interactive_latency_seconds": 3.033048644021619
         },
         "epss-followup": {
           "answer_accuracy": 1.0,
@@ -31,7 +31,7 @@
           "unknown_correctness": 1.0,
           "conflict_handling": 1.0,
           "completion_correctness": 1.0,
-          "interactive_latency_seconds": 3.338795927999854
+          "interactive_latency_seconds": 4.582650415948592
         }
       },
       "context_chain_correctness": 1.0,
@@ -41,7 +41,7 @@
       "retrieval_reuse_rate": null
     },
     "qa-session-real-7273-retrieve-reuse": {
-      "session_id": "43226f9b-85e1-41de-b414-9ecb30caf7e3",
+      "session_id": "ef43d452-f63e-49f7-b67a-49584eb2791a",
       "turn_scores": {
         "retrieve-initial": {
           "answer_accuracy": 1.0,
@@ -52,7 +52,7 @@
           "unknown_correctness": 1.0,
           "conflict_handling": 1.0,
           "completion_correctness": 1.0,
-          "interactive_latency_seconds": 1.6709760429998823
+          "interactive_latency_seconds": 2.3675125159788877
         },
         "retrieve-repeat": {
           "answer_accuracy": 1.0,
@@ -63,7 +63,7 @@
           "unknown_correctness": 1.0,
           "conflict_handling": 1.0,
           "completion_correctness": 1.0,
-          "interactive_latency_seconds": 1.3129799859998457
+          "interactive_latency_seconds": 2.1422070290427655
         }
       },
       "context_chain_correctness": 1.0,

@@ -3,7 +3,7 @@
 <!-- BEGIN GENERATED QA STATUS -->
 ## Current M6 formal evidence (generated)
 
-Deployment `deployment:0e16e1b574d5b6383434e7fc80f64cc4`, Knowledge head `knowledge-revision:2053`, resolved model `deepseek-flash`.
+Deployment `deployment:a811b6b5d5316d9d23d28d2ff132a73f`, Knowledge head `knowledge-revision:3443`, resolved model `deepseek-flash`.
 
 | Metric | Current result |
 | --- | ---: |
@@ -11,9 +11,9 @@ Deployment `deployment:0e16e1b574d5b6383434e7fc80f64cc4`, Knowledge head `knowle
 | Groundedness | 100.000% |
 | Citation correctness | 100.000% |
 | Multi-hop correctness | 100.000% |
-| Interactive latency | 4.032s |
+| Interactive latency | 6.063s |
 
-Product run `82a5e288-6d09-40f1-bd80-d4171fc9b629` / `m6-real-product-qa@12`; session run `99da1f9b-441b-465c-a962-76549a7741c7` / `m6-real-product-qa-session@10`. `make benchmark-query METRIC=m6.answer_accuracy` drills into durable per-case observations.
+Product run `48f4f6e2-4975-4ac3-9769-7347d9e16989` / `m6-real-product-qa@13`; session run `5e947779-7fba-45ac-8041-ce4287a05230` / `m6-real-product-qa-session@11`. `make benchmark-query METRIC=m6.answer_accuracy` drills into durable per-case observations.
 <!-- END GENERATED QA STATUS -->
 
 `current-product-preflight.json` and `current-session-preflight.json` are machine-readable no-model preflight results. `current-preflight.md` is generated from those JSON files; run `make qa-preflight` to refresh all three and `make qa-preflight-doc-check` to verify the Markdown projection without model calls. These artifacts report gold-provenance validity, pinned/current Knowledge coordinates, live-world readiness and model-provider configuration. They are preflight evidence only and never substitute for M6 accuracy/latency metrics in CompetitionReport.
