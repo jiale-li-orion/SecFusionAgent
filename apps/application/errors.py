@@ -37,3 +37,8 @@ class PermissionDeniedError(ApplicationError):
 class DependencyUnavailableError(ApplicationError):
     code = "dependency_unavailable"
     retryable = True
+
+
+class DeadlineExceededError(ApplicationError):
+    code = "deadline_exceeded"
+    retryable = True

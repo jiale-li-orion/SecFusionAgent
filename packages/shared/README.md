@@ -14,6 +14,8 @@
 - OpenAI-compatible model/embedding endpoint configuration;
 - API/runtime environment configuration.
 
+Product account edge settings include an exact JSON list of allowed browser origins (`SECFUSION_AUTH_ALLOWED_ORIGINS`) and session TTL (`SECFUSION_AUTH_SESSION_TTL_SECONDS`). Authentication mechanics and account tables belong to `apps.application`/`apps.api`; shared configuration only validates deployment values. Reverse proxies must provide the browser-facing HTTPS origin explicitly.
+
 Adding a deployment-varying value requires a typed setting. Security or protocol invariants that should not vary by deployment stay in their owner module instead of becoming environment variables.
 
 ## Database foundation

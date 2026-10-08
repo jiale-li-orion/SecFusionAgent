@@ -1472,3 +1472,34 @@ async def test_question_runtime_terminates_failed_model_attempt() -> None:
             assert execution is not None and execution.status == "failed"
     finally:
         await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_question_timeout_returns_retryable_problem_after_terminating_runtime() -> None:
+    from apps.application.errors import DeadlineExceededError
+
+    class TimedOutProvider:
+        name = 'timeout-fixture'
+        version = '1'
+
+        async def generate_structured(self, request, response_model):
+            raise TimeoutError('logical deadline exhausted')
+
+    engine, factory = await _factory()
+    try:
+        async with factory() as session:
+            with pytest.raises(DeadlineExceededError) as failure:
+                await _use_case(TimedOutProvider()).execute(session, AskQuestionCommand(
+                    principal='user:test', request_id='question-timeout',
+                    question=f'What is the CVSS score for {CVE}?', cve_id=CVE,
+                ))
+            assert failure.value.retryable
+            assert failure.value.context['timeout_seconds'] == 5
+        async with factory() as session:
+            run = await session.scalar(select(TaskRunModel))
+            execution = await session.scalar(select(ExecutionRunModel))
+            assert run.status == 'failed'
+            assert run.stop_reason == 'question_deadline_exceeded'
+            assert execution.status == 'failed'
+    finally:
+        await engine.dispose()

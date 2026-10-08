@@ -47,6 +47,18 @@ class PerceptionPlanner:
                         expected_output_type="projection",
                     )
                 )
+                steps.append(
+                    PhysicalPerceptionStep(
+                        step_id="document:0",
+                        operator=PhysicalOperator.DOCUMENT,
+                        input={
+                            "subject_id": target.object_id,
+                            "limit": request.evidence_requirement.max_candidates,
+                        },
+                        dependency=None if target.object_id is not None else exact_step_id,
+                        expected_output_type="document_chunk",
+                    )
+                )
 
         if request.operation in {
             PerceptionOperation.EXPAND,

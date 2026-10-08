@@ -23,6 +23,7 @@ NOW = datetime(2026, 10, 7, 8, 30, tzinfo=UTC)
 async def test_world_overview_exposes_live_product_data_plane_projection(monkeypatch) -> None:
     import apps.api.routes.world as world_route
 
+    measurement_time = datetime.now(UTC)
     categories = {
         name: {"healthy": 1, "degraded": 0, "blocked": 0}
         for name in (
@@ -38,7 +39,7 @@ async def test_world_overview_exposes_live_product_data_plane_projection(monkeyp
     }
     live_payload: dict[str, object] = {
         "schema_version": "1",
-        "generated_at": NOW.isoformat(),
+        "generated_at": measurement_time.isoformat(),
         "source_health": {
             "counts": {"healthy": 8, "degraded": 0, "blocked": 0},
             "healthy_rate": 1.0,
@@ -91,7 +92,8 @@ async def test_world_overview_exposes_live_product_data_plane_projection(monkeyp
         },
     }
 
-    async def fake_data_plane_status() -> dict[str, object]:
+    async def fake_data_plane_status(*, operational: bool = False) -> dict[str, object]:
+        assert operational
         return live_payload
 
     world_route._world_overview_cache = None
@@ -102,7 +104,7 @@ async def test_world_overview_exposes_live_product_data_plane_projection(monkeyp
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["generated_at"] == NOW.isoformat().replace("+00:00", "Z")
+    assert payload["generated_at"] == measurement_time.isoformat().replace("+00:00", "Z")
     assert set(payload["windows"]) >= {"1h", "6h", "24h", "168h"}
     assert payload["source_health"]["healthy"] >= 0
     assert {item["category"] for item in payload["categories"]} >= {
@@ -265,12 +267,14 @@ async def test_world_knowledge_changes_expose_durable_revision_coordinates() -> 
 async def test_stale_world_snapshot_returns_immediately_while_one_refresh_runs(monkeypatch) -> None:
     import asyncio
     from threading import Event
+    from time import monotonic
 
     import apps.api.routes.world as world_route
 
     previous_cache = world_route._world_overview_cache
     previous_refresh = world_route._world_overview_refresh
-    old = {"generated_at": NOW.isoformat()}
+    old = {"generated_at": datetime.now(UTC).isoformat()}
+    fresh_time = datetime.now(UTC).isoformat()
     started, finish = Event(), Event()
     calls = 0
 
@@ -279,10 +283,10 @@ async def test_stale_world_snapshot_returns_immediately_while_one_refresh_runs(m
         calls += 1
         started.set()
         assert finish.wait(timeout=2)
-        return {"generated_at": "new-measurement"}
+        return {"generated_at": fresh_time}
 
     monkeypatch.setattr(world_route, "_aggregate_overview", slow_refresh)
-    world_route._world_overview_cache = (0, old)
+    world_route._world_overview_cache = (monotonic() - 16, old)
     world_route._world_overview_refresh = None
     try:
         assert await asyncio.wait_for(world_route._live_overview_payload(), 0.1) is old
@@ -290,9 +294,66 @@ async def test_stale_world_snapshot_returns_immediately_while_one_refresh_runs(m
         assert await asyncio.wait_for(world_route._live_overview_payload(), 0.1) is old
         assert calls == 1
         finish.set()
+        assert world_route._world_overview_refresh is not None
         await world_route._world_overview_refresh
-        assert (await world_route._live_overview_payload())["generated_at"] == "new-measurement"
+        assert (await world_route._live_overview_payload())["generated_at"] == fresh_time
     finally:
         finish.set()
+        world_route._world_overview_cache = previous_cache
+        world_route._world_overview_refresh = previous_refresh
+
+
+@pytest.mark.asyncio
+async def test_world_overview_refreshes_old_measurement_even_if_just_cached(monkeypatch) -> None:
+    from time import monotonic
+
+    import apps.api.routes.world as world_route
+
+    previous_cache = world_route._world_overview_cache
+    previous_refresh = world_route._world_overview_refresh
+    fresh = {"generated_at": datetime.now(UTC).isoformat()}
+    monkeypatch.setattr(world_route, "_aggregate_overview", lambda: fresh)
+    world_route._world_overview_cache = (monotonic(), {"generated_at": NOW.isoformat()})
+    world_route._world_overview_refresh = None
+    try:
+        assert await world_route._live_overview_payload() is fresh
+    finally:
+        world_route._world_overview_cache = previous_cache
+        world_route._world_overview_refresh = previous_refresh
+
+
+@pytest.mark.asyncio
+async def test_world_overview_timeout_does_not_serve_old_snapshot_or_cancel_shared_read(
+    monkeypatch,
+) -> None:
+    import asyncio
+    from time import monotonic
+
+    from fastapi import HTTPException
+
+    import apps.api.routes.world as world_route
+
+    previous_cache = world_route._world_overview_cache
+    previous_refresh = world_route._world_overview_refresh
+    finish = asyncio.Event()
+
+    async def slow_refresh():
+        await finish.wait()
+        return {"generated_at": datetime.now(UTC).isoformat()}
+
+    monkeypatch.setattr(world_route, "_refresh_overview_payload", slow_refresh)
+    monkeypatch.setattr(world_route, "_WORLD_OVERVIEW_READ_TIMEOUT_SECONDS", 0.01)
+    world_route._world_overview_cache = (monotonic(), {"generated_at": NOW.isoformat()})
+    world_route._world_overview_refresh = None
+    try:
+        with pytest.raises(HTTPException) as failure:
+            await world_route._live_overview_payload()
+        assert failure.value.status_code == 503
+        assert world_route._world_overview_refresh is not None
+        assert not world_route._world_overview_refresh.done()
+    finally:
+        finish.set()
+        if world_route._world_overview_refresh is not None:
+            await world_route._world_overview_refresh
         world_route._world_overview_cache = previous_cache
         world_route._world_overview_refresh = previous_refresh

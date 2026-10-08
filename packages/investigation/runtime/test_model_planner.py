@@ -511,3 +511,40 @@ async def test_model_planner_runs_full_investigation_role_loop_through_state_gat
         ]
     finally:
         await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_research_object_planner_excludes_cve_only_delegation() -> None:
+    from packages.investigation.runtime.planner import SourceInvestigationPlannerDecision
+
+    class SourceProvider:
+        name = "source-planner-test"
+        version = "1"
+
+        async def generate_structured(self, request, response_model):
+            assert response_model is SourceInvestigationPlannerDecision
+            schema = response_model.model_json_schema()
+            assert "DelegationAction" not in schema["$defs"]
+            return response_model(action=PerceptionAction(request=PerceptionRequest(
+                request_id="source-read", operation=PerceptionOperation.SEARCH,
+                target=PerceptionTarget(query_text="source mechanism"),
+            )))
+
+    engine, factory = await _database()
+    try:
+        run_id, object_id, contract, state, need, _ = await _seed(factory)
+        async with factory() as session, session.begin():
+            obj = await session.get(ObjectModel, object_id)
+            obj.object_type = "ResearchWork"
+        planner = ModelInvestigationPlanner(factory, SourceProvider(),
+            materializer=ContextMaterializer(
+                platform_invariant_revision="source-v1", platform_invariant={"source": "read"},
+            ), stream_name=STREAM)
+        action = await planner.next_action(InvestigationFrame(
+            task_run_id=run_id, task_contract=contract, state=state,
+            selected_need=need, iteration=1,
+        ))
+        assert isinstance(action, PerceptionAction)
+        assert action.request.target.query_text == "source mechanism"
+    finally:
+        await engine.dispose()

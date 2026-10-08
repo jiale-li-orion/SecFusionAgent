@@ -87,3 +87,16 @@ async def test_redis_hot_cache_ranked_read_uses_existing_hot_signals() -> None:
     assert entries[2].access_count == 2.0
 
     await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_resident_count_excludes_metadata_and_expired_payloads() -> None:
+    client = FakeRedis()
+    cache = RedisHotBugCache(cast(Any, client))
+    await client.set('bug:nvd:resident', '{}')
+    await client.zadd(cache.UPDATED_KEY, {'bug:nvd:expired': 1, 'bug:nvd:resident': 2})
+    await cast(Any, client).sadd(cache.PINNED_KEY, 'bug:nvd:expired')
+    assert await cache.resident_count() == 1
+    await cast(Any, client).delete('bug:nvd:resident')
+    assert await cache.resident_count() == 0
+    await client.aclose()

@@ -4,9 +4,11 @@ from collections import defaultdict
 from collections.abc import Sequence
 from typing import Any, cast
 
-from sqlalchemy import Row, func, select
+from sqlalchemy import Row, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.selectable import Select
 
+from apps.application.queries.ownership import investigation_owner
 from apps.application.views.agents import (
     AgentLearningOverviewView,
     ProductExperienceSupportView,
@@ -21,6 +23,7 @@ from packages.investigation.storage.models import (
     ExperienceVersionModel,
     InvestigationTrajectoryModel,
 )
+from packages.task_runtime.storage.models import TaskContractVersionModel, TaskRunModel
 
 
 async def list_product_skills(session: AsyncSession) -> list[ProductSkillView]:
@@ -35,6 +38,8 @@ async def list_product_skills(session: AsyncSession) -> list[ProductSkillView]:
     latest: list[ProductSkillView] = []
     seen: set[str] = set()
     for row in rows:
+        if not _public_skill(row):
+            continue
         if row.skill_id in seen:
             continue
         seen.add(row.skill_id)
@@ -51,7 +56,7 @@ async def get_product_skill(
     if version is not None:
         statement = statement.where(SkillVersionModel.version == version)
     row = await session.scalar(statement.order_by(SkillVersionModel.version.desc()).limit(1))
-    return _skill_view(row) if row is not None else None
+    return _skill_view(row) if row is not None and _public_skill(row) else None
 
 
 async def list_product_experiences(session: AsyncSession) -> list[ProductExperienceView]:
@@ -96,16 +101,27 @@ async def get_agent_learning_overview(session: AsyncSession) -> AgentLearningOve
     skills = await list_product_skills(session)
     experiences = await list_product_experiences(session)
     candidate_count = int(
-        await session.scalar(select(func.count()).select_from(ExperienceCandidateModel)) or 0
+        await session.scalar(
+            select(func.count())
+            .select_from(ExperienceCandidateModel)
+            .where(ExperienceCandidateModel.source_trajectory_id.in_(_public_trajectory_ids()))
+        )
+        or 0
     )
     trajectory_count = int(
-        await session.scalar(select(func.count()).select_from(InvestigationTrajectoryModel)) or 0
+        await session.scalar(
+            select(func.count())
+            .select_from(InvestigationTrajectoryModel)
+            .where(InvestigationTrajectoryModel.trajectory_id.in_(_public_trajectory_ids()))
+        )
+        or 0
     )
     completed_count = int(
         await session.scalar(
             select(func.count())
             .select_from(InvestigationTrajectoryModel)
             .where(InvestigationTrajectoryModel.status == "completed")
+            .where(InvestigationTrajectoryModel.trajectory_id.in_(_public_trajectory_ids()))
         )
         or 0
     )
@@ -115,6 +131,38 @@ async def get_agent_learning_overview(session: AsyncSession) -> AgentLearningOve
         experience_candidate_count=candidate_count,
         trajectory_count=trajectory_count,
         completed_trajectory_count=completed_count,
+    )
+
+
+def _public_trajectory_ids() -> Select[str]:
+    private_run = (
+        select(TaskRunModel.run_id)
+        .join(
+            TaskContractVersionModel,
+            TaskContractVersionModel.task_contract_version_id
+            == TaskRunModel.task_contract_version_id,
+        )
+        .where(
+            TaskRunModel.case_id == InvestigationTrajectoryModel.case_id,
+            or_(
+                TaskContractVersionModel.principal.startswith("user:"),
+                TaskContractVersionModel.on_behalf_of.startswith("user:"),
+            ),
+        )
+        .exists()
+    )
+    return select(InvestigationTrajectoryModel.trajectory_id).where(
+        investigation_owner(InvestigationTrajectoryModel.case_id).startswith("system:"),
+        ~private_run,
+    )
+
+
+def _public_skill(row: SkillVersionModel) -> bool:
+    # Only platform seeds have an explicit public publication boundary today.
+    # Learned/imported content must not become public merely by entering the registry.
+    return row.source_type in {"seed", "seeded"} and not any(
+        row.provenance_json.get(key)
+        for key in ("supporting_trajectory_refs", "supporting_experience_pattern_refs")
     )
 
 
@@ -195,10 +243,35 @@ async def _experience_views(
         else []
     )
     trajectory_by_id = {item.trajectory_id: item for item in trajectories}
+    public_trajectories = set(await session.scalars(_public_trajectory_ids()))
+    public_candidates = set(
+        await session.scalars(
+            select(ExperienceCandidateModel.candidate_id).where(
+                ExperienceCandidateModel.source_trajectory_id.in_(public_trajectories)
+            )
+        )
+    )
+    supports_by_id: dict[str, list[ExperienceSupportModel]] = defaultdict(list)
+    for support in support_rows:
+        supports_by_id[support.experience_version_id].append(support)
+    # A mixed version can contain private question-derived recommendations and counts.
+    # Exclude the whole version, not just its private support links.
+    public_rows = [
+        (version, model)
+        for version, model in rows
+        if supports_by_id[version.experience_version_id]
+        and (
+            version.source_candidate_id is None or version.source_candidate_id in public_candidates
+        )
+        and all(
+            support.trajectory_id in public_trajectories
+            for support in supports_by_id[version.experience_version_id]
+        )
+    ]
     supports_by_version: dict[str, list[ProductExperienceSupportView]] = defaultdict(list)
     for row in support_rows:
         trajectory = trajectory_by_id.get(row.trajectory_id)
-        if trajectory is None:
+        if trajectory is None or row.trajectory_id not in public_trajectories:
             continue
         supports_by_version[row.experience_version_id].append(
             ProductExperienceSupportView(
@@ -236,7 +309,7 @@ async def _experience_views(
             partial_count=version.partial_count,
             support_records=supports_by_version.get(version.experience_version_id, []),
         )
-        for version, model in rows
+        for version, model in public_rows
     ]
 
 

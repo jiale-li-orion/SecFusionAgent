@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 
@@ -20,6 +20,7 @@ class WorldCategoryHealthView(BaseModel):
 
 class WorldSourceHealthView(BaseModel):
     source_id: str
+    source_name: str | None = None
     measurement_category: str
     health: str
     latest_scheduled_status: str | None = None
@@ -131,7 +132,40 @@ class WorldIncidentCandidateListView(BaseModel):
     items: list[WorldIncidentCandidateView] = Field(default_factory=list)
 
 
+class WorldStoryEvidenceView(BaseModel):
+    observation_id: str
+    document_revision_id: str | None = None
+    external_revision: str | None = None
+    chunk_id: str | None = None
+    locator: dict[str, object] = Field(default_factory=dict)
+
+
+class WorldStoryView(BaseModel):
+    story_id: str
+    category: str
+    kind: str
+    happened_at: datetime
+    observed_at: datetime
+    published_at: datetime | None = None
+    headline: str
+    excerpt: str | None = None
+    excerpt_origin: str | None = None
+    facts: dict[str, object] = Field(default_factory=dict)
+    evidence: WorldStoryEvidenceView | None = None
+    source_id: str | None = None
+    source_name: str | None = None
+    object_id: str | None = None
+    incident_id: str | None = None
+    external_ref: str | None = None
+
+
+class WorldStoryListView(BaseModel):
+    generated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    items: list[WorldStoryView] = Field(default_factory=list)
+
+
 class HotBugView(BaseModel):
+    source_name: str | None = None
     source_id: str
     external_object_id: str
     external_revision: str | None = None
@@ -154,4 +188,22 @@ class HotBugView(BaseModel):
 
 
 class HotBugListView(BaseModel):
+    resident_total: int = 0
     items: list[HotBugView] = Field(default_factory=list)
+
+
+class WorldProcessingView(BaseModel):
+    run_id: str
+    processor_name: str
+    status: str
+    started_at: datetime
+    finished_at: datetime | None = None
+    source_name: str | None = None
+    external_object_id: str | None = None
+    committed_at: datetime | None = None
+    revision: int | None = None
+
+
+class WorldFormationView(BaseModel):
+    generated_at: datetime
+    processing: list[WorldProcessingView] = Field(default_factory=list)

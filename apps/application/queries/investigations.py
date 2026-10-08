@@ -9,6 +9,7 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.application.errors import ResourceNotFoundError
+from apps.application.queries.ownership import investigation_owner, public_system_case
 from apps.application.question_sessions import QuestionSessionStore
 from apps.application.views.investigations import (
     DecisionCitationView,
@@ -51,7 +52,19 @@ class InvestigationQueries:
                 "investigation not found",
                 context={"case_id": case_id},
             )
+        await self.require_access(session, case_id, principal=principal)
         return await self._view(session, case, principal=principal)
+
+    async def require_access(
+        self, session: AsyncSession, case_id: str, *, principal: str | None = None
+    ) -> None:
+        if principal is None:
+            return
+        owner, public = (
+            await session.execute(select(investigation_owner(case_id), public_system_case(case_id)))
+        ).one()
+        if owner != principal and not public:
+            raise ResourceNotFoundError("investigation not found", context={"case_id": case_id})
 
     async def list(
         self,
@@ -65,6 +78,8 @@ class InvestigationQueries:
     ) -> InvestigationPage:
         bounded_limit = min(max(limit, 1), 100)
         stmt = select(InvestigationCaseModel)
+        if principal is not None:
+            stmt = stmt.where(investigation_owner(InvestigationCaseModel.case_id) == principal)
         if product_only:
             product_run = (
                 select(TaskRunModel.run_id)
@@ -184,12 +199,13 @@ class InvestigationQueries:
             )
         return InvestigationView(
             case_id=case.case_id,
+            case_lifecycle=case.status,
             continuation_session_id=continuation_session_id,
             origin_scope=_origin_scope(owner_principal),
             can_cancel=(
                 principal is not None
                 and owner_principal == principal
-                and effective_status in {"active", "waiting"}
+                and case.status in {"created", "active", "waiting"}
             ),
             revision=state.case_revision,
             status=effective_status,

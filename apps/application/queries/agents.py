@@ -11,6 +11,7 @@ from pydantic import JsonValue
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.application.queries.ownership import visible_task_run_ids
 from apps.application.views.agents import (
     AgentBudgetSnapshotView,
     AgentCapabilityActivityView,
@@ -70,11 +71,15 @@ def get_agent_controlled_proof() -> AgentControlledProofView:
                 else {}
             )
             metrics_raw = raw_case.get("metrics", {})
-            metrics = {
-                str(name): float(value)
-                for name, value in metrics_raw.items()
-                if isinstance(name, str) and isinstance(value, int | float)
-            } if isinstance(metrics_raw, dict) else {}
+            metrics = (
+                {
+                    str(name): float(value)
+                    for name, value in metrics_raw.items()
+                    if isinstance(name, str) and isinstance(value, int | float)
+                }
+                if isinstance(metrics_raw, dict)
+                else {}
+            )
             cases.append(
                 AgentControlledProofCaseView(
                     case_id=case_id,
@@ -127,24 +132,29 @@ async def get_agent_runtime_overview(
     task_limit: int = 72,
     capability_limit: int = 48,
     model_request_limit: int = 64,
+    principal: str | None = None,
 ) -> AgentRuntimeOverviewView:
     runs = list(
         await session.scalars(
-            select(TaskRunModel).order_by(TaskRunModel.updated_at.desc()).limit(task_limit)
+            select(TaskRunModel)
+            .where(TaskRunModel.run_id.in_(visible_task_run_ids(principal)))
+            .order_by(TaskRunModel.updated_at.desc())
+            .limit(task_limit)
         )
     )
-    summaries = await _task_summaries(session, runs)
+    summaries = await _task_summaries(session, runs, principal=principal)
     status_rows = (
         await session.execute(
             select(TaskRunModel.role_id, TaskRunModel.status, func.count())
+            .where(TaskRunModel.run_id.in_(visible_task_run_ids(principal)))
             .group_by(TaskRunModel.role_id, TaskRunModel.status)
         )
     ).all()
     updated_rows = (
         await session.execute(
-            select(TaskRunModel.role_id, func.max(TaskRunModel.updated_at)).group_by(
-                TaskRunModel.role_id
-            )
+            select(TaskRunModel.role_id, func.max(TaskRunModel.updated_at))
+            .where(TaskRunModel.run_id.in_(visible_task_run_ids(principal)))
+            .group_by(TaskRunModel.role_id)
         )
     ).all()
     status_by_role: dict[str, Counter[str]] = defaultdict(Counter)
@@ -171,16 +181,22 @@ async def get_agent_runtime_overview(
             )
         )
 
+    capability_statement = select(CapabilityInvocationModel)
+    if principal is not None:
+        capability_statement = capability_statement.where(
+            CapabilityInvocationModel.task_run_id.in_(visible_task_run_ids(principal))
+        )
     capabilities = list(
         await session.scalars(
-            select(CapabilityInvocationModel)
-            .order_by(CapabilityInvocationModel.started_at.desc())
-            .limit(capability_limit)
+            capability_statement.order_by(CapabilityInvocationModel.started_at.desc()).limit(
+                capability_limit
+            )
         )
     )
     model_runtime = await _model_runtime_view(
         session,
         request_limit=model_request_limit,
+        principal=principal,
     )
     control_runtime = await _control_runtime_view(
         session,
@@ -203,8 +219,9 @@ async def list_agent_tasks(
     status: str | None = None,
     case_id: str | None = None,
     limit: int = 72,
+    principal: str | None = None,
 ) -> AgentTaskPageView:
-    statement = select(TaskRunModel)
+    statement = select(TaskRunModel).where(TaskRunModel.run_id.in_(visible_task_run_ids(principal)))
     if role_id:
         statement = statement.where(TaskRunModel.role_id == role_id)
     if status:
@@ -212,13 +229,11 @@ async def list_agent_tasks(
     if case_id:
         statement = statement.where(TaskRunModel.case_id == case_id)
     runs = list(
-        await session.scalars(
-            statement.order_by(TaskRunModel.updated_at.desc()).limit(limit)
-        )
+        await session.scalars(statement.order_by(TaskRunModel.updated_at.desc()).limit(limit))
     )
     return AgentTaskPageView(
         generated_at=datetime.now(UTC),
-        items=await _task_summaries(session, runs),
+        items=await _task_summaries(session, runs, principal=principal),
     )
 
 
@@ -226,12 +241,18 @@ async def _model_runtime_view(
     session: AsyncSession,
     *,
     request_limit: int,
+    principal: str | None = None,
 ) -> AgentModelRuntimeView:
+    statement = select(ModelRequestModel)
+    if principal is not None:
+        # Product DIRECT/RETRIEVE also persist a real TaskRun. Owner strings and
+        # caller request IDs alone cannot prove account ownership.
+        statement = statement.where(
+            ModelRequestModel.task_run_id.in_(visible_task_run_ids(principal))
+        )
     requests = list(
         await session.scalars(
-            select(ModelRequestModel)
-            .order_by(ModelRequestModel.created_at.desc())
-            .limit(request_limit)
+            statement.order_by(ModelRequestModel.created_at.desc()).limit(request_limit)
         )
     )
     if not requests:
@@ -247,11 +268,7 @@ async def _model_runtime_view(
             .order_by(ModelAttemptModel.started_at)
         )
     )
-    latencies = sorted(
-        int(item.latency_ms)
-        for item in attempts
-        if item.latency_ms is not None
-    )
+    latencies = sorted(int(item.latency_ms) for item in attempts if item.latency_ms is not None)
     provider_counts = Counter(item.provider for item in attempts)
     model_counts = Counter(item.actual_model for item in attempts)
     latest_attempt = max(
@@ -265,15 +282,11 @@ async def _model_runtime_view(
         attempt_count=len(attempts),
         retry_attempt_count=sum(1 for item in attempts if item.ordinal > 1),
         retry_scheduled_count=sum(
-            1
-            for item in attempts
-            if item.response_metadata_json.get("retry_scheduled") is True
+            1 for item in attempts if item.response_metadata_json.get("retry_scheduled") is True
         ),
         failed_attempt_count=sum(1 for item in attempts if item.status == "failed"),
         unknown_after_dispatch_count=sum(
-            1
-            for item in attempts
-            if item.status == "unknown_after_dispatch"
+            1 for item in attempts if item.status == "unknown_after_dispatch"
         ),
         p95_latency_ms=_nearest_rank_p95(latencies),
         provider_counts=dict(sorted(provider_counts.items())),
@@ -290,28 +303,19 @@ async def _control_runtime_view(
         return AgentControlRuntimeView(scope="recent_task_read_window")
     run_ids = [item.run_id for item in runs]
     events = list(
-        await session.scalars(
-            select(TaskEventModel).where(TaskEventModel.task_run_id.in_(run_ids))
-        )
+        await session.scalars(select(TaskEventModel).where(TaskEventModel.task_run_id.in_(run_ids)))
     )
-    stop_reasons = Counter(
-        item.stop_reason
-        for item in runs
-        if item.stop_reason
-    )
+    stop_reasons = Counter(item.stop_reason for item in runs if item.stop_reason)
     return AgentControlRuntimeView(
         scope="recent_task_read_window",
         sampled_task_count=len(runs),
         dependency_wake_count=sum(
             1
             for item in events
-            if item.producer == "task-runtime-scheduler"
-            and item.event_type == "TaskPatched"
+            if item.producer == "task-runtime-scheduler" and item.event_type == "TaskPatched"
         ),
         waiting_event_count=sum(
-            1
-            for item in events
-            if item.event_type in {"NeedInput", "NeedContext"}
+            1 for item in events if item.event_type in {"NeedInput", "NeedContext"}
         ),
         stop_reason_counts=dict(sorted(stop_reasons.items())),
         wake_latency_ms=None,
@@ -329,14 +333,22 @@ def _nearest_rank_p95(values: list[int]) -> int | None:
 async def get_agent_task_detail(
     session: AsyncSession,
     run_id: str,
+    *,
+    principal: str | None = None,
 ) -> AgentTaskDetailView | None:
-    run = await session.get(TaskRunModel, run_id)
+    run = await session.scalar(
+        select(TaskRunModel).where(
+            TaskRunModel.run_id == run_id,
+            TaskRunModel.run_id.in_(visible_task_run_ids(principal)),
+        )
+    )
     if run is None:
         return None
-    summary = (await _task_summaries(session, [run]))[0]
+    summary = (await _task_summaries(session, [run], principal=principal))[0]
     related_runs = list(
         await session.scalars(
             select(TaskRunModel)
+            .where(TaskRunModel.run_id.in_(visible_task_run_ids(principal)))
             .where(
                 (TaskRunModel.run_id == run.parent_run_id)
                 | (TaskRunModel.run_id == summary.predecessor_run_id)
@@ -345,7 +357,13 @@ async def get_agent_task_detail(
             .order_by(TaskRunModel.created_at)
         )
     )
-    related_summaries = await _task_summaries(session, related_runs)
+    related_summaries = await _task_summaries(session, related_runs, principal=principal)
+    if principal is not None:
+        visible_related = {item.run_id for item in related_runs}
+        if summary.parent_run_id not in visible_related:
+            summary.parent_run_id = None
+        if summary.predecessor_run_id not in visible_related:
+            summary.predecessor_run_id = None
     parent = next(
         (item for item in related_summaries if item.run_id == run.parent_run_id),
         None,
@@ -401,9 +419,7 @@ async def get_agent_task_detail(
                 role_revision=item.role_revision,
                 execution_profile_revision=item.execution_profile_revision,
                 materialized_skill_refs=list(item.materialized_skill_refs_json),
-                materialized_capability_view_refs=list(
-                    item.materialized_capability_view_refs_json
-                ),
+                materialized_capability_view_refs=list(item.materialized_capability_view_refs_json),
                 percept_refs=list(item.percept_refs_json),
                 materialized_ref_set_digest=item.materialized_ref_set_digest,
                 created_at=item.created_at,
@@ -434,19 +450,17 @@ async def _budget_snapshot_view(
     committed: dict[str, Decimal] = {}
     for row in rows:
         if row.status == "reserved":
-            reserved[row.resource_type] = reserved.get(
-                row.resource_type, Decimal("0")
-            ) + Decimal(row.amount_reserved)
+            reserved[row.resource_type] = reserved.get(row.resource_type, Decimal("0")) + Decimal(
+                row.amount_reserved
+            )
         elif row.status == "committed":
-            committed[row.resource_type] = committed.get(
-                row.resource_type, Decimal("0")
-            ) + Decimal(row.amount_committed)
+            committed[row.resource_type] = committed.get(row.resource_type, Decimal("0")) + Decimal(
+                row.amount_committed
+            )
     remaining = {
         resource: max(
             Decimal("0"),
-            limit
-            - reserved.get(resource, Decimal("0"))
-            - committed.get(resource, Decimal("0")),
+            limit - reserved.get(resource, Decimal("0")) - committed.get(resource, Decimal("0")),
         )
         for resource, limit in limits.items()
     }
@@ -462,6 +476,8 @@ async def _budget_snapshot_view(
 async def _task_summaries(
     session: AsyncSession,
     runs: list[TaskRunModel],
+    *,
+    principal: str | None = None,
 ) -> list[AgentTaskSummaryView]:
     if not runs:
         return []
@@ -484,18 +500,19 @@ async def _task_summaries(
             .order_by(TaskEventModel.task_run_id, TaskEventModel.seq)
         )
     )
-    executions = list(await session.scalars(
-        select(ExecutionRunModel).where(ExecutionRunModel.task_run_id.in_(run_ids))
-    ))
+    executions = list(
+        await session.scalars(
+            select(ExecutionRunModel).where(ExecutionRunModel.task_run_id.in_(run_ids))
+        )
+    )
     predecessor_by_run = {
-        item.task_run_id: _execution_predecessor_run_id(item)
-        for item in executions
+        item.task_run_id: _execution_predecessor_run_id(item) for item in executions
     }
     events_by_run: dict[str, list[TaskEventModel]] = defaultdict(list)
     for event in events:
         events_by_run[event.task_run_id].append(event)
 
-    return [
+    summaries = [
         _task_summary(
             run,
             task_kind=task_kind_by_contract.get(run.task_contract_version_id, "unknown"),
@@ -504,6 +521,28 @@ async def _task_summaries(
         )
         for run in runs
     ]
+    if principal is not None:
+        related_ids = {
+            ref
+            for item in summaries
+            for ref in (item.parent_run_id, item.predecessor_run_id)
+            if ref is not None
+        }
+        visible_ids = (
+            set(
+                await session.scalars(
+                    visible_task_run_ids(principal).where(TaskRunModel.run_id.in_(related_ids))
+                )
+            )
+            if related_ids
+            else set()
+        )
+        for item in summaries:
+            if item.parent_run_id not in visible_ids:
+                item.parent_run_id = None
+            if item.predecessor_run_id not in visible_ids:
+                item.predecessor_run_id = None
+    return summaries
 
 
 def _task_summary(

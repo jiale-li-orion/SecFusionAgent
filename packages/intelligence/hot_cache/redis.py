@@ -159,6 +159,22 @@ class RedisHotBugCache:
         )
         return entries[:limit]
 
+    async def resident_count(self) -> int:
+        """Count resident payloads; sorted-set membership can outlive a TTL."""
+        count = 0
+        cursor = 0
+        seen: set[str] = set()
+        metadata = {self.UPDATED_KEY, self.ACCESS_KEY, self.ACTIVE_KEY,
+                    self.PINNED_KEY, self.TTL_KEY}
+        while True:
+            cursor, keys = await self._client.scan(cursor, match="bug:*", count=1000)
+            records = {_as_text(key) for key in keys} - metadata - seen
+            seen.update(records)
+            if records:
+                count += int(await self._client.exists(*records))
+            if cursor == 0:
+                return count
+
     async def evict(self, source_id: str, external_object_id: str) -> None:
         key = _bug_key(source_id, external_object_id)
         pinned = await cast(Awaitable[Any], self._client.sismember(self.PINNED_KEY, key))

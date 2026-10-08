@@ -64,6 +64,8 @@ TD2 的 M4/M5 没有落成一个“万能 Agent service”。Case lifecycle 由 
 
 Allowed dependencies are the public contracts from `shared`, `intelligence`, `enrichment`, `task_runtime`, and execution-control packages under `runtime` where the current implementation requires them. Provider-specific SDK objects do not cross into investigation state or Perception contracts.
 
+The dependency gate permits the public intelligence retrieval contracts and the canonical `EnrichmentDimension` vocabulary used by `EnrichmentDelegationRequest`. A delegation therefore validates the same dimension names as M3 without duplicating its vocabulary; investigation still cannot import Knowledge storage or write services.
+
 ## Verification
 
 ```bash

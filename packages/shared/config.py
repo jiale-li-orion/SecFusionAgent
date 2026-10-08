@@ -2,6 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -10,6 +11,8 @@ class Settings(BaseSettings):
 
     environment: str = "dev"
     log_level: str = "INFO"
+    auth_allowed_origins: list[str] = Field(default_factory=list)
+    auth_session_ttl_seconds: int = Field(default=7 * 24 * 60 * 60, ge=60, le=30 * 24 * 60 * 60)
 
     database_url: str = "postgresql+asyncpg://secfusion:secfusion@localhost:5432/secfusion"
     redis_broker_url: str = "redis://localhost:6379/0"

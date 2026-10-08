@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 import apps.api.routes.observatory as observatory_route
 from apps.api.dependencies import database_session
 from apps.api.main import create_app
+from apps.application.queries.worker_probe import _control_snapshot
 from apps.runtime_models import register_runtime_models
 from packages.shared.db import Base
 
@@ -37,6 +38,21 @@ async def test_system_overview_exposes_dependency_and_delivery_health(monkeypatc
         "from_url",
         lambda *_args, **_kwargs: _RedisProbe(),
     )
+    from datetime import UTC, datetime
+
+    async def workers():
+        return _control_snapshot(
+            {"worker-test": {"ok": "pong"}},
+            {
+                "worker-test": [
+                    {"name": name}
+                    for name in ("collection", "enrichment", "investigation", "indexing")
+                ]
+            },
+            datetime.now(UTC),
+        )
+
+    monkeypatch.setattr(observatory_route.worker_probe, "read", workers)
 
     app = create_app()
 
@@ -64,7 +80,10 @@ async def test_system_overview_exposes_dependency_and_delivery_health(monkeypatc
         assert body["task_event_stream_pending"] == 3
         assert body["runtime_policy_status"] == "healthy"
         assert body["measurement_boundaries"]["worker_process_health"] == (
-            "unavailable_no_heartbeat_contract"
+            "bounded_celery_control_responses_not_durable_heartbeat"
         )
+        assert body["worker_probe"]["scope"] == "celery_control_ping_and_active_queues"
+        assert body["worker_probe"]["workers"][0]["name"] == "worker-test"
+        assert all(queue["availability"] == "available" for queue in body["worker_probe"]["queues"])
     finally:
         await engine.dispose()

@@ -43,6 +43,7 @@ class EnrichmentTaskDesiredState(BaseModel):
     target_object_id: str
     cve_id: str
     required_dimensions: list[EnrichmentDimension]
+    refresh_dimensions: list[EnrichmentDimension] = Field(default_factory=list)
     terminal_statuses: list[EnrichmentStatus] = Field(
         default_factory=lambda: [
             EnrichmentStatus.RESOLVED,
@@ -59,6 +60,8 @@ class EnrichmentTaskDesiredState(BaseModel):
             raise ValueError("v1 EnrichmentRole requires a CVE identifier")
         if not self.required_dimensions:
             raise ValueError("enrichment task requires at least one dimension")
+        if not set(self.refresh_dimensions) <= set(self.required_dimensions):
+            raise ValueError("refresh dimensions must be required by the enrichment task")
         if EnrichmentStatus.MISSING in self.terminal_statuses:
             raise ValueError("missing cannot be a successful enrichment terminal status")
         return self
@@ -250,6 +253,7 @@ class EnrichmentRoleRuntime:
                     view,
                     cve_id=desired.cve_id,
                     target_dimensions=set(desired.required_dimensions),
+                    refresh_dimensions=set(desired.refresh_dimensions),
                     attempted_operator_ids=set(attempted),
                 )
             )

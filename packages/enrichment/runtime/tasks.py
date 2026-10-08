@@ -23,6 +23,7 @@ def build_vulnerability_enrichment_contract(
     target_object_id: str,
     cve_id: str,
     required_dimensions: Iterable[EnrichmentDimension],
+    refresh_dimensions: Iterable[EnrichmentDimension] = (),
     policy_revision: str,
     contract_revision: int = 1,
     on_behalf_of: str | None = None,
@@ -32,6 +33,7 @@ def build_vulnerability_enrichment_contract(
         target_object_id=target_object_id,
         cve_id=cve_id.upper(),
         required_dimensions=dimensions,
+        refresh_dimensions=sorted(set(refresh_dimensions), key=lambda item: item.value),
     )
     return TaskContract(
         task_contract_id=task_contract_id,

@@ -50,6 +50,9 @@ class ProductDocumentView(BaseModel):
     canonical_url: str | None = None
     created_at: str
     current_revision: ProductDocumentRevisionView | None = None
+    source_excerpt: str | None = None
+    excerpt_chunk_id: str | None = None
+    excerpt_locator: dict[str, object] = Field(default_factory=dict)
     chunk_count: int = 0
     index_status_counts: dict[str, int] = Field(default_factory=dict)
     embedded_chunk_count: int = 0

@@ -11,6 +11,7 @@ class EnrichmentAdmissionBinding(BaseModel):
     target_object_id: str
     cve_id: str
     required_dimensions: list[EnrichmentDimension] = Field(min_length=1)
+    refresh_dimensions: list[EnrichmentDimension] = Field(default_factory=list)
     trigger_ref: str | None = None
 
     @model_validator(mode="after")
@@ -51,6 +52,7 @@ class EnrichmentTaskContractCompiler:
             target_object_id=binding.target_object_id,
             cve_id=binding.cve_id,
             required_dimensions=binding.required_dimensions,
+            refresh_dimensions=binding.refresh_dimensions,
             policy_revision=policy_revision,
             contract_revision=contract_revision,
             on_behalf_of=on_behalf_of,

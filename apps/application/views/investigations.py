@@ -62,6 +62,7 @@ class DecisionView(BaseModel):
 class InvestigationView(BaseModel):
     case_id: str
     continuation_session_id: str | None = None
+    case_lifecycle: str | None = None
     origin_scope: InvestigationOriginScope = "unknown"
     can_cancel: bool = False
     revision: int

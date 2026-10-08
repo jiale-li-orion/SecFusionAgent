@@ -2,19 +2,22 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import UTC, datetime
 from time import monotonic
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, Request, status
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
 
 from apps.api.dependencies import SessionDep
-from apps.application.queries.world import list_world_knowledge_changes
+from apps.application.queries.world import list_world_knowledge_changes, world_source_names
+from apps.application.queries.world_formation import read_world_formation
 from apps.application.views.world import (
     HotBugListView,
     HotBugView,
     WorldCategoryHealthView,
+    WorldFormationView,
     WorldHealthCountsView,
     WorldIncidentCandidateListView,
     WorldIncidentCandidateView,
@@ -22,6 +25,7 @@ from apps.application.views.world import (
     WorldOverviewView,
     WorldSeriesPointView,
     WorldSourceHealthView,
+    WorldStoryListView,
     WorldWindowView,
 )
 from packages.intelligence.hot_cache.contracts import HotBugCacheEntry
@@ -34,6 +38,8 @@ router = APIRouter(prefix="/api/v1/world", tags=["world"])
 
 _WINDOW_KEYS = ("1h", "6h", "24h", "168h")
 _WORLD_OVERVIEW_TTL_SECONDS = 15.0
+_WORLD_OVERVIEW_MAX_AGE_SECONDS = 60.0
+_WORLD_OVERVIEW_READ_TIMEOUT_SECONDS = 10.0
 _world_overview_cache: tuple[float, dict[str, Any]] | None = None
 _world_overview_lock = asyncio.Lock()
 _world_overview_refresh: asyncio.Task[dict[str, Any]] | None = None
@@ -50,6 +56,7 @@ async def world_overview() -> WorldOverviewView:
     pipeline_state = payload.get("pipeline_state", {})
     storage = payload.get("storage", {})
     artifact_store = storage.get("artifact_store", {})
+    names = world_source_names()
 
     return WorldOverviewView(
         schema_version=str(payload.get("schema_version", "unknown")),
@@ -72,7 +79,9 @@ async def world_overview() -> WorldOverviewView:
             for category, states in by_category.items()
         ],
         sources=[
-            WorldSourceHealthView.model_validate(item)
+            WorldSourceHealthView.model_validate(
+                {**item, "source_name": names.get(str(item.get("source_id", "")))}
+            )
             for item in source_health.get("sources", [])
             if isinstance(item, dict)
         ],
@@ -82,14 +91,10 @@ async def world_overview() -> WorldOverviewView:
             if key in rolling
         },
         hourly_series=[
-            WorldSeriesPointView.model_validate(item)
-            for item in payload.get("hourly_series", [])
+            WorldSeriesPointView.model_validate(item) for item in payload.get("hourly_series", [])
         ],
         category_hourly_series={
-            str(category): [
-                WorldSeriesPointView.model_validate(item)
-                for item in series
-            ]
+            str(category): [WorldSeriesPointView.model_validate(item) for item in series]
             for category, series in payload.get("category_hourly_series", {}).items()
             if isinstance(series, list)
         },
@@ -110,6 +115,19 @@ async def world_knowledge_changes(
     limit: int = Query(default=12, ge=1, le=64),
 ) -> WorldKnowledgeChangeListView:
     return await list_world_knowledge_changes(session, limit=limit)
+
+
+@router.get("/formation", response_model=WorldFormationView)
+async def world_formation(session: SessionDep) -> WorldFormationView:
+    return await read_world_formation(session)
+
+
+@router.get("/stories", response_model=WorldStoryListView)
+async def world_stories(
+    request: Request,
+    limit: int = Query(default=10, ge=4, le=18),
+) -> WorldStoryListView:
+    return await request.app.state.world_story_reader.read(limit=limit)
 
 
 @router.get("/incident-candidates", response_model=WorldIncidentCandidateListView)
@@ -136,9 +154,7 @@ async def world_incident_candidates(
         await redis.aclose()
 
     candidates = [
-        IncidentCandidate.model_validate_json(raw)
-        for raw in raw_candidates
-        if raw is not None
+        IncidentCandidate.model_validate_json(raw) for raw in raw_candidates if raw is not None
     ]
     candidates.sort(
         key=lambda item: (item.watch_priority, item.last_material_change),
@@ -173,7 +189,11 @@ async def hot_world(limit: int = Query(default=18, ge=1, le=64)) -> HotBugListVi
     settings = get_settings()
     redis = Redis.from_url(settings.redis_hot_cache_url)
     try:
-        entries = await RedisHotBugCache(redis).list_ranked(limit=limit)
+        cache = RedisHotBugCache(redis)
+        entries, resident_total = await asyncio.gather(
+            cache.list_ranked(limit=limit),
+            cache.resident_count(),
+        )
     except RedisError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -182,7 +202,11 @@ async def hot_world(limit: int = Query(default=18, ge=1, le=64)) -> HotBugListVi
     finally:
         await redis.aclose()
 
-    return HotBugListView(items=[_hot_view(entry) for entry in entries])
+    names = world_source_names()
+    return HotBugListView(
+        resident_total=resident_total,
+        items=[_hot_view(entry, names.get(entry.record.source_id)) for entry in entries],
+    )
 
 
 @router.get("/hot/{source_id}/{external_object_id:path}", response_model=HotBugView)
@@ -206,21 +230,54 @@ async def hot_world_detail(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Hot Bug object not found",
         )
-    return _hot_view(entry)
+    return _hot_view(entry, world_source_names().get(entry.record.source_id))
 
 
 async def _live_overview_payload() -> dict[str, Any]:
-    global _world_overview_refresh
-
     if _world_overview_cache is None:
-        return await _refresh_overview_payload()
+        return await _wait_for_overview_refresh()
     cached_at, payload = _world_overview_cache
-    if monotonic() - cached_at >= _WORLD_OVERVIEW_TTL_SECONDS:
-        if _world_overview_refresh is None or _world_overview_refresh.done():
-            _world_overview_refresh = asyncio.create_task(_refresh_overview_payload())
-            _world_overview_refresh.add_done_callback(_observe_refresh)
+    age = _overview_age(cached_at, payload)
+    if age >= _WORLD_OVERVIEW_MAX_AGE_SECONDS:
+        # After idle traffic or failed refreshes, wait for one shared current read.
+        # A successful response must not retain an arbitrarily old measurement.
+        return await _wait_for_overview_refresh()
+    if age >= _WORLD_OVERVIEW_TTL_SECONDS:
+        _overview_refresh_task()
     # generated_at remains the original measurement time; the UI can show its age.
     return payload
+
+
+async def _wait_for_overview_refresh() -> dict[str, Any]:
+    try:
+        payload = await asyncio.wait_for(
+            asyncio.shield(_overview_refresh_task()), _WORLD_OVERVIEW_READ_TIMEOUT_SECONDS
+        )
+    except TimeoutError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Live Data Plane aggregation timed out",
+        ) from exc
+    if _overview_age(monotonic(), payload) >= _WORLD_OVERVIEW_MAX_AGE_SECONDS:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Live Data Plane measurement is too old",
+        )
+    return payload
+
+
+def _overview_age(cached_at: float, payload: dict[str, Any]) -> float:
+    measured_at = datetime.fromisoformat(str(payload["generated_at"]).replace("Z", "+00:00"))
+    return max(monotonic() - cached_at, (datetime.now(UTC) - measured_at).total_seconds())
+
+
+def _overview_refresh_task() -> asyncio.Task[dict[str, Any]]:
+    global _world_overview_refresh
+
+    if _world_overview_refresh is None or _world_overview_refresh.done():
+        _world_overview_refresh = asyncio.create_task(_refresh_overview_payload())
+        _world_overview_refresh.add_done_callback(_observe_refresh)
+    return _world_overview_refresh
 
 
 def _observe_refresh(task: asyncio.Task[dict[str, Any]]) -> None:
@@ -230,23 +287,21 @@ def _observe_refresh(task: asyncio.Task[dict[str, Any]]) -> None:
 
 def _aggregate_overview() -> dict[str, Any]:
     # Aggregation owns its engine and does CPU-heavy series assembly; isolate its event loop.
-    return asyncio.run(data_plane_status())
+    return asyncio.run(data_plane_status(operational=True))
 
 
 async def _refresh_overview_payload() -> dict[str, Any]:
     global _world_overview_cache
 
-    now = monotonic()
     if _world_overview_cache is not None:
         cached_at, payload = _world_overview_cache
-        if now - cached_at < _WORLD_OVERVIEW_TTL_SECONDS:
+        if _overview_age(cached_at, payload) < _WORLD_OVERVIEW_TTL_SECONDS:
             return payload
 
     async with _world_overview_lock:
-        now = monotonic()
         if _world_overview_cache is not None:
             cached_at, payload = _world_overview_cache
-            if now - cached_at < _WORLD_OVERVIEW_TTL_SECONDS:
+            if _overview_age(cached_at, payload) < _WORLD_OVERVIEW_TTL_SECONDS:
                 return payload
         try:
             payload = await asyncio.to_thread(_aggregate_overview)
@@ -285,7 +340,7 @@ def _window_view(metrics: dict[str, Any]) -> WorldWindowView:
     )
 
 
-def _hot_view(entry: HotBugCacheEntry) -> HotBugView:
+def _hot_view(entry: HotBugCacheEntry, source_name: str | None = None) -> HotBugView:
     record = entry.record
     projection = record.projection
     affected_raw = projection.get("affected_products")
@@ -296,6 +351,7 @@ def _hot_view(entry: HotBugCacheEntry) -> HotBugView:
     )
     return HotBugView(
         source_id=record.source_id,
+        source_name=source_name,
         external_object_id=record.external_object_id,
         external_revision=record.external_revision,
         cve_id=_string_or_none(projection.get("cve_id")),

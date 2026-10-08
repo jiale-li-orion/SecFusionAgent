@@ -290,6 +290,71 @@ class LexicalRetrievalOperator:
         return [candidate for key in parsed if (candidate := candidates.get(key)) is not None]
 
 
+class DocumentRetrievalOperator:
+    """Read source text at the current document revision, without inventing facts."""
+
+    async def for_object(
+        self, session: AsyncSession, *, object_id: str, limit: int = 20
+    ) -> list[RetrievedCandidate]:
+        latest = select(
+            DocumentRevisionModel.document_revision_id.label("revision_id"),
+            func.row_number()
+            .over(
+                partition_by=DocumentRevisionModel.document_id,
+                order_by=(
+                    DocumentRevisionModel.created_at.desc(),
+                    DocumentRevisionModel.document_revision_id.desc(),
+                ),
+            )
+            .label("position"),
+        ).subquery()
+        support = (
+            select(EvidenceLinkModel.evidence_link_id)
+            .where(
+                EvidenceLinkModel.target_kind == "object",
+                EvidenceLinkModel.target_id == DocumentModel.object_id,
+                EvidenceLinkModel.observation_id == ObservationModel.observation_id,
+            )
+            .order_by(EvidenceLinkModel.evidence_link_id)
+            .limit(1)
+            .correlate(DocumentModel, ObservationModel)
+            .scalar_subquery()
+        )
+        rows = (
+            await session.execute(
+                select(
+                    DocumentChunkModel,
+                    DocumentRevisionModel,
+                    DocumentModel,
+                    ObservationModel,
+                    SourceModel,
+                    support,
+                )
+                .join(
+                    DocumentRevisionModel,
+                    DocumentRevisionModel.document_revision_id
+                    == DocumentChunkModel.document_revision_id,
+                )
+                .join(latest, latest.c.revision_id == DocumentRevisionModel.document_revision_id)
+                .join(DocumentModel, DocumentModel.document_id == DocumentRevisionModel.document_id)
+                .join(
+                    ObservationModel,
+                    ObservationModel.observation_id == DocumentRevisionModel.observation_id,
+                )
+                .join(SourceModel, SourceModel.source_id == ObservationModel.source_id)
+                .where(DocumentModel.object_id == object_id, latest.c.position == 1)
+                .order_by(DocumentModel.document_id, DocumentChunkModel.ordinal)
+                .limit(max(0, min(limit, 100)))
+            )
+        ).all()
+        return [
+            _document_candidate(*row[:5], score_channels={"document": 1.0}).model_copy(
+                update={"evidence_ref": row[5]}
+            )
+            for row in rows
+        ]
+
+
 class DenseRetrievalOperator:
     async def search(
         self,

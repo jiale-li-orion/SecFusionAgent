@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any
 
 from fastapi import FastAPI, Request
@@ -24,6 +25,10 @@ class ProblemDetail(BaseModel):
 
 
 _STATUS_BY_CODE = {
+    "authentication_required": 401,
+    "invalid_credentials": 401,
+    "account_exists": 409,
+    "csrf_rejected": 403,
     "resource_not_found": 404,
     "revision_conflict": 409,
     "lifecycle_conflict": 409,
@@ -38,6 +43,7 @@ _STATUS_BY_CODE = {
 }
 
 _TITLE_BY_STATUS = {
+    401: "Authentication required",
     403: "Permission denied",
     404: "Resource not found",
     409: "Request conflict",
@@ -73,7 +79,7 @@ def install_error_handlers(app: FastAPI) -> None:
             code="validation_error",
             detail="request validation failed",
             retryable=False,
-            context={"errors": _json_safe(exc.errors())},
+            context={"errors": _validation_details(exc.errors())},
         )
 
 
@@ -108,6 +114,9 @@ def _problem_response(
 def _is_product_path(path: str) -> bool:
     return path.startswith(
         (
+            "/api/v1/auth",
+            "/api/v1/agents",
+            "/api/v1/tasks",
             "/api/v1/investigations",
             "/api/v1/questions",
             "/api/v1/decisions",
@@ -118,6 +127,15 @@ def _is_product_path(path: str) -> bool:
             "/api/v1/system",
         )
     )
+
+
+def _validation_details(errors: Sequence[Any]) -> list[dict[str, Any]]:
+    # Request bodies can contain passwords and private questions. Validation
+    # identifies the field and constraint without reflecting submitted values.
+    return [
+        {key: _json_safe(error[key]) for key in ("loc", "type", "msg") if key in error}
+        for error in errors
+    ]
 
 
 def _json_safe(value: Any) -> Any:

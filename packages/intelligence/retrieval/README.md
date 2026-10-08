@@ -20,3 +20,5 @@ The replay seam exists so runtime/application code can reuse an already-measured
 uv run pytest packages/intelligence -q
 SECFUSION_RUN_INTEGRATION=1 uv run pytest tests/integration/test_core_infrastructure.py -q
 ```
+
+`DocumentRetrievalOperator.for_object` reads bounded, ordinal-ordered chunks from each document's latest revision for an exact object ID. It preserves source text, revision and locators, and attaches only an existing object EvidenceLink from that revision's Observation. A current revision with no chunks yields no historical fallback. Investigation INSPECT uses this operator alongside structured projections; reading source text does not create Knowledge or bypass the StatePatch evidence gate.

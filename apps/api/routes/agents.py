@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from apps.api.dependencies import SessionDep
+from apps.api.dependencies import RequestContextDep, SessionDep
 from apps.application.queries.agent_learning import (
     get_agent_learning_overview,
     get_product_experience,
@@ -37,6 +37,7 @@ async def agent_controlled_proof() -> AgentControlledProofView:
 @router.get("/agents/runtime", response_model=AgentRuntimeOverviewView)
 async def agent_runtime(
     session: SessionDep,
+    context: RequestContextDep,
     task_limit: int = Query(default=72, ge=1, le=200),
     model_request_limit: int = Query(default=64, ge=1, le=200),
 ) -> AgentRuntimeOverviewView:
@@ -44,6 +45,7 @@ async def agent_runtime(
         session,
         task_limit=task_limit,
         model_request_limit=model_request_limit,
+        principal=context.principal,
     )
 
 
@@ -81,6 +83,7 @@ async def agent_experience(experience_ref: str, session: SessionDep) -> ProductE
 @router.get("/tasks", response_model=AgentTaskPageView)
 async def tasks(
     session: SessionDep,
+    context: RequestContextDep,
     role_id: str | None = Query(default=None, max_length=64),
     status_filter: str | None = Query(default=None, alias="status", max_length=32),
     case_id: str | None = Query(default=None, max_length=64),
@@ -92,12 +95,15 @@ async def tasks(
         status=status_filter,
         case_id=case_id,
         limit=limit,
+        principal=context.principal,
     )
 
 
 @router.get("/tasks/{run_id}", response_model=AgentTaskDetailView)
-async def task_detail(run_id: str, session: SessionDep) -> AgentTaskDetailView:
-    result = await get_agent_task_detail(session, run_id)
+async def task_detail(
+    run_id: str, session: SessionDep, context: RequestContextDep
+) -> AgentTaskDetailView:
+    result = await get_agent_task_detail(session, run_id, principal=context.principal)
     if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="task run not found")
     return result

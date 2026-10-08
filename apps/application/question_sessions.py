@@ -87,6 +87,17 @@ class QuestionSessionContext(BaseModel):
         return self.turns[-1] if self.turns else None
 
 
+class AccountConversationView(BaseModel):
+    session_id: str
+    updated_at: datetime
+    latest_turn: QuestionSessionTurn
+
+
+class AccountConversationPage(BaseModel):
+    items: list[AccountConversationView]
+    has_more: bool
+
+
 class QuestionSessionStore:
     def __init__(
         self,
@@ -96,6 +107,40 @@ class QuestionSessionStore:
     ) -> None:
         self._now = now or (lambda: datetime.now(UTC))
         self._history_limit = history_limit
+
+    async def list_owned(
+        self, session: AsyncSession, *, principal: str, limit: int = 20
+    ) -> AccountConversationPage:
+        bounded_limit = min(max(limit, 1), 50)
+        latest = (
+            select(
+                QuestionSessionTurnModel.session_id,
+                func.max(QuestionSessionTurnModel.turn_index).label("turn_index"),
+            )
+            .join(QuestionSessionModel)
+            .where(QuestionSessionModel.principal == principal)
+            .group_by(QuestionSessionTurnModel.session_id)
+            .subquery()
+        )
+        rows = list(await session.execute(
+            select(QuestionSessionModel, QuestionSessionTurnModel)
+            .join(latest, latest.c.session_id == QuestionSessionModel.session_id)
+            .join(QuestionSessionTurnModel, (
+                (QuestionSessionTurnModel.session_id == latest.c.session_id)
+                & (QuestionSessionTurnModel.turn_index == latest.c.turn_index)
+            ))
+            .where(QuestionSessionModel.principal == principal)
+            .order_by(QuestionSessionModel.updated_at.desc(), QuestionSessionModel.session_id)
+            .limit(bounded_limit + 1)
+        ))
+        return AccountConversationPage(
+            items=[AccountConversationView(
+                session_id=conversation.session_id,
+                updated_at=conversation.updated_at,
+                latest_turn=_turn_view(turn),
+            ) for conversation, turn in rows[:bounded_limit]],
+            has_more=len(rows) > bounded_limit,
+        )
 
     async def resolve(
         self,

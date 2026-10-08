@@ -18,6 +18,8 @@ from packages.investigation.runtime.contracts import (
     InvestigationPlannerDecision,
     PerceptionAction,
     StatePatchAction,
+    StopAction,
+    WaitAction,
 )
 from packages.investigation.skills.contracts import SkillDisclosureLevel
 from packages.investigation.skills.materialize import materialize_skill_selection
@@ -88,6 +90,15 @@ class NullPromptAssemblyRecorder:
         context_manifest_ref: str,
     ) -> None:
         del session, assembly, context_manifest_ref
+
+
+class SourceInvestigationPlannerDecision(BaseModel):
+    """Non-vulnerability objects use local perception and the existing M4 state gate."""
+
+    action: PerceptionAction | StatePatchAction | WaitAction | StopAction = Field(
+        discriminator="kind"
+    )
+    decision_note: str | None = None
 
 
 class ModelInvestigationPlanner:
@@ -217,9 +228,14 @@ class ModelInvestigationPlanner:
                 }
             }
         )
-        decision = await self._provider.generate_structured(
-            request,
-            InvestigationPlannerDecision,
+        response_model = (
+            InvestigationPlannerDecision
+            if "Vulnerability" in object_types
+            else SourceInvestigationPlannerDecision
+        )
+        decision = cast(
+            InvestigationPlannerDecision | SourceInvestigationPlannerDecision,
+            await self._provider.generate_structured(request, response_model),
         )
         return _normalize_action(
             decision.action,

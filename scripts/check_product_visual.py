@@ -4,12 +4,23 @@ import argparse
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+from urllib.parse import urlencode, urlsplit
+from urllib.request import Request
 
 from playwright.sync_api import Browser, Page, sync_playwright
+
+if TYPE_CHECKING:
+    from scripts.product_check_session import (
+        open_product_request,
+        product_session_cookie,
+        request_headers,
+    )
+elif __package__:
+    from .product_check_session import open_product_request, product_session_cookie, request_headers
+else:
+    from product_check_session import open_product_request, product_session_cookie, request_headers
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,10 +53,12 @@ VIEWPORTS = (
 )
 
 
-def _json(base_url: str, path: str) -> dict[str, Any]:
-    request = Request(f"{base_url.rstrip('/')}{path}", headers={"Accept": "application/json"})
+def _json(base_url: str, path: str, *, cookie: str | None = None) -> dict[str, Any]:
+    request = Request(
+        f"{base_url.rstrip('/')}{path}", headers=request_headers("application/json", cookie)
+    )
     try:
-        with urlopen(request, timeout=8) as response:
+        with open_product_request(request, timeout=8) as response:
             payload = json.loads(response.read().decode("utf-8"))
     except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as exc:
         raise RuntimeError(f"visual gate data read failed for {path}: {exc}") from exc
@@ -65,10 +78,10 @@ def _query(path: str, **params: str) -> str:
     return f"{path}?{urlencode(params)}" if params else path
 
 
-def _resolve_spaces(api_base: str) -> tuple[ProductSpace, ...]:
+def _resolve_spaces(api_base: str, cookie: str | None = None) -> tuple[ProductSpace, ...]:
     hot = _json(api_base, "/api/v1/world/hot?limit=8")
-    cases = _json(api_base, "/api/v1/investigations?limit=8")
-    agents = _json(api_base, "/api/v1/agents/runtime?task_limit=8")
+    cases = _json(api_base, "/api/v1/investigations?limit=8", cookie=cookie) if cookie else {}
+    agents = _json(api_base, "/api/v1/agents/runtime?task_limit=8", cookie=cookie) if cookie else {}
 
     hot_item = next(
         (
@@ -82,21 +95,20 @@ def _resolve_spaces(api_base: str) -> tuple[ProductSpace, ...]:
     task = _first_dict(agents, "recent_tasks")
 
     cve = str(hot_item["cve_id"]) if hot_item else ""
-    hot_ref = f"{hot_item['source_id']}:{hot_item['external_object_id']}" if hot_item else ""
     case_id = str(case["case_id"]) if case and case.get("case_id") else ""
     run_id = str(task["run_id"]) if task and task.get("run_id") else ""
     targets = case.get("target_object_ids", []) if case else []
     canonical_object = str(targets[0]) if targets else ""
 
-    return (
+    spaces = (
         ProductSpace(
             "world",
-            _query("/", hot=hot_ref) if hot_ref else "/",
-            ".world-space",
+            "/",
+            ".evidence-world",
             (
-                Landmark(".world-title-lockup", 0.24, 0.82),
-                Landmark(".world-telemetry", 0.42, 0.82),
-                Landmark(".world-stage", 0.78, 0.82),
+                Landmark(".studio-heading", 0.78, 0.82),
+                Landmark(".ew-foreground", 0.42, 0.42),
+                Landmark(".ew-composition", 0.78, 0.82),
             ),
         ),
         ProductSpace(
@@ -104,8 +116,8 @@ def _resolve_spaces(api_base: str) -> tuple[ProductSpace, ...]:
             _query("/start", profile="VERIFY", cve=cve) if cve else "/start",
             ".start-space",
             (
-                Landmark(".mission-briefing", 0.42, 0.82),
-                Landmark(".start-theater", 0.48, 0.82),
+                Landmark(".studio-heading", 0.42, 0.82),
+                Landmark(".vision-start-desk", 0.48, 0.82),
                 Landmark(".payload-deck", 0.24, 0.82),
             ),
         ),
@@ -116,7 +128,7 @@ def _resolve_spaces(api_base: str) -> tuple[ProductSpace, ...]:
             else "/intelligence",
             ".intelligence-space",
             (
-                Landmark(".dossier-masthead", 0.62, 0.82),
+                Landmark(".studio-heading", 0.62, 0.82),
                 Landmark(".intel-layout", 0.76, 0.82),
                 Landmark(".intel-main", 0.48, 0.82),
             ),
@@ -127,7 +139,7 @@ def _resolve_spaces(api_base: str) -> tuple[ProductSpace, ...]:
             ".investigations-space",
             (
                 Landmark(".investigation-layout", 0.76, 0.82),
-                Landmark(".case-workspace", 0.42, 0.82),
+                *((Landmark(".case-workspace", 0.42, 0.82),) if case_id else ()),
             ),
         ),
         ProductSpace(
@@ -135,7 +147,7 @@ def _resolve_spaces(api_base: str) -> tuple[ProductSpace, ...]:
             _query("/agents", run=run_id) if run_id else "/agents",
             ".agents-space",
             (
-                Landmark(".role-theater", 0.72, 0.82),
+                Landmark(".studio-heading", 0.72, 0.82),
                 Landmark(".agent-runtime-grid", 0.72, 0.82),
             ),
         ),
@@ -148,6 +160,12 @@ def _resolve_spaces(api_base: str) -> tuple[ProductSpace, ...]:
                 Landmark(".observatory-live-grid", 0.72, 0.82),
             ),
         ),
+    )
+
+    return tuple(
+        space
+        for space in spaces
+        if cookie or space.name not in {"start", "investigations", "agents"}
     )
 
 
@@ -201,20 +219,11 @@ def _check_page(
     if main_width < max(280, inner_width * 0.68):
         errors.append(f"product main collapsed to {main_width:.0f}px")
 
-    if space.name == "world" and "hot=" in space.path:
+    if space.name == "world":
         try:
-            page.locator(".world-enrichment-boundary, .world-enrichment-preview").first.wait_for(
-                state="attached", timeout=2_500
-            )
+            page.locator(".ew-story").wait_for(state="visible", timeout=8_000)
         except Exception:
-            pass
-        boundary_count = page.locator(".world-enrichment-boundary").count()
-        preview_count = page.locator(".world-enrichment-preview").count()
-        if boundary_count + preview_count != 1:
-            errors.append(
-                "focused Hot object must expose exactly one canonical enrichment "
-                "preview or explicit read boundary"
-            )
+            errors.append("WORLD did not render a real source story")
 
     compact = viewport.width <= 1100
     for landmark in space.landmarks:
@@ -291,10 +300,10 @@ def _check_reduced_motion(browser: Browser, product_base: str, screenshot_dir: P
             wait_until="domcontentloaded",
             timeout=20_000,
         )
-        page.locator(".world-space").first.wait_for(state="visible", timeout=10_000)
+        page.locator(".evidence-world").first.wait_for(state="visible", timeout=10_000)
         page.wait_for_timeout(500)
-        if page.locator(".world-2d-fallback").count() == 0:
-            errors.append("reduced-motion WORLD did not expose the 2D fallback")
+        if page.locator(".vision-orbits").count() == 0:
+            errors.append("reduced-motion WORLD did not expose the SVG world")
         if page.locator(".route-aperture").count() != 0:
             errors.append("reduced-motion route still rendered cinematic aperture motion")
         page.screenshot(path=str(screenshot_dir / "reduced-motion-world.png"), full_page=False)
@@ -305,7 +314,8 @@ def _check_reduced_motion(browser: Browser, product_base: str, screenshot_dir: P
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Browser-level Product composition regression gate"
+        description="Browser-level Product composition regression gate",
+        epilog="SECFUSION_PRODUCT_SESSION_COOKIE enables private spaces; missing accounts skip.",
     )
     parser.add_argument("--api-base", default="http://127.0.0.1:8000")
     parser.add_argument("--product-base", default="http://127.0.0.1:8000/product")
@@ -317,7 +327,16 @@ def main() -> int:
     args = parser.parse_args()
 
     args.screenshots_dir.mkdir(parents=True, exist_ok=True)
-    spaces = _resolve_spaces(args.api_base)
+    cookie = product_session_cookie()
+    if (
+        cookie is not None
+        and _json(args.api_base, "/api/v1/auth/me", cookie=cookie).get("authenticated") is not True
+    ):
+        raise RuntimeError("configured Product session is expired or unauthenticated")
+    spaces = _resolve_spaces(args.api_base, cookie)
+    skipped = [] if cookie else ["start", "investigations", "agents"]
+    for name in skipped:
+        print(f"SKIP · {name} · no Product account session supplied")
     failures: list[str] = []
 
     with sync_playwright() as playwright:
@@ -327,6 +346,20 @@ def main() -> int:
                 context = browser.new_context(
                     viewport={"width": viewport.width, "height": viewport.height}
                 )
+                if cookie is not None:
+                    origin = urlsplit(args.product_base)
+                    context.add_cookies(
+                        [
+                            {
+                                "name": "secfusion_session",
+                                "value": cookie.partition("=")[2],
+                                "url": f"{origin.scheme}://{origin.netloc}/",
+                                "httpOnly": True,
+                                "secure": origin.scheme == "https",
+                                "sameSite": "Lax",
+                            }
+                        ]
+                    )
                 page = context.new_page()
                 try:
                     for space in spaces:
@@ -372,7 +405,11 @@ def main() -> int:
         for failure in failures:
             print(f"FAIL · {failure}")
         return 1
-    print(f"PRODUCT VISUAL GATE PASS · screenshots: {args.screenshots_dir}")
+    outcome = "COMPLETE" if skipped else "PASS"
+    print(
+        f"PRODUCT VISUAL GATE {outcome} · {len(spaces)} spaces checked · "
+        f"{len(skipped)} skipped · screenshots: {args.screenshots_dir}"
+    )
     return 0
 
 

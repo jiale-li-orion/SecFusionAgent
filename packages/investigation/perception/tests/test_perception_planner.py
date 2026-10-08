@@ -23,9 +23,11 @@ def test_inspect_identifier_plans_exact_then_structured() -> None:
     assert [step.operator for step in plan.steps] == [
         PhysicalOperator.EXACT,
         PhysicalOperator.STRUCTURED,
+        PhysicalOperator.DOCUMENT,
     ]
     assert plan.steps[1].dependency == "exact:0"
     assert plan.steps[1].input["projection_types"] == ["current_vulnerability_view"]
+    assert plan.steps[2].dependency == "exact:0"
 
 
 def test_search_plans_lexical_and_dense_without_forcing_dense() -> None:

@@ -15,6 +15,19 @@ GET /api/v1/a2a/tasks/{task_id}
 POST /api/v1/investigations
 GET /api/v1/investigations
 GET /api/v1/investigations/{case_id}
+POST /api/v1/auth/register
+POST /api/v1/auth/login
+GET /api/v1/auth/me
+POST /api/v1/auth/logout
+GET /api/v1/world/overview, /formation, /stories, /hot
+GET /api/v1/intelligence/preferences, /recommendations
+PUT /api/v1/intelligence/preferences
+PUT /api/v1/intelligence/recommendations/{object_id}/feedback
+POST /api/v1/intelligence/objects/{object_id}/enrichment/runs
+GET /api/v1/intelligence/objects/{object_id}/enrichment/runs
+POST /api/v1/questions
+GET /api/v1/questions/sessions
+GET /api/v1/observatory/system
 ```
 
 The vulnerability route calls `packages.intelligence.knowledge.read.get_vulnerability_by_cve` and returns the evidence-rich `KnowledgeObjectView`. HTTP 404 is a transport representation of a missing object; the route does not implement fallback search or enrichment.
@@ -32,7 +45,9 @@ LOOKUP/RETRIEVE model calls use the same recorded provider wrapper as formal QA 
 
 `dependencies.py` owns the shared SQLAlchemy session dependency and `RequestContext`. `main.py` creates a request id at the HTTP edge and returns it as `X-Request-ID`; Product Application links that id into the created ExecutionEnvelope trace context. `errors.py` maps Application failures and Product validation errors to RFC 9457-style `ProblemDetail`. Runtime diagnostics that belong in the product are exposed through Product-safe read models.
 
-`GET /api/v1/observatory/system` is the Product-safe system health aggregate. It reports PostgreSQL and the three separated Redis roles, durable outbox / TaskEvent delivery backlog, and Redis Stream pending work. It deliberately reports worker-process health as unavailable until a heartbeat owner exists; model-provider status is configuration state rather than a fabricated live provider probe, while ArtifactStore integrity remains owned by the Data Plane operational snapshot.
+`GET /api/v1/observatory/system` is the Product-safe system health aggregate. It reports PostgreSQL and the three separated Redis roles, durable outbox / TaskEvent delivery backlog, Redis Stream pending work and a bounded Celery ping/active-queues control probe. The probe states its measurement time and cannot be interpreted as persistent worker heartbeat or uptime. Model-provider status is configuration state rather than a fabricated live provider probe; ArtifactStore integrity remains owned by the Data Plane operational snapshot.
+
+`routes/authentication.py` issues/revokes a server-owned session in a same-origin HttpOnly cookie. The request context resolves business identity from that cookie, not `X-Principal`; writes check Origin/CSRF. Product Questions, sessions, Cases, Decisions, Tasks, enrichment commands, recommendations, model activity and A2A task reads enforce account ownership. WORLD and shared Evidence/Knowledge remain public. See the Wiki [account contract](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Product-Accounts-and-Personalization) for public system-Case read constraints and the legacy `user:local` boundary.
 
 `routes/health.py` separates liveness from readiness: liveness only means process alive; readiness verifies the database/schema and required runtime-policy configuration. Aggregate `/health` reports optional model-provider absence as disabled/degraded rather than making the whole API unready.
 

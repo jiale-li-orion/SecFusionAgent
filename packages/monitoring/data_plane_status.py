@@ -5,7 +5,7 @@ import argparse
 import asyncio
 import json
 import math
-from collections import Counter
+from collections import Counter, defaultdict
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
@@ -34,9 +34,7 @@ RUNTIME_OWNED_FAILURE_STATUSES = {
     "dependency_unavailable",
     "internal_error",
 }
-TERMINAL_FAILURE_STATUSES = (
-    PROVIDER_BOUNDARY_FAILURE_STATUSES | RUNTIME_OWNED_FAILURE_STATUSES
-)
+TERMINAL_FAILURE_STATUSES = PROVIDER_BOUNDARY_FAILURE_STATUSES | RUNTIME_OWNED_FAILURE_STATUSES
 
 
 def _ratio(num: int | float, den: int | float) -> float | None:
@@ -130,7 +128,13 @@ def _artifact_inventory(settings: Any) -> tuple[dict[str, int], int, int]:
     return s3_uris, total_bytes, len(s3_uris)
 
 
-async def data_plane_status() -> dict[str, Any]:
+async def data_plane_status(*, operational: bool = False) -> dict[str, Any]:
+    """Read current monitoring state; operational reads retain only rolling history.
+
+    The command default keeps the full public-epoch diagnostic and per-source
+    window breakdown. Both modes verify actual Evidence bytes and use the same
+    classification, timestamp, percentile and scheduled-ingestion rules.
+    """
     settings = get_settings()
     inventory = load_source_inventory()
     contract = inventory.monitoring_measurement
@@ -141,8 +145,15 @@ async def data_plane_status() -> dict[str, Any]:
     factory = create_session_factory(engine)
     try:
         async with factory() as session:
+            # Keep all counters on the same durable snapshot as generated_at.
+            await session.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY"))
             now = await session.scalar(text("SELECT now()"))
             assert isinstance(now, datetime)
+            read_start = (
+                max(epoch, _hour(now - timedelta(hours=max(contract.rolling_windows_hours))))
+                if operational
+                else epoch
+            )
 
             source_rows = (
                 await session.execute(
@@ -184,9 +195,10 @@ async def data_plane_status() -> dict[str, Any]:
                     text(
                         "SELECT run_id, source_id, trigger, status, cursor_in, cursor_out, created_at, "
                         "started_at, finished_at, error_code FROM acquisition_runs "
-                        "WHERE created_at >= :epoch ORDER BY created_at"
+                        "WHERE created_at >= :epoch "
+                        "OR (:operational AND status IN ('queued','running')) ORDER BY created_at"
                     ),
-                    {"epoch": epoch},
+                    {"epoch": read_start, "operational": operational},
                 )
             ).all()
 
@@ -202,7 +214,7 @@ async def data_plane_status() -> dict[str, Any]:
                         "WHERE o.observed_at >= :epoch "
                         "ORDER BY o.observed_at"
                     ),
-                    {"epoch": epoch},
+                    {"epoch": read_start},
                 )
             ).all()
 
@@ -229,7 +241,7 @@ async def data_plane_status() -> dict[str, Any]:
                         "GROUP BY o.source_id,o.acquisition_trigger,k.committed_at"
                         ") q GROUP BY source_id, acquisition_trigger, committed_at"
                     ),
-                    {"epoch": epoch},
+                    {"epoch": read_start},
                 )
             ).all()
 
@@ -244,7 +256,7 @@ async def data_plane_status() -> dict[str, Any]:
                         "WHERE dr.created_at>=:epoch "
                         "GROUP BY o.source_id,o.acquisition_trigger,dr.document_revision_id,dr.created_at"
                     ),
-                    {"epoch": epoch},
+                    {"epoch": read_start},
                 )
             ).all()
 
@@ -410,9 +422,7 @@ async def data_plane_status() -> dict[str, Any]:
                 if item["status"] in PROVIDER_BOUNDARY_FAILURE_STATUSES
             ]
             runtime_failed_runs = [
-                item
-                for item in terminal_runs
-                if item["status"] in RUNTIME_OWNED_FAILURE_STATUSES
+                item for item in terminal_runs if item["status"] in RUNTIME_OWNED_FAILURE_STATUSES
             ]
             terminal_status_counts = Counter(item["status"] for item in terminal_runs)
             queue_delays = [
@@ -468,9 +478,7 @@ async def data_plane_status() -> dict[str, Any]:
                     len(provider_failed_runs), len(terminal_runs)
                 ),
                 "runtime_owned_failed_runs": len(runtime_failed_runs),
-                "runtime_owned_failure_rate": _ratio(
-                    len(runtime_failed_runs), len(terminal_runs)
-                ),
+                "runtime_owned_failure_rate": _ratio(len(runtime_failed_runs), len(terminal_runs)),
                 "terminal_status_counts": dict(sorted(terminal_status_counts.items())),
                 "change_poll_yield": _ratio(len(changed_runs), len(successful_runs)),
                 "queue_delay_p50_seconds": _nearest_rank(queue_delays, 0.50),
@@ -541,14 +549,10 @@ async def data_plane_status() -> dict[str, Any]:
             terminal = [item for item in runs if item["status"] not in {"queued", "running"}]
             successful = [item for item in terminal if item["status"] in SUCCESS_STATUSES]
             provider_failed = [
-                item
-                for item in terminal
-                if item["status"] in PROVIDER_BOUNDARY_FAILURE_STATUSES
+                item for item in terminal if item["status"] in PROVIDER_BOUNDARY_FAILURE_STATUSES
             ]
             runtime_failed = [
-                item
-                for item in terminal
-                if item["status"] in RUNTIME_OWNED_FAILURE_STATUSES
+                item for item in terminal if item["status"] in RUNTIME_OWNED_FAILURE_STATUSES
             ]
             queue_delays = [
                 (item["started_at"] - item["created_at"]).total_seconds()
@@ -615,14 +619,10 @@ async def data_plane_status() -> dict[str, Any]:
             successful = [item for item in terminal if item["status"] in SUCCESS_STATUSES]
             changed = [item for item in terminal if item["status"] == "success"]
             provider_failed = [
-                item
-                for item in terminal
-                if item["status"] in PROVIDER_BOUNDARY_FAILURE_STATUSES
+                item for item in terminal if item["status"] in PROVIDER_BOUNDARY_FAILURE_STATUSES
             ]
             runtime_failed = [
-                item
-                for item in terminal
-                if item["status"] in RUNTIME_OWNED_FAILURE_STATUSES
+                item for item in terminal if item["status"] in RUNTIME_OWNED_FAILURE_STATUSES
             ]
             return {
                 "measurement_category": category_by_source.get(source_id),
@@ -649,18 +649,22 @@ async def data_plane_status() -> dict[str, Any]:
                 "window_end": now.isoformat(),
                 "scheduled_monitoring": aggregate(cutoff, scheduled_only=True),
                 "all_ingestion": aggregate(cutoff, scheduled_only=False),
-                "categories": {
+                "categories": {}
+                if operational
+                else {
                     category.value: aggregate_category(cutoff, category.value)
                     for category in SOURCE_PORTFOLIO_CATEGORY_ORDER
                 },
-                "sources": {
+                "sources": {}
+                if operational
+                else {
                     source_id: aggregate_source(cutoff, source_id)
                     for source_id in sorted(scheduled_sources)
                 },
             }
 
         # Hour-aligned curve. Values are event counts in each bucket, not cumulative totals.
-        bucket_start = _hour(epoch)
+        bucket_start = _hour(read_start)
         bucket_end = _hour(now)
         buckets: list[datetime] = []
         cursor = bucket_start
@@ -668,11 +672,27 @@ async def data_plane_status() -> dict[str, Any]:
             buckets.append(cursor)
             cursor += timedelta(hours=1)
 
+        # Index once instead of rescanning the entire public history for every
+        # hour/category. Retain source membership for canonical-write semantics.
+        def hourly_index(
+            items: list[dict[str, Any]],
+            timestamp: str,
+        ) -> dict[datetime, list[dict[str, Any]]]:
+            index: dict[datetime, list[dict[str, Any]]] = defaultdict(list)
+            for item in items:
+                index[_hour(item[timestamp])].append(item)
+            return index
+
+        observations_by_hour = hourly_index(observations, "observed_at")
+        runs_by_hour = hourly_index(scheduled_runs, "created_at")
+        documents_by_hour = hourly_index(documents, "at")
+        writes_by_hour = hourly_index(writes, "at")
+
         def hourly_row(start: datetime, category: str | None = None) -> dict[str, Any]:
             end = start + timedelta(hours=1)
             obs = [
                 item
-                for item in observations
+                for item in observations_by_hour.get(start, [])
                 if start <= item["observed_at"] < end
                 and item["trigger"] == "scheduled"
                 and (category is None or item["category"] == category)
@@ -680,20 +700,20 @@ async def data_plane_status() -> dict[str, Any]:
             source_ids = {item["source_id"] for item in obs}
             runs = [
                 item
-                for item in scheduled_runs
+                for item in runs_by_hour.get(start, [])
                 if start <= item["created_at"] < end
                 and (category is None or item["category"] == category)
             ]
             docs = [
                 item
-                for item in documents
+                for item in documents_by_hour.get(start, [])
                 if start <= item["at"] < end
                 and item["trigger"] == "scheduled"
                 and (category is None or item["category"] == category)
             ]
             wr = [
                 item
-                for item in writes
+                for item in writes_by_hour.get(start, [])
                 if start <= item["at"] < end
                 and item["trigger"] == "scheduled"
                 and item["source_id"] in source_ids
@@ -701,9 +721,7 @@ async def data_plane_status() -> dict[str, Any]:
             classes = Counter(item["event_class"] for item in obs)
             fresh = [item for item in obs if item["event_class"] == "fresh"]
             fresh_by_source = Counter(item["source_id"] for item in fresh)
-            fresh_categories = {
-                item["category"] for item in fresh if item["category"] is not None
-            }
+            fresh_categories = {item["category"] for item in fresh if item["category"] is not None}
             knowledge_latencies = [
                 float(item["knowledge_latency_seconds"])
                 for item in fresh
@@ -713,14 +731,10 @@ async def data_plane_status() -> dict[str, Any]:
             terminal = [item for item in runs if item["status"] not in {"queued", "running"}]
             successful = [item for item in terminal if item["status"] in SUCCESS_STATUSES]
             provider_failed = [
-                item
-                for item in terminal
-                if item["status"] in PROVIDER_BOUNDARY_FAILURE_STATUSES
+                item for item in terminal if item["status"] in PROVIDER_BOUNDARY_FAILURE_STATUSES
             ]
             runtime_failed = [
-                item
-                for item in terminal
-                if item["status"] in RUNTIME_OWNED_FAILURE_STATUSES
+                item for item in terminal if item["status"] in RUNTIME_OWNED_FAILURE_STATUSES
             ]
             queue_delays = [
                 (item["started_at"] - item["created_at"]).total_seconds()
@@ -747,9 +761,7 @@ async def data_plane_status() -> dict[str, Any]:
                 "runtime_owned_failure_rate": _ratio(len(runtime_failed), len(terminal)),
                 "queue_delay_p95_seconds": _nearest_rank(queue_delays, 0.95),
                 "execution_p95_seconds": _nearest_rank(execution_durations, 0.95),
-                "fresh_knowledge_latency_p95_seconds": _nearest_rank(
-                    knowledge_latencies, 0.95
-                ),
+                "fresh_knowledge_latency_p95_seconds": _nearest_rank(knowledge_latencies, 0.95),
                 "fresh_contributing_sources": len(fresh_by_source),
                 "fresh_contributing_categories": len(fresh_categories),
                 "fresh_top1_source_share": (
@@ -880,7 +892,9 @@ async def data_plane_status() -> dict[str, Any]:
                     category_present = [
                         item for item in category_items if item[2] in physical_uri_sizes
                     ]
-                    category_flow = window["categories"][category.value]
+                    category_flow = window["categories"].get(category.value)
+                    if category_flow is None:
+                        continue
                     category_flow["evidence_artifacts"] = len(category_items)
                     category_flow["evidence_artifacts_present"] = len(category_present)
                     category_flow["evidence_integrity_rate"] = _ratio(

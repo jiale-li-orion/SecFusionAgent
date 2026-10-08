@@ -65,6 +65,7 @@ class PerceptionRequest(BaseModel):
 class PhysicalOperator(StrEnum):
     EXACT = "exact"
     STRUCTURED = "structured"
+    DOCUMENT = "document"
     LEXICAL = "lexical"
     DENSE = "dense"
     GRAPH = "graph"

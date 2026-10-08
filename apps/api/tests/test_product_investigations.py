@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from apps.api.dependencies import database_session
 from apps.api.main import create_app
+from apps.api.tests.account_fixtures import account_headers, seed_test_accounts
 from apps.runtime_models import register_runtime_models
 from packages.intelligence.storage.knowledge_models import (
     ExternalIdentifierModel,
@@ -48,6 +49,7 @@ async def _database():
                 object_id=obj.object_id,
             )
         )
+    await seed_test_accounts(factory)
     return engine, factory
 
 
@@ -62,10 +64,12 @@ async def test_product_investigation_http_contract() -> None:
 
     app.dependency_overrides[database_session] = override_session
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test", headers=account_headers()
+        ) as client:
             response = await client.post(
                 "/api/v1/investigations",
-                headers={"X-Request-ID": "product-http-1", "X-Principal": "user:test"},
+                headers={"X-Request-ID": "product-http-1", **account_headers("test")},
                 json={
                     "cve_id": "CVE-2026-51515",
                     "goal": "Verify fix boundary",
@@ -76,6 +80,7 @@ async def test_product_investigation_http_contract() -> None:
             assert response.status_code == 202, response.text
             payload = response.json()
             assert payload["status"] == "active"
+            assert payload["case_lifecycle"] == "active"
             assert payload["execution_profile"] == "VERIFY"
             assert payload["origin_scope"] == "product"
             assert payload["can_cancel"] is True
@@ -92,11 +97,22 @@ async def test_product_investigation_http_contract() -> None:
             assert page.status_code == 200
             assert page.json()["items"][0]["case_id"] == payload["case_id"]
 
+            # A failed episode does not close the underlying durable Case.
+            async with factory() as session, session.begin():
+                await session.execute(update(TaskRunModel).where(
+                    TaskRunModel.case_id == payload["case_id"]
+                ).values(status="failed", stop_reason="fixture_episode_failure"))
+            failed = await client.get(response.headers["location"],
+                headers={**account_headers("test")})
+            assert failed.json()["status"] == "failed"
+            assert failed.json()["case_lifecycle"] == "active"
+            assert failed.json()["can_cancel"] is True
+
             foreign_cancel = await client.post(
                 f"/api/v1/investigations/{payload['case_id']}/cancel",
                 headers={
                     "X-Request-ID": "product-http-foreign-cancel",
-                    "X-Principal": "user:other",
+                    **account_headers("other"),
                 },
             )
             assert foreign_cancel.status_code == 403, foreign_cancel.text
@@ -105,7 +121,7 @@ async def test_product_investigation_http_contract() -> None:
                 f"/api/v1/investigations/{payload['case_id']}/cancel",
                 headers={
                     "X-Request-ID": "product-http-cancel",
-                    "X-Principal": "user:test",
+                    **account_headers("test"),
                 },
             )
             assert cancelled.status_code == 200, cancelled.text
@@ -115,7 +131,7 @@ async def test_product_investigation_http_contract() -> None:
             # Product filtering must happen before pagination, not hide rows in the browser.
             benchmark = await client.post(
                 "/api/v1/investigations",
-                headers={"X-Principal": "user:test"},
+                headers={**account_headers("test")},
                 json={
                     "cve_id": "CVE-2026-51515",
                     "goal": "Internal benchmark",
@@ -159,7 +175,9 @@ async def test_product_validation_and_not_found_use_problem_detail() -> None:
 
     app.dependency_overrides[database_session] = override_session
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test", headers=account_headers()
+        ) as client:
             invalid = await client.post(
                 "/api/v1/investigations",
                 headers={"X-Request-ID": "invalid-1"},
@@ -193,10 +211,12 @@ async def test_product_runtime_activity_and_sse_replay_from_durable_events() -> 
 
     app.dependency_overrides[database_session] = override_session
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test", headers=account_headers()
+        ) as client:
             started = await client.post(
                 "/api/v1/investigations",
-                headers={"X-Request-ID": "activity-start", "X-Principal": "user:test"},
+                headers={"X-Request-ID": "activity-start", **account_headers("test")},
                 json={
                     "cve_id": "CVE-2026-51515",
                     "goal": "Verify fix boundary",

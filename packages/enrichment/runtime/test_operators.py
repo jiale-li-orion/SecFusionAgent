@@ -67,9 +67,7 @@ def test_provider_plan_does_not_claim_enabled_dimension_is_resolved() -> None:
     direct = {item.operator_id: item.directly_produces for item in plans}
     assert direct["provider.github_advisory"] == []
     assert direct["provider.osv"] == []
-    assert direct["provider.redhat_csaf_vex"] == [
-        EnrichmentDimension.VERSION_APPLICABILITY
-    ]
+    assert direct["provider.redhat_csaf_vex"] == [EnrichmentDimension.VERSION_APPLICABILITY]
     assert all(item.query is not None for item in plans)
 
 
@@ -93,6 +91,35 @@ def test_fixed_point_does_not_repeat_operator_within_same_run() -> None:
         attempted_operator_ids={"provider.github_advisory", "provider.osv"},
     )
     assert plans == []
+
+
+def test_explicit_refresh_queries_conflict_and_unknown_once_without_changing_default() -> None:
+    planner = EnrichmentStatePlanner()
+    snapshot = _snapshot(
+        exploit_state=EnrichmentStatus.UNKNOWN, product_package=EnrichmentStatus.CONFLICT
+    )
+    target = {EnrichmentDimension.EXPLOIT_STATE, EnrichmentDimension.PRODUCT_PACKAGE}
+    assert planner.plan(snapshot, _view(), cve_id="CVE-2026-42424", target_dimensions=target) == []
+    plans = planner.plan(
+        snapshot,
+        _view(),
+        cve_id="CVE-2026-42424",
+        target_dimensions=target,
+        refresh_dimensions=target,
+    )
+    operators = {item.operator_id for item in plans}
+    assert operators == {"provider.cisa_kev", "provider.github_advisory", "provider.osv"}
+    assert (
+        planner.plan(
+            snapshot,
+            _view(),
+            cve_id="CVE-2026-42424",
+            target_dimensions=target,
+            refresh_dimensions=target,
+            attempted_operator_ids=operators,
+        )
+        == []
+    )
 
 
 def test_github_reference_graph_supplements_when_new_reference_is_not_bridged() -> None:

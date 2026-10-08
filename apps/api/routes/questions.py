@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 import httpx
-from fastapi import APIRouter, Request, Response, status
+from fastapi import APIRouter, Query, Request, Response, status
 from pydantic import BaseModel, Field, model_validator
 
 from apps.api.dependencies import RequestContextDep, SessionDep
 from apps.api.errors import ProblemDetail
 from apps.application.commands.ask_question import AskQuestionCommand, AskQuestionUseCase
-from apps.application.question_sessions import QuestionSessionStore, QuestionSessionTurn
+from apps.application.question_sessions import (
+    AccountConversationPage,
+    QuestionSessionStore,
+    QuestionSessionTurn,
+)
 from apps.application.views.questions import QuestionResultView
 from apps.model_runtime import create_recorded_model_provider
 from apps.runtime_artifacts import create_runtime_artifact_service
@@ -84,6 +88,7 @@ async def ask_question(
         and session_factory is not None
     )
     if model_enabled:
+        assert session_factory is not None
         async with httpx.AsyncClient(
             timeout=min(settings.model_timeout_seconds, payload.interactive_timeout_seconds)
         ) as client:
@@ -115,6 +120,17 @@ async def ask_question(
 class QuestionSessionHistoryView(BaseModel):
     session_id: str
     turns: list[QuestionSessionTurn]
+
+
+@router.get("/sessions", response_model=AccountConversationPage)
+async def account_conversations(
+    session: SessionDep,
+    context: RequestContextDep,
+    limit: int = Query(default=20, ge=1, le=50),
+) -> AccountConversationPage:
+    return await QuestionSessionStore().list_owned(
+        session, principal=context.principal, limit=limit
+    )
 
 
 @router.get(

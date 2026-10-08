@@ -6,6 +6,10 @@ from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
+from apps.application import authentication as application_authentication  # noqa: F401
+from apps.application import (
+    intelligence_preferences as application_intelligence_preferences,  # noqa: F401
+)
 from apps.application import question_sessions as application_question_sessions  # noqa: F401
 from packages.intelligence.storage import document_models as document_models
 from packages.intelligence.storage import evidence_models as evidence_models

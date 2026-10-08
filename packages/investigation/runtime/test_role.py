@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from apps.runtime_models import register_runtime_models
 from apps.watch_runtime import RuntimeWatchWakeAdmission
+from packages.intelligence.knowledge.vocabulary import EnrichmentDimension
 from packages.intelligence.storage.evidence_models import ObservationModel
 from packages.intelligence.storage.knowledge_models import (
     EvidenceLinkModel,
@@ -381,7 +382,7 @@ class _DelegatePlanner:
                 delegation_id="fill-fix-remediation",
                 target_object_id=frame.selected_need.target_objects[0],
                 cve_id="CVE-2026-61616",
-                required_dimensions=["fix_remediation"],
+                required_dimensions=[EnrichmentDimension.FIX_REMEDIATION],
                 reason="missing durable fix boundary evidence",
             )
         )

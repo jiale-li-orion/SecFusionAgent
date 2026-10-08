@@ -118,6 +118,8 @@ TD1 的 M1 责任已经落到四个明确 owner：`packages.sources` 持有 sour
 
 比赛口径也保持分离：来源类别覆盖来自 versioned source inventory；监测时效和运行健康来自真实 acquisition state。provider 临时不可达不会让一个已拥有的 source category 从覆盖定义里消失，反过来一次 live probe 成功也不会凭空增加产品 coverage。
 
+`data_plane_status.py` 的 Product 运行窗口按固定 168h 上界读取，避免源表无限增长拖慢仪表盘。API 共用有界刷新：短期复用测量值、并发请求只触发一次刷新，超过最大成功年龄不再伪装成当前快照；超时显式返回不可用。`generated_at` 是实际测量时间，不由 HTTP 响应时钟覆盖。此优化不改变采集事件、独立交付分母或 M1 评测定义。
+
 ## Dependency boundary
 
 Allowed package dependencies: `shared`, `sources`, `intelligence`, `monitoring`.

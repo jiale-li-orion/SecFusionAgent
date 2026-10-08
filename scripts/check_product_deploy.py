@@ -32,7 +32,7 @@ def main() -> int:
     compose = COMPOSE.read_text(encoding="utf-8")
     doc = DOC.read_text(encoding="utf-8")
 
-    _require(nginx, 'auth_basic "SecFusion competition demo";', owner="nginx")
+    _require(nginx, 'auth_basic "SecFusion";', owner="nginx")
     _require(
         nginx,
         "auth_basic_user_file /etc/nginx/auth/.htpasswd;",
@@ -73,7 +73,7 @@ def main() -> int:
 
     health = _location_block(nginx, "/health")
     if "auth_basic off;" in health:
-        raise RuntimeError("proxied /health must remain behind demo authentication")
+        raise RuntimeError("proxied /health must remain behind product authentication")
 
     assets = _location_block(nginx, "/assets/")
     _require(

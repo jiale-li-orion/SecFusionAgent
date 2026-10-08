@@ -299,6 +299,9 @@ async def get_product_document(
             if revision is not None
             else None
         ),
+        source_excerpt=chunks[0].text if chunks else None,
+        excerpt_chunk_id=chunks[0].chunk_id if chunks else None,
+        excerpt_locator=chunks[0].locator if chunks else {},
         chunk_count=len(chunks),
         index_status_counts=dict(sorted(index_counts.items())),
         embedded_chunk_count=sum(1 for item in chunks if item.embedding is not None),

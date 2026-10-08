@@ -22,6 +22,8 @@ _MODEL_MODULES = (
     "packages.runtime.retrieval.storage",
     "packages.reasoning.storage",
     "apps.application.question_sessions",
+    "apps.application.intelligence_preferences",
+    "apps.application.authentication",
     "packages.evaluation.benchmark.storage",
     "packages.enrichment.runtime.state_models",
     "packages.shared.storage.models",

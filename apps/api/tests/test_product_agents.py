@@ -9,9 +9,16 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from apps.api.dependencies import database_session
 from apps.api.main import create_app
+from apps.api.tests.account_fixtures import account_headers, seed_test_accounts
 from apps.runtime_models import register_runtime_models
 from packages.investigation.skills.storage import SkillVersionModel
-from packages.investigation.storage.models import ExperienceModel, ExperienceVersionModel
+from packages.investigation.storage.models import (
+    ExperienceModel,
+    ExperienceSupportModel,
+    ExperienceVersionModel,
+    InvestigationCaseModel,
+    InvestigationTrajectoryModel,
+)
 from packages.runtime.model.storage import ModelAttemptModel, ModelRequestModel
 from packages.runtime.storage.models import BudgetAccountModel
 from packages.shared.db import Base
@@ -185,6 +192,7 @@ async def _database():
 @pytest.mark.asyncio
 async def test_product_agent_runtime_exposes_roles_tasks_and_safe_event_summary() -> None:
     engine, factory = await _database()
+    await seed_test_accounts(factory)
     app = create_app()
 
     async def override_session() -> AsyncIterator[AsyncSession]:
@@ -193,7 +201,9 @@ async def test_product_agent_runtime_exposes_roles_tasks_and_safe_event_summary(
 
     app.dependency_overrides[database_session] = override_session
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test", headers=account_headers()
+        ) as client:
             overview = await client.get("/api/v1/agents/runtime")
             detail = await client.get("/api/v1/tasks/task-run-1")
             task_page = await client.get(
@@ -239,6 +249,7 @@ async def test_product_agent_runtime_exposes_roles_tasks_and_safe_event_summary(
 @pytest.mark.asyncio
 async def test_product_agent_task_detail_exposes_durable_delegation_neighbors() -> None:
     engine, factory = await _database()
+    await seed_test_accounts(factory)
     async with factory() as session, session.begin():
         session.add(
             TaskRunModel(
@@ -272,7 +283,9 @@ async def test_product_agent_task_detail_exposes_durable_delegation_neighbors() 
 
     app.dependency_overrides[database_session] = override_session
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test", headers=account_headers()
+        ) as client:
             root = await client.get("/api/v1/tasks/task-run-1")
             child = await client.get("/api/v1/tasks/task-run-child")
 
@@ -360,6 +373,71 @@ async def test_product_agent_learning_exposes_collection_and_exact_detail_reads(
                 created_at=NOW,
                 activated_at=NOW,
                 deprecated_at=None,
+            )
+        )
+
+    # Public learning requires a genuine system-owned support trajectory;
+    # a bare experience registry row has no publication authority.
+    async with factory() as session, session.begin():
+        session.add(
+            InvestigationCaseModel(
+                case_id="learning-system-case",
+                task_signature="verify_version_fix",
+                target_object_ids=[],
+                goal="platform validation",
+                status="resolved",
+                current_revision=0,
+                created_at=NOW,
+            )
+        )
+        contract = await session.get(TaskContractVersionModel, "contract-version-1")
+        contract_values = {
+            column.name: getattr(contract, column.name) for column in contract.__table__.columns
+        }
+        session.add(
+            TaskContractVersionModel(
+                **{
+                    **contract_values,
+                    "task_contract_version_id": "learning-contract-version",
+                    "task_contract_id": "learning-contract",
+                    "principal": "system:learning",
+                    "on_behalf_of": None,
+                }
+            )
+        )
+        run = await session.get(TaskRunModel, "task-run-1")
+        run_values = {column.name: getattr(run, column.name) for column in run.__table__.columns}
+        session.add(
+            TaskRunModel(
+                **{
+                    **run_values,
+                    "run_id": "learning-system-run",
+                    "task_contract_version_id": "learning-contract-version",
+                    "task_contract_id": "learning-contract",
+                    "case_id": "learning-system-case",
+                    "status": "completed",
+                }
+            )
+        )
+        session.add(
+            InvestigationTrajectoryModel(
+                trajectory_id="learning-system-trajectory",
+                case_id="learning-system-case",
+                status="completed",
+                outcome="success",
+                started_at=NOW,
+                finished_at=NOW,
+            )
+        )
+        session.add(
+            ExperienceSupportModel(
+                support_id="learning-system-support",
+                experience_version_id="experience-version-1",
+                trajectory_id="learning-system-trajectory",
+                outcome="success",
+                evaluation={},
+                evaluator="system:learning",
+                created_at=NOW,
             )
         )
 

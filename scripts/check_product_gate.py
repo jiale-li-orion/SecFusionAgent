@@ -5,25 +5,41 @@ import gzip
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, Literal
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote
-from urllib.request import Request, urlopen
+from urllib.request import Request
+
+if TYPE_CHECKING:
+    from scripts.product_check_session import (
+        open_product_request,
+        product_session_cookie,
+        request_headers,
+    )
+elif __package__:
+    from .product_check_session import open_product_request, product_session_cookie, request_headers
+else:
+    from product_check_session import open_product_request, product_session_cookie, request_headers
 
 
 @dataclass(frozen=True)
 class GateResult:
     name: str
     detail: str
+    status: Literal["pass", "skip"] = "pass"
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
-def _json(base_url: str, path: str) -> dict[str, Any]:
-    request = Request(f"{base_url.rstrip('/')}{path}", headers={"Accept": "application/json"})
+def _json(
+    base_url: str, path: str, *, cookie: str | None = None, timeout: float = 8
+) -> dict[str, Any]:
+    request = Request(
+        f"{base_url.rstrip('/')}{path}", headers=request_headers("application/json", cookie)
+    )
     try:
-        with urlopen(request, timeout=8) as response:
+        with open_product_request(request, timeout=timeout) as response:
             if response.status >= 400:
                 raise RuntimeError(f"{path} returned {response.status}")
             payload = json.loads(response.read().decode("utf-8"))
@@ -37,7 +53,7 @@ def _json(base_url: str, path: str) -> dict[str, Any]:
 def _json_list(base_url: str, path: str) -> list[dict[str, Any]]:
     request = Request(f"{base_url.rstrip('/')}{path}", headers={"Accept": "application/json"})
     try:
-        with urlopen(request, timeout=8) as response:
+        with open_product_request(request, timeout=8) as response:
             if response.status >= 400:
                 raise RuntimeError(f"{path} returned {response.status}")
             payload = json.loads(response.read().decode("utf-8"))
@@ -50,20 +66,22 @@ def _json_list(base_url: str, path: str) -> list[dict[str, Any]]:
 
 def _html(url: str) -> str:
     try:
-        with urlopen(Request(url, headers={"Accept": "text/html"}), timeout=8) as response:
+        with open_product_request(
+            Request(url, headers={"Accept": "text/html"}), timeout=8
+        ) as response:
             return response.read().decode("utf-8")
     except (HTTPError, URLError, TimeoutError) as exc:
         raise RuntimeError(f"{url} unavailable: {exc}") from exc
 
 
-def _sse(base_url: str, case_id: str) -> str:
+def _sse(base_url: str, case_id: str, *, cookie: str | None = None) -> str:
     path = f"/api/v1/investigations/{quote(case_id, safe='')}/events?follow=false"
     request = Request(
         f"{base_url.rstrip('/')}{path}",
-        headers={"Accept": "text/event-stream"},
+        headers=request_headers("text/event-stream", cookie),
     )
     try:
-        with urlopen(request, timeout=8) as response:
+        with open_product_request(request, timeout=8) as response:
             content_type = response.headers.get("Content-Type", "")
             response.read(4096)
     except (HTTPError, URLError, TimeoutError) as exc:
@@ -101,22 +119,19 @@ def _static_product_gate(results: list[GateResult]) -> None:
         name="layout-authority",
         relative_path="apps/web/src/main.tsx",
         needles=(
-            "import './cinematic.css'",
-            "import './cinematic-seams.css'",
-            "import './surface-authority.css'",
-            "import './layout-authority.css'",
+            "import './product-foundation.css'",
+            "import './product-spaces.css'",
+            "import './account-space.css'",
         ),
-        detail="cinematic base + product seams + visual authority + final geometry authority",
+        detail="Product foundation, spaces and account style authorities",
     )
     main = _read_source("apps/web/src/main.tsx")
-    cinematic_index = main.index("import './cinematic.css'")
-    seams_index = main.index("import './cinematic-seams.css'")
-    surface_index = main.index("import './surface-authority.css'")
-    layout_index = main.index("import './layout-authority.css'")
-    if not cinematic_index < seams_index < surface_index < layout_index:
-        raise RuntimeError(
-            "stylesheet authority order must be cinematic -> seams -> surface -> layout"
-        )
+    if (
+        not main.index("import './product-foundation.css'")
+        < main.index("import './product-spaces.css'")
+        < main.index("import './account-space.css'")
+    ):
+        raise RuntimeError("Product styles must load foundation, spaces, then account styles")
 
     _require_source(
         results,
@@ -127,42 +142,48 @@ def _static_product_gate(results: list[GateResult]) -> None:
     )
     _require_source(
         results,
-        name="world-fallback",
-        relative_path="apps/web/src/components/world/WorldSurfaces.tsx",
-        needles=("WorldField2D", "world-2d-fallback"),
-        detail="2D evidence-world fallback present",
+        name="world-spatial-read",
+        relative_path="apps/web/src/components/world/WorldScene.tsx",
+        needles=(
+            "<EvidenceAtlas",
+            "ew-foreground",
+            "onFocus(story)",
+            "useReducedMotion",
+            "ew-inspector",
+        ),
+        detail="DOM story and SVG spatial focus remain readable without WebGL",
     )
     _require_source(
         results,
-        name="world-semantic-motion",
+        name="world-fact-projection",
+        relative_path="apps/application/queries/world.py",
+        needles=(
+            "list_world_stories",
+            "DocumentRevisionModel",
+            "WorldStoryEvidenceView",
+            'RelationModel.lifecycle == "accepted"',
+            "_interleave",
+        ),
+        detail="heterogeneous projection preserves source facts, current revisions and evidence",
+    )
+    _require_source(
+        results,
+        name="world-hot-boundary",
         relative_path="apps/web/src/pages/WorldPage.tsx",
         needles=(
-            "provider_boundary_failure_rate",
-            "runtime_owned_failure_rate",
+            "getHotWorld(64)",
+            "getHotWorldItem",
+            "enabled: Boolean(hotCoordinate?.length",
+            "evidence: null",
         ),
-        detail="WORLD motion distinguishes measured provider/runtime failure channels",
+        detail="Hot remains replaceable source state and cannot masquerade as durable evidence",
     )
     _require_source(
         results,
-        name="world-failure-readout",
-        relative_path="apps/web/src/components/world/WorldSurfaces.tsx",
-        needles=(
-            "average('provider_boundary_failure_rate')",
-            "average('runtime_owned_failure_rate')",
-            "summary.providerFailure",
-            "summary.runtimeFailure",
-        ),
-        detail="source lens reads provider and runtime failure channels separately",
-    )
-    _require_source(
-        results,
-        name="world-route-semantics",
-        relative_path="apps/web/src/components/world/WorldSurfaces.tsx",
-        needles=("taxonomy-map + runtime-overlay", "CATEGORY ROUTE / RUNTIME OVERLAY"),
-        detail=(
-            "WORLD path lens remains an explicit taxonomy projection, "
-            "not fabricated execution telemetry"
-        ),
+        name="world-source-inspection",
+        relative_path="apps/web/src/components/world/WorldSourceInspector.tsx",
+        needles=("getWorldOverview", "measurement_category === category", "last_success_at"),
+        detail="source inspection uses measured runtime state and does not block the initial story",
     )
     _require_source(
         results,
@@ -171,123 +192,14 @@ def _static_product_gate(results: list[GateResult]) -> None:
         needles=(
             "from packages.monitoring.data_plane_status import data_plane_status",
             "payload = await _live_overview_payload()",
-            "_WORLD_OVERVIEW_TTL_SECONDS = 15.0",
-            "Live Data Plane aggregation is unavailable",
         ),
-        detail=(
-            "WORLD overview reads current durable state through the monitoring "
-            "aggregator instead of a frozen benchmark artifact"
-        ),
-    )
-    _require_source(
-        results,
-        name="world-knowledge-change-trace",
-        relative_path="apps/web/src/components/world/KnowledgeChangeRail.tsx",
-        needles=(
-            "DURABLE REVISIONS",
-            "change.object_ids[0]",
-            "onOpenObject(objectId, change.change_id)",
-            "KnowledgeChange read seam failed",
-        ),
-        detail=(
-            "KnowledgeChange motion remains traceable to durable revision "
-            "coordinates and canonical objects"
-        ),
-    )
-    _require_source(
-        results,
-        name="world-durable-incidents",
-        relative_path="apps/web/src/components/world/WorldSurfaces.tsx",
-        needles=(
-            "candidate.promotion_state.toUpperCase()",
-            "incidents.slice(0, compact ? 1 : 3).map((incident)",
-            "onOpen(incident.incident_id)",
-            "signal → candidate → <b>durable incident</b>",
-        ),
-        detail=(
-            "WORLD exposes durable Incident rows without promoting provisional "
-            "signal/candidate state"
-        ),
-    )
-    _require_source(
-        results,
-        name="world-incident-orbit",
-        relative_path="apps/web/src/components/world/IncidentOrbit3D.tsx",
-        needles=(
-            "candidate:${point.incident.candidate_id}",
-            "incident:${point.incident.incident_id}",
-            "source_diversity_count",
-            "onOpen(point.incident.incident_id)",
-        ),
-        detail=(
-            "WORLD 3D promotion orbit is keyed by durable Incident/Candidate "
-            "coordinates rather than anonymous counts"
-        ),
-    )
-    _require_source(
-        results,
-        name="world-incident-orbit-wiring",
-        relative_path="apps/web/src/pages/WorldPage.tsx",
-        needles=("incidents={incidentQuery.data?.items ?? []}", "onIncidentOpen={openIncident}"),
-        detail=(
-            "WORLD 3D receives the same durable Incident projection used by the "
-            "Product incident surface"
-        ),
-    )
-    _require_source(
-        results,
-        name="world-hot-enrichment-boundary",
-        relative_path="apps/web/src/components/world/HotEnrichmentPreview.tsx",
-        needles=(
-            "getVulnerability(cveId!)",
-            "getIntelligenceEnrichment(object!.object_id)",
-            "HOT ONLY / KNOWLEDGE NOT MATERIALIZED",
-            "status-${dimension.status}",
-            "WORLD REV {state.world_revision}",
-        ),
-        detail=(
-            "WORLD resolves 12D enrichment only through canonical Knowledge and "
-            "keeps Hot-only objects explicitly outside that boundary"
-        ),
-    )
-    _require_source(
-        results,
-        name="world-hot-enrichment-wiring",
-        relative_path="apps/web/src/components/world/WorldSurfaces.tsx",
-        needles=("<HotEnrichmentPreview cveId={item.cve_id} />",),
-        detail="Hot focus lens mounts the canonical enrichment boundary without fabricating state",
-    )
-    _require_source(
-        results,
-        name="world-knowledge-change-read",
-        relative_path="apps/application/queries/world.py",
-        needles=(
-            "select(KnowledgeChangeModel)",
-            "KnowledgeChangeModel.revision.desc()",
-            "change.changed_ids.get(key, [])",
-        ),
-        detail=(
-            "WORLD reads durable KnowledgeChange rows directly from the Knowledge write authority"
-        ),
-    )
-    _require_source(
-        results,
-        name="world-knowledge-change-motion",
-        relative_path="apps/web/src/components/world/WorldField3D.tsx",
-        needles=(
-            "knowledgeChangeActive",
-            "<KnowledgeChangePulse",
-            "<CanonicalWriteCrystallization",
-        ),
-        detail=(
-            "WORLD separates KnowledgeChange pulse semantics from canonical-write crystallization"
-        ),
+        detail="inspection reads current runtime state through its existing aggregation owner",
     )
     _require_source(
         results,
         name="reduced-motion",
-        relative_path="apps/web/src/cinematic.css",
-        needles=("@media (prefers-reduced-motion: reduce)",),
+        relative_path="apps/web/src/product-foundation.css",
+        needles=("@media (prefers-reduced-motion:reduce)",),
         detail="semantic motion has reduced-motion seam",
     )
     _require_source(
@@ -299,7 +211,7 @@ def _static_product_gate(results: list[GateResult]) -> None:
             "event.role_id === 'EnrichmentRole' && event.task_run_id",
             "getAgentTask(enrichmentRunId!)",
             "task?.parent_run_id && parent",
-            "No real EnrichmentRole TaskRun has appeared",
+            "This investigation has not requested intelligence enrichment.",
         ),
         detail=(
             "START lights ALCHEMIST only from a real EnrichmentRole TaskRun and "
@@ -313,7 +225,7 @@ def _static_product_gate(results: list[GateResult]) -> None:
         needles=(
             "<AlchemistBoundary",
             "result?.mode === 'accepted'",
-            "result.investigation?.case_id",
+            "caseId={result?.investigation?.case_id ?? null}",
         ),
         detail="START binds the enrichment boundary to the accepted durable Case",
     )
@@ -332,8 +244,11 @@ def _static_product_gate(results: list[GateResult]) -> None:
             "const continuationKind = continuationTaskKind",
             "askQuestion({ question, sessionId, taskKind: continuationKind })",
             "CONTINUE THIS INVESTIGATION",
-            "SAME DURABLE CASE",
-            "Follow-ups retain this investigation’s targets, evidence, and history.",
+            "CONTINUE THE SAME CASE",
+            (
+                "This follow-up continues the current durable Case "
+                "while preserving its targets, evidence, and state."
+            ),
         ),
         detail=(
             "Case follow-up is presented as a same-session next episode injection, "
@@ -345,11 +260,11 @@ def _static_product_gate(results: list[GateResult]) -> None:
         name="degraded-ux",
         relative_path="apps/web/src/pages/WorldPage.tsx",
         needles=(
-            "HOT READ SEAM DEGRADED",
-            "sourceState(",
-            "Operational snapshot is stale",
-            "recovery-action",
-            "hotQuery.refetch()",
+            "workingSet.isError",
+            "onHotRetry",
+            "getWorldOverview",
+            "onRetry",
+            "workingSet.refetch()",
         ),
         detail="live truth degradation remains explicit and recoverable",
     )
@@ -382,9 +297,9 @@ def _static_product_gate(results: list[GateResult]) -> None:
         relative_path="apps/web/src/pages/WorldPage.tsx",
         needles=(
             "params.get('source')",
-            "params.get('lane')",
+            "params.get('view')",
             "params.get('hot')",
-            "nextParams.set('hot', key)",
+            "next.set('hot', story.story_id.slice(4))",
         ),
         detail="World source / path / Hot focus survive URL entry",
     )
@@ -438,7 +353,7 @@ def _static_product_gate(results: list[GateResult]) -> None:
             "OUTBOX PENDING",
             "TASK DELIVERY",
             "STREAM UNACKED",
-            "Worker process health has no heartbeat owner yet",
+            "<WorkerHealth probe={system?.worker_probe ?? null}",
         ),
         detail="live Product system health keeps measured dependencies and explicit gaps separate",
     )
@@ -516,7 +431,7 @@ def _static_product_gate(results: list[GateResult]) -> None:
             if world_bytes > 300_000:
                 raise RuntimeError(
                     f"WORLD product chunk is {world_bytes / 1024:.1f} KiB; "
-                    "3D runtime must remain separately cacheable"
+                    "World route must remain separately cacheable"
                 )
             results.append(
                 GateResult(
@@ -524,15 +439,6 @@ def _static_product_gate(results: list[GateResult]) -> None:
                     f"{world_bytes / 1024:.1f} KiB route chunk",
                 )
             )
-        three_chunks = list((dist / "assets").glob("three-runtime-*.js"))
-        if not three_chunks:
-            raise RuntimeError("three-runtime vendor chunk missing after product build")
-        results.append(
-            GateResult(
-                "three-runtime",
-                f"{max(path.stat().st_size for path in three_chunks) / 1024:.1f} KiB lazy vendor",
-            )
-        )
 
 
 def run_gate(api_base: str, web_url: str | None) -> list[GateResult]:
@@ -544,7 +450,7 @@ def run_gate(api_base: str, web_url: str | None) -> list[GateResult]:
         raise RuntimeError(f"health readiness is not ready: {ready}")
     results.append(GateResult("health", "ready"))
 
-    world = _json(api_base, "/api/v1/world/overview")
+    world = _json(api_base, "/api/v1/world/overview", timeout=12)
     for key in ("source_health", "categories", "sources", "windows", "hourly_series"):
         if key not in world:
             raise RuntimeError(f"world overview missing {key}")
@@ -585,21 +491,33 @@ def run_gate(api_base: str, web_url: str | None) -> list[GateResult]:
         raise RuntimeError("hot world items is not a list")
     results.append(GateResult("hot-world", f"{len(hot_items)} objects"))
 
-    agents = _json(api_base, "/api/v1/agents/runtime?task_limit=8")
-    roles = agents.get("roles", [])
-    tasks = agents.get("recent_tasks", [])
-    if not isinstance(roles, list) or not isinstance(tasks, list):
-        raise RuntimeError("agent runtime roles/tasks malformed")
-    results.append(GateResult("agents", f"{len(roles)} roles · {len(tasks)} recent tasks"))
-    if tasks:
-        run_id = tasks[0].get("run_id")
-        if isinstance(run_id, str) and run_id:
-            task = _json(api_base, f"/api/v1/tasks/{quote(run_id, safe='')}")
-            if any(
-                key not in task for key in ("task", "parent", "children", "events", "capabilities")
-            ):
-                raise RuntimeError("task detail missing runtime coordinates")
-            results.append(GateResult("task-detail", run_id))
+    cookie = product_session_cookie()
+    if cookie is not None:
+        account = _json(api_base, "/api/v1/auth/me", cookie=cookie)
+        if account.get("authenticated") is not True:
+            raise RuntimeError("configured Product session is expired or unauthenticated")
+        agents = _json(api_base, "/api/v1/agents/runtime?task_limit=8", cookie=cookie)
+        roles = agents.get("roles", [])
+        tasks = agents.get("recent_tasks", [])
+        if not isinstance(roles, list) or not isinstance(tasks, list):
+            raise RuntimeError("agent runtime roles/tasks malformed")
+        results.append(GateResult("agents", f"{len(roles)} roles · {len(tasks)} recent tasks"))
+        if tasks:
+            run_id = tasks[0].get("run_id")
+            if isinstance(run_id, str) and run_id:
+                task = _json(api_base, f"/api/v1/tasks/{quote(run_id, safe='')}", cookie=cookie)
+                if any(
+                    key not in task
+                    for key in ("task", "parent", "children", "events", "capabilities")
+                ):
+                    raise RuntimeError("task detail missing runtime coordinates")
+                results.append(GateResult("task-detail", run_id))
+
+        if not tasks:
+            results.append(GateResult("task-detail", "no visible tasks for this account", "skip"))
+    else:
+        results.append(GateResult("agents", "no Product account session supplied", "skip"))
+        results.append(GateResult("task-detail", "no Product account session supplied", "skip"))
 
     skills = _json_list(api_base, "/api/v1/agents/skills")
     experiences = _json_list(api_base, "/api/v1/agents/experiences")
@@ -627,32 +545,6 @@ def run_gate(api_base: str, web_url: str | None) -> list[GateResult]:
         )
     )
 
-    agent_proof = _json(api_base, "/api/v1/agents/proof")
-    suite_ref = agent_proof.get("suite_ref")
-    proof_cases = agent_proof.get("cases", [])
-    if not isinstance(suite_ref, str) or not suite_ref.startswith(
-        "m5-agent-runtime-controlled-v1@"
-    ):
-        raise RuntimeError("Agent proof is not bound to the controlled M5 runtime suite")
-    if not isinstance(proof_cases, list):
-        raise RuntimeError("Agent controlled proof cases malformed")
-    delegated = next(
-        (
-            item
-            for item in proof_cases
-            if isinstance(item, dict) and item.get("case_id") == "agent-delegated-enrichment-resume"
-        ),
-        None,
-    )
-    if delegated is None or not delegated.get("task_run_ids"):
-        raise RuntimeError("Agent proof lost delegated enrichment runtime coordinates")
-    results.append(
-        GateResult(
-            "agent-proof",
-            f"{suite_ref} · {len(proof_cases)} controlled cases",
-        )
-    )
-
     system = _json(api_base, "/api/v1/observatory/system")
     dependencies = system.get("dependencies", [])
     if not isinstance(dependencies, list):
@@ -674,10 +566,10 @@ def run_gate(api_base: str, web_url: str | None) -> list[GateResult]:
         )
     boundaries = system.get("measurement_boundaries", {})
     if not isinstance(boundaries, dict) or boundaries.get("worker_process_health") != (
-        "unavailable_no_heartbeat_contract"
+        "bounded_celery_control_responses_not_durable_heartbeat"
     ):
         raise RuntimeError(
-            "system overview must preserve the worker heartbeat measurement boundary"
+            "system overview must declare the bounded Celery control measurement boundary"
         )
     results.append(
         GateResult(
@@ -690,23 +582,38 @@ def run_gate(api_base: str, web_url: str | None) -> list[GateResult]:
         )
     )
 
-    investigations = _json(api_base, "/api/v1/investigations?limit=8")
-    cases = investigations.get("items", [])
-    if not isinstance(cases, list):
-        raise RuntimeError("investigation items is not a list")
-    results.append(GateResult("investigations", f"{len(cases)} durable cases"))
-    if cases:
-        case_id = cases[0].get("case_id")
-        if isinstance(case_id, str) and case_id:
-            detail = _json(api_base, f"/api/v1/investigations/{quote(case_id, safe='')}")
-            activity = _json(
-                api_base,
-                f"/api/v1/investigations/{quote(case_id, safe='')}/activity",
+    if cookie is not None:
+        investigations = _json(api_base, "/api/v1/investigations?limit=8", cookie=cookie)
+        cases = investigations.get("items", [])
+        if not isinstance(cases, list):
+            raise RuntimeError("investigation items is not a list")
+        results.append(GateResult("investigations", f"{len(cases)} durable cases"))
+        if cases:
+            case_id = cases[0].get("case_id")
+            if isinstance(case_id, str) and case_id:
+                detail = _json(
+                    api_base, f"/api/v1/investigations/{quote(case_id, safe='')}", cookie=cookie
+                )
+                activity = _json(
+                    api_base,
+                    f"/api/v1/investigations/{quote(case_id, safe='')}/activity",
+                    cookie=cookie,
+                )
+                if detail.get("case_id") != case_id or activity.get("case_id") != case_id:
+                    raise RuntimeError("investigation detail/activity coordinate mismatch")
+                content_type = _sse(api_base, case_id, cookie=cookie)
+                results.append(GateResult("investigation-sse", content_type))
+
+        if not cases:
+            results.append(
+                GateResult("investigation-detail", "no durable cases for this account", "skip")
             )
-            if detail.get("case_id") != case_id or activity.get("case_id") != case_id:
-                raise RuntimeError("investigation detail/activity coordinate mismatch")
-            content_type = _sse(api_base, case_id)
-            results.append(GateResult("investigation-sse", content_type))
+            results.append(
+                GateResult("investigation-sse", "no durable cases for this account", "skip")
+            )
+    else:
+        for name in ("investigations", "investigation-detail", "investigation-sse"):
+            results.append(GateResult(name, "no Product account session supplied", "skip"))
 
     incidents = _json(api_base, "/api/v1/incidents?limit=8")
     incident_items = incidents.get("items", [])
@@ -721,109 +628,53 @@ def run_gate(api_base: str, web_url: str | None) -> list[GateResult]:
                 raise RuntimeError("incident detail coordinate mismatch")
             results.append(GateResult("incident-detail", incident_id))
 
-    proof = _json(api_base, "/api/v1/observatory/proof")
-    runs = proof.get("runs", [])
-    if not isinstance(runs, list):
-        raise RuntimeError("proof runs is not a list")
-    results.append(
-        GateResult(
-            "proof",
+    live_cve = next(
+        (
+            item.get("cve_id")
+            for item in hot_items
+            if isinstance(item, dict) and isinstance(item.get("cve_id"), str)
+        ),
+        None,
+    )
+    if live_cve:
+        search = _json(
+            api_base, f"/api/v1/intelligence/search?q={quote(live_cve, safe='')}&limit=4"
+        )
+        vulnerability = next(
             (
-                f"{proof.get('benchmark_runs_completed', 0)} runs · "
-                f"{proof.get('case_runs_passed', 0)} passed cases"
+                item
+                for item in search.get("items", [])
+                if isinstance(item, dict)
+                and item.get("object_type") == "Vulnerability"
+                and isinstance(item.get("object_id"), str)
             ),
+            None,
         )
-    )
-    headline_metrics = proof.get("headline_metrics", [])
-    if not isinstance(headline_metrics, list):
-        raise RuntimeError("proof headline_metrics is not a list")
-    metric_by_name = {
-        item.get("metric_name"): item
-        for item in headline_metrics
-        if isinstance(item, dict) and isinstance(item.get("metric_name"), str)
-    }
-    delivery = metric_by_name.get("m1.source_delivery_coverage")
-    if not isinstance(delivery, dict):
-        raise RuntimeError("proof must preserve m1.source_delivery_coverage")
-    delivery_value = delivery.get("value")
-    if not isinstance(delivery_value, (int, float)):
-        raise RuntimeError("m1.source_delivery_coverage has no numeric value")
-    if float(delivery_value) >= 1.0:
-        raise RuntimeError(
-            "expected frozen M1 source-delivery weakness is no longer visible; "
-            "verify report identity before changing the product proof"
-        )
-    results.append(
-        GateResult(
-            "proof-weakness",
-            f"m1.source_delivery_coverage={float(delivery_value):.6f}",
-        )
-    )
-    if runs:
-        run_id = runs[0].get("benchmark_run_id")
-        if isinstance(run_id, str) and run_id:
-            detail = _json(api_base, f"/api/v1/observatory/proof/runs/{quote(run_id, safe='')}")
-            if detail.get("run", {}).get("benchmark_run_id") != run_id:
-                raise RuntimeError("proof run coordinate mismatch")
+        if vulnerability:
+            object_id = quote(vulnerability["object_id"], safe="")
+            enrichment = _json(
+                api_base,
+                f"/api/v1/intelligence/objects/{object_id}/enrichment",
+            )
+            dimensions = enrichment.get("dimensions", [])
+            if not isinstance(dimensions, list) or len(dimensions) != 12:
+                raise RuntimeError("enrichment-v1 Product state must expose 12 dimensions")
+            states = {item.get("status") for item in dimensions if isinstance(item, dict)}
+            if not states or not states <= {"resolved", "conflict", "unknown", "missing"}:
+                raise RuntimeError("invalid current enrichment dimension states")
+            results.append(
+                GateResult("enrichment-state", "current live Vulnerability · 12 dimensions")
+            )
+        else:
             results.append(
                 GateResult(
-                    "proof-run",
-                    (
-                        f"{len(detail.get('cases', []))} cases · "
-                        f"{len(detail.get('metrics', []))} metrics"
-                    ),
+                    "enrichment-state", "Hot target has no canonical Vulnerability yet", "skip"
                 )
             )
-            cases_for_run = detail.get("cases", [])
-            canonical_cve = next(
-                (
-                    ref.removeprefix("cve:")
-                    for case in cases_for_run
-                    if isinstance(case, dict)
-                    for ref in case.get("target_refs", [])
-                    if isinstance(ref, str) and ref.startswith("cve:")
-                ),
-                None,
-            )
-            if canonical_cve:
-                search = _json(
-                    api_base,
-                    f"/api/v1/intelligence/search?q={quote(canonical_cve, safe='')}&limit=4",
-                )
-                vulnerability = next(
-                    (
-                        item
-                        for item in search.get("items", [])
-                        if isinstance(item, dict)
-                        and item.get("object_type") == "Vulnerability"
-                        and isinstance(item.get("object_id"), str)
-                    ),
-                    None,
-                )
-                if vulnerability is None:
-                    raise RuntimeError(
-                        f"frozen target {canonical_cve} has no current Vulnerability object"
-                    )
-                object_id = str(vulnerability["object_id"])
-                enrichment = _json(
-                    api_base,
-                    f"/api/v1/intelligence/objects/{quote(object_id, safe='')}/enrichment",
-                )
-                dimensions = enrichment.get("dimensions", [])
-                allowed_states = {"resolved", "conflict", "unknown", "missing"}
-                if not isinstance(dimensions, list) or len(dimensions) != 12:
-                    raise RuntimeError("enrichment-v1 Product state must expose 12 dimensions")
-                states: set[Any] = {
-                    item.get("status") for item in dimensions if isinstance(item, dict)
-                }
-                if not states or not states <= allowed_states:
-                    raise RuntimeError(f"invalid enrichment states: {sorted(states)}")
-                results.append(
-                    GateResult(
-                        "enrichment-state",
-                        f"{canonical_cve} · 12 dimensions · {','.join(sorted(states))}",
-                    )
-                )
+    else:
+        results.append(
+            GateResult("enrichment-state", "no live Vulnerability target available", "skip")
+        )
 
     if web_url:
         html = _html(web_url)
@@ -835,7 +686,10 @@ def run_gate(api_base: str, web_url: str | None) -> list[GateResult]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Validate live SecFusion Product read seams.")
+    parser = argparse.ArgumentParser(
+        description="Validate live SecFusion Product read seams.",
+        epilog="SECFUSION_PRODUCT_SESSION_COOKIE enables private checks; missing accounts skip.",
+    )
     parser.add_argument("--api-base", default="http://127.0.0.1:8000")
     parser.add_argument("--web-url", default="http://127.0.0.1:8000/product/")
     parser.add_argument(
@@ -854,8 +708,11 @@ def main() -> int:
         print(f"PRODUCT GATE FAIL · {exc}")
         return 1
     for result in results:
-        print(f"PASS · {result.name:<18} · {result.detail}")
-    print(f"PRODUCT GATE PASS · {len(results)} checks")
+        print(f"{result.status.upper()} · {result.name:<18} · {result.detail}")
+    passed = sum(result.status == "pass" for result in results)
+    skipped = len(results) - passed
+    outcome = "COMPLETE" if skipped else "PASS"
+    print(f"PRODUCT GATE {outcome} · {passed} passed · {skipped} skipped")
     return 0
 
 

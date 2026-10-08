@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Header, HTTPException, Response, status
 
+from apps.api.dependencies import RequestContextDep, SessionDep
+from apps.application.queries.ownership import visible_task_run_ids
 from packages.task_runtime.a2a import A2AAdapter
+from packages.task_runtime.storage.models import TaskRunModel
 from packages.task_runtime.storage.service import (
     get_task_context,
     get_task_contract_for_run,
@@ -16,13 +17,6 @@ from packages.task_runtime.storage.service import (
 router = APIRouter(prefix="/api/v1/a2a", tags=["a2a"])
 
 
-async def database_session(request: Request) -> AsyncIterator[AsyncSession]:
-    factory = request.app.state.session_factory
-    async with factory() as session:
-        yield session
-
-
-SessionDep = Annotated[AsyncSession, Depends(database_session)]
 A2AVersionHeader = Annotated[str | None, Header(alias="A2A-Version")]
 
 
@@ -30,12 +24,18 @@ A2AVersionHeader = Annotated[str | None, Header(alias="A2A-Version")]
 async def get_a2a_task(
     task_id: str,
     session: SessionDep,
+    identity: RequestContextDep,
     a2a_version: A2AVersionHeader = None,
 ) -> Response:
     _validate_a2a_version(a2a_version)
     try:
         run = await get_task_run(session, task_id)
         contract = await get_task_contract_for_run(session, task_id)
+        visible = await session.scalar(
+            visible_task_run_ids(identity.principal).where(TaskRunModel.run_id == task_id)
+        )
+        if visible is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="task not found")
         context = await get_task_context(session, task_id)
     except LookupError as exc:
         raise HTTPException(
@@ -47,7 +47,7 @@ async def get_a2a_task(
     return Response(
         content=task.model_dump_json(by_alias=True),
         media_type="application/a2a+json",
-        headers={"A2A-Version": "1.0"},
+        headers={"A2A-Version": "1.0", "Cache-Control": "no-store"},
     )
 
 

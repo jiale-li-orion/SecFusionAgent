@@ -14,6 +14,7 @@ from sqlalchemy import func, select
 
 from apps.api.dependencies import SessionDep
 from apps.application.queries.system import get_delivery_backlogs
+from apps.application.queries.worker_probe import worker_probe
 from apps.application.views.observatory import (
     CompetitionProofView,
     ProofCaseRunView,
@@ -105,10 +106,13 @@ async def system_overview(session: SessionDep) -> SystemOverviewView:
     settings = get_settings()
     outbox, task_delivery = await get_delivery_backlogs(session)
 
-    redis_results = await asyncio.gather(
-        _redis_ping("redis_broker", settings.redis_broker_url),
-        _redis_ping("redis_hot_cache", settings.redis_hot_cache_url),
-        _redis_ping("redis_task_bus", settings.redis_task_bus_url),
+    redis_results, workers = await asyncio.gather(
+        asyncio.gather(
+            _redis_ping("redis_broker", settings.redis_broker_url),
+            _redis_ping("redis_hot_cache", settings.redis_hot_cache_url),
+            _redis_ping("redis_task_bus", settings.redis_task_bus_url),
+        ),
+        worker_probe.read(),
     )
     task_bus = Redis.from_url(settings.redis_task_bus_url, decode_responses=True)
     try:
@@ -129,8 +133,10 @@ async def system_overview(session: SessionDep) -> SystemOverviewView:
         "configured" if settings.model_base_url and settings.model_name else "disabled"
     )
     unhealthy = any(item.status == "unhealthy" for item in dependencies)
-    degraded = runtime_policy_status != "healthy" or any(
-        item.status == "degraded" for item in dependencies
+    degraded = (
+        workers.status != "healthy"
+        or runtime_policy_status != "healthy"
+        or any(item.status == "degraded" for item in dependencies)
     )
     overall = "unhealthy" if unhealthy else "degraded" if degraded else "healthy"
     return SystemOverviewView(
@@ -142,8 +148,9 @@ async def system_overview(session: SessionDep) -> SystemOverviewView:
         task_event_stream_pending=stream_pending,
         runtime_policy_status=runtime_policy_status,
         model_provider_status=model_provider_status,
+        worker_probe=workers,
         measurement_boundaries={
-            "worker_process_health": "unavailable_no_heartbeat_contract",
+            "worker_process_health": "bounded_celery_control_responses_not_durable_heartbeat",
             "model_provider_status": "configuration_only_not_live_probe",
             "artifact_store_health": "use_world_operational_snapshot",
         },
@@ -189,9 +196,7 @@ async def competition_proof(session: SessionDep) -> CompetitionProofView:
     )
     case_models = list(
         await session.scalars(
-            select(BenchmarkCaseRunModel).where(
-                BenchmarkCaseRunModel.benchmark_run_id.in_(run_ids)
-            )
+            select(BenchmarkCaseRunModel).where(BenchmarkCaseRunModel.benchmark_run_id.in_(run_ids))
         )
     )
     case_counts: dict[str, tuple[int, int]] = {}
@@ -273,9 +278,7 @@ async def competition_proof_run(run_id: str, session: SessionDep) -> ProofRunDet
         list(
             await session.scalars(
                 select(BenchmarkCaseModel).where(
-                    BenchmarkCaseModel.case_version_id.in_(
-                        [item.case_version_id for item in cases]
-                    )
+                    BenchmarkCaseModel.case_version_id.in_([item.case_version_id for item in cases])
                 )
             )
         )
@@ -316,9 +319,7 @@ async def competition_proof_run(run_id: str, session: SessionDep) -> ProofRunDet
             ProofCaseRunView(
                 case_run_id=item.case_run_id,
                 case_ref=item.case_ref,
-                target_refs=list(
-                    case_by_version[item.case_version_id].target_refs_json
-                )
+                target_refs=list(case_by_version[item.case_version_id].target_refs_json)
                 if item.case_version_id in case_by_version
                 else [],
                 execution_profile=(

@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from packages.intelligence.retrieval.contracts import RetrievedCandidate
 from packages.intelligence.retrieval.operators import (
     DenseRetrievalOperator,
+    DocumentRetrievalOperator,
     EvidenceRetrievalOperator,
     ExactRetrievalOperator,
     GraphRetrievalOperator,
@@ -30,6 +31,7 @@ class PerceptionRuntime:
         self._structured = StructuredRetrievalOperator()
         self._lexical = LexicalRetrievalOperator()
         self._dense = DenseRetrievalOperator()
+        self._document = DocumentRetrievalOperator()
         self._graph = GraphRetrievalOperator()
         self._evidence = EvidenceRetrievalOperator()
         self._assembler = CandidateAssembler()
@@ -141,6 +143,15 @@ class PerceptionRuntime:
                         session,
                         subject_id=subject_id,
                         projection_types=_string_list(payload.get("projection_types")),
+                    )
+                )
+            return PerceptionStepResult(candidates=results)
+        if step.operator is PhysicalOperator.DOCUMENT:
+            results = []
+            for subject_id in _subject_ids(payload, dependency):
+                results.extend(
+                    await self._document.for_object(
+                        session, object_id=subject_id, limit=int(payload.get("limit", 20))
                     )
                 )
             return PerceptionStepResult(candidates=results)

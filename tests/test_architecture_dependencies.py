@@ -4,7 +4,11 @@ from pathlib import Path
 PACKAGE_ROOT = Path("packages")
 
 ALLOWED_CROSS_PACKAGE_PREFIXES = {
-    "investigation": ("packages.intelligence.retrieval",),
+    "investigation": (
+        "packages.intelligence.retrieval",
+        # A delegation names M3's canonical dimension contract, never its storage or writers.
+        "packages.intelligence.knowledge.vocabulary",
+    ),
 }
 
 ALLOWED_PACKAGE_DEPENDENCIES = {

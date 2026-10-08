@@ -79,6 +79,17 @@ def create_configured_investigation_runtime(
                 "state_write": "StatePatch gate only",
                 "external_execution": "Capability/Policy control plane only",
                 "ephemeral_observation_is_not_evidence": True,
+                "enrichment_delegation": (
+                    "EnrichmentRole v1 only accepts a Vulnerability with its actual CVE. "
+                    "Document, ResearchWork, Repo and InternetAsset investigations use "
+                    "local perception (inspect, search, trace) and StatePatch. "
+                    "Read source material using perception before drawing conclusions; "
+                    "inspect with target.object_id reads current document chunks. "
+                    "Use returned durable evidence_ref values as evidence_refs in StatePatch; "
+                    "document-chunk references locate text and cannot replace EvidenceLink refs. "
+                    "do not repeat an identical perception when its source text is available. "
+                    "never invent a CVE to delegate a non-vulnerability object."
+                ),
             },
         ),
         prompt_assembly_recorder=RuntimePromptAssemblyRecorder(),

@@ -113,6 +113,7 @@ class EnrichmentStatePlanner:
         *,
         cve_id: str,
         target_dimensions: set[EnrichmentDimension] | None = None,
+        refresh_dimensions: set[EnrichmentDimension] | None = None,
         attempted_operator_ids: set[str] | None = None,
     ) -> list[EnrichmentOperatorPlan]:
         target = target_dimensions or set(EnrichmentDimension)
@@ -120,7 +121,11 @@ class EnrichmentStatePlanner:
         missing = {
             state.dimension
             for state in snapshot.dimensions
-            if state.dimension in target and state.status is EnrichmentStatus.MISSING
+            if state.dimension in target
+            and (
+                state.status is EnrichmentStatus.MISSING
+                or state.dimension in (refresh_dimensions or set())
+            )
         }
 
         plans: list[EnrichmentOperatorPlan] = []
@@ -225,8 +230,7 @@ def _has_git_range(value: object) -> bool:
     if not isinstance(value, list):
         return False
     return any(
-        isinstance(item, dict) and str(item.get("type", "")).upper() == "GIT"
-        for item in value
+        isinstance(item, dict) and str(item.get("type", "")).upper() == "GIT" for item in value
     )
 
 

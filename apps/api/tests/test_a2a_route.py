@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime
 
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from apps.api.routes.a2a import database_session, router
+from apps.api.dependencies import RequestContext, database_session, request_context
+from apps.api.routes.a2a import router
 from apps.runtime_models import register_runtime_models
 from packages.shared.db import Base
 from packages.task_runtime.contracts.models import (
@@ -70,12 +72,19 @@ async def _seed_task(factory: async_sessionmaker[AsyncSession]) -> str:
     return run_id
 
 
+def _authorize(app: FastAPI, principal: str = "user:test") -> None:
+    app.dependency_overrides[request_context] = lambda: RequestContext(
+        request_id="test", principal=principal, request_started_at=datetime.now(UTC)
+    )
+
+
 @pytest.mark.asyncio
 async def test_a2a_get_task_exposes_opaque_external_context_and_protocol_media_type() -> None:
     engine, factory = await _database()
     run_id = await _seed_task(factory)
     app = FastAPI()
     app.include_router(router)
+    _authorize(app)
 
     async def override_session() -> AsyncIterator[AsyncSession]:
         async with factory() as session:
@@ -116,6 +125,7 @@ async def test_a2a_get_task_returns_404_without_leaking_internal_lookup_detail()
     engine, factory = await _database()
     app = FastAPI()
     app.include_router(router)
+    _authorize(app)
 
     async def override_session() -> AsyncIterator[AsyncSession]:
         async with factory() as session:
@@ -130,5 +140,29 @@ async def test_a2a_get_task_returns_404_without_leaking_internal_lookup_detail()
             response = await client.get("/api/v1/a2a/tasks/missing")
         assert response.status_code == 404
         assert response.json() == {"detail": "task not found"}
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_a2a_cannot_read_another_account_task_by_forging_a_header() -> None:
+    engine, factory = await _database()
+    run_id = await _seed_task(factory)
+    app = FastAPI()
+    app.include_router(router)
+    _authorize(app, "user:another-account")
+
+    async def override_session() -> AsyncIterator[AsyncSession]:
+        async with factory() as session:
+            yield session
+
+    app.dependency_overrides[database_session] = override_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get(
+                f"/api/v1/a2a/tasks/{run_id}", headers={"X-Principal": "user:test"}
+            )
+            assert response.status_code == 404
+            assert response.json() == {"detail": "task not found"}
     finally:
         await engine.dispose()

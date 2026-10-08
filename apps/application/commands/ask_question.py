@@ -17,10 +17,12 @@ from apps.application.commands.start_investigation import (
     StartInvestigationUseCase,
 )
 from apps.application.errors import (
+    DeadlineExceededError,
     DependencyUnavailableError,
     LifecycleConflictError,
     ResourceNotFoundError,
 )
+from apps.application.queries.decision_sources import decision_citation_sources
 from apps.application.queries.investigations import decision_view
 from apps.application.question_facts import render_claim_fact, render_relation_fact
 from apps.application.question_sessions import QuestionSessionContext, QuestionSessionStore
@@ -34,8 +36,7 @@ from packages.intelligence.knowledge.read import (
 )
 from packages.intelligence.retrieval.contracts import RetrievedCandidate
 from packages.intelligence.retrieval.operators import LexicalRetrievalOperator
-from packages.intelligence.storage.evidence_models import ObservationModel
-from packages.intelligence.storage.knowledge_models import EvidenceLinkModel, KnowledgeRevisionModel
+from packages.intelligence.storage.knowledge_models import KnowledgeRevisionModel
 from packages.investigation.state.contracts import InvestigationState, InvestigationStateItem
 from packages.investigation.state.service import InvestigationStateService
 from packages.investigation.storage.models import InvestigationCaseModel
@@ -289,13 +290,18 @@ class AskQuestionUseCase:
                 )
             else:
                 proposal = DecisionService().request_continuation(context.state, proposal)
-        except Exception:
+        except Exception as exc:
+            stop_reason = (
+                "question_deadline_exceeded"
+                if isinstance(exc, TimeoutError)
+                else "question_reasoning_failed"
+            )
             async with session.begin():
                 await self._execution.finish(
                     session,
                     execution_id,
                     status="failed",
-                    stop_reason="question_reasoning_failed",
+                    stop_reason=stop_reason,
                 )
                 await transition_task_run(
                     session,
@@ -305,8 +311,16 @@ class AskQuestionUseCase:
                     idempotency_key=f"question-failed:{run_id}",
                     stream_name=self._stream_name,
                     producer="product-question",
-                    stop_reason="question_reasoning_failed",
+                    stop_reason=stop_reason,
                 )
+            if isinstance(exc, TimeoutError):
+                raise DeadlineExceededError(
+                    "question reasoning exceeded the interactive time limit",
+                    context={
+                        "run_id": run_id,
+                        "timeout_seconds": command.interactive_timeout_seconds,
+                    },
+                ) from exc
             raise
 
         if isinstance(proposal, DecisionDraft):
@@ -625,9 +639,7 @@ class AskQuestionUseCase:
                 case_id=active_case_id,
             )
         view = await _resolve_optional_target(session, command)
-        revision = int(
-            await session.scalar(select(func.max(KnowledgeRevisionModel.revision))) or 0
-        )
+        revision = int(await session.scalar(select(func.max(KnowledgeRevisionModel.revision))) or 0)
         confirmed: list[InvestigationStateItem] = []
         tentative: list[InvestigationStateItem] = []
         citations: dict[str, CitationSource] = {}
@@ -800,10 +812,7 @@ class AskQuestionUseCase:
     ) -> _QuestionContext:
         state = await self._investigation_state.get_state(session, case_id)
         current_revision = await _current_knowledge_revision(session)
-        if (
-            command.task_kind is TaskKind.RETRIEVE
-            and state.last_world_revision != current_revision
-        ):
+        if command.task_kind is TaskKind.RETRIEVE and state.last_world_revision != current_revision:
             raise LifecycleConflictError(
                 "active investigation state must be refreshed before retrieval follow-up",
                 context={
@@ -814,8 +823,7 @@ class AskQuestionUseCase:
             )
 
         citations = {
-            item.evidence_ref: item
-            for item in await _citation_sources_for_state(session, state)
+            item.evidence_ref: item for item in await _citation_sources_for_state(session, state)
         }
         evidence_refs = _state_evidence_refs(state)
         relation_refs = _stable_unique(
@@ -1108,9 +1116,7 @@ def _question_state_projection(
         return [
             item.model_copy(
                 update={
-                    "evidence_refs": [
-                        _canonical_evidence_ref(ref) for ref in item.evidence_refs
-                    ]
+                    "evidence_refs": [_canonical_evidence_ref(ref) for ref in item.evidence_refs]
                 }
             )
             for item in items
@@ -1132,26 +1138,9 @@ async def _citation_sources_for_state(
     session: AsyncSession,
     state: InvestigationState,
 ) -> list[CitationSource]:
-    refs = _state_evidence_refs(state)
-    result: list[CitationSource] = []
-    for ref in sorted(refs):
-        link = await session.get(EvidenceLinkModel, ref.removeprefix("evidence:"))
-        if link is None:
-            continue
-        observation = await session.get(ObservationModel, link.observation_id)
-        if observation is None:
-            continue
-        source_ref = f"source:{observation.source_id}:{observation.external_object_id}"
-        if observation.external_revision:
-            source_ref += f"@{observation.external_revision}"
-        result.append(
-            CitationSource(
-                evidence_ref=ref,
-                source_ref=source_ref,
-                locator=cast(dict[str, JsonValue], dict(link.locator)),
-            )
-        )
-    return result
+    return await decision_citation_sources(
+        session, _question_state_projection(state, goal=state.goal)
+    )
 
 
 def _evidence_refs(

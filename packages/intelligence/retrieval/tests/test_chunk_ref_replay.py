@@ -1,19 +1,22 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from apps.runtime_models import register_runtime_models
-from packages.intelligence.retrieval.operators import LexicalRetrievalOperator
+from packages.intelligence.retrieval.operators import (
+    DocumentRetrievalOperator,
+    LexicalRetrievalOperator,
+)
 from packages.intelligence.storage.document_models import (
     DocumentChunkModel,
     DocumentModel,
     DocumentRevisionModel,
 )
 from packages.intelligence.storage.evidence_models import ObservationModel
-from packages.intelligence.storage.knowledge_models import ObjectModel
+from packages.intelligence.storage.knowledge_models import EvidenceLinkModel, ObjectModel
 from packages.shared.db import Base
 from packages.sources.storage.models import SourceModel
 
@@ -165,10 +168,65 @@ async def test_chunk_ref_replay_preserves_requested_order_and_exact_revision() -
 
             stale = await LexicalRetrievalOperator().by_chunk_refs(
                 session,
-                refs=[
-                    "document-chunk:retrieval-replay-chunk-1@another-revision"
-                ],
+                refs=["document-chunk:retrieval-replay-chunk-1@another-revision"],
             )
             assert stale == []
+
+            reader = DocumentRetrievalOperator()
+            current = await reader.for_object(session, object_id="retrieval-replay-object")
+            assert [item.payload["text"] for item in current] == ["first chunk", "second chunk"]
+            assert current[0].evidence_ref is None
+            assert await reader.for_object(session, object_id="unrelated-object") == []
+            assert (
+                len(await reader.for_object(session, object_id="retrieval-replay-object", limit=1))
+                == 1
+            )
+
+        async with factory() as session, session.begin():
+            observation = await session.get(ObservationModel, "retrieval-replay-observation")
+            assert observation is not None
+            values = {
+                col.name: getattr(observation, col.name) for col in observation.__table__.columns
+            }
+            values.update(observation_id="current-observation", idempotency_key="f" * 64)
+            session.add(ObservationModel(**values))
+            revision = await session.get(DocumentRevisionModel, "retrieval-replay-r1")
+            assert revision is not None
+            values = {col.name: getattr(revision, col.name) for col in revision.__table__.columns}
+            values.update(
+                document_revision_id="current-r2",
+                observation_id="current-observation",
+                created_at=now + timedelta(seconds=1),
+            )
+            session.add(DocumentRevisionModel(**values))
+        async with factory() as session:
+            # A newer revision without chunks must not silently return historical source text.
+            assert await reader.for_object(session, object_id="retrieval-replay-object") == []
+        async with factory() as session, session.begin():
+            chunk = await session.get(DocumentChunkModel, "retrieval-replay-chunk-1")
+            assert chunk is not None
+            values = {col.name: getattr(chunk, col.name) for col in chunk.__table__.columns}
+            values.update(
+                chunk_id="current-chunk",
+                document_revision_id="current-r2",
+                text="current source text",
+            )
+            session.add(DocumentChunkModel(**values))
+            session.add(
+                EvidenceLinkModel(
+                    evidence_link_id="current-evidence",
+                    target_kind="object",
+                    target_id="retrieval-replay-object",
+                    observation_id="current-observation",
+                    locator={"kind": "document"},
+                    locator_hash="f" * 64,
+                )
+            )
+        async with factory() as session:
+            current = await reader.for_object(session, object_id="retrieval-replay-object")
+            assert len(current) == 1
+            assert current[0].payload["text"] == "current source text"
+            assert current[0].revision == "current-r2"
+            assert current[0].evidence_ref == "current-evidence"
     finally:
         await engine.dispose()

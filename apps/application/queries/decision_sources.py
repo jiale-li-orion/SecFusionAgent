@@ -23,7 +23,6 @@ async def decision_citation_sources(
         )
         for item in group
         for ref in item.evidence_refs
-        if ref.startswith("evidence:")
     }
     result = []
     for ref in sorted(refs):

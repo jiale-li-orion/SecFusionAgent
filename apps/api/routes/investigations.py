@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from apps.api.dependencies import RequestContextDep, SessionDep
 from apps.api.errors import ProblemDetail
+from apps.application.authentication import resolve_authenticated_account
 from apps.application.commands.investigation_lifecycle import (
     CancelInvestigationCommand,
     CancelInvestigationUseCase,
@@ -18,6 +19,7 @@ from apps.application.commands.start_investigation import (
     StartInvestigationCommand,
     StartInvestigationUseCase,
 )
+from apps.application.errors import ResourceNotFoundError
 from apps.application.queries.investigations import InvestigationQueries
 from apps.application.queries.runtime_activity import get_runtime_activity
 from apps.application.views.investigations import (
@@ -164,11 +166,11 @@ async def cancel_investigation(
 async def investigation_activity(
     case_id: str,
     session: SessionDep,
+    context: RequestContextDep,
 ) -> ProductRuntimeActivityView:
+    await InvestigationQueries().require_access(session, case_id, principal=context.principal)
     result = await get_runtime_activity(session, case_id)
     if result is None:
-        from apps.application.errors import ResourceNotFoundError
-
         raise ResourceNotFoundError("investigation not found", context={"case_id": case_id})
     return result
 
@@ -178,12 +180,12 @@ async def investigation_events(
     case_id: str,
     request: Request,
     session: SessionDep,
+    context: RequestContextDep,
     follow: bool = Query(default=True),
 ) -> StreamingResponse:
+    await InvestigationQueries().require_access(session, case_id, principal=context.principal)
     initial = await get_runtime_activity(session, case_id)
     if initial is None:
-        from apps.application.errors import ResourceNotFoundError
-
         raise ResourceNotFoundError("investigation not found", context={"case_id": case_id})
     last_event_id = request.headers.get("Last-Event-ID")
     factory = request.app.state.session_factory
@@ -194,6 +196,15 @@ async def investigation_events(
         heartbeat_ticks = 0
         while True:
             async with factory() as read_session:
+                account = await resolve_authenticated_account(request, read_session)
+                if account is None or account.principal != context.principal:
+                    break
+                try:
+                    await InvestigationQueries().require_access(
+                        read_session, case_id, principal=context.principal
+                    )
+                except ResourceNotFoundError:
+                    break
                 activity = await get_runtime_activity(read_session, case_id)
             events = activity.events if activity is not None else []
             if cursor and not seen:
@@ -205,11 +216,7 @@ async def investigation_events(
                 seen.add(event.event_id)
                 cursor = event.event_id
                 payload = json.dumps(event.model_dump(mode="json"), ensure_ascii=False)
-                yield (
-                    f"id: {event.event_id}\n"
-                    f"event: {event.event_type}\n"
-                    f"data: {payload}\n\n"
-                )
+                yield (f"id: {event.event_id}\nevent: {event.event_type}\ndata: {payload}\n\n")
             if not follow or await request.is_disconnected():
                 break
             heartbeat_ticks += 1

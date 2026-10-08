@@ -21,8 +21,10 @@ from packages.sources.registry.loader import load_source_definitions
 
 DEFAULT_VULNERABILITY_PROVIDER_IDS = (
     "cisa-kev",
+    "first-epss",
     "github-global-advisories",
     "osv-vulnerabilities",
+    "redhat-csaf-vex",
     "github-target-repos",
 )
 
