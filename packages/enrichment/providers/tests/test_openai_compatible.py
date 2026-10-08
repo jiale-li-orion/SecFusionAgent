@@ -11,7 +11,11 @@ from packages.enrichment.providers.openai_compatible import (
     discover_openai_compatible_models,
     select_discovered_chat_model,
 )
-from packages.shared.model_provider import ModelProviderRateLimited, StructuredModelRequest
+from packages.shared.model_provider import (
+    ModelProviderMalformedOutputError,
+    ModelProviderRateLimited,
+    StructuredModelRequest,
+)
 
 
 class Result(BaseModel):
@@ -209,6 +213,28 @@ async def test_rate_limit_exposes_retry_after_for_runtime_retry_policy() -> None
                 Result,
             )
     assert captured.value.retry_after_seconds == 1.5
+
+
+@pytest.mark.asyncio
+async def test_malformed_json_is_retryable_without_exposing_provider_content() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": '{"value":'}}]},
+            request=request,
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        provider = OpenAICompatibleProvider(
+            client, base_url="https://provider.example/v1", chat_model="model-a"
+        )
+        with pytest.raises(ModelProviderMalformedOutputError) as captured:
+            await provider.generate_structured(
+                StructuredModelRequest(system_instruction="extract", data={"text": "hello"}),
+                Result,
+            )
+    assert captured.value.retryable is True
+    assert str(captured.value) == "chat response content is not valid JSON"
 
 
 @pytest.mark.asyncio

@@ -97,6 +97,7 @@ class FinalizeInvestigationUseCase:
             proposal = await ModelDecisionPlanner(self._provider).plan(
                 state,
                 citation_sources=citations,
+                include_report=True,
                 runtime_metadata={
                     "execution_id": coordinate.execution_id,
                     "task_run_id": coordinate.task_run_id,

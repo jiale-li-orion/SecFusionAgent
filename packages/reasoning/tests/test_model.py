@@ -7,7 +7,12 @@ import pytest
 from packages.investigation.state.continuation import ContinuationRequest
 from packages.investigation.state.contracts import InvestigationState
 from packages.reasoning.citation import CitationSource
-from packages.reasoning.decision import ConclusionType, DecisionConclusion, DecisionDraft
+from packages.reasoning.decision import (
+    ConclusionType,
+    DecisionConclusion,
+    DecisionDraft,
+    DecisionReportParagraph,
+)
 from packages.reasoning.model import (
     ContinuationProposal,
     DecisionPlannerResponse,
@@ -62,6 +67,28 @@ async def test_model_decision_planner_forces_case_identity_from_state() -> None:
     assert result.model_prompt_revision == "decision-model-v2"
     assert provider.requests[0].metadata["case_revision"] == 7
     assert "minimal sufficient answer" in provider.requests[0].system_instruction
+    assert "research report for a security analyst" not in provider.requests[0].system_instruction
+
+
+@pytest.mark.asyncio
+async def test_model_decision_planner_enables_report_only_for_durable_investigation() -> None:
+    provider = _Provider(
+        DecisionPlannerResponse(
+            action=FinalDecisionProposal(
+                report_paragraphs=[
+                    DecisionReportParagraph(text="The release contains the confirmed fix.")
+                ],
+                stop_reason="evidence_sufficient",
+            )
+        )
+    )
+    result = await ModelDecisionPlanner(provider).plan(
+        _state(), citation_sources=[], include_report=True
+    )
+    assert isinstance(result, DecisionDraft)
+    assert result.model_prompt_revision == "decision-model-v4"
+    assert result.report_paragraphs[0].text == "The release contains the confirmed fix."
+    assert "research report for a security analyst" in provider.requests[0].system_instruction
 
 
 @pytest.mark.asyncio

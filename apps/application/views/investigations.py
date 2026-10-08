@@ -46,6 +46,11 @@ class DecisionCitationView(BaseModel):
     locator: dict[str, JsonValue] = Field(default_factory=dict)
 
 
+class DecisionReportParagraphView(BaseModel):
+    text: str
+    evidence_refs: list[str] = Field(default_factory=list)
+
+
 class DecisionView(BaseModel):
     decision_id: str
     case_revision: int
@@ -55,6 +60,7 @@ class DecisionView(BaseModel):
     unknowns: list[str] = Field(default_factory=list)
     assumptions: list[str] = Field(default_factory=list)
     answer: dict[str, JsonValue] = Field(default_factory=dict)
+    report_paragraphs: list[DecisionReportParagraphView] = Field(default_factory=list)
     stop_reason: str
     created_at: datetime
 

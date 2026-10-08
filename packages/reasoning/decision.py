@@ -36,6 +36,11 @@ class DecisionConclusion(BaseModel):
         return self
 
 
+class DecisionReportParagraph(BaseModel):
+    text: str = Field(min_length=1, max_length=2400)
+    evidence_refs: list[str] = Field(default_factory=list)
+
+
 class DecisionDraft(BaseModel):
     case_id: str
     case_revision: int = Field(ge=0)
@@ -44,6 +49,7 @@ class DecisionDraft(BaseModel):
     unknowns: list[str] = Field(default_factory=list)
     assumptions: list[str] = Field(default_factory=list)
     answer_payload: dict[str, JsonValue] = Field(default_factory=dict)
+    report_paragraphs: list[DecisionReportParagraph] = Field(default_factory=list)
     stop_reason: str = Field(min_length=1, max_length=128)
     model_prompt_revision: str
 
@@ -66,6 +72,7 @@ class DecisionResult(BaseModel):
     assumptions: list[str] = Field(default_factory=list)
     citations: list[DecisionCitation] = Field(default_factory=list)
     answer_payload: dict[str, JsonValue] = Field(default_factory=dict)
+    report_paragraphs: list[DecisionReportParagraph] = Field(default_factory=list)
     stop_reason: str = Field(min_length=1, max_length=128)
     model_prompt_revision: str
 
@@ -127,11 +134,20 @@ class DecisionService:
             if conclusion.type is ConclusionType.INFERENCE and not refs <= state_evidence:
                 raise ValueError("inference conclusion cites evidence outside M4 state")
 
+        cited_refs = {
+            ref for conclusion in draft.conclusions for ref in conclusion.evidence_refs
+        }
+        for paragraph in draft.report_paragraphs:
+            if not set(paragraph.evidence_refs) <= cited_refs:
+                raise ValueError("report paragraph cites evidence outside decision conclusions")
+
         citations = self._citations.bind(
             [item.evidence_refs for item in draft.conclusions],
             citation_sources,
         )
         payload = draft.model_dump(mode="json")
+        if not draft.report_paragraphs:
+            payload.pop("report_paragraphs", None)
         decision_id = _decision_id(payload)
         return DecisionResult(
             decision_id=decision_id,
@@ -143,6 +159,7 @@ class DecisionService:
             assumptions=draft.assumptions,
             citations=citations,
             answer_payload=draft.answer_payload,
+            report_paragraphs=draft.report_paragraphs,
             stop_reason=draft.stop_reason,
             model_prompt_revision=draft.model_prompt_revision,
         )

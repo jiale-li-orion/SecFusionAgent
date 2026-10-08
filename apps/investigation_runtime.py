@@ -73,12 +73,20 @@ def create_configured_investigation_runtime(
         session_factory,
         provider,
         materializer=ContextMaterializer(
-            platform_invariant_revision="investigation-runtime-v1",
+            platform_invariant_revision="investigation-runtime-v2",
             platform_invariant={
                 "fact_authority": "Evidence/Knowledge references only",
                 "state_write": "StatePatch gate only",
                 "external_execution": "Capability/Policy control plane only",
                 "ephemeral_observation_is_not_evidence": True,
+                "state_patch_rules": (
+                    "A confirmed StatePatch with an inferred reasoning_relation is rejected. "
+                    "Use confirmed only for propositions directly supported by durable evidence. "
+                    "For an inference, use tentative or hypothesis and do not resolve an "
+                    "EvidenceNeed that requires confirmed state. If a StatePatch is rejected, "
+                    "inspect the rejection "
+                    "feedback and submit a corrected action; never repeat the same invalid patch."
+                ),
                 "enrichment_delegation": (
                     "EnrichmentRole v1 only accepts a Vulnerability with its actual CVE. "
                     "Document, ResearchWork, Repo and InternetAsset investigations use "

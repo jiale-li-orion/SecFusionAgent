@@ -13,7 +13,9 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    and_,
     func,
+    or_,
     select,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -96,6 +98,14 @@ class AccountConversationView(BaseModel):
 class AccountConversationPage(BaseModel):
     items: list[AccountConversationView]
     has_more: bool
+    next_cursor: str | None = None
+
+
+class QuestionSessionHistoryPage(BaseModel):
+    session_id: str
+    turns: list[QuestionSessionTurn]
+    has_more: bool
+    next_before_turn: int | None = None
 
 
 class QuestionSessionStore:
@@ -109,9 +119,15 @@ class QuestionSessionStore:
         self._history_limit = history_limit
 
     async def list_owned(
-        self, session: AsyncSession, *, principal: str, limit: int = 20
+        self, session: AsyncSession, *, principal: str, limit: int = 20,
+        cursor: str | None = None,
     ) -> AccountConversationPage:
         bounded_limit = min(max(limit, 1), 50)
+        cursor_model = await session.get(QuestionSessionModel, cursor) if cursor else None
+        if cursor and cursor_model is None:
+            raise ResourceNotFoundError("question session cursor not found")
+        if cursor_model is not None:
+            _require_principal(cursor_model, principal)
         latest = (
             select(
                 QuestionSessionTurnModel.session_id,
@@ -122,7 +138,7 @@ class QuestionSessionStore:
             .group_by(QuestionSessionTurnModel.session_id)
             .subquery()
         )
-        rows = list(await session.execute(
+        statement = (
             select(QuestionSessionModel, QuestionSessionTurnModel)
             .join(latest, latest.c.session_id == QuestionSessionModel.session_id)
             .join(QuestionSessionTurnModel, (
@@ -132,14 +148,54 @@ class QuestionSessionStore:
             .where(QuestionSessionModel.principal == principal)
             .order_by(QuestionSessionModel.updated_at.desc(), QuestionSessionModel.session_id)
             .limit(bounded_limit + 1)
-        ))
+        )
+        if cursor_model is not None:
+            statement = statement.where(or_(
+                QuestionSessionModel.updated_at < cursor_model.updated_at,
+                and_(
+                    QuestionSessionModel.updated_at == cursor_model.updated_at,
+                    QuestionSessionModel.session_id > cursor_model.session_id,
+                ),
+            ))
+        rows = list(await session.execute(statement))
+        page_rows = rows[:bounded_limit]
         return AccountConversationPage(
             items=[AccountConversationView(
                 session_id=conversation.session_id,
                 updated_at=conversation.updated_at,
                 latest_turn=_turn_view(turn),
-            ) for conversation, turn in rows[:bounded_limit]],
+            ) for conversation, turn in page_rows],
             has_more=len(rows) > bounded_limit,
+            next_cursor=page_rows[-1][0].session_id if len(rows) > bounded_limit else None,
+        )
+
+    async def read_history_page(
+        self, session: AsyncSession, *, session_id: str, principal: str,
+        limit: int = 50, before_turn: int | None = None,
+    ) -> QuestionSessionHistoryPage:
+        model = await session.get(QuestionSessionModel, session_id)
+        if model is None:
+            raise ResourceNotFoundError(
+                "question session not found", context={"session_id": session_id}
+            )
+        _require_principal(model, principal)
+        bounded_limit = min(max(limit, 1), 50)
+        statement = select(QuestionSessionTurnModel).where(
+            QuestionSessionTurnModel.session_id == session_id
+        )
+        if before_turn is not None:
+            statement = statement.where(QuestionSessionTurnModel.turn_index < before_turn)
+        rows = list(await session.scalars(
+            statement.order_by(QuestionSessionTurnModel.turn_index.desc())
+            .limit(bounded_limit + 1)
+        ))
+        page = [_turn_view(item) for item in reversed(rows[:bounded_limit])]
+        has_more = len(rows) > bounded_limit
+        return QuestionSessionHistoryPage(
+            session_id=session_id,
+            turns=page,
+            has_more=has_more,
+            next_before_turn=page[0].turn_index if has_more else None,
         )
 
     async def resolve(

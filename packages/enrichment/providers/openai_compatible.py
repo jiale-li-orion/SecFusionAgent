@@ -11,6 +11,7 @@ from packages.intelligence.retrieval.contracts import EmbeddingBatch
 from packages.shared.model_provider import (
     ModelProviderAuthError,
     ModelProviderError,
+    ModelProviderMalformedOutputError,
     ModelProviderRateLimited,
     ModelProviderResponseError,
     ModelProviderTransientError,
@@ -204,7 +205,9 @@ class OpenAICompatibleProvider:
         try:
             parsed = json.loads(content)
         except json.JSONDecodeError as exc:
-            raise AIProviderResponseError("chat response content is not valid JSON") from exc
+            raise ModelProviderMalformedOutputError(
+                "chat response content is not valid JSON"
+            ) from exc
         try:
             output = response_model.model_validate(parsed)
         except Exception as exc:

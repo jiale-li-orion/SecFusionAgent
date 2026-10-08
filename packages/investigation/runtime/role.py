@@ -10,7 +10,13 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from packages.intelligence.retrieval.validation import current_knowledge_revision
 from packages.investigation.cases.service import CaseService
 from packages.investigation.perception.audit import PerceptionAuditService
-from packages.investigation.perception.contracts import Percept
+from packages.investigation.perception.contracts import (
+    EvidenceTarget,
+    Percept,
+    PerceptionOperation,
+    PerceptionRequest,
+    PerceptionTarget,
+)
 from packages.investigation.perception.planner import PerceptionPlanner
 from packages.investigation.perception.runtime import PerceptionRuntime
 from packages.investigation.runtime.contracts import (
@@ -27,7 +33,7 @@ from packages.investigation.runtime.contracts import (
 )
 from packages.investigation.runtime.tasks import InvestigationTaskDesiredState
 from packages.investigation.state.contracts import EvidenceNeedStatus
-from packages.investigation.state.service import InvestigationStateService
+from packages.investigation.state.service import InvestigationStateService, StatePatchRejected
 from packages.task_runtime.context.contracts import ContextRefresh
 from packages.task_runtime.context.service import refresh_context
 from packages.task_runtime.contracts.dependencies import task_dependency_reason
@@ -133,15 +139,36 @@ class InvestigationRoleRuntime:
                     seen_percept_signal = percept_signal
             elif action.kind is InvestigationActionKind.DELEGATE:
                 assert isinstance(action, DelegationAction)
-                return await self._delegate(run_id, frame, action, iteration)
+                delegated = await self._delegate(run_id, frame, action, iteration)
+                if isinstance(delegated, Percept):
+                    last_percept = delegated
+                    percept_signal = _percept_signal(delegated)
+                    if percept_signal == seen_percept_signal:
+                        no_progress += 1
+                    else:
+                        no_progress = 0
+                        seen_percept_signal = percept_signal
+                else:
+                    return delegated
             elif action.kind is InvestigationActionKind.PATCH:
                 assert isinstance(action, StatePatchAction)
-                result = await self._apply_patch(run_id, frame, action)
-                last_percept = None
-                if result.state.case_revision > before_revision:
-                    no_progress = 0
-                else:
+                try:
+                    result = await self._apply_patch(run_id, frame, action)
+                except StatePatchRejected as exc:
+                    # The State Gate remains authoritative. Give the planner a bounded
+                    # correction opportunity instead of failing the whole TaskRun.
+                    last_percept = Percept(
+                        percept_id=f"percept:state-patch-rejected:{action.patch.patch_id}",
+                        request_id=f"state-patch:{action.patch.patch_id}",
+                        unresolved=[f"state_patch_rejected:{exc}"],
+                    )
                     no_progress += 1
+                else:
+                    last_percept = None
+                    if result.state.case_revision > before_revision:
+                        no_progress = 0
+                    else:
+                        no_progress += 1
             elif action.kind is InvestigationActionKind.WAIT:
                 assert isinstance(action, WaitAction)
                 if not _desired_state(frame).allow_wait:
@@ -407,7 +434,7 @@ class InvestigationRoleRuntime:
         frame: InvestigationFrame,
         action: DelegationAction,
         iteration: int,
-    ) -> InvestigationRoleOutcome:
+    ) -> InvestigationRoleOutcome | Percept:
         if self._delegation_port is None:
             return await self._finish(
                 run_id,
@@ -436,6 +463,37 @@ class InvestigationRoleRuntime:
                 ),
                 stream_name=self._stream_name,
                 now=self._now(),
+            )
+        if result.child_status is TaskRunStatus.COMPLETED:
+            return await self._execute_perception(
+                run_id,
+                frame,
+                PerceptionAction(
+                    request=PerceptionRequest(
+                        request_id=f"post-delegation:{result.child_run_id}",
+                        operation=PerceptionOperation.INSPECT,
+                        target=PerceptionTarget(
+                            object_id=action.request.target_object_id,
+                            evidence_targets=[
+                                EvidenceTarget(
+                                    target_kind="object",
+                                    target_id=action.request.target_object_id,
+                                )
+                            ],
+                        ),
+                        desired_observation=(
+                            "Read current canonical evidence after enrichment completed"
+                        ),
+                    )
+                ),
+            )
+        if result.child_status in {
+            TaskRunStatus.BLOCKED, TaskRunStatus.FAILED,
+            TaskRunStatus.CANCELLED, TaskRunStatus.TIMED_OUT,
+        }:
+            return await self._finish(
+                run_id, frame, TaskRunStatus.BLOCKED,
+                f"delegated_enrichment_{result.child_status.value}", iteration,
             )
         return await self._wait(
             run_id,

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -225,3 +225,55 @@ async def test_account_conversations_and_preferences_are_cookie_owned(authentica
     assert restored.status_code == 200
     assert (await client.get(path)).json()["items"][0]["session_id"] == "alice-conversation"
     assert (await client.get(preferences)).json()["keywords"] == ["vLLM"]
+
+
+@pytest.mark.asyncio
+async def test_account_conversation_and_turn_pages_keep_owner_boundary(authentication_client):
+    from apps.application.question_sessions import QuestionSessionStore
+
+    def fixed_clock(at: datetime) -> Callable[[], datetime]:
+        return lambda: at
+
+    client, factory = authentication_client
+    registered = await client.post("/api/v1/auth/register", headers=AUTH_HEADERS, json=REGISTRATION)
+    assert registered.status_code == 201
+    principal = f"user:{registered.json()['user']['id']}"
+    async with factory() as session, session.begin():
+        for index in range(3):
+            timestamp = datetime(2026, 10, 9, tzinfo=UTC) + timedelta(minutes=index)
+            store = QuestionSessionStore(now=fixed_clock(timestamp))
+            for turn in range(5 if index == 2 else 1):
+                await store.append_turn(
+                    session, session_id=f"paged-session-{index}", principal=principal,
+                    request_id=f"paged-request-{index}-{turn}", question=f"Question {index}/{turn}",
+                    task_kind="lookup", target_object_ids=[], knowledge_revision=None,
+                    context_id=None, decision_ref=f"decision-{index}-{turn}",
+                    investigation_ref=None,
+                )
+
+    path = "/api/v1/questions/sessions"
+    first = await client.get(path, params={"limit": 2})
+    assert [item["session_id"] for item in first.json()["items"]] == [
+        "paged-session-2", "paged-session-1"
+    ]
+    assert first.json()["has_more"] is True
+    second = await client.get(path, params={"limit": 2, "cursor": first.json()["next_cursor"]})
+    assert [item["session_id"] for item in second.json()["items"]] == ["paged-session-0"]
+    assert second.json()["has_more"] is False
+
+    history_path = f"{path}/paged-session-2"
+    latest = await client.get(history_path, params={"limit": 2})
+    assert [turn["turn_index"] for turn in latest.json()["turns"]] == [4, 5]
+    middle = await client.get(history_path, params={"limit": 2, "before_turn": 4})
+    assert [turn["turn_index"] for turn in middle.json()["turns"]] == [2, 3]
+    oldest = await client.get(history_path, params={"limit": 2, "before_turn": 2})
+    assert [turn["turn_index"] for turn in oldest.json()["turns"]] == [1]
+    assert oldest.json()["has_more"] is False
+
+    bob = await client.post(
+        "/api/v1/auth/register", headers=AUTH_HEADERS,
+        json={**REGISTRATION, "email": "bob-paging@example.invalid"},
+    )
+    assert bob.status_code == 201
+    assert (await client.get(path, params={"cursor": "paged-session-1"})).status_code == 403
+    assert (await client.get(history_path, params={"before_turn": 4})).status_code == 403

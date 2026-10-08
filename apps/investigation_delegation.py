@@ -136,7 +136,17 @@ class EnrichmentDelegationAdapter:
                 if stored_contract != child_contract:
                     raise ValueError("delegated child contract changed on replay")
                 stored_context = await get_task_context(session, child_run_id)
-                if stored_context != expected_context:
+                # A child keeps its original world snapshot while the parent and child
+                # contexts can advance independently after the first delegation.
+                stable_fields = (
+                    "context_id", "parent_context_id", "task_contract_ref", "role_ref",
+                    "case_ref", "investigation_state_ref", "object_refs",
+                    "policy_context_ref", "capability_envelope_ref", "budget_ref",
+                )
+                if any(
+                    getattr(stored_context, field) != getattr(expected_context, field)
+                    for field in stable_fields
+                ):
                     raise ValueError("delegated child context changed on replay")
             await self._budget.create_account(
                 session,
@@ -190,6 +200,7 @@ class EnrichmentDelegationAdapter:
             child_run_id=child_run_id,
             child_context_ref=f"{child_context_id}@1",
             child_execution_ref=child_execution_id,
+            child_status=child_run.status,
         )
 
 

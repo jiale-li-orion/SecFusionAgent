@@ -90,6 +90,8 @@ Model output does not define the vocabulary. A known term is canonical only when
 
 The OpenAI-compatible adapter optionally reads real chat-completion SSE and forwards `content` and `reasoning_content` deltas to a caller callback while assembling the same validated structured result and usage record. Product QUESTIONS uses this callback; background enrichment and formal QA retain the ordinary non-streaming path. HTTP 408/429/selected-5xx and authentication failures keep the recorded provider's existing retry/fail classification on both paths.
 
+When a provider returns HTTP 200 with syntactically invalid JSON, the adapter raises a retryable malformed-output error without logging the response body. The recorded model wrapper may issue another bounded `ModelAttempt` under the same logical request; a valid JSON object that fails the declared response schema still fails immediately. This distinction came from a live InvestigationRole response that otherwise failed the whole Case before Decision finalization.
+
 No model endpoint is required for the deterministic M1–M3 path. Workers skip dense/semantic continuations when model configuration is absent.
 
 ## `enrichment-v1` implementation matrix

@@ -28,6 +28,10 @@ class ModelProviderRateLimited(ModelProviderTransientError):
     pass
 
 
+class ModelProviderMalformedOutputError(ModelProviderTransientError):
+    """The provider returned an incomplete or syntactically invalid JSON response."""
+
+
 class ModelProviderAuthError(ModelProviderError):
     pass
 

@@ -14,8 +14,8 @@ from apps.application.commands.ask_question import AskQuestionCommand, AskQuesti
 from apps.application.errors import ApplicationError
 from apps.application.question_sessions import (
     AccountConversationPage,
+    QuestionSessionHistoryPage,
     QuestionSessionStore,
-    QuestionSessionTurn,
 )
 from apps.application.views.questions import QuestionResultView
 from apps.model_runtime import create_recorded_model_provider
@@ -208,33 +208,31 @@ async def stream_question(
     )
 
 
-class QuestionSessionHistoryView(BaseModel):
-    session_id: str
-    turns: list[QuestionSessionTurn]
-
-
 @router.get("/sessions", response_model=AccountConversationPage)
 async def account_conversations(
     session: SessionDep,
     context: RequestContextDep,
     limit: int = Query(default=20, ge=1, le=50),
+    cursor: str | None = None,
 ) -> AccountConversationPage:
     return await QuestionSessionStore().list_owned(
-        session, principal=context.principal, limit=limit
+        session, principal=context.principal, limit=limit, cursor=cursor
     )
 
 
 @router.get(
     "/sessions/{session_id}",
-    response_model=QuestionSessionHistoryView,
+    response_model=QuestionSessionHistoryPage,
     responses={403: {"model": ProblemDetail}, 404: {"model": ProblemDetail}},
 )
 async def question_session_history(
     session_id: str,
     session: SessionDep,
     context: RequestContextDep,
-) -> QuestionSessionHistoryView:
-    history = await QuestionSessionStore(history_limit=50).resolve(
-        session, session_id=session_id, principal=context.principal
+    limit: int = Query(default=50, ge=1, le=50),
+    before_turn: int | None = Query(default=None, ge=1),
+) -> QuestionSessionHistoryPage:
+    return await QuestionSessionStore().read_history_page(
+        session, session_id=session_id, principal=context.principal,
+        limit=limit, before_turn=before_turn,
     )
-    return QuestionSessionHistoryView(session_id=history.session_id, turns=history.turns)

@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from packages.intelligence.knowledge.vocabulary import EnrichmentDimension
 from packages.investigation.perception.contracts import Percept, PerceptionRequest
 from packages.investigation.state.contracts import EvidenceNeed, InvestigationState, StatePatch
-from packages.task_runtime.contracts.models import TaskContract
+from packages.task_runtime.contracts.models import TaskContract, TaskRunStatus
 
 
 class InvestigationActionKind(StrEnum):
@@ -47,6 +47,7 @@ class DelegationResult(BaseModel):
     child_run_id: str
     child_context_ref: str
     child_execution_ref: str
+    child_status: TaskRunStatus | None = None
 
 
 class InvestigationDelegationPort(Protocol):

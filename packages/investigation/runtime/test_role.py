@@ -40,6 +40,8 @@ from packages.investigation.runtime.watch import WatchWakeDisposition, WatchWake
 from packages.investigation.state.contracts import (
     EvidenceNeedContract,
     ProposedState,
+    ReasoningRelation,
+    ReasoningSemantics,
     StatePatch,
     StatePatchOperation,
 )
@@ -318,6 +320,71 @@ class _PerceiveThenPatchPlanner:
         )
 
 
+class _RejectedThenValidPatchPlanner(_PerceiveThenPatchPlanner):
+    def __init__(self) -> None:
+        self.evidence_handles: list[str] = []
+        self.rejection_seen = False
+
+    async def next_action(self, frame: InvestigationFrame):
+        if frame.last_percept and frame.last_percept.evidence_handles:
+            self.evidence_handles = frame.last_percept.evidence_handles
+            valid = await super().next_action(frame)
+            invalid_operation = valid.patch.operations[0].model_copy(
+                update={
+                    "reasoning_relation": ReasoningRelation(
+                        relation_type="supports", semantics=ReasoningSemantics.INFERRED
+                    )
+                }
+            )
+            return StatePatchAction(
+                patch=valid.patch.model_copy(update={"operations": [invalid_operation]})
+            )
+        if frame.last_percept and frame.last_percept.unresolved:
+            self.rejection_seen = any(
+                item.startswith("state_patch_rejected:inferred reasoning relation")
+                for item in frame.last_percept.unresolved
+            )
+            assert self.rejection_seen
+            assert frame.selected_need is not None
+            return StatePatchAction(
+                patch=StatePatch(
+                    patch_id=f"retry:{frame.iteration}",
+                    case_id=frame.state.case_id,
+                    base_case_revision=frame.state.case_revision,
+                    producer="InvestigationRole:test-planner",
+                    operations=[
+                        StatePatchOperation(
+                            proposition="Vendor advisory establishes fixed release v0.22.0",
+                            target_ref=f"object:{frame.selected_need.target_objects[0]}",
+                            proposed_state=ProposedState.CONFIRMED,
+                            evidence_refs=self.evidence_handles,
+                            resolves_need_id=frame.selected_need.need_id,
+                        )
+                    ],
+                )
+            )
+        return await super().next_action(frame)
+
+
+@pytest.mark.asyncio
+async def test_rejected_model_patch_returns_feedback_and_allows_valid_retry() -> None:
+    engine, factory = await _database()
+    try:
+        async with factory() as session, session.begin():
+            case_id, object_id, need_id, _ = await _seed_case_need_and_evidence(session)
+            run_id = await _create_run(
+                session, case_id=case_id, object_id=object_id, need_id=need_id
+            )
+        planner = _RejectedThenValidPatchPlanner()
+        outcome = await InvestigationRoleRuntime(
+            factory, planner, stream_name=STREAM, now=lambda: NOW
+        ).run(run_id)
+        assert planner.rejection_seen
+        assert outcome.run_status is TaskRunStatus.COMPLETED
+    finally:
+        await engine.dispose()
+
+
 class _WaitPlanner:
     async def next_action(self, frame: InvestigationFrame):
         del frame
@@ -389,8 +456,9 @@ class _DelegatePlanner:
 
 
 class _DelegationPort:
-    def __init__(self) -> None:
+    def __init__(self, child_status: TaskRunStatus | None = None) -> None:
         self.calls: list[tuple[str, EnrichmentDelegationRequest]] = []
+        self.child_status = child_status
 
     async def delegate_enrichment(self, *, parent_run_id, request):
         self.calls.append((parent_run_id, request))
@@ -398,7 +466,15 @@ class _DelegationPort:
             child_run_id="child-enrichment-1",
             child_context_ref="context:child-enrichment-1@1",
             child_execution_ref="execution:child-enrichment-1",
+            child_status=self.child_status,
         )
+
+
+class _DelegateThenPatchPlanner(_PerceiveThenPatchPlanner):
+    async def next_action(self, frame: InvestigationFrame):
+        if frame.last_percept is None:
+            return await _DelegatePlanner().next_action(frame)
+        return await super().next_action(frame)
 
 
 @pytest.mark.asyncio
@@ -677,6 +753,33 @@ async def test_investigation_role_delegates_then_waits_for_child() -> None:
             "NeedContext",
         ]
         assert events[-2].payload_ref == "child-task:child-enrichment-1"
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_completed_delegated_child_is_inspected_without_waiting_again() -> None:
+    engine, factory = await _database()
+    delegation = _DelegationPort(child_status=TaskRunStatus.COMPLETED)
+    try:
+        async with factory() as session, session.begin():
+            case_id, object_id, need_id, _ = await _seed_case_need_and_evidence(session)
+            run_id = await _create_run(
+                session, case_id=case_id, object_id=object_id, need_id=need_id
+            )
+        outcome = await InvestigationRoleRuntime(
+            factory,
+            _DelegateThenPatchPlanner(),
+            delegation_port=delegation,
+            stream_name=STREAM,
+            now=lambda: NOW,
+        ).run(run_id)
+        assert outcome.run_status is TaskRunStatus.COMPLETED
+        assert outcome.result.resolved_need_ids == [need_id]
+        async with factory() as session:
+            events = await list_task_events(session, run_id)
+        assert "EvidenceFound" in [event.event_type.value for event in events]
+        assert "NeedContext" not in [event.event_type.value for event in events]
     finally:
         await engine.dispose()
 

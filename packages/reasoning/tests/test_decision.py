@@ -15,6 +15,7 @@ from packages.reasoning.decision import (
     ConclusionType,
     DecisionConclusion,
     DecisionDraft,
+    DecisionReportParagraph,
     DecisionService,
 )
 
@@ -65,6 +66,15 @@ def test_decision_service_binds_fact_to_confirmed_evidence_and_locator() -> None
                 )
             ],
             answer_payload={"fixed_release": "v1.2.3"},
+            report_paragraphs=[
+                DecisionReportParagraph(
+                    text=(
+                        "Release v1.2.3 contains the confirmed fix, according to "
+                        "the primary release evidence."
+                    ),
+                    evidence_refs=["evidence:primary-release"],
+                )
+            ],
             stop_reason="evidence_sufficient",
             model_prompt_revision="decision-v1",
         ),
@@ -80,6 +90,29 @@ def test_decision_service_binds_fact_to_confirmed_evidence_and_locator() -> None
     assert result.case_revision == 4
     assert result.citations[0].evidence_ref == "evidence:primary-release"
     assert result.citations[0].locator == {"field": "fixed_version"}
+    assert result.report_paragraphs[0].evidence_refs == ["evidence:primary-release"]
+
+
+def test_decision_service_rejects_report_citation_outside_conclusions() -> None:
+    with pytest.raises(
+        ValueError, match="report paragraph cites evidence outside decision conclusions"
+    ):
+        DecisionService().decide(
+            _state(),
+            DecisionDraft(
+                case_id="case-1",
+                case_revision=4,
+                report_paragraphs=[
+                    DecisionReportParagraph(
+                        text="An unsupported report claim.",
+                        evidence_refs=["evidence:secondary-blog"],
+                    )
+                ],
+                stop_reason="evidence_sufficient",
+                model_prompt_revision="decision-v3",
+            ),
+            citation_sources=[],
+        )
 
 
 def test_decision_service_rejects_fact_from_tentative_evidence() -> None:

@@ -14,6 +14,7 @@ from apps.application.question_sessions import QuestionSessionStore
 from apps.application.views.investigations import (
     DecisionCitationView,
     DecisionConclusionView,
+    DecisionReportParagraphView,
     DecisionView,
     EvidenceNeedSummaryView,
     InvestigationActivitySummaryView,
@@ -289,6 +290,10 @@ def decision_view(
         unknowns=list(decision.unknowns),
         assumptions=list(decision.assumptions),
         answer=dict(decision.answer_payload),
+        report_paragraphs=[
+            DecisionReportParagraphView(text=item.text, evidence_refs=list(item.evidence_refs))
+            for item in decision.report_paragraphs
+        ],
         stop_reason=decision.stop_reason,
         created_at=created_at,
     )

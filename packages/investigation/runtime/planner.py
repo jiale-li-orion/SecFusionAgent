@@ -326,7 +326,7 @@ def _normalize_action(
     if isinstance(action, DelegationAction):
         identity = sha256(
             (
-                f"{frame.task_run_id}|{frame.iteration}|{assembly_hash}|"
+                f"{frame.task_run_id}|"
                 f"{action.request.target_object_id}|{action.request.cve_id}|"
                 f"{','.join(sorted(action.request.required_dimensions))}"
             ).encode()
