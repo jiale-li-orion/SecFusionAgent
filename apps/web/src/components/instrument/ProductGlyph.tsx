@@ -1,35 +1,51 @@
 import { useId } from 'react'
 
-/** Product symbols share a cut-metal geometry; navigation never relies on the symbol alone. */
-export function ProductGlyph({ kind, size = 24, className = '' }: { kind: string; size?: number; className?: string }) {
-  const id = useId().replace(/:/g, '')
-  const paths: Record<string, string[]> = {
-    world: ['M16 3 28 10v13L16 30 4 23V10Z', 'M4 10l12 7 12-7M16 17v13M10 7l12 7v12'],
-    intelligence: ['M5 9 16 3 27 9 16 15Z', 'M5 15l11 6 11-6M5 21l11 6 11-6'],
-    investigations: ['M16 3 28 16 16 29 4 16Z', 'M10 10h12v12H10Z', 'M16 3v7m12 6h-6m-6 13v-7M4 16h6'],
-    agents: ['M16 3 26 9v12l-10 6-10-6V9Z', 'M11 12h10v8H11Z', 'M16 3v5m-5 19v3m10-3v3M2 12h4m20 6h4'],
-    observatory: ['M4 26h24M6 22V11m7 11V6m7 16V15m7 7V3', 'M4 14l9-7 7 9 8-12'],
-    start: ['M9 4h14l6 12-6 12H9L3 16Z', 'M13 10l9 6-9 6Z'],
-    vulnerability: ['M16 3 28 10v13l-12 7L4 23V10Z', 'M18 4l-7 11 8 2-5 12'],
-    development: ['M5 7h12v18H5ZM15 4h12v18H15Z', 'M9 12h4m-4 5h4m6-8h4m-4 5h4'],
-    academic: ['M5 6 16 10 27 6v19l-11 4-11-4Z', 'M16 10v19M8 3l8 3 8-3'],
-    vendor: ['M16 3 27 7v12l-11 11L5 19V7Z', 'M16 9l6 6-6 6-6-6Z'],
-    normative: ['M7 4h19v22H7Z', 'M7 9H4v20h19v-3M12 11h9m-9 5h9m-9 5h5'],
-    independent: ['M16 3 22 16 16 29 10 16Z', 'M5 7v18M27 7v18M10 16h12'],
-    assets: ['M16 3 28 16 16 29 4 16Z', 'M16 3v26M4 16h24M4 16l12-6 12 6-12 6Z'],
-    incidents: ['M5 8h13l9 9v10H14l-9-9Z', 'M5 14h13l9 9M11 3h12l6 6v9'],
-    verify: ['M16 3 27 7v12l-11 11L5 19V7Z', 'M10 16l4 4 9-9'],
-    lookup: ['M6 4h17v20H6Z', 'M11 10h7m-7 5h5M20 20l8 8'],
-    trace: ['M16 3 28 16 16 29 4 16Z', 'M10 16h12M16 10v12'],
-    deep: ['M4 8 16 2 28 8 16 14Z', 'M4 14l12 6 12-6M4 20l12 6 12-6M16 14v12'],
-    monitor: ['M4 8h24v17H4Z', 'M8 17h4l3-6 4 10 3-4h3M12 29h8m-4-4v4'],
-    watch: ['M4 8h24v17H4Z', 'M8 17h4l3-6 4 10 3-4h3M12 29h8m-4-4v4'],
-    wide: ['M4 5h9v9H4Zm15 0h9v9h-9ZM4 20h9v9H4Zm15 0h9v9h-9Z'],
-    full: ['M4 5h9v9H4Zm15 0h9v9h-9ZM4 20h9v9H4Zm15 0h9v9h-9Z'],
-  }
-  return <svg className={`product-glyph ${className}`} width={size} height={size} viewBox="0 0 32 32" fill="none" aria-hidden="true"><defs><linearGradient id={id} x1="3" y1="2" x2="27" y2="30" gradientUnits="userSpaceOnUse"><stop stopColor="currentColor"/><stop offset=".45" stopColor="currentColor" stopOpacity=".9"/><stop offset="1" stopColor="currentColor" stopOpacity=".4"/></linearGradient></defs>{(paths[({ direct: 'start', retrieve: 'intelligence', investigate: 'investigations' } as Record<string, string>)[kind.toLowerCase()] ?? kind.toLowerCase()] ?? paths.intelligence).map((d, i) => <path key={d} d={d} stroke={`url(#${id})`} strokeWidth={i === 0 ? 1.3 : 1} strokeLinejoin="round" strokeLinecap="round" fill={i === 0 ? 'currentColor' : 'none'} fillOpacity={i === 0 ? .035 : 0}/>)}</svg>
+const aliases: Record<string, string> = {
+  direct: 'start', retrieve: 'intelligence', investigate: 'investigations',
+  watch: 'observatory', monitor: 'observatory', lookup: 'intelligence',
+  verify: 'vulnerability', trace: 'investigations', deep: 'intelligence',
+  wide: 'world', full: 'world',
 }
 
-export function BrandMark({ size = 34 }: { size?: number }) {
-  return <svg className="brand-mark" width={size} height={size} viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M20 2 36 11v18L20 38 4 29V11Z" stroke="currentColor" strokeOpacity=".38"/><path d="M29 12H18l-7 7 7 7h11M11 28h11l7-7-7-7H11" stroke="currentColor" strokeWidth="2"/><path d="m20 2 16 9M4 29l16 9" stroke="currentColor" strokeWidth="1.8"/></svg>
+/** Eight source seals and six space marks share a machined rim, not an icon font. */
+export function ProductGlyph({ kind, size = 24, className = '' }: { kind: string; size?: number; className?: string }) {
+  const id = useId().replace(/:/g, '')
+  const motif = aliases[kind.toLowerCase()] ?? kind.toLowerCase()
+  return <svg className={`product-glyph product-glyph-${motif} ${className}`} width={size} height={size} viewBox="0 0 40 40" fill="none" aria-hidden="true">
+    <defs><linearGradient id={`${id}-rim`} x1="4" y1="4" x2="36" y2="36" gradientUnits="userSpaceOnUse"><stop stopColor="currentColor" stopOpacity=".8"/><stop offset=".52" stopColor="currentColor" stopOpacity=".22"/><stop offset="1" stopColor="currentColor" stopOpacity=".66"/></linearGradient></defs>
+    <path d="M20 2.5 35.15 11.25v17.5L20 37.5 4.85 28.75v-17.5Z" fill="currentColor" fillOpacity=".045" stroke={`url(#${id}-rim)`} strokeWidth=".9"/>
+    <path d="M20 5.5 32.55 12.75v14.5L20 34.5 7.45 27.25v-14.5Z" stroke="currentColor" strokeOpacity=".13" strokeWidth=".7"/>
+    {motif === 'world' && <g stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"><path d="M10 22.6 20 16l10 6.6-10 6.7Z" fill="currentColor" fillOpacity=".16" strokeWidth="1.2"/><path d="m10 17.2 10-6.5 10 6.5M20 10.7V16m0 13.3v4.1M10 22.6l-3 2m23-2 3 2" strokeWidth="1.5"/><circle cx="20" cy="16" r="1.6" fill="currentColor" stroke="none"/></g>}
+    {motif === 'intelligence' && <g stroke="currentColor" strokeLinejoin="round"><path d="m9 25 11-5 11 5-11 5Z" fill="currentColor" fillOpacity=".17" strokeWidth="1.2"/><path d="m9 20 11-5 11 5-11 5Zm0-5 11-5 11 5-11 5Z" strokeWidth="1.4"/><path d="M20 10v10" strokeOpacity=".5"/></g>}
+    {motif === 'investigations' && <g stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"><path d="M20 8 31 20 20 32 9 20Z" fill="currentColor" fillOpacity=".1"/><path d="M13 20h14M20 13v14"/><circle cx="20" cy="20" r="4.2" fill="currentColor" fillOpacity=".23"/><path d="m27.8 12.2 3-3m-21 21 3-3"/></g>}
+    {motif === 'agents' && <g stroke="currentColor" strokeLinejoin="round"><path d="M20 8 30 14v12l-10 6-10-6V14Z" fill="currentColor" fillOpacity=".12" strokeWidth="1.2"/><circle cx="20" cy="20" r="5.3" strokeWidth="1.4"/><path d="M20 8v6m10 0-5.2 3M10 26l5.2-3m4.8 3v6" strokeWidth="1.4"/><circle cx="20" cy="20" r="1.5" fill="currentColor" stroke="none"/></g>}
+    {motif === 'observatory' && <g stroke="currentColor" strokeLinecap="round"><path d="M9 27V13m6 14V19m5 8V9m6 18V16m5 11v-9" strokeWidth="2.2"/><path d="M8 29h24M9 12l6 6 5-8 6 5 5-4" strokeOpacity=".56" strokeWidth="1.1"/></g>}
+    {motif === 'start' && <g stroke="currentColor" strokeLinejoin="round"><path d="M11 9h18l5 11-5 11H11L6 20Z" fill="currentColor" fillOpacity=".13" strokeWidth="1.25"/><path d="m16 13 11 7-11 7Z" fill="currentColor" fillOpacity=".35" strokeWidth="1.25"/><path d="M10 20h5" strokeWidth="1.4"/></g>}
+    {motif === 'vulnerability' && <g stroke="currentColor" strokeLinejoin="round"><path d="M20 8 30 14v12l-10 6-10-6V14Z" fill="currentColor" fillOpacity=".16" strokeWidth="1.2"/><path d="m22 8-8 12 9 1-5 11" strokeWidth="2.2"/><path d="m10 14 6 3m8 9 6-2" strokeOpacity=".5"/></g>}
+    {motif === 'development' && <g stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"><path d="M11 11v17m0-11h15m0 0v11" strokeWidth="1.6"/><circle cx="11" cy="11" r="3" fill="currentColor" fillOpacity=".3" strokeWidth="1.4"/><circle cx="11" cy="28" r="3" fill="currentColor" fillOpacity=".3" strokeWidth="1.4"/><circle cx="26" cy="17" r="3" fill="currentColor" fillOpacity=".3" strokeWidth="1.4"/><circle cx="26" cy="28" r="3" fill="currentColor" fillOpacity=".3" strokeWidth="1.4"/></g>}
+    {motif === 'academic' && <g stroke="currentColor" strokeLinejoin="round"><path d="m9 14 11-5 11 5-11 5Z" fill="currentColor" fillOpacity=".22" strokeWidth="1.4"/><path d="M11 18v10l9 4 9-4V18M20 19v13" strokeWidth="1.5"/><path d="m14 23 6 3 6-3" strokeOpacity=".5"/></g>}
+    {motif === 'vendor' && <g stroke="currentColor" strokeLinejoin="round"><path d="M20 8 30 12v12l-10 8-10-8V12Z" fill="currentColor" fillOpacity=".14" strokeWidth="1.3"/><path d="m14 20 4 4 8-9" strokeWidth="2.25" strokeLinecap="round"/><path d="M15 10v3m10-3v3" strokeOpacity=".6"/></g>}
+    {motif === 'normative' && <g stroke="currentColor" strokeLinejoin="round"><path d="M12 9h16v21H12Z" fill="currentColor" fillOpacity=".12" strokeWidth="1.3"/><path d="M16 9v21m4-15h5m-5 5h5m-5 5h3" strokeWidth="1.4"/><path d="M9 13h3m-3 13h3" strokeWidth="1.7"/></g>}
+    {motif === 'independent' && <g stroke="currentColor" strokeLinecap="round"><circle cx="20" cy="20" r="3" fill="currentColor" strokeWidth="1.2"/><path d="M12 12a11.3 11.3 0 0 0 0 16m16-16a11.3 11.3 0 0 1 0 16M8 8a17 17 0 0 0 0 24m24-24a17 17 0 0 1 0 24" strokeWidth="1.5"/></g>}
+    {motif === 'assets' && <g stroke="currentColor" strokeLinejoin="round"><path d="m20 9 11 6v12l-11 6-11-6V15Z" fill="currentColor" fillOpacity=".1" strokeWidth="1.2"/><path d="m9 15 11 7 11-7M20 22v11m-6-15 11-6" strokeWidth="1.4"/><circle cx="20" cy="22" r="2" fill="currentColor" stroke="none"/></g>}
+    {motif === 'incidents' && <g stroke="currentColor" strokeLinejoin="round"><path d="M10 12h11l9 9v10H19l-9-9Z" fill="currentColor" fillOpacity=".13" strokeWidth="1.2"/><path d="M10 18h11l9 9M15 8h11l5 5v7" strokeWidth="1.3"/><circle cx="21" cy="21" r="2" fill="currentColor" stroke="none"/></g>}
+  </svg>
+}
+
+/** Evidence aperture: independently entering planes meet at one durable centre. */
+export function BrandMark({ size = 38 }: { size?: number }) {
+  const id = useId().replace(/:/g, '')
+  return <svg className="brand-mark" width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden="true">
+    <defs><linearGradient id={`${id}-brand`} x1="7" y1="3" x2="41" y2="45" gradientUnits="userSpaceOnUse"><stop stopColor="#35463b"/><stop offset=".5" stopColor="#18291f"/><stop offset="1" stopColor="#0e1d15"/></linearGradient><linearGradient id={`${id}-edge`} x1="7" y1="5" x2="40" y2="44" gradientUnits="userSpaceOnUse"><stop stopColor="#c8d5ba"/><stop offset=".52" stopColor="#667d6a"/><stop offset="1" stopColor="#c2a17b"/></linearGradient></defs>
+    <path d="M24 2.5 42.6 13.25v21.5L24 45.5 5.4 34.75v-21.5Z" fill={`url(#${id}-brand)`} stroke={`url(#${id}-edge)`} strokeWidth="1.2"/>
+    <path d="m24 7 14.6 8.4v17.2L24 41 9.4 32.6V15.4Z" stroke="#dce7d7" strokeOpacity=".28" strokeWidth=".7"/>
+    <path d="m11 17 13-7.5L37 17 24 24.5Z" fill="#dce6d3" fillOpacity=".83"/>
+    <path d="M11 17v14l13 7.5v-14Z" fill="#809989"/>
+    <path d="M37 17v14l-13 7.5v-14Z" fill="#415c4b"/>
+    <path d="m17.2 20.6 6.8-3.9 6.8 3.9L24 24.5Z" fill="#15261c"/>
+    <path d="M17.2 20.6v7.9l6.8 3.9v-7.9Z" fill="#203529"/>
+    <path d="M30.8 20.6v7.9L24 32.4v-7.9Z" fill="#091d12"/>
+    <path d="M11 31 24 38.5 37 31M24 9.5v7.2" stroke="#dbe8d4" strokeOpacity=".67" strokeWidth=".8"/>
+    <circle cx="24" cy="24.5" r="2.1" fill="#d0ab7e"/>
+  </svg>
 }

@@ -99,6 +99,24 @@ async def test_latest_revision_keeps_exact_source_excerpt_and_evidence(database)
         assert "why_it_matters" not in story.model_dump()
 
 
+async def test_world_story_omits_generic_source_landing_pages(database):
+    async with database() as session, session.begin():
+        await document(
+            session,
+            "meta-ai-safety",
+            title="Blog",
+            summary="Products AI Research Resources About AI Developers Try Muse Latest News",
+        )
+        await document(
+            session,
+            "meta-ai-safety",
+            title="Safety update for AI assistants",
+            summary="The publisher describes a concrete safety change.",
+        )
+        result = await list_world_stories(session)
+        assert [story.headline for story in result.items] == ["Safety update for AI assistants"]
+
+
 async def test_broad_feed_requires_typed_corpus_link_not_exploratory_relations(database):
     async with database() as session, session.begin():
         _, broad, revision = await document(session, "oss-security", title="Unscoped disclosure")

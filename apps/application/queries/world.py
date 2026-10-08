@@ -30,6 +30,19 @@ from packages.intelligence.storage.knowledge_models import (
 from packages.sources.inventory import load_source_inventory
 from packages.sources.registry.loader import load_source_definitions
 
+_LANDING_TITLES = frozenset(
+    {
+        "blog",
+        "news",
+        "latest news",
+        "home",
+        "resources",
+        "publications",
+        "documentation",
+        "download now",
+    }
+)
+
 
 async def list_world_stories(session: AsyncSession, *, limit: int = 10) -> WorldStoryListView:
     """Read source facts, never create a security judgment or rewrite external prose.
@@ -127,7 +140,7 @@ async def list_world_stories(session: AsyncSession, *, limit: int = 10) -> World
             or _string(revision.metadata_json, "subject")
             or _string(revision.metadata_json, "title")
         )
-        if not title:
+        if not title or title.strip().casefold().strip(" .:/—-") in _LANDING_TITLES:
             continue
         story = WorldStoryView(
             story_id=f"document:{document.document_id}",

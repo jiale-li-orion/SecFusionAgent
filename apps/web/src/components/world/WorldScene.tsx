@@ -31,7 +31,7 @@ export function WorldScene({ stories, focusedId, pending, failed, onFocus, onOpe
   const reduced = useReducedMotion()
   const [inspect, setInspect] = useState(false)
   const setRegion = onRegion
-  const available = view === 'hot' ? stories.filter(s => s.kind === 'HotVulnerability') : stories.filter(s => s.kind !== 'HotVulnerability')
+  const available = view === 'hot' ? stories.filter(s => s.kind === 'HotVulnerability') : region === 'vulnerability' ? stories : stories.filter(s => s.kind !== 'HotVulnerability')
   const regionStories = region ? available.filter(s => s.category === region) : available
   const focused = regionStories.find(s => s.story_id === focusedId) ?? regionStories[0] ?? null
   const direction = categories.find(c => c.key === region)

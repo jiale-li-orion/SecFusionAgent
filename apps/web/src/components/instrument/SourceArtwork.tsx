@@ -4,8 +4,8 @@ import { useId } from 'react'
 export function SourceArtwork({ category, index, fit = 'slice' }: { category: string; index: number; fit?: 'slice' | 'meet' }) {
   const id = useId().replace(/:/g, '')
   const paint = (name: string) => `url(#${id}-${name})`
-  const layered = category === 'academic' || category === 'normative'
-  const fractured = category === 'vulnerability' || category === 'incidents'
+  const layered = category === 'academic'
+  const fractured = category === 'vulnerability'
   return <svg className="source-artwork" viewBox="0 0 320 180" preserveAspectRatio={`xMidYMid ${fit}`} aria-hidden="true">
     <defs>
       <linearGradient id={`${id}-ground`} x1="0" y1="0" x2="1" y2="1"><stop stopColor="#f4f4eb"/><stop offset="1" stopColor="#d8ddcf"/></linearGradient>
@@ -26,7 +26,26 @@ export function SourceArtwork({ category, index, fit = 'slice' }: { category: st
           <path d="M-54-1 0 24 54-1" fill="none" stroke="#faffec" strokeOpacity=".65" strokeWidth=".7"/>
         </g>)}
         <circle cy="-59" r="5" fill={paint('copper')}/>
-      </> : category === 'development' ? <g transform="skewY(-14)">
+      </> : category === 'normative' ? <g transform="rotate(-8)">
+        <path d="M-43-63H33L46-50V63H-43Z" fill={paint('metal')} stroke="#edf0e8" strokeWidth="1.3"/>
+        <path d="M-29-49H31V50H-29Z" fill={paint('glass')} stroke={paint('copper')} strokeWidth="1.7"/>
+        <path d="M-39-57v114" stroke={paint('copper')} strokeWidth="3"/>
+        <path d="M-18-25H22m-40 15H22m-40 15H22m-40 15H11" stroke="#38513f" strokeOpacity=".7" strokeWidth="2.3"/>
+        <path d="M-3-44v12m-8-6H5" stroke="#a46d4d" strokeWidth="1.5"/>
+      </g> : category === 'vendor' ? <g transform="rotate(-13) scale(1 .86)">
+        <circle r="65" fill={paint('metal')} stroke="#f5f5e8" strokeWidth="1.5"/>
+        <circle r="55" fill={paint('sphere')} stroke={paint('copper')} strokeWidth="3"/>
+        <circle r="39" fill="none" stroke="#e6ede2" strokeOpacity=".45" strokeWidth="1"/>
+        <path d="M0-27 25-14v28L0 29l-25-15v-28Z" fill={paint('glass')} stroke={paint('metal')} strokeWidth="2"/>
+        <path d="m-13 1 9 10 20-22" fill="none" stroke={paint('copper')} strokeWidth="4" strokeLinecap="round"/>
+        <path d="M0-69v9m0 120v9M-69 0h9M60 0h9" stroke={paint('copper')} strokeWidth="2"/>
+      </g> : category === 'incidents' ? <g transform="rotate(-17)">
+        {[-30,0,30].map((x,i)=><g key={x} transform={`translate(${x} ${i*5-7})`}>
+          <path d="M-18-53H12l9 9V51h-39Z" fill={paint(i===1?'copper':'metal')} stroke="#edf1e9" strokeWidth="1.2"/>
+          <path d="M-8-34H10m-18 8H6m-14 8H9" stroke="#223529" strokeOpacity=".6" strokeWidth="1.7"/>
+        </g>)}
+        <ellipse cx="8" cy="-3" rx="73" ry="22" fill="none" stroke={paint('copper')} strokeWidth="1.6" transform="rotate(24)"/>
+      </g> : category === 'development' ? <g transform="skewY(-14)">
         {[-42,0,42].map((x,i) => <g key={x} transform={`translate(${x} ${i*-4})`}>
           <path d="M-17-46H12L22-36V46H-7L-17 36Z M-6-32V31H10V-32Z" fill={paint(i===1?'copper':'metal')} fillRule="evenodd"/>
           <path d="M-17-46H12L22-36V46" fill="none" stroke="#f7f8ea" strokeWidth="1"/>

@@ -418,6 +418,76 @@
   margin: 22px 0;
 }
 
+.ew-source-readings {
+  display: grid;
+  gap: 9px;
+  margin: 22px 0;
+}
+
+.ew-source-reading {
+  display: grid;
+  grid-template-columns: 52px minmax(0,1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.ew-source-reading>div {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.ew-source-reading strong {
+  font-size: 11px;
+  line-height: 1.5;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.ew-source-reading>div>span {
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.ew-source-reading>small {
+  max-width: 86px;
+  font-size: 8px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.ew-source-reading>small.source-health-healthy { color: #58764d; }
+.ew-source-reading>small.source-health-blocked { color: #a65e4d; }
+.ew-source-reading>small.source-health-degraded { color: #a07842; }
+
+.source-seal {
+  position: relative;
+  width: 48px;
+  height: 50px;
+  display: grid;
+  place-items: center;
+  color: #d5e0c6;
+  background: linear-gradient(145deg,#3d5141,#192c20 75%);
+  border: 1px solid #becdb369;
+  box-shadow: inset 0 1px 0 #fff3,0 7px 12px #15261b24;
+  clip-path: polygon(50% 0,94% 23%,94% 76%,50% 100%,6% 76%,6% 23%);
+}
+
+.source-seal>span {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  color: #e7c89b;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: -.06em;
+  text-shadow: 0 1px 2px #000a;
+}
+
 .ew-hot-field,.ew-source-field,.ew-formation-field {
   padding: 20px 0;
 }
@@ -488,9 +558,15 @@
   padding: 12px;
   width: 130px;
   text-align: center;
-  background: #233227;
-  border: 1px solid #b8c99f20;
+  background: linear-gradient(150deg,#344535,#223126 62%,#1e2b23);
+  border: 1px solid #c7d7b02b;
   border-radius: 10px;
+  box-shadow: inset 0 1px 0 #edf8dc0b,0 12px 22px #0a150c29;
+}
+
+.ew-source-node>.product-glyph {
+  color: #cfddbd;
+  filter: drop-shadow(0 4px 9px #07140a5c);
 }
 
 .ew-hot-node.selected {
@@ -2294,13 +2370,47 @@
   gap: 30px;
   padding: 30px 40px;
   border-radius: 24px;
-  background: radial-gradient(ellipse at 20% 55%,#394b3438,transparent 70%),var(--night);
+  background: radial-gradient(ellipse at 22% 46%,#8d775922,transparent 43%),radial-gradient(ellipse at 82% 112%,#4f725524,transparent 45%),var(--night);
+  border: 1px solid #cfe2ca1b;
+  box-shadow: inset 0 1px 0 #ffffff0a,inset 0 -45px 70px #07110935;
   color: var(--white);
 }
 
+.vision-role-stage.role-investigationrole {
+  background: radial-gradient(ellipse at 22% 46%,#78b0bc22,transparent 43%),radial-gradient(ellipse at 82% 112%,#4f725524,transparent 45%),var(--night);
+}
+
+.vision-role-stage.role-enrichmentrole {
+  background: radial-gradient(ellipse at 22% 46%,#b5bc7621,transparent 43%),radial-gradient(ellipse at 82% 112%,#4f725524,transparent 45%),var(--night);
+}
+
 .vision-role-portrait {
+  position: relative;
   height: 370px;
 }
+
+.vision-role-portrait::before {
+  content: '';
+  position: absolute;
+  inset: 7% 9%;
+  border: 1px solid #dce9d014;
+  border-radius: 50%;
+  transform: rotate(-18deg) scaleY(.78);
+}
+
+.vision-role-portrait::after {
+  content: '';
+  position: absolute;
+  bottom: 7%;
+  left: 15%;
+  right: 15%;
+  height: 11px;
+  border-radius: 50%;
+  background: #0a1309;
+  filter: blur(8px);
+}
+
+.vision-role-portrait .hero-artifact { z-index: 1; }
 
 .vision-role-story>small {
   color: #9fae93;
@@ -2353,17 +2463,19 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 10px;
+  padding: 13px 11px;
   border-radius: 14px;
   text-align: left;
   color: #92a782;
-  border: 1px solid transparent;
-  transition: background .2s,border-color .2s;
+  border: 1px solid #cddab612;
+  background: #dae7cb08;
+  transition: background .2s,border-color .2s,transform .2s;
 }
 
 .vision-role-selectors>button:hover {
   background: #d8e7c509;
-  border-color: #cddab614;
+  border-color: #cddab65a;
+  transform: translateX(-3px);
 }
 
 .vision-role-selectors>button.selected {
@@ -2374,8 +2486,8 @@
 }
 
 .vision-role-selectors .role-sigil {
-  width: 50px;
-  height: 55px;
+  width: 57px;
+  height: 60px;
   flex-shrink: 0;
 }
 

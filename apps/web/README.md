@@ -29,6 +29,8 @@ The user flow is register/sign in → save interests → inspect evidence-based 
 
 The retired `styles.css`, `cinematic.css`, `cinematic-seams.css`, `surface-authority.css` and `layout-authority.css` remain out of the import graph. Do not restart an override cascade. `npm run lint:css-authority` enforces active ownership. Main identity objects use shared WebGL materials with SVG fallback and reduced-motion behavior; small cards reuse the same visual identities without opening extra GL contexts. Every animated live fact must resolve to a real source, state or measurement.
 
+Identity assets live under `src/components/instrument/`: `BrandMark` is the evidence-aperture product mark; `ProductGlyph` gives the six spaces and eight source categories distinct machined seals; `SourceSeal` combines a category seal with a source-name monogram in WORLD source inspection, without claiming to reproduce a publisher's official logo. `HeroArtifact` has separate WebGL geometry for the three roles and all eight source categories, with `RoleSigil` / `SourceArtwork` as material-matched static fallbacks. The role accents are identity cues only; active counts and source health continue to come from live reads. Selecting the vulnerability source direction can focus a real Hot vulnerability, while the Hot-only versus durable Evidence boundary remains explicit in the provenance path.
+
 ## Local integration
 
 Start the API after infrastructure/migrations are available:

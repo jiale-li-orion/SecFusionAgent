@@ -15,6 +15,9 @@ float roundedBox(vec3 p, vec3 b, float radius) {
 float torus(vec3 p, float radius, float tube) {
   return length(vec2(length(p.xz) - radius, p.y)) - tube;
 }
+float faceTorus(vec3 p, float radius, float tube) {
+  return length(vec2(length(p.xy) - radius, p.z)) - tube;
+}
 vec2 closer(vec2 a, vec2 b) { return a.x < b.x ? a : b; }
 vec3 pose(vec3 p) {
   p.xz = rotation(.46 + sin(time * .13) * .10 + pointer.x * .16) * p.xz;
@@ -26,12 +29,12 @@ vec2 scene(vec3 position, bool glass) {
   vec3 p = pose(position);
   vec2 result = vec2(20., 0.);
   if (model < .5) {
-    result = vec2(length(p) - .59, 1.);
-    vec3 q = p; q.xy = rotation(.58) * q.xy;
-    result = closer(result, vec2(torus(q, .92, .042), 0.));
-    q = p; q.yz = rotation(1.15) * q.yz; q.xy = rotation(-.4) * q.xy;
-    result = closer(result, vec2(torus(q, .76, .026), 3.));
-    result = closer(result, vec2(length(p - vec3(.82, .35, 0.)) - .07, 0.));
+    result = vec2(length(p) - .56, 1.);
+    vec3 q = p; q.xy = rotation(-.45) * q.xy; q.yz = rotation(.31) * q.yz;
+    result = closer(result, vec2(faceTorus(q, .91, .024), 0.));
+    q = p; q.xy = rotation(.36) * q.xy; q.xz = rotation(.25) * q.xz;
+    result = closer(result, vec2(faceTorus(q, .74, .011), 3.));
+    result = closer(result, vec2(length(p - vec3(.73, .50, 0.)) - .052, 3.));
     return result;
   }
   if (model < 1.5) {
@@ -57,6 +60,10 @@ vec2 scene(vec3 position, bool glass) {
       if (glass) result = closer(result, vec2(roundedBox(q, vec3(.57, .015, .41), .018), 2.));
     }
     result = closer(result, vec2(roundedBox(p, vec3(.10, .48, .10), .025), 0.));
+    vec3 crystal = p - vec3(0., .03, 0.);
+    crystal.xz = rotation(.53) * crystal.xz;
+    float octahedron = (abs(crystal.x) + abs(crystal.y) + abs(crystal.z) - .47) * .57735;
+    result = closer(result, vec2(octahedron, 3.));
     return closer(result, vec2(length(p - vec3(0., .53, 0.)) - .105, 3.));
   }
   if (model < 3.5) {
@@ -76,10 +83,39 @@ vec2 scene(vec3 position, bool glass) {
     vec3 q = p; q.xy = rotation(.3) * q.xy;
     return closer(result, vec2(torus(q, .8, .02), 3.));
   }
-  vec3 q = p; q.xy = rotation(-.2) * q.xy;
-  result = vec2(roundedBox(q - vec3(-.29, 0., 0.), vec3(.21, .72, .34), .045), 1.);
-  result = closer(result, vec2(roundedBox(q - vec3(.30, .12, -.04), vec3(.21, .62, .34), .045), 0.));
-  return closer(result, vec2(roundedBox(q - vec3(.01, -.02, 0.), vec3(.015, .65, .27), .012), 3.));
+  if (model < 5.5) {
+    vec3 q = p; q.xy = rotation(-.2) * q.xy;
+    result = vec2(roundedBox(q - vec3(-.29, 0., 0.), vec3(.21, .72, .34), .045), 1.);
+    result = closer(result, vec2(roundedBox(q - vec3(.30, .12, -.04), vec3(.21, .62, .34), .045), 0.));
+    return closer(result, vec2(roundedBox(q - vec3(.01, -.02, 0.), vec3(.015, .65, .27), .012), 3.));
+  }
+  if (model < 6.5) {
+    vec3 q = p; q.yz = rotation(.30) * q.yz;
+    result = vec2(max(length(q.xz) - .72, abs(q.y) - .12), 0.);
+    vec3 inset = q; inset.y -= .13;
+    result = closer(result, vec2(max(length(inset.xz) - .55, abs(inset.y) - .015), 1.));
+    vec3 seal = inset; seal.xz = rotation(.785398) * seal.xz;
+    result = closer(result, vec2(roundedBox(seal, vec3(.33, .065, .33), .025), 3.));
+    return result;
+  }
+  if (model < 7.5) {
+    vec3 q = p; q.yz = rotation(-.24) * q.yz;
+    result = vec2(roundedBox(q, vec3(.56, .76, .11), .035), 0.);
+    vec3 inset = q; inset.z -= .135;
+    result = closer(result, vec2(roundedBox(inset, vec3(.43, .62, .018), .018), 2.));
+    for (int i = 0; i < 4; i++) {
+      vec3 line = q; line.y -= .36 - float(i) * .21; line.z -= .18;
+      result = closer(result, vec2(roundedBox(line, vec3(.29, .008, .014), .004), 3.));
+    }
+    return result;
+  }
+  vec3 q = p; q.xy = rotation(-.20) * q.xy;
+  for (int i = 0; i < 3; i++) {
+    vec3 shard = q; shard.x -= float(i) * .29 - .29; shard.y += float(i) * .11 - .11;
+    shard.xz = rotation(float(i) * .17 - .17) * shard.xz;
+    result = closer(result, vec2(roundedBox(shard, vec3(.10, .65, .32), .025), i == 1 ? 3. : 1.));
+  }
+  return closer(result, vec2(torus(q, .78, .014), 0.));
 }
 vec2 scene(vec3 p) { return scene(p, true); }
 vec3 normalAt(vec3 p) {
@@ -89,14 +125,14 @@ vec3 normalAt(vec3 p) {
     scene(p + e.yyx).x - scene(p - e.yyx).x));
 }
 vec3 environment(vec3 r) {
-  vec3 color = mix(vec3(.025, .038, .035), vec3(.32, .38, .36), smoothstep(-.5, .8, r.y));
-  float panel = smoothstep(-.65, -.55, r.x) * (1. - smoothstep(.15, .23, r.x));
-  panel *= smoothstep(.25, .32, r.y) * (1. - smoothstep(.80, .86, r.y));
-  float ribbon = exp(-pow((r.x + .62) / .065, 2.)) * smoothstep(-.4, .7, r.y);
+  vec3 color = mix(vec3(.025, .038, .035), vec3(.18, .24, .22), smoothstep(-.5, .8, r.y));
+  float panel = smoothstep(-.72, -.67, r.x) * (1. - smoothstep(-.34, -.29, r.x));
+  panel *= smoothstep(.18, .27, r.y) * (1. - smoothstep(.72, .83, r.y));
+  float ribbon = exp(-pow((r.x + .58) / .045, 2.)) * smoothstep(-.4, .7, r.y);
   float rim = pow(max(dot(r, normalize(vec3(2., .4, -2.))), 0.), 18.);
-  color += vec3(3.8, 3.85, 3.55) * panel;
-  color += vec3(2.5, 2.8, 2.75) * ribbon;
-  return color + vec3(1.8, .86, .40) * rim;
+  color += vec3(1.7, 1.82, 1.65) * panel;
+  color += vec3(1.20, 1.42, 1.31) * ribbon;
+  return color + vec3(1.55, .78, .34) * rim;
 }
 float ambientOcclusion(vec3 p, vec3 n) {
   float value = 0.;
@@ -163,7 +199,8 @@ void main() {
       alpha = 1.;
     }
   } else {
-    color = reflection * vec3(.90, .58, .29) + vec3(.19, .09, .035) * diffuse;
+    vec3 accent = model < .5 ? vec3(.96, .69, .40) : model < 1.5 ? vec3(.49, .78, .82) : model < 2.5 ? vec3(.76, .86, .53) : vec3(.90, .58, .29);
+    color = reflection * accent + accent * .16 * diffuse;
   }
   color *= ambientOcclusion(p, n);
   color = color / (vec3(1.) + color);

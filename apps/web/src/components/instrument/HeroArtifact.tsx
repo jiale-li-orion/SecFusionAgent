@@ -5,8 +5,9 @@ import { RoleSigil } from './RoleSigil'
 import { SourceArtwork } from './SourceArtwork'
 
 const models: Record<string, number> = {
-  DecisionRole: 0, vendor: 0, InvestigationRole: 1, independent: 1,
-  EnrichmentRole: 2, academic: 2, normative: 2, development: 3, assets: 4,
+  DecisionRole: 0, InvestigationRole: 1, EnrichmentRole: 2,
+  independent: 1, academic: 2, development: 3, assets: 4,
+  vulnerability: 5, vendor: 6, normative: 7, incidents: 8,
 }
 
 /** Material identity only. Motion never signals a source, task or write event. */

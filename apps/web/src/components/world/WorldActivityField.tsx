@@ -1,6 +1,6 @@
-import { ProductGlyph } from '../instrument/ProductGlyph'
+import { BrandMark, ProductGlyph } from '../instrument/ProductGlyph'
 import { useState } from 'react'
-import { ArrowLeft, ArrowRight, Bug, Check, Link2, Search } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, Link2, Search } from 'lucide-react'
 import type { WorldFormation, WorldStory } from '../../lib/api/world'
 import { useI18n } from '../../lib/i18n'
 
@@ -17,7 +17,7 @@ export function WorldHotField({ stories, focusedId, total, failed, onFocus, onRe
     <label className="ew-hot-search"><Search size={15} /><input aria-label={text('搜索已载入的热区', 'Search loaded Hot objects')} placeholder={text('搜索本次载入的漏洞或机制', 'Search loaded IDs or mechanisms')} value={search} onChange={e => { setSearch(e.target.value); setPage(0) }} /></label>
     <div className="ew-hot-orbit">
       <svg viewBox="0 0 500 500" aria-hidden="true"><ellipse cx="250" cy="250" rx="205" ry="178" /><ellipse cx="250" cy="250" rx="150" ry="205" transform="rotate(30 250 250)" /><circle cx="250" cy="250" r="72" /></svg>
-      <div className="ew-hot-core"><Bug size={30} /><strong>{text('热区', 'Hot')}</strong><small>{text('点击漏洞查看原文', 'Select a vulnerability')}</small></div>
+      <div className="ew-hot-core"><ProductGlyph kind="vulnerability" size={40} /><strong>{text('热区', 'Hot')}</strong><small>{text('点击漏洞查看原文', 'Select a vulnerability')}</small></div>
       {visible.map((s, i) => { const a = (i * 45 - 90) * Math.PI / 180; return <button key={s.story_id} className={`ew-hot-node ${s.story_id === focusedId ? 'selected' : ''}`} style={{ left: `${50 + Math.cos(a) * 37}%`, top: `${50 + Math.sin(a) * 38}%` }} onClick={() => onFocus(s)} aria-label={text(`查看漏洞：${s.headline}`, `Read vulnerability: ${s.headline}`)}><i /><strong>{s.headline}</strong><span>{s.facts.pinned ? text('已固定缓存', 'Cache pinned') : s.facts.active ? text('工作流使用中', 'In workflow') : text('近期更新', 'Recently updated')}</span></button> })}
     </div>
     <div className="ew-field-pagination"><button disabled={current === 0} onClick={() => setPage(current - 1)} aria-label={text('上一组漏洞', 'Previous vulnerabilities')}><ArrowLeft size={16} /></button><span>{current + 1} / {pages}</span><button disabled={current >= pages - 1} onClick={() => setPage(current + 1)} aria-label={text('下一组漏洞', 'Next vulnerabilities')}><ArrowRight size={16} /></button></div>
@@ -59,8 +59,8 @@ export function WorldSourcesField({ sources, directions, stories, onSource }: { 
   return <div className="ew-source-field">
     <p className="ew-field-intro">{text('系统正在观察的八个方向', 'Eight directions the system observes')}</p>
     <div className="ew-hot-orbit ew-source-orbit"><svg viewBox="0 0 500 500" aria-hidden="true"><ellipse cx="250" cy="250" rx="205" ry="178" /><ellipse cx="250" cy="250" rx="150" ry="205" transform="rotate(30 250 250)" /><circle cx="250" cy="250" r="72" />{directions.map((d, i) => { const a = (i * 45 - 90) * Math.PI / 180; return <path key={d.key} d={`M${250 + Math.cos(a) * 75} ${250 + Math.sin(a) * 75}L${250 + Math.cos(a) * 170} ${250 + Math.sin(a) * 170}`} /> })}</svg>
-      <div className="ew-hot-core"><Link2 size={30} /><strong>{text('流入', 'Ingress')}</strong><small>{text('来源与留存路径', 'Sources and retention paths')}</small></div>
-      {directions.map((d, i) => { const a = (i * 45 - 90) * Math.PI / 180; const group = sources?.filter(s => s.measurement_category === d.key) ?? []; const material = stories.find(s => s.category === d.key); return <button className="ew-source-node" key={d.key} onClick={() => onSource(d.key)} style={{ left: `${50 + Math.cos(a) * 38}%`, top: `${50 + Math.sin(a) * 38}%` }}><ProductGlyph kind={d.key} size={26} /><strong>{text(d.zh, d.en)}</strong><span>{group[0]?.source_name?.split(' · ')[0] ?? material?.source_name ?? text('按需来源', 'On-demand sources')}</span><small>{d.path}</small></button> })}
+      <div className="ew-hot-core"><BrandMark size={42} /><strong>{text('流入', 'Ingress')}</strong><small>{text('来源与留存路径', 'Sources and retention paths')}</small></div>
+      {directions.map((d, i) => { const a = (i * 45 - 90) * Math.PI / 180; const group = sources?.filter(s => s.measurement_category === d.key) ?? []; const material = stories.find(s => s.category === d.key); return <button className="ew-source-node" key={d.key} onClick={() => onSource(d.key)} style={{ left: `${50 + Math.cos(a) * 38}%`, top: `${50 + Math.sin(a) * 38}%` }}><ProductGlyph kind={d.key} size={34} /><strong>{text(d.zh, d.en)}</strong><span>{group[0]?.source_name?.split(' · ')[0] ?? material?.source_name ?? text('按需来源', 'On-demand sources')}</span><small>{d.path}</small></button> })}
     </div>
     <p className="ew-field-note">{text('点击一个方向查看实际来源、最近采集时间与处理路径。连线表示来源路径，采集与写入以测量和处理记录为准。', 'Select a direction for actual sources, collection times and processing paths. Lines show source routes; processing records establish activity.')}</p>
   </div>

@@ -77,6 +77,8 @@ pytest      领域、重放、状态迁移与契约测试
 
 `/product/` 提供相互联通的六个空间：WORLD 追踪实时来源材料和 Hot CVE；INTELLIGENCE 打开证据档案并按所选维度提交富化；INVESTIGATIONS 跟进持久 Case；AGENTS 呈现真实 Role/Task；OBSERVATORY 展示有测量时间的服务和 worker 状态；START 创建或恢复真实问答会话。产品界面不设置比赛演示、冻结证明或人为延时路径。视觉与联调契约见 [`apps/web/README.md`](apps/web/README.md)。
 
+视觉标识现采用独立的“证据汇聚孔径”品牌符号、八类来源与实际来源徽记，以及三位 Agent 各自的 WebGL/SVG 雕塑。它们只表达视觉身份，旁边的运行状态仍由真实 Product read model 提供。
+
 用户在 `/product/auth` 注册或登录。服务端会话使用 HttpOnly Cookie 中的随机令牌，数据库仅存令牌哈希；业务写操作校验 Origin 与 CSRF。提问、会话、Case、Decision、Task、推荐和反馈按账户隔离，共享 Evidence/Knowledge 保持可读。用户可保存关注范围、查看有证据的推荐和理由、反馈、发起调查，再次登录后继续原会话。邮箱验证、密码找回与 OAuth 尚未实现，属于独立账户生命周期工作。
 
 上方正式评测数字只适用于记录的部署和样本，不代表当前版本整体准确率或覆盖率。[决赛标准复查](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Finals-Readiness-Review-2026-10-08)按赛题保留持续监测广度、开放维度富化、当前版本 QA 质量和运维验收的剩余边界。
