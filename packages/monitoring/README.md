@@ -77,7 +77,7 @@ incident_signal  -> IncidentSignalCollector
 time_bounded     -> not scheduled; query-time only
 ```
 
-The acquisition cursor advances only after the downstream owner reports accepted processing. No-change runs can complete without fabricating a change event.
+The acquisition cursor advances after the downstream owner completes the batch, including deliberately screened-out general-news items from broad incident feeds. `IncidentSignalCollector` reports `screened_out` separately from accepted signals; those items create no Redis candidate and do not make a no-change run look like a security event. Other no-change runs likewise complete without fabricating a change event.
 
 ### Freshness decomposition
 

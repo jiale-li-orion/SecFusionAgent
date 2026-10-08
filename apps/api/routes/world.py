@@ -11,7 +11,6 @@ from redis.asyncio import Redis
 from redis.exceptions import RedisError
 
 from apps.api.dependencies import SessionDep
-from apps.application.queries.incident_presentation import is_presentable_incident_signal
 from apps.application.queries.world import list_world_knowledge_changes, world_source_names
 from apps.application.queries.world_formation import read_world_formation
 from apps.application.views.world import (
@@ -32,6 +31,7 @@ from apps.application.views.world import (
 from packages.intelligence.hot_cache.contracts import HotBugCacheEntry
 from packages.intelligence.hot_cache.redis import RedisHotBugCache
 from packages.intelligence.incident.contracts import IncidentCandidate, SignalItem
+from packages.intelligence.incident.relevance import is_presentable_incident_signal
 from packages.monitoring.data_plane_status import data_plane_status
 from packages.shared.config import get_settings
 

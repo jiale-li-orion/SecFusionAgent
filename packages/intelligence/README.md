@@ -89,6 +89,8 @@ The subpackages keep lifecycle-specific storage out of the generic Knowledge mod
 
 Incident signal input follows the single-valued `source_role` / `retention_mode` contract from `packages.sources`. An `incident_signal` stream creates short-lived signal/candidate state; promotion fixes supporting evidence into durable `SecurityIncident` state. Later material signals append revision/timeline/source-link/evidence records, while exact duplicate input remains replay. Forensic/authority/primary documents on `durable_managed` enter through Managed Content + EvidenceIngress before Incident enrichment consumes them.
 
+`incident/relevance.py` supplies a conservative headline screen for the two broad news feeds before candidate correlation and for the Product candidate watch read of older Redis entries. Curated specialist feeds retain their normal collection path. This gate reduces general market-news contamination but does not decide whether a selected candidate is independently corroborated or promotable; the promotion policy remains the authority for durable Incident state.
+
 `source_family` and `upstream_source` are retained so republication does not inflate independent corroboration. Incident persistence never upgrades secondary media authority merely because a signal is promoted.
 
 ## Managed document lifecycle

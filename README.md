@@ -81,7 +81,7 @@ The visual identity now uses a dedicated evidence-aperture mark, distinct source
 
 The INTELLIGENCE Vulnerabilities filter shows a bounded live Hot CVE window with its separate resident count. Opening one preserves the Hot coordinate and checks the durable dossier independently, so the catalog no longer implies that an empty recent-document selection means there are no vulnerabilities.
 
-The Incidents filter reads a separate candidate watch projection. It displays source headlines and links for conservatively selected security-event signals, while keeping candidate status distinct from a durable Incident. Broad incident-signal ingestion can include general news; the product watch count excludes that material and does not claim that a candidate has passed independent corroboration.
+The Incidents filter reads a separate candidate watch projection. It displays source headlines and links for conservatively selected security-event signals, while keeping candidate status distinct from a durable Incident. Broad news feeds now screen general headlines before candidate correlation; the product watch read also excludes older unrelated entries still in the Redis working set. A candidate is never presented as independently corroborated or durable.
 
 Managed HTML article parsing now prefers the actual body over related-post cards. A mismatched Microsoft Security Blog excerpt found in the live Product was repaired by a new on-demand Observation and parser-v2 DocumentRevision; historical source bytes remain retained for audit.
 
