@@ -146,6 +146,8 @@ class AskQuestionUseCase:
         retrieval_invocations: RetrievalInvocationService | None = None,
         investigation_state_service: InvestigationStateService | None = None,
         model_payload_persistence: str | None = None,
+        model_token_reservation_per_attempt: int = 32768,
+        model_max_attempts: int = 3,
     ) -> None:
         self._policy_path = policy_path
         self._stream_name = task_event_stream_name
@@ -158,6 +160,8 @@ class AskQuestionUseCase:
         self._retrieval_invocations = retrieval_invocations or RetrievalInvocationService()
         self._investigation_state = investigation_state_service or InvestigationStateService()
         self._model_payload_persistence = model_payload_persistence
+        self._model_token_reservation_per_attempt = model_token_reservation_per_attempt
+        self._model_max_attempts = model_max_attempts
 
     async def execute(
         self,
@@ -303,6 +307,7 @@ class AskQuestionUseCase:
                 "product_session_id": session_context.session_id,
                 "product_turn_index": next_turn_index,
                 "model_wall_seconds": command.interactive_timeout_seconds,
+                "model_token_reservation": self._model_token_reservation_per_attempt,
             }
             if self._model_payload_persistence is not None:
                 runtime_metadata["model_payload_persistence"] = self._model_payload_persistence
@@ -582,6 +587,10 @@ class AskQuestionUseCase:
                     "wall_seconds": Decimal(command.interactive_timeout_seconds),
                     "agent_turns": Decimal(1),
                     "tool_calls": Decimal(0),
+                    "model_tokens": Decimal(
+                        self._model_token_reservation_per_attempt * self._model_max_attempts
+                    ),
+                    "retries": Decimal(max(0, self._model_max_attempts - 1)),
                 }
             ),
         )

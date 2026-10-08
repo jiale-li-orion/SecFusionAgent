@@ -194,7 +194,10 @@ class BudgetGovernor:
         account_id: str,
         reservation_group_id: str,
         consumed: dict[str, Decimal],
+        allow_overrun: bool = False,
     ) -> BudgetReservationGroup:
+        # Provider-reported usage can exceed a pre-call estimate. Keep the exact
+        # spend in the ledger; future reserves still see zero remaining.
         models = await self._lock_group(session, account_id, reservation_group_id)
         now = self._now()
         expected_resources = {item.resource_type for item in models}
@@ -217,7 +220,7 @@ class BudgetGovernor:
                     )
                 raise ValueError("budget reservation group is no longer reservable")
             amount = consumed.get(model.resource_type, Decimal("0"))
-            if amount < 0 or amount > model.amount_reserved:
+            if amount < 0 or (amount > model.amount_reserved and not allow_overrun):
                 raise ValueError(
                     f"committed amount exceeds reservation for {model.resource_type}: {amount}"
                 )
@@ -281,6 +284,7 @@ class BudgetGovernor:
             account_id=child.parent_account_id,
             reservation_group_id=f"child-allocation:{account_id}",
             consumed=consumed,
+            allow_overrun=True,
         )
         child.status = "closed"
         child.closed_at = self._now()

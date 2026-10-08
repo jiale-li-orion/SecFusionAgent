@@ -109,6 +109,8 @@ The public documentation site contains two interactive Archify views generated f
 
 The system maintains source protocols, runtime lifecycle, canonical knowledge and derived read models separately: provider adapters interpret external protocols; the acquisition runtime records every scheduled / on-demand read; EvidenceIngress fixes the raw revision; canonical knowledge holds long-lived facts and provenance; projections, caches and later retrieval indexes are all rebuildable state.
 
+Product QA and Case-decision model calls reserve token and retry capacity before each attempt, then settle against exact provider usage when available. Unknown usage consumes the configured conservative bound while remaining marked unknown in the audit record. `SECFUSION_MODEL_TOKEN_RESERVATION_PER_ATTEMPT` tunes that bound; monetary provider cost and M3/M5 token settlement are still unavailable.
+
 ## Implemented data paths
 
 | Path | Current implementation | Purpose |

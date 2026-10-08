@@ -42,7 +42,7 @@ This package owns physical-attempt retry recording for an already chosen logical
 
 Payload artifacts are privacy-sensitive. `RecordedModelProvider` only writes request/response RuntimeArtifacts when an artifact service is explicitly provided, an `execution_id` exists, and request metadata opts into `redacted_runtime_artifact`. The default online path records coordinate/digests/usage without copying prompt content.
 
-Budget settlement is not yet complete. Exact provider usage is now available as a measurement source, but `BudgetGovernor` model-token/external-cost/retry settlement remains a TD3 Slice A follow-up.
+M6 Product QA and Case decision requests now provide `model_token_reservation` and create matching `model_tokens` / `retries` accounts. The recorder reserves before every physical attempt and settles in the terminal attempt transaction. Exact provider token usage commits the exact value and releases unused capacity; unavailable usage commits the reservation bound but stays `unavailable` in `ModelUsage`. A deadline reached before dispatch releases the reservation. Exact usage beyond the estimate remains exact in the ledger, reports `provider_exact_overrun`, and leaves no remaining token capacity. `SECFUSION_MODEL_TOKEN_RESERVATION_PER_ATTEMPT` controls the per-attempt estimate (default 32768); the configured attempt count sets the account ceiling. Provider monetary cost is still absent from the adapter contract, so `external_cost` is not invented or settled. Other M3/M5 call sites still record usage but do not provide token reservation metadata.
 
 ## Current call-site coverage
 

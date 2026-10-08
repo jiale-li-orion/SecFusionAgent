@@ -4,6 +4,7 @@ import asyncio
 import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from decimal import Decimal
 from hashlib import sha256
 from time import monotonic
 from typing import Any, cast
@@ -14,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from packages.runtime.artifacts import RuntimeArtifactService
+from packages.runtime.budget import BudgetGovernor
 from packages.runtime.model.contracts import (
     ModelAttemptRecord,
     ModelAttemptStatus,
@@ -74,6 +76,7 @@ class RecordedModelProvider:
         self._provider = provider
         self._artifact_service = artifact_service
         self._retry_policy = retry_policy or ModelRetryPolicy()
+        self._budget = BudgetGovernor()
         self.name = provider.name
         self.version = provider.version
 
@@ -143,8 +146,21 @@ class RecordedModelProvider:
         )
         for ordinal in range(1, self._retry_policy.max_attempts + 1):
             model_attempt_id = str(uuid4())
+            reservation_group_id = f"model-attempt:{model_attempt_id}"
             started_at = datetime.now(UTC)
             async with self._session_factory() as session, session.begin():
+                if coordinate.budget_ref and coordinate.model_token_reservation:
+                    quantities = {
+                        "model_tokens": Decimal(coordinate.model_token_reservation),
+                    }
+                    if ordinal > 1:
+                        quantities["retries"] = Decimal(1)
+                    await self._budget.reserve(
+                        session,
+                        account_id=coordinate.budget_ref,
+                        reservation_group_id=reservation_group_id,
+                        quantities=quantities,
+                    )
                 session.add(
                     ModelAttemptModel(
                         model_attempt_id=model_attempt_id,
@@ -170,6 +186,7 @@ class RecordedModelProvider:
                 )
 
             started_clock = monotonic()
+            dispatched = False
             try:
                 remaining_seconds = (
                     logical_deadline_clock - monotonic()
@@ -180,29 +197,43 @@ class RecordedModelProvider:
                     if remaining_seconds <= 0:
                         raise TimeoutError("model logical request deadline exhausted")
                     async with asyncio.timeout(remaining_seconds):
+                        dispatched = True
                         provider_result = await _generate_with_metadata(
                             self._provider,
                             request,
                             response_model,
                         )
                 else:
+                    dispatched = True
                     provider_result = await _generate_with_metadata(
                         self._provider,
                         request,
                         response_model,
                     )
-            except Exception as exc:
+            except (Exception, asyncio.CancelledError) as exc:
                 finished_at = datetime.now(UTC)
                 latency_ms = max(0, round((monotonic() - started_clock) * 1000))
                 retryable = bool(getattr(exc, "retryable", False))
                 has_retry = retryable and ordinal < self._retry_policy.max_attempts
-                retry_delay = self._retry_policy.delay_after(ordinal, exc) if has_retry else None
+                retry_delay = (
+                    self._retry_policy.delay_after(ordinal, exc)
+                    if has_retry and isinstance(exc, Exception)
+                    else None
+                )
                 if has_retry and logical_deadline_clock is not None:
                     assert retry_delay is not None
                     has_retry = monotonic() + retry_delay < logical_deadline_clock
                     if not has_retry:
                         retry_delay = None
                 async with self._session_factory() as session, session.begin():
+                    budget_settlement = await self._settle_attempt_budget(
+                        session,
+                        coordinate=coordinate,
+                        reservation_group_id=reservation_group_id,
+                        ordinal=ordinal,
+                        usage=None,
+                        dispatched=dispatched,
+                    )
                     attempt = await _require_attempt(session, model_attempt_id)
                     attempt.status = ModelAttemptStatus.FAILED.value
                     attempt.failure_class = _failure_class(exc)
@@ -212,6 +243,7 @@ class RecordedModelProvider:
                         "retryable": retryable,
                         "retry_scheduled": has_retry,
                         "retry_delay_seconds": retry_delay,
+                        **budget_settlement,
                     }
                     attempt.latency_ms = latency_ms
                 if not has_retry:
@@ -226,6 +258,14 @@ class RecordedModelProvider:
             usage = _usage(provider_result)
             response_artifact_ref: str | None = None
             async with self._session_factory() as session, session.begin():
+                budget_settlement = await self._settle_attempt_budget(
+                    session,
+                    coordinate=coordinate,
+                    reservation_group_id=reservation_group_id,
+                    ordinal=ordinal,
+                    usage=usage,
+                    dispatched=True,
+                )
                 if (
                     self._artifact_service is not None
                     and coordinate.execution_id is not None
@@ -251,12 +291,58 @@ class RecordedModelProvider:
                 attempt.usage_json = usage.model_dump(mode="json")
                 attempt.cache_usage_json = cast(dict[str, object], _cache_usage(usage))
                 attempt.response_metadata_json = cast(
-                    dict[str, object], dict(provider_result.response_metadata or {})
+                    dict[str, object],
+                    {**dict(provider_result.response_metadata or {}), **budget_settlement},
                 )
                 attempt.latency_ms = latency_ms
             return provider_result.output
 
         raise RuntimeError("model retry loop exhausted without terminal result")
+
+    async def _settle_attempt_budget(
+        self,
+        session: AsyncSession,
+        *,
+        coordinate: _RequestCoordinate,
+        reservation_group_id: str,
+        ordinal: int,
+        usage: ModelUsage | None,
+        dispatched: bool,
+    ) -> dict[str, JsonValue]:
+        if not coordinate.budget_ref or not coordinate.model_token_reservation:
+            return {}
+        if not dispatched:
+            await self._budget.release(
+                session,
+                account_id=coordinate.budget_ref,
+                reservation_group_id=reservation_group_id,
+            )
+            return {"budget_settlement": "released_before_dispatch"}
+        exact_tokens = usage.total_tokens if usage is not None else None
+        token_count = (
+            exact_tokens if exact_tokens is not None else coordinate.model_token_reservation
+        )
+        consumed = {"model_tokens": Decimal(token_count)}
+        if ordinal > 1:
+            consumed["retries"] = Decimal(1)
+        await self._budget.commit(
+            session,
+            account_id=coordinate.budget_ref,
+            reservation_group_id=reservation_group_id,
+            consumed=consumed,
+            allow_overrun=exact_tokens is not None,
+        )
+        overrun = exact_tokens is not None and exact_tokens > coordinate.model_token_reservation
+        return {
+            "budget_settlement": (
+                "provider_exact_overrun"
+                if overrun
+                else "provider_exact"
+                if exact_tokens is not None
+                else "upper_bound"
+            ),
+            "budget_committed_model_tokens": token_count,
+        }
 
 
 class _RequestCoordinate(BaseModel):
@@ -271,6 +357,7 @@ class _RequestCoordinate(BaseModel):
     provider_policy_ref: str | None = None
     budget_ref: str | None = None
     model_wall_seconds: float | None = None
+    model_token_reservation: int | None = None
     persist_payload_artifacts: bool = False
     public_metadata: dict[str, JsonValue]
 
@@ -302,6 +389,7 @@ def _request_coordinate(request: StructuredModelRequest) -> _RequestCoordinate:
         provider_policy_ref=_string_metadata(metadata, "provider_policy_ref"),
         budget_ref=_string_metadata(metadata, "budget_ref"),
         model_wall_seconds=_positive_number_metadata(metadata, "model_wall_seconds"),
+        model_token_reservation=_positive_int_metadata(metadata, "model_token_reservation"),
         persist_payload_artifacts=persist_payload_artifacts,
         public_metadata=public_metadata,
     )
@@ -324,6 +412,13 @@ def _positive_number_metadata(metadata: dict[str, JsonValue], key: str) -> float
     value = metadata.get(key)
     if isinstance(value, (int, float)) and not isinstance(value, bool) and value > 0:
         return float(value)
+    return None
+
+
+def _positive_int_metadata(metadata: dict[str, JsonValue], key: str) -> int | None:
+    value = metadata.get(key)
+    if isinstance(value, int) and not isinstance(value, bool) and value > 0:
+        return value
     return None
 
 
@@ -442,9 +537,11 @@ def _attempt_view(model: ModelAttemptModel) -> ModelAttemptRecord:
     )
 
 
-def _failure_class(exc: Exception) -> str:
+def _failure_class(exc: BaseException) -> str:
     name = exc.__class__.__name__.lower()
     detail = str(exc).lower()
+    if isinstance(exc, asyncio.CancelledError):
+        return "cancelled_after_dispatch"
     if "timeout" in name or "timeout" in detail:
         return "timeout_before_response"
     if "ratelimit" in name or "rate limit" in detail or "429" in detail:
@@ -462,7 +559,7 @@ def _failure_class(exc: Exception) -> str:
     return "provider_error"
 
 
-def _failure_detail(exc: Exception) -> str:
+def _failure_detail(exc: BaseException) -> str:
     detail = str(exc).strip() or exc.__class__.__name__
     return detail[:2000]
 

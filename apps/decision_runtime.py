@@ -133,6 +133,10 @@ async def open_case_decision_execution(
                 "wall_seconds": Decimal(str(timeout)),
                 "agent_turns": Decimal(1),
                 "tool_calls": Decimal(0),
+                "model_tokens": Decimal(
+                    settings.model_token_reservation_per_attempt * settings.model_max_attempts
+                ),
+                "retries": Decimal(max(0, settings.model_max_attempts - 1)),
             }
         ),
     )

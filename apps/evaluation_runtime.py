@@ -1197,6 +1197,8 @@ async def execute_product_question_qa_execution(
             task_event_stream_name=settings.task_event_stream_name,
             model_provider=provider,
             model_payload_persistence="redacted_runtime_artifact",
+            model_token_reservation_per_attempt=settings.model_token_reservation_per_attempt,
+            model_max_attempts=settings.model_max_attempts,
         ).execute(
             session,
             AskQuestionCommand(
@@ -1787,6 +1789,7 @@ async def capture_current_deployment_revision(
         "model_provider_revision": model_provider_revision,
         "model_timeout_seconds": settings.model_timeout_seconds,
         "model_max_tokens": settings.model_max_tokens,
+        "model_token_reservation_per_attempt": settings.model_token_reservation_per_attempt,
         "model_temperature": settings.model_temperature,
         "model_reasoning_effort": settings.model_reasoning_effort,
         "model_response_format": settings.model_response_format,

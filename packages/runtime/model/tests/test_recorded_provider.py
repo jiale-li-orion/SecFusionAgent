@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 from datetime import UTC, datetime
+from decimal import Decimal
 
 import pytest
 from pydantic import BaseModel
@@ -11,6 +12,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from apps.runtime_models import register_runtime_models
 from packages.runtime.artifacts import MemoryRuntimeBlobStore, RuntimeArtifactService
+from packages.runtime.budget import BudgetGovernor, BudgetLimits
 from packages.runtime.model import (
     ModelAttemptStatus,
     ModelRetryPolicy,
@@ -103,6 +105,19 @@ class SlowProvider:
         return response_model(value="too-late")
 
 
+class CancellableProvider:
+    name = "cancellable-model"
+    version = "adapter-v1"
+
+    def __init__(self) -> None:
+        self.started = asyncio.Event()
+
+    async def generate_structured(self, request, response_model):
+        del request, response_model
+        self.started.set()
+        await asyncio.Event().wait()
+
+
 async def _database():
     register_runtime_models()
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
@@ -128,6 +143,27 @@ def _request_with_wall_seconds(seconds: float) -> StructuredModelRequest:
     request = _request()
     return request.model_copy(
         update={"metadata": {**request.metadata, "model_wall_seconds": seconds}}
+    )
+
+
+async def _budgeted_request(factory, *, token_limit: int, retries: int = 0):
+    async with factory() as session, session.begin():
+        await BudgetGovernor().create_account(
+            session,
+            account_id="budget:model-test",
+            limits=BudgetLimits(
+                quantities={"model_tokens": Decimal(token_limit), "retries": Decimal(retries)}
+            ),
+        )
+    request = _request()
+    return request.model_copy(
+        update={
+            "metadata": {
+                **request.metadata,
+                "budget_ref": "budget:model-test",
+                "model_token_reservation": token_limit // (retries + 1),
+            }
+        }
     )
 
 
@@ -165,6 +201,93 @@ async def test_recorded_provider_persists_request_attempt_usage_and_metadata() -
             assert attempt.response_metadata_json["response_format_fallback"] is True
             assert attempt.finished_at is not None
             assert attempt.latency_ms is not None
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_recorded_provider_commits_exact_tokens_and_releases_unused_reservation() -> None:
+    engine, factory = await _database()
+    try:
+        request = await _budgeted_request(factory, token_limit=100)
+        await RecordedModelProvider(factory, MetadataProvider()).generate_structured(
+            request, Result
+        )
+        async with factory() as session:
+            snapshot = await BudgetGovernor().snapshot(session, "budget:model-test")
+            attempt = await session.scalar(select(ModelAttemptModel))
+            assert snapshot.committed["model_tokens"] == Decimal(15)
+            assert snapshot.remaining["model_tokens"] == Decimal(85)
+            assert attempt is not None
+            assert attempt.response_metadata_json["budget_settlement"] == "provider_exact"
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_recorded_provider_keeps_exact_usage_when_reservation_is_exceeded() -> None:
+    engine, factory = await _database()
+    try:
+        request = await _budgeted_request(factory, token_limit=10)
+        await RecordedModelProvider(factory, MetadataProvider()).generate_structured(
+            request, Result
+        )
+        async with factory() as session:
+            snapshot = await BudgetGovernor().snapshot(session, "budget:model-test")
+            attempt = await session.scalar(select(ModelAttemptModel))
+            assert snapshot.committed["model_tokens"] == Decimal(15)
+            assert snapshot.remaining["model_tokens"] == Decimal(0)
+            assert attempt is not None
+            assert attempt.response_metadata_json["budget_settlement"] == "provider_exact_overrun"
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_recorded_provider_conservatively_settles_unknown_usage_and_retry() -> None:
+    engine, factory = await _database()
+    try:
+        request = await _budgeted_request(factory, token_limit=100, retries=1)
+        provider = RecordedModelProvider(
+            factory,
+            FlakyProvider(),
+            retry_policy=ModelRetryPolicy(max_attempts=2, base_delay_seconds=0),
+        )
+        await provider.generate_structured(request, Result)
+        async with factory() as session:
+            snapshot = await BudgetGovernor().snapshot(session, "budget:model-test")
+            attempts = list(
+                await session.scalars(select(ModelAttemptModel).order_by(ModelAttemptModel.ordinal))
+            )
+            assert snapshot.committed["model_tokens"] == Decimal(100)
+            assert snapshot.committed["retries"] == Decimal(1)
+            assert attempts[0].response_metadata_json["budget_settlement"] == "upper_bound"
+            assert attempts[1].usage_json["measurement_source"] == "unavailable"
+            assert attempts[1].response_metadata_json["budget_settlement"] == "upper_bound"
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_cancelled_model_attempt_is_terminal_and_budget_is_settled() -> None:
+    engine, factory = await _database()
+    try:
+        request = await _budgeted_request(factory, token_limit=20)
+        inner = CancellableProvider()
+        task = asyncio.create_task(
+            RecordedModelProvider(factory, inner).generate_structured(request, Result)
+        )
+        await asyncio.wait_for(inner.started.wait(), timeout=2)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        async with factory() as session:
+            snapshot = await BudgetGovernor().snapshot(session, "budget:model-test")
+            attempt = await session.scalar(select(ModelAttemptModel))
+            assert snapshot.committed["model_tokens"] == Decimal(20)
+            assert attempt is not None
+            assert attempt.status == ModelAttemptStatus.FAILED.value
+            assert attempt.failure_class == "cancelled_after_dispatch"
     finally:
         await engine.dispose()
 

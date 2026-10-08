@@ -103,6 +103,7 @@ class FinalizeInvestigationUseCase:
                     "task_run_id": coordinate.task_run_id,
                     "budget_ref": coordinate.budget_ref,
                     "model_wall_seconds": remaining,
+                    "model_token_reservation": self._settings.model_token_reservation_per_attempt,
                 },
             )
             async with self._factory() as session, session.begin():

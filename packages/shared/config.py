@@ -64,11 +64,12 @@ class Settings(BaseSettings):
     embedding_model_name: str | None = None
     embedding_dimensions: int | None = None
     model_max_tokens: int | None = None
+    model_token_reservation_per_attempt: int = Field(default=32768, ge=1)
     model_temperature: float | None = 0.0
     model_reasoning_effort: Literal["low", "high", "max"] | None = None
     model_response_format: Literal["auto", "json_schema", "json_object"] = "auto"
     model_timeout_seconds: float = 60.0
-    model_max_attempts: int = 3
+    model_max_attempts: int = Field(default=3, ge=1)
     model_retry_base_seconds: float = 0.5
     model_retry_max_seconds: float = 4.0
 

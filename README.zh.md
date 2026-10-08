@@ -105,6 +105,8 @@ pytest      领域、重放、状态迁移与契约测试
 
 系统把来源协议、运行时生命周期、canonical knowledge 与 derived 读模型分开维护：provider 适配器解释外部协议；采集运行时记录每次 scheduled / on-demand 读取；EvidenceIngress 固定原始版本；canonical knowledge 保存长期事实与溯源；投影、缓存与后续 retrieval 索引都属于可重建状态。
 
+Product QA 和 Case 决策的模型调用现已在每次 attempt 前预留 token 与重试额度，有 provider 精确用量时按实结算；缺失用量则按配置上界保守结算，审计记录仍明确标记为未知。`SECFUSION_MODEL_TOKEN_RESERVATION_PER_ATTEMPT` 可调整预留上界；货币成本和 M3/M5 的 token 结算尚未接入。
+
 ## 已实现的数据通路
 
 | 通路 | 当前实现 | 用途 |

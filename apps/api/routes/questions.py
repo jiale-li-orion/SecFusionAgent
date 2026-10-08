@@ -119,12 +119,16 @@ async def ask_question(
                 policy_path=settings.runtime_policy_path,
                 task_event_stream_name=settings.task_event_stream_name,
                 model_provider=provider,
+                model_token_reservation_per_attempt=settings.model_token_reservation_per_attempt,
+                model_max_attempts=settings.model_max_attempts,
             ).execute(session, command)
     else:
         result = await AskQuestionUseCase(
             policy_path=settings.runtime_policy_path,
             task_event_stream_name=settings.task_event_stream_name,
             model_provider=None,
+            model_token_reservation_per_attempt=settings.model_token_reservation_per_attempt,
+            model_max_attempts=settings.model_max_attempts,
         ).execute(session, command)
     if result.mode == "accepted":
         response.status_code = status.HTTP_202_ACCEPTED
@@ -181,12 +185,16 @@ async def stream_question(
                                 policy_path=settings.runtime_policy_path,
                                 task_event_stream_name=settings.task_event_stream_name,
                                 model_provider=provider,
+                                model_token_reservation_per_attempt=settings.model_token_reservation_per_attempt,
+                                model_max_attempts=settings.model_max_attempts,
                             ).execute(session, command)
                     else:
                         result = await AskQuestionUseCase(
                             policy_path=settings.runtime_policy_path,
                             task_event_stream_name=settings.task_event_stream_name,
                             model_provider=None,
+                            model_token_reservation_per_attempt=settings.model_token_reservation_per_attempt,
+                            model_max_attempts=settings.model_max_attempts,
                         ).execute(session, command)
                 await queue.put(("result", result.model_dump(mode="json")))
             except ApplicationError as exc:
