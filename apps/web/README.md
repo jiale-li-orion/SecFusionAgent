@@ -17,6 +17,8 @@ WORLD's Hot resident total is distinct from the bounded displayed ranking window
 
 The user flow is register/sign in → save interests → inspect evidence-based recommendations and feedback → ask/investigate → resume a recent conversation → sign out/sign in again. `/auth?mode=login|register&returnTo=...` uses a same-origin account session. Protected actions and private reads require the server session; the browser does not send a user-selected principal. Account changes clear query state and close old streams.
 
+Submitting a free-text INTELLIGENCE search issues a request for the exact current input before opening an object. The deferred suggestion list is only a preview; pressing Enter while it is updating cannot open a result from an earlier query.
+
 ## Visual ownership
 
 `src/main.tsx` imports the active CSS in order:

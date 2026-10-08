@@ -53,6 +53,7 @@ export function IntelligencePage() {
   const paramView = params.get('view')
   const [inputOverride, setInputOverride] = useState<string | null>(null)
   const [searchError, setSearchError] = useState('')
+  const [searchBusy, setSearchBusy] = useState(false)
   const input = inputOverride ?? (paramIncident ? `incident:${paramIncident}` : paramObject ? `object:${paramObject}` : paramCve || paramQuery)
   const deferredInput = useDeferredValue(input.trim())
   const evidenceRef = paramEvidence
@@ -121,8 +122,9 @@ export function IntelligencePage() {
     ? humanize(incident.incident.incident_type)
     : (typeof displayName === 'string' && displayName) || obj?.external_identifiers.cve?.[0] || obj?.canonical_key || selectedCve || selectedObjectId || text('选择一个对象', 'SELECT AN OBJECT')
 
-  function submitSearch(event: React.FormEvent) {
+  async function submitSearch(event: React.FormEvent) {
     event.preventDefault()
+    if (searchBusy) return
     const raw = input.trim()
     const value = raw.toUpperCase()
     if (!value) return
@@ -133,8 +135,18 @@ export function IntelligencePage() {
     if (/^CVE-\d{4}-\d+$/.test(value)) setParams({ cve: value })
     else if (incidentMatch?.[1]?.trim()) setParams({ incident: incidentMatch[1].trim() })
     else if (objectMatch?.[1]?.trim()) setParams({ object: objectMatch[1].trim() })
-    else if (objectSearchQuery.data?.items[0]) openSearchResult(objectSearchQuery.data.items[0].object_id)
-    else setSearchError(text('当前 Knowledge World 没有匹配对象。', 'No matching object exists in the current Knowledge World.'))
+    else {
+      setSearchBusy(true)
+      try {
+        const result = await searchIntelligence(raw, 12)
+        if (result.items[0]) openSearchResult(result.items[0].object_id)
+        else setSearchError(text('当前 Knowledge World 没有匹配对象。', 'No matching object exists in the current Knowledge World.'))
+      } catch (error) {
+        setSearchError(error instanceof Error ? error.message : text('情报检索暂不可用。', 'Intelligence search is unavailable.'))
+      } finally {
+        setSearchBusy(false)
+      }
+    }
   }
 
   function openSearchResult(objectId: string) {
@@ -191,7 +203,7 @@ export function IntelligencePage() {
         <form className="intel-search" onSubmit={submitSearch}>
           <Search size={15} />
           <input value={input} onChange={(event) => setInputOverride(event.target.value)} aria-label={text("查找情报对象", "Find an intelligence object")} placeholder={text("论文、项目、漏洞编号或资产名称", "Paper, project, vulnerability or asset")} />
-          <button type="submit">{text('打开档案', 'OPEN DOSSIER')}</button>
+          <button type="submit" disabled={searchBusy}>{searchBusy ? text('检索中…', 'SEARCHING…') : text('打开档案', 'OPEN DOSSIER')}</button>
           <AnimatePresence>
             {shouldSearchKnowledge(input.trim()) && (
               <motion.div
