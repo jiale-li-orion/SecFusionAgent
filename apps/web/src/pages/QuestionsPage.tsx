@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence } from 'motion/react'
 import { ArrowUpRight, ChevronRight, CornerDownLeft, Link2, Plus, Radio, Send, ShieldCheck } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
@@ -9,7 +9,7 @@ import { getAgentTask, type AgentTaskDetail } from '../lib/api/agents'
 import {
   getDecision, getInvestigation, getInvestigationActivity, getQuestionSession,
   listAccountConversations, streamQuestion, type ProductRuntimeEvent,
-  type QuestionSessionTurn, type TaskKind,
+  type DecisionView, type QuestionSessionTurn, type TaskKind,
 } from '../lib/api/investigations'
 import { useI18n } from '../lib/i18n'
 import './questions-space.css'
@@ -86,10 +86,12 @@ export function QuestionsPage() {
   const focusTurn = turns.find(turn => turn.turn_index === selectedTurn) ?? turns.at(-1) ?? null
   const caseId = focusTurn?.investigation_ref?.replace(/^case:/, '') ?? params.get('case')
   const caseActivity = useQuery({ queryKey: ['question-case-activity', caseId], queryFn: () => getInvestigationActivity(caseId!), enabled: Boolean(caseId), retry: false })
-  const runId = focusTurn?.context_id?.replace(/^context:/, '')
-    ?? [...(caseActivity.data?.events ?? [])].reverse().find(item => item.task_run_id)?.task_run_id
-    ?? null
-  const task = useQuery({ queryKey: ['question-task', runId], queryFn: () => getAgentTask(runId!), enabled: Boolean(runId), retry: false })
+  const runIds = useMemo(() => [...new Set([
+    focusTurn?.context_id?.replace(/^context:/, ''),
+    ...(caseActivity.data?.events ?? []).map(item => item.task_run_id),
+  ].filter((id): id is string => Boolean(id)))], [focusTurn?.context_id, caseActivity.data?.events])
+  const taskQueries = useQueries({ queries: runIds.map(id => ({ queryKey: ['question-task', id], queryFn: () => getAgentTask(id), retry: false })) })
+  const tasks = taskQueries.flatMap(query => query.data ? [query.data] : [])
   const caseDetail = useQuery({ queryKey: ['question-case', caseId], queryFn: () => getInvestigation(caseId!), enabled: Boolean(caseId), refetchInterval: query => ['active', 'waiting'].includes(query.state.data?.status ?? '') ? 4000 : false })
   const auditEvents = useMemo(() => {
     const map = new Map<string, ProductRuntimeEvent>()
@@ -234,7 +236,7 @@ export function QuestionsPage() {
         </div>
       </main>
 
-      <AuditRail turn={focusTurn} task={task.data} taskLoading={task.isLoading} caseId={caseId} caseStatus={caseDetail.data?.status} caseEvents={auditEvents} streamConnected={streamConnected} onEvidence={setEvidence} />
+      <AuditRail turn={focusTurn} tasks={tasks} taskLoading={taskQueries.some(query => query.isLoading)} caseId={caseId} caseStatus={caseDetail.data?.status} caseDecision={caseDetail.data?.latest_decision} caseEvents={auditEvents} streamConnected={streamConnected} onEvidence={setEvidence} />
     </div>
     <AnimatePresence>{evidence && <EvidenceOverlay key={evidence} evidenceRef={evidence} onClose={() => setEvidence(null)} />}</AnimatePresence>
   </section>
@@ -245,6 +247,11 @@ function ConversationTurn({ turn, active, sessionId, reasoning, onSelect, onEvid
   const decision = useQuery({ queryKey: ['question-turn-decision', turn.decision_ref], queryFn: () => getDecision(turn.decision_ref!), enabled: Boolean(turn.decision_ref), retry: false })
   const caseId = turn.investigation_ref?.replace(/^case:/, '')
   const investigation = useQuery({ queryKey: ['question-turn-case', caseId], queryFn: () => getInvestigation(caseId!), enabled: Boolean(caseId), retry: false, refetchInterval: query => ['active', 'waiting'].includes(query.state.data?.status ?? '') ? 5000 : false })
+  const caseHeadline = investigation.data?.status === 'resolved'
+    ? text('调查已形成带引用的结论', 'Investigation resolved with cited findings')
+    : ['failed', 'blocked', 'canceled'].includes(investigation.data?.status ?? '')
+      ? text('调查已停止，请查看执行轨迹', 'Investigation stopped; inspect the execution trace')
+      : text('证据不足，已转入持续调查', 'Evidence gap opened a continuing investigation')
   return <article className={`qa-turn ${active ? 'active' : ''}`}>
     <button className="qa-turn-index" onClick={onSelect} aria-label={text(`查看第 ${turn.turn_index} 回合轨迹`, `Inspect turn ${turn.turn_index}`)}>{String(turn.turn_index).padStart(2, '0')}</button>
     <div className="qa-question"><small>{text('你', 'YOU')} / {formatTime(turn.created_at, language)}</small><p>{turn.question}</p></div>
@@ -253,25 +260,29 @@ function ConversationTurn({ turn, active, sessionId, reasoning, onSelect, onEvid
       {decision.isError && <button className="qa-retry" onClick={() => void decision.refetch()}>{text('研判读取失败 · 重试', 'Decision failed · Retry')}</button>}
       {decision.data && <DecisionReport decision={decision.data} onEvidence={onEvidence} />}
       {reasoning && <details className="qa-reasoning"><summary>{text('本次模型推理流 · 仅当前页面保留', 'Provider reasoning · available until reload')}</summary><pre>{reasoning}</pre></details>}
-      {investigation.data && <div className="qa-case-result"><strong>{text('证据不足，已转入持续调查', 'Evidence gap opened a continuing investigation')}</strong><p>{investigation.data.goal}</p><div><span>{investigation.data.status}</span><span>{investigation.data.confirmed_findings.length} {text('已确认', 'confirmed')}</span><span>{investigation.data.open_evidence_needs.length} {text('证据缺口', 'open needs')}</span></div>{investigation.data.latest_decision && <DecisionReport decision={investigation.data.latest_decision} onEvidence={onEvidence} />}<Link to={`/investigations?case=${caseId}&session=${sessionId}`}>{text('打开完整调查现场', 'Open full investigation')}<ArrowUpRight size={13} /></Link></div>}
+      {investigation.data && <div className="qa-case-result"><strong>{caseHeadline}</strong><p>{investigation.data.goal}</p><div><span>{investigation.data.status}</span><span>{investigation.data.confirmed_findings.length} {text('已确认', 'confirmed')}</span><span>{investigation.data.open_evidence_needs.length} {text('证据缺口', 'open needs')}</span></div>{investigation.data.latest_decision && <DecisionReport decision={investigation.data.latest_decision} onEvidence={onEvidence} />}<Link to={`/investigations?case=${caseId}&session=${sessionId}`}>{text('打开完整调查现场', 'Open full investigation')}<ArrowUpRight size={13} /></Link></div>}
       {!turn.decision_ref && !turn.investigation_ref && <p className="qa-muted">{text('本回合没有持久研判或调查引用。', 'No durable decision or case reference for this turn.')}</p>}
     </div>
   </article>
 }
 
-function AuditRail({ turn, task, taskLoading, caseId, caseStatus, caseEvents, streamConnected, onEvidence }: { turn: QuestionSessionTurn | null; task?: AgentTaskDetail; taskLoading: boolean; caseId: string | null; caseStatus?: string; caseEvents: ProductRuntimeEvent[]; streamConnected: boolean; onEvidence: (ref: string) => void }) {
+function AuditRail({ turn, tasks, taskLoading, caseId, caseStatus, caseDecision, caseEvents, streamConnected, onEvidence }: { turn: QuestionSessionTurn | null; tasks: AgentTaskDetail[]; taskLoading: boolean; caseId: string | null; caseStatus?: string; caseDecision?: DecisionView | null; caseEvents: ProductRuntimeEvent[]; streamConnected: boolean; onEvidence: (ref: string) => void }) {
   const { text } = useI18n()
   const decision = useQuery({ queryKey: ['question-audit-decision', turn?.decision_ref], queryFn: () => getDecision(turn!.decision_ref!), enabled: Boolean(turn?.decision_ref), retry: false })
-  const refs = useMemo(() => decision.data ? [...new Set([...decision.data.citations.map(item => item.evidence_ref), ...decision.data.conclusions.flatMap(item => item.evidence_refs)])] : [], [decision.data])
+  const finalDecision = decision.data ?? caseDecision
+  const refs = useMemo(() => finalDecision ? [...new Set([...finalDecision.citations.map(item => item.evidence_ref), ...finalDecision.conclusions.flatMap(item => item.evidence_refs)])] : [], [finalDecision])
+  const modelAttempts = tasks.flatMap(task => task.model_attempts.map(item => ({ ...item, role: task.task.role_id })))
+  const contextCount = tasks.filter(task => task.context).length
+  const runtimeCount = tasks.reduce((count, task) => count + task.capabilities.length + task.events.length, caseEvents.length)
   return <aside className="qa-audit" aria-label={text('可审计轨迹', 'Auditable trace')}>
     <header><div><small>TRACE / CONTEXT / SOURCES</small><h2>{text('证据轨迹', 'Evidence trace')}</h2></div><span className={turn ? 'active' : ''}>{turn ? `TURN ${String(turn.turn_index).padStart(2, '0')}` : 'IDLE'}</span></header>
     {!turn && <div className="qa-audit-empty"><div className="qa-audit-diagram"><span>01</span><i /><span>02</span><i /><span>03</span></div><p>{text('选中一个会话回合后，这里展示证据引用、模型调用、上下文装配和工具执行记录。', 'Select a turn to inspect its citations, model calls, assembled context, and tool activity.')}</p></div>}
     {turn && <>
       <div className="qa-audit-coordinate"><small>WORLD REVISION</small><strong>{turn.knowledge_revision ?? '—'}</strong><span>{turn.context_id ?? (caseId ? `case:${caseId}` : turn.request_id)}</span></div>
       <section className="qa-audit-section"><h3>{text('结论引用', 'Citations')} <b>{refs.length}</b></h3>{refs.length ? refs.map((ref, index) => <button className="qa-evidence-ref" key={ref} onClick={() => onEvidence(ref)}><span>{String(index + 1).padStart(2, '0')}</span><span>{ref}</span><Link2 size={13} /></button>) : <p>{text('本回合尚无可引用的最终结论。', 'No final citation yet for this turn.')}</p>}</section>
-      <section className="qa-audit-section"><h3>{text('模型调用', 'Model execution')} <b>{task?.model_attempts.length ?? 0}</b></h3>{taskLoading && <p>{text('读取模型轨迹…', 'Loading model trace…')}</p>}{task?.model_attempts.map(item => <div className="qa-audit-row" key={item.model_attempt_id}><small>{item.purpose} · {item.status}</small><strong>{item.actual_model}</strong><span>{item.latency_ms === null ? '—' : `${item.latency_ms} ms`} · {item.input_tokens ?? '—'} in / {item.output_tokens ?? '—'} out {item.reasoning_tokens ? `· ${item.reasoning_tokens} reasoning` : ''}</span></div>)}{!taskLoading && !task?.model_attempts.length && <p>{text('当前回合没有模型调用记录。', 'No model call recorded for this turn.')}</p>}</section>
-      <section className="qa-audit-section"><h3>{text('上下文清单', 'Context manifest')} <b>{task?.context ? 1 : 0}</b></h3>{task?.context && <><div className="qa-audit-row"><small>{task.context.role_ref} · REV {task.context.context_revision}</small><strong>{task.context.context_id}</strong><span>{task.context.parent_context_id ? `${text('继承', 'Parent')}: ${task.context.parent_context_id}` : text('新会话上下文', 'New session context')}</span></div><div className="qa-context-counts"><span>{task.context.object_refs.length} objects</span><span>{task.context.relation_refs.length} relations</span><span>{task.context.evidence_refs.length} evidence</span><span>{task.context.retrieval_invocation_refs.length} retrievals</span></div>{task.context.evidence_refs.length > 0 && <details><summary>{text('输入证据引用', 'Input evidence references')}<ChevronRight size={13} /></summary><div className="qa-fragments">{task.context.evidence_refs.map(ref => <button className="qa-context-ref" key={ref} onClick={() => onEvidence(ref)}>{ref}<ArrowUpRight size={11} /></button>)}</div></details>}{task.context.retrieval_invocation_refs.length > 0 && <details><summary>{text('检索调用', 'Retrieval invocations')}<ChevronRight size={13} /></summary><div className="qa-fragments">{task.context.retrieval_invocation_refs.map(ref => <div key={ref}><strong>{ref}</strong></div>)}</div></details>}</>}{task?.prompt_assemblies.map(assembly => <details key={assembly.assembly_id}><summary>{text('Prompt 片段', 'Prompt fragments')} · {assembly.context_manifest_ref}<ChevronRight size={13} /></summary><div className="qa-fragments">{assembly.fragments.map((fragment, index) => <div key={index}><small>{fragment.kind ?? 'fragment'} · {fragment.trust_class ?? 'unknown'}</small><strong>{fragment.source_ref ?? 'source unknown'}</strong><span>{fragment.selection_reason ?? ''}</span></div>)}</div></details>)}{!task?.context && !taskLoading && <p>{text('尚无可读取的上下文清单。', 'No context manifest available yet.')}</p>}</section>
-      <section className="qa-audit-section"><h3>{text('工具与执行事件', 'Tools & runtime')} <b>{(task?.capabilities.length ?? 0) + (task?.events.length ?? 0) + caseEvents.length}</b></h3>{task?.capabilities.map(item => <div className="qa-audit-row" key={item.invocation_id}><small>TOOL · {item.status}</small><strong>{item.capability_id}</strong><span>{item.tool_impl_id}</span></div>)}{task?.events.map(item => <div className="qa-audit-row" key={item.event_id}><small>TASK · {item.seq}</small><strong>{item.event_type}</strong><span>{item.producer}</span></div>)}{caseId && <p className="qa-case-stream"><i className={streamConnected ? 'connected' : ''} />{text('调查事件流', 'Investigation event stream')} · {caseStatus ?? 'active'}</p>}{caseEvents.map(item => <div className="qa-audit-row" key={item.event_id}><small>{item.event_type} · {item.actor ?? item.source_kind}</small><strong>{item.summary}</strong>{item.evidence_refs.map(ref => <button key={ref} onClick={() => onEvidence(ref)}>{ref}<ArrowUpRight size={11} /></button>)}</div>)}</section>
+      <section className="qa-audit-section"><h3>{text('模型调用', 'Model execution')} <b>{modelAttempts.length}</b></h3>{taskLoading && <p>{text('读取模型轨迹…', 'Loading model trace…')}</p>}{modelAttempts.map(item => <div className="qa-audit-row" key={item.model_attempt_id}><small>{item.role} · {item.purpose} · {item.status}</small><strong>{item.actual_model}</strong><span>{item.latency_ms === null ? '—' : `${item.latency_ms} ms`} · {item.input_tokens ?? '—'} in / {item.output_tokens ?? '—'} out {item.reasoning_tokens ? `· ${item.reasoning_tokens} reasoning` : ''}</span></div>)}{!taskLoading && !modelAttempts.length && <p>{text('当前回合没有模型调用记录。', 'No model call recorded for this turn.')}</p>}</section>
+      <section className="qa-audit-section"><h3>{text('上下文清单', 'Context manifest')} <b>{contextCount}</b></h3>{tasks.map(task => task.context && <div key={task.task.run_id}><div className="qa-audit-row"><small>{task.context!.role_ref} · REV {task.context!.context_revision}</small><strong>{task.context!.context_id}</strong><span>{task.context!.parent_context_id ? `${text('继承', 'Parent')}: ${task.context!.parent_context_id}` : text('新会话上下文', 'New session context')}</span></div><div className="qa-context-counts"><span>{task.context!.object_refs.length} objects</span><span>{task.context!.relation_refs.length} relations</span><span>{task.context!.evidence_refs.length} evidence</span><span>{task.context!.retrieval_invocation_refs.length} retrievals</span></div>{task.context!.evidence_refs.length > 0 && <details><summary>{text('输入证据引用', 'Input evidence references')}<ChevronRight size={13} /></summary><div className="qa-fragments">{task.context!.evidence_refs.map(ref => <button className="qa-context-ref" key={ref} onClick={() => onEvidence(ref)}>{ref}<ArrowUpRight size={11} /></button>)}</div></details>}{task.context!.retrieval_invocation_refs.length > 0 && <details><summary>{text('检索调用', 'Retrieval invocations')}<ChevronRight size={13} /></summary><div className="qa-fragments">{task.context!.retrieval_invocation_refs.map(ref => <div key={ref}><strong>{ref}</strong></div>)}</div></details>}</div>)}{tasks.flatMap(task => task.prompt_assemblies).map(assembly => <details key={assembly.assembly_id}><summary>{text('Prompt 片段', 'Prompt fragments')} · {assembly.role_revision}<ChevronRight size={13} /></summary><div className="qa-fragments">{assembly.fragments.map((fragment, index) => <div key={index}><small>{fragment.kind ?? 'fragment'} · {fragment.trust_class ?? 'unknown'}</small><strong>{fragment.source_ref ?? 'source unknown'}</strong><span>{fragment.selection_reason ?? ''}</span></div>)}</div></details>)}{!contextCount && !taskLoading && <p>{text('尚无可读取的上下文清单。', 'No context manifest available yet.')}</p>}</section>
+      <section className="qa-audit-section"><h3>{text('工具与执行事件', 'Tools & runtime')} <b>{runtimeCount}</b></h3>{tasks.flatMap(task => task.capabilities).map(item => <div className="qa-audit-row" key={item.invocation_id}><small>TOOL · {item.status}</small><strong>{item.capability_id}</strong><span>{item.tool_impl_id}</span></div>)}{tasks.flatMap(task => task.events.map(item => ({ ...item, role: task.task.role_id }))).map(item => <div className="qa-audit-row" key={item.event_id}><small>{item.role} · TASK {item.seq}</small><strong>{item.event_type}</strong><span>{item.producer}</span></div>)}{caseId && <p className="qa-case-stream"><i className={streamConnected ? 'connected' : ''} />{text('调查事件流', 'Investigation event stream')} · {caseStatus ?? 'active'}</p>}{caseEvents.map(item => <div className="qa-audit-row" key={item.event_id}><small>{item.event_type} · {item.actor ?? item.source_kind}</small><strong>{item.summary}</strong>{item.evidence_refs.map(ref => <button key={ref} onClick={() => onEvidence(ref)}>{ref}<ArrowUpRight size={11} /></button>)}</div>)}</section>
     </>}
   </aside>
 }
