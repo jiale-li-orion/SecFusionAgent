@@ -889,7 +889,7 @@ details[open]>summary {
   }
   .instrument-nav {
     display: grid;
-    grid-template-columns: repeat(5,minmax(0,1fr));
+    grid-template-columns: repeat(6,minmax(0,1fr));
     width: 100%;
     order: 3;
     justify-content: space-between;

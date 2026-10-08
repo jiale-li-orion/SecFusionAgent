@@ -26,7 +26,10 @@ PUT /api/v1/intelligence/recommendations/{object_id}/feedback
 POST /api/v1/intelligence/objects/{object_id}/enrichment/runs
 GET /api/v1/intelligence/objects/{object_id}/enrichment/runs
 POST /api/v1/questions
+POST /api/v1/questions/stream
 GET /api/v1/questions/sessions
+GET /api/v1/questions/sessions/{session_id}
+GET /api/v1/tasks/{run_id}
 GET /api/v1/observatory/system
 ```
 
@@ -42,6 +45,8 @@ Technical Design 2A separates Product API from A2A transport and domain/runtime 
 `POST /api/v1/questions` also carries Product session identity. Investigation-class follow-up may send only `session_id` after the prior InvestigationRole episode is terminal; the Application layer reuses the same durable Case, opens the next EvidenceNeed and returns `202 Accepted` with the same investigation `Location`. A non-terminal InvestigationRole episode produces a lifecycle conflict instead of creating a concurrent TaskRun or orphan EvidenceNeed. Session-only LOOKUP/RETRIEVE is also a valid Product contract: when the session still owns an active/waiting Investigation and no explicit target is supplied, Application may execute a read-only DecisionRole against that live M4 Case. HTTP only validates/transports the request; Case selection, world-revision guards, citation projection and authority remain below the route.
 
 LOOKUP/RETRIEVE model calls use the same recorded provider wrapper as formal QA and Agent runtime. A logical request has one `ModelRequest`; transient network/408/429/selected-5xx retries become additional `ModelAttempt` rows, while authentication and response-validation failures fail immediately. Route-level `interactive_timeout_seconds` still bounds the HTTP-facing Product operation; retry count/backoff are deployment configuration and are frozen into formal benchmark deployment identity.
+
+`POST /api/v1/questions/stream` applies the same account, Origin and CSRF checks before opening SSE. It emits a status, actual model `content` deltas, optionally provider `reasoning_content` deltas, and one durable `QuestionResultView` or a typed error. The streamed structured JSON is a draft; the final Decision still passes the normal evidence/citation validation and persists through the same use case. The caller can opt into reasoning with `include_reasoning`; the server does not persist those raw reasoning deltas. `GET /api/v1/tasks/{run_id}` returns owner-checked audit metadata for model attempts, context references and prompt-fragment provenance without exposing raw prompt bodies or credentials.
 
 `dependencies.py` owns the shared SQLAlchemy session dependency and `RequestContext`. `main.py` creates a request id at the HTTP edge and returns it as `X-Request-ID`; Product Application links that id into the created ExecutionEnvelope trace context. `errors.py` maps Application failures and Product validation errors to RFC 9457-style `ProblemDetail`. Runtime diagnostics that belong in the product are exposed through Product-safe read models.
 

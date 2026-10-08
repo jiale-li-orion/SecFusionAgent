@@ -100,6 +100,42 @@ async def test_product_question_complex_route_returns_accepted_investigation() -
 
 
 @pytest.mark.asyncio
+async def test_question_stream_uses_authenticated_session_and_emits_durable_result() -> None:
+    engine, factory = await _database()
+    app = create_app()
+    app.state.session_factory = factory
+
+    async def override_session() -> AsyncIterator[AsyncSession]:
+        async with factory() as session:
+            yield session
+
+    app.dependency_overrides[database_session] = override_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            denied = await client.post(
+                "/api/v1/questions/stream",
+                json={"question": "Verify this CVE", "cve_id": "CVE-2026-61616"},
+            )
+            response = await client.post(
+                "/api/v1/questions/stream",
+                headers=account_headers(),
+                json={
+                    "question": "Verify this CVE",
+                    "cve_id": "CVE-2026-61616",
+                    "task_kind": "verify_version_fix",
+                },
+            )
+        assert denied.status_code == 401
+        assert response.status_code == 200, response.text
+        assert response.headers["content-type"].startswith("text/event-stream")
+        assert "event: status\n" in response.text
+        assert "event: result\n" in response.text
+        assert '"mode": "accepted"' in response.text
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_product_question_session_lookup_accepts_active_case_without_target() -> None:
     engine, factory = await _database()
     app = create_app()

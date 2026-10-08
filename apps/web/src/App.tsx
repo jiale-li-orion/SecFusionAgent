@@ -5,7 +5,7 @@ import { Shell } from './components/Shell'
 import { RequireAccount } from './components/auth/RequireAccount'
 
 const WorldPage = lazy(() => import('./pages/WorldPage').then((module) => ({ default: module.WorldPage })))
-const StartPage = lazy(() => import('./pages/StartPage').then((module) => ({ default: module.StartPage })))
+const QuestionsPage = lazy(() => import('./pages/QuestionsPage').then((module) => ({ default: module.QuestionsPage })))
 const IntelligencePage = lazy(() => import('./pages/IntelligencePage').then((module) => ({ default: module.IntelligencePage })))
 const InvestigationsPage = lazy(() => import('./pages/InvestigationsPage').then((module) => ({ default: module.InvestigationsPage })))
 const AgentsPage = lazy(() => import('./pages/AgentsPage').then((module) => ({ default: module.AgentsPage })))
@@ -34,7 +34,7 @@ export default function App() {
               <Routes location={location}>
                 <Route path="/" element={<WorldPage />} />
                 <Route path="/auth" element={<AuthPage />} />
-                <Route path="/start" element={<RequireAccount><StartPage key={`start:${location.search}`} /></RequireAccount>} />
+                <Route path="/start" element={<RequireAccount><QuestionsPage /></RequireAccount>} />
                 <Route path="/intelligence" element={<IntelligencePage key={`intelligence:${location.search}`} />} />
                 <Route path="/investigations" element={<RequireAccount><InvestigationsPage key={`investigations:${location.search}`} /></RequireAccount>} />
                 <Route path="/agents" element={<RequireAccount><AgentsPage /></RequireAccount>} />
@@ -108,7 +108,7 @@ function ProductSpaceLoader({ space }: { space: ReturnType<typeof routeSpaceName
   const label = {
     auth: 'PREPARING YOUR ACCOUNT',
     world: 'RESOLVING EVIDENCE WORLD',
-    start: 'PREPARING MISSION CONTROL',
+    start: 'OPENING EVIDENCE DIALOGUE',
     intelligence: 'OPENING CANONICAL DOSSIER',
     investigations: 'RESOLVING DURABLE CASE',
     agents: 'RESOLVING AGENT RUNTIME',

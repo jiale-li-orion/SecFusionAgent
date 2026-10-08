@@ -8,12 +8,12 @@
 | --- | --- | --- |
 | WORLD | What is entering and changing now? | Source material, Evidence/Knowledge formation, incidents, Hot resident count and bounded ranking window |
 | INTELLIGENCE | What is known about this object? | Dossier, relations, source excerpt, twelve enrichment dimensions, selected-dimension EnrichmentRole task, personal recommendations |
+| QUESTIONS | What can the system answer, and why? | Complete account-owned conversation, real model SSE, optional provider reasoning, Decision/citation/Evidence view and context/model/tool/task audit |
 | INVESTIGATIONS | What is being followed? | Durable Case, state, activity, citations and continuation |
 | AGENTS | What did the system do? | Role/Task/Capability/Skill/Experience read models with measured state |
 | OBSERVATORY | Is the service operating? | Measured source/runtime health, queues, Celery worker control probe and explicit unavailable states |
-| START | What should the system answer or investigate? | DIRECT/RETRIEVE/VERIFY/INVESTIGATE/WATCH, account-bound session, Decision or Case result |
 
-WORLD's Hot resident total is distinct from the bounded displayed ranking window; a list of 64 is not a claim that only 64 CVEs exist. A source story retains the original headline/excerpt and has an evidence/source path. Missing, unknown and conflicting enrichment dimensions remain explicit. Completed START answers and failed/accepted Cases use their persisted state; the URL carries the session/Decision coordinates so refresh can restore the result. New session clears the prior target and result.
+WORLD's Hot resident total is distinct from the bounded displayed ranking window; a list of 64 is not a claim that only 64 CVEs exist. A source story retains the original headline/excerpt and has an evidence/source path. Missing, unknown and conflicting enrichment dimensions remain explicit. QUESTIONS at `/start` renders the entire session turn by turn. DIRECT/RETRIEVE use `POST /api/v1/questions/stream` for actual provider deltas; the draft is visibly unvalidated until the durable Decision arrives. Provider reasoning is opt-in and appears only when emitted by the provider. VERIFY/INVESTIGATE/WATCH retain the accepted Case and follow its existing investigation SSE. The audit rail reads owner-checked TaskRun, ContextManifest, ModelAttempt, prompt-fragment metadata and runtime events; clicking citations opens the Evidence record. A session URL restores the same Decision or Case after refresh. New conversation clears the prior target and result.
 
 The user flow is register/sign in → save interests → inspect evidence-based recommendations and feedback → ask/investigate → resume a recent conversation → sign out/sign in again. `/auth?mode=login|register&returnTo=...` uses a same-origin account session. Protected actions and private reads require the server session; the browser does not send a user-selected principal. Account changes clear query state and close old streams.
 
@@ -22,8 +22,10 @@ The user flow is register/sign in → save interests → inspect evidence-based 
 `src/main.tsx` imports the active CSS in order:
 
 1. `product-foundation.css`: tokens, typography, interaction primitives, shell and shared responsive rules.
-2. `product-spaces.css`: the distinct WORLD, INTELLIGENCE, INVESTIGATIONS, AGENTS, OBSERVATORY and START compositions.
+2. `product-spaces.css`: the distinct WORLD, INTELLIGENCE, INVESTIGATIONS, AGENTS and OBSERVATORY compositions.
 3. `account-space.css`: the account realm and auth control surfaces.
+
+`src/pages/questions-space.css` owns the QUESTIONS workspace and is imported only by its page component.
 
 The retired `styles.css`, `cinematic.css`, `cinematic-seams.css`, `surface-authority.css` and `layout-authority.css` remain out of the import graph. Do not restart an override cascade. `npm run lint:css-authority` enforces active ownership. Main identity objects use shared WebGL materials with SVG fallback and reduced-motion behavior; small cards reuse the same visual identities without opening extra GL contexts. Every animated live fact must resolve to a real source, state or measurement.
 

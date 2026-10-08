@@ -137,8 +137,39 @@ export type AgentTaskDetail = {
     materialized_capability_view_refs: string[]
     percept_refs: string[]
     materialized_ref_set_digest: string
+    fragments: Array<{ kind: string | null; source_ref: string | null; selection_reason: string | null; trust_class: string | null; disclosure_level: string | null }>
     created_at: string
   }>
+  model_attempts: Array<{
+    model_request_id: string
+    model_attempt_id: string
+    purpose: string
+    prompt_revision: string
+    requested_model: string
+    actual_model: string
+    status: string
+    ordinal: number
+    latency_ms: number | null
+    input_tokens: number | null
+    output_tokens: number | null
+    reasoning_tokens: number | null
+    started_at: string
+  }>
+  context: {
+    context_id: string
+    context_revision: number
+    parent_context_id: string | null
+    role_ref: string
+    case_ref: string | null
+    knowledge_revision: number | null
+    evidence_refs: string[]
+    object_refs: string[]
+    relation_refs: string[]
+    retrieval_invocation_refs: string[]
+    policy_context_ref: string
+    capability_envelope_ref: string
+    budget_ref: string
+  } | null
 }
 
 export async function getAgentRuntime(): Promise<AgentRuntimeOverview> {

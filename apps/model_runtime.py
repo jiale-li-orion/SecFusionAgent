@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 
 import httpx
@@ -92,8 +93,9 @@ def create_recorded_model_provider(
     client: httpx.AsyncClient,
     *,
     artifact_service: RuntimeArtifactService | None = None,
+    on_delta: Callable[[str, str], Awaitable[None]] | None = None,
 ) -> ModelProvider | None:
-    provider = create_configured_ai_provider(settings, client)
+    provider = create_configured_ai_provider(settings, client, on_delta=on_delta)
     if provider is None or not settings.model_name:
         return None
     return RecordedModelProvider(

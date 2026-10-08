@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
+
 import httpx
 
 from packages.enrichment.providers.openai_compatible import OpenAICompatibleProvider
@@ -9,6 +11,8 @@ from packages.shared.config import Settings
 def create_configured_ai_provider(
     settings: Settings,
     client: httpx.AsyncClient,
+    *,
+    on_delta: Callable[[str, str], Awaitable[None]] | None = None,
 ) -> OpenAICompatibleProvider | None:
     if not settings.model_base_url:
         return None
@@ -24,4 +28,5 @@ def create_configured_ai_provider(
         max_tokens=settings.model_max_tokens,
         temperature=settings.model_temperature,
         reasoning_effort=settings.model_reasoning_effort,
+        on_delta=on_delta,
     )

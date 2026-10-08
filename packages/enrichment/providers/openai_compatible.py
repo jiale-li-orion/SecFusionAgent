@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Awaitable, Callable
 from typing import Any, TypeVar
 
 import httpx
@@ -111,6 +112,7 @@ class OpenAICompatibleProvider:
         max_tokens: int | None = None,
         temperature: float | None = 0.0,
         reasoning_effort: str | None = None,
+        on_delta: Callable[[str, str], Awaitable[None]] | None = None,
     ) -> None:
         self._client = client
         self._base_url = base_url.rstrip("/")
@@ -121,6 +123,7 @@ class OpenAICompatibleProvider:
         self._max_tokens = max_tokens
         self._temperature = temperature
         self._reasoning_effort = reasoning_effort
+        self._on_delta = on_delta
         self.name = chat_model or "openai-compatible"
         self.version = self.ADAPTER_VERSION
 
@@ -168,7 +171,7 @@ class OpenAICompatibleProvider:
         if self._reasoning_effort is not None:
             payload["reasoning_effort"] = self._reasoning_effort
         response_format_fallback = False
-        response = await self._post("/chat/completions", payload)
+        response = await self._chat_completion(payload)
         if response.status_code in {400, 422}:
             response_format_fallback = True
             payload["response_format"] = {"type": "json_object"}
@@ -186,7 +189,7 @@ class OpenAICompatibleProvider:
                 "request. Return only one JSON object that conforms exactly to this JSON "
                 f"Schema: {fallback_schema}"
             )
-            response = await self._post("/chat/completions", payload)
+            response = await self._chat_completion(payload)
         data = _response_json(response)
         try:
             choices = data["choices"]
@@ -315,6 +318,84 @@ class OpenAICompatibleProvider:
                 retry_after_seconds=_retry_after_seconds(response),
             )
         return response
+
+    async def _chat_completion(self, payload: dict[str, Any]) -> httpx.Response:
+        if self._on_delta is None:
+            return await self._post("/chat/completions", payload)
+        headers = {"Content-Type": "application/json"}
+        if self._api_key:
+            headers["Authorization"] = f"Bearer {self._api_key}"
+        stream_payload = {**payload, "stream": True, "stream_options": {"include_usage": True}}
+        content_parts: list[str] = []
+        response_data: dict[str, Any] = {}
+        try:
+            async with self._client.stream(
+                "POST",
+                f"{self._base_url}/chat/completions",
+                json=stream_payload,
+                headers=headers,
+            ) as response:
+                if response.status_code == 429:
+                    raise AIProviderRateLimited(
+                        "model provider rate limit reached",
+                        retry_after_seconds=_retry_after_seconds(response),
+                    )
+                if response.status_code in {401, 403}:
+                    raise AIProviderAuthError(
+                        f"model provider authentication failed with HTTP {response.status_code}"
+                    )
+                if response.status_code in {408, 500, 502, 503, 504}:
+                    raise ModelProviderTransientError(
+                        f"model provider returned HTTP {response.status_code}",
+                        retry_after_seconds=_retry_after_seconds(response),
+                    )
+                if response.is_error:
+                    return httpx.Response(
+                        response.status_code,
+                        content=await response.aread(),
+                        headers=response.headers,
+                        request=response.request,
+                    )
+                async for line in response.aiter_lines():
+                    if not line.startswith("data:"):
+                        continue
+                    raw = line[5:].strip()
+                    if raw == "[DONE]":
+                        break
+                    try:
+                        chunk = json.loads(raw)
+                    except json.JSONDecodeError as exc:
+                        raise AIProviderResponseError(
+                            "model provider sent malformed SSE JSON"
+                        ) from exc
+                    if not isinstance(chunk, dict):
+                        raise AIProviderResponseError("model provider SSE chunk must be an object")
+                    for key in ("id", "model", "usage"):
+                        if key in chunk and chunk[key] is not None:
+                            response_data[key] = chunk[key]
+                    choices = chunk.get("choices")
+                    if not isinstance(choices, list) or not choices:
+                        continue
+                    delta = choices[0].get("delta") if isinstance(choices[0], dict) else None
+                    if not isinstance(delta, dict):
+                        continue
+                    for key, kind in (("reasoning_content", "reasoning"), ("content", "content")):
+                        fragment = delta.get(key)
+                        if isinstance(fragment, str) and fragment:
+                            if kind == "content":
+                                content_parts.append(fragment)
+                            await self._on_delta(kind, fragment)
+                response_data["choices"] = [{"message": {"content": "".join(content_parts)}}]
+                return httpx.Response(
+                    response.status_code,
+                    json=response_data,
+                    headers=response.headers,
+                    request=response.request,
+                )
+        except httpx.HTTPError as exc:
+            raise ModelProviderTransientError(
+                f"model provider stream failed: {exc.__class__.__name__}"
+            ) from exc
 
 
 def _retry_after_seconds(response: httpx.Response) -> float | None:

@@ -50,6 +50,47 @@ async def test_structured_generation_uses_schema_and_validates_response() -> Non
 
 
 @pytest.mark.asyncio
+async def test_structured_generation_streams_provider_deltas_and_validates_final_object() -> None:
+    deltas: list[tuple[str, str]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        assert payload["stream"] is True
+        assert payload["stream_options"] == {"include_usage": True}
+        chunks = [
+            {
+                "id": "stream-1",
+                "model": "model-a",
+                "choices": [{"delta": {"reasoning_content": "Checking evidence."}}],
+            },
+            {"choices": [{"delta": {"content": '{"value":"'}}]},
+            {"choices": [{"delta": {"content": 'ok"}'}}]},
+            {"usage": {"prompt_tokens": 12, "completion_tokens": 4}, "choices": []},
+        ]
+        body = "".join(f"data: {json.dumps(chunk)}\n\n" for chunk in chunks) + "data: [DONE]\n\n"
+        return httpx.Response(200, text=body, request=request)
+
+    async def on_delta(kind: str, text: str) -> None:
+        deltas.append((kind, text))
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        provider = OpenAICompatibleProvider(
+            client, base_url="https://provider.example/v1", chat_model="model-a", on_delta=on_delta
+        )
+        result = await provider.generate_structured_result(
+            StructuredModelRequest(system_instruction="extract", data={"text": "hello"}), Result
+        )
+    assert result.output.value == "ok"
+    assert result.provider_request_id == "stream-1"
+    assert result.usage is not None and result.usage.input_tokens == 12
+    assert deltas == [
+        ("reasoning", "Checking evidence."),
+        ("content", '{"value":"'),
+        ("content", 'ok"}'),
+    ]
+
+
+@pytest.mark.asyncio
 async def test_structured_generation_forwards_explicit_generation_controls() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         payload = json.loads(request.content)

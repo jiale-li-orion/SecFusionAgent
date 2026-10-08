@@ -88,6 +88,8 @@ Model output does not define the vocabulary. A known term is canonical only when
 
 `providers/` implements the generic `ModelProvider` / embedding contracts using configured OpenAI-compatible endpoints. `packages.enrichment` owns provider composition because model use here is an enrichment implementation detail; model-independent request/response protocols live in `packages.shared`.
 
+The OpenAI-compatible adapter optionally reads real chat-completion SSE and forwards `content` and `reasoning_content` deltas to a caller callback while assembling the same validated structured result and usage record. Product QUESTIONS uses this callback; background enrichment and formal QA retain the ordinary non-streaming path. HTTP 408/429/selected-5xx and authentication failures keep the recorded provider's existing retry/fail classification on both paths.
+
 No model endpoint is required for the deterministic M1–M3 path. Workers skip dense/semantic continuations when model configuration is absent.
 
 ## `enrichment-v1` implementation matrix

@@ -105,7 +105,40 @@ class AgentPromptAssemblyView(BaseModel):
     materialized_capability_view_refs: list[str] = Field(default_factory=list)
     percept_refs: list[str] = Field(default_factory=list)
     materialized_ref_set_digest: str
+    fragments: list[dict[str, JsonValue]] = Field(default_factory=list)
     created_at: datetime
+
+
+class AgentModelAttemptView(BaseModel):
+    model_request_id: str
+    model_attempt_id: str
+    purpose: str
+    prompt_revision: str
+    requested_model: str
+    actual_model: str
+    status: str
+    ordinal: int
+    latency_ms: int | None = None
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    reasoning_tokens: int | None = None
+    started_at: datetime
+
+
+class AgentContextManifestView(BaseModel):
+    context_id: str
+    context_revision: int
+    parent_context_id: str | None = None
+    role_ref: str
+    case_ref: str | None = None
+    knowledge_revision: int | None = None
+    evidence_refs: list[str] = Field(default_factory=list)
+    object_refs: list[str] = Field(default_factory=list)
+    relation_refs: list[str] = Field(default_factory=list)
+    retrieval_invocation_refs: list[str] = Field(default_factory=list)
+    policy_context_ref: str
+    capability_envelope_ref: str
+    budget_ref: str
 
 
 class AgentBudgetSnapshotView(BaseModel):
@@ -134,6 +167,8 @@ class AgentTaskDetailView(BaseModel):
     capabilities: list[AgentCapabilityActivityView] = Field(default_factory=list)
     budget: AgentBudgetSnapshotView | None = None
     prompt_assemblies: list[AgentPromptAssemblyView] = Field(default_factory=list)
+    model_attempts: list[AgentModelAttemptView] = Field(default_factory=list)
+    context: AgentContextManifestView | None = None
 
 
 class ProductSkillView(BaseModel):

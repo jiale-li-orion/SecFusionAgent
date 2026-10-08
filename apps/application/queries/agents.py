@@ -15,9 +15,11 @@ from apps.application.queries.ownership import visible_task_run_ids
 from apps.application.views.agents import (
     AgentBudgetSnapshotView,
     AgentCapabilityActivityView,
+    AgentContextManifestView,
     AgentControlledProofCaseView,
     AgentControlledProofView,
     AgentControlRuntimeView,
+    AgentModelAttemptView,
     AgentModelRuntimeView,
     AgentPromptAssemblyView,
     AgentRoleRuntimeView,
@@ -41,6 +43,7 @@ from packages.runtime.storage.models import (
 from packages.task_runtime.contracts.models import TaskRunStatus
 from packages.task_runtime.contracts.roles import canonical_roles
 from packages.task_runtime.storage.models import (
+    ContextManifestVersionModel,
     TaskContractVersionModel,
     TaskEventModel,
     TaskRunModel,
@@ -390,6 +393,25 @@ async def get_agent_task_detail(
             .order_by(PromptAssemblyRecordModel.created_at.desc())
         )
     )
+    manifest_row = await session.get(ContextManifestVersionModel, run.context_manifest_version_id)
+    manifest = manifest_row.manifest_json if manifest_row is not None else None
+    model_requests = list(
+        await session.scalars(
+            select(ModelRequestModel).where(ModelRequestModel.task_run_id == run_id)
+        )
+    )
+    model_request_by_id = {item.model_request_id: item for item in model_requests}
+    model_attempts = (
+        list(
+            await session.scalars(
+                select(ModelAttemptModel)
+                .where(ModelAttemptModel.model_request_id.in_(model_request_by_id))
+                .order_by(ModelAttemptModel.started_at, ModelAttemptModel.ordinal)
+            )
+        )
+        if model_request_by_id
+        else []
+    )
     budget = await _budget_snapshot_view(session, run_id)
     return AgentTaskDetailView(
         task=summary,
@@ -422,10 +444,53 @@ async def get_agent_task_detail(
                 materialized_capability_view_refs=list(item.materialized_capability_view_refs_json),
                 percept_refs=list(item.percept_refs_json),
                 materialized_ref_set_digest=item.materialized_ref_set_digest,
+                fragments=[
+                    {
+                        "kind": fragment.get("kind"),
+                        "source_ref": fragment.get("source_ref"),
+                        "selection_reason": fragment.get("selection_reason"),
+                        "trust_class": fragment.get("trust_class"),
+                        "disclosure_level": fragment.get("disclosure_level"),
+                    }
+                    for fragment in item.fragment_manifest_json
+                ],
                 created_at=item.created_at,
             )
             for item in prompt_assemblies
         ],
+        model_attempts=[
+            AgentModelAttemptView(
+                model_request_id=item.model_request_id,
+                model_attempt_id=item.model_attempt_id,
+                purpose=model_request_by_id[item.model_request_id].purpose,
+                prompt_revision=model_request_by_id[item.model_request_id].prompt_revision,
+                requested_model=model_request_by_id[item.model_request_id].requested_model,
+                actual_model=item.actual_model,
+                status=item.status,
+                ordinal=item.ordinal,
+                latency_ms=item.latency_ms,
+                input_tokens=item.usage_json.get("input_tokens"),
+                output_tokens=item.usage_json.get("output_tokens"),
+                reasoning_tokens=item.usage_json.get("reasoning_tokens"),
+                started_at=item.started_at,
+            )
+            for item in model_attempts
+        ],
+        context=AgentContextManifestView(
+            context_id=str(manifest["context_id"]),
+            context_revision=int(manifest["context_revision"]),
+            parent_context_id=manifest.get("parent_context_id"),
+            role_ref=str(manifest["role_ref"]),
+            case_ref=manifest.get("case_ref"),
+            knowledge_revision=manifest.get("knowledge_revision"),
+            evidence_refs=list(manifest.get("evidence_refs", [])),
+            object_refs=list(manifest.get("object_refs", [])),
+            relation_refs=list(manifest.get("relation_refs", [])),
+            retrieval_invocation_refs=list(manifest.get("retrieval_invocation_refs", [])),
+            policy_context_ref=str(manifest["policy_context_ref"]),
+            capability_envelope_ref=str(manifest["capability_envelope_ref"]),
+            budget_ref=str(manifest["budget_ref"]),
+        ) if manifest is not None else None,
     )
 
 

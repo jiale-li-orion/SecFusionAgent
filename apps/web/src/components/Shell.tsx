@@ -19,6 +19,7 @@ import { buildCommandItems, buildContextTrace, checkReadiness, shouldSearchGloba
 const nav = [
   { to: '/', label: 'WORLD', compact: 'WORLD', zh: '世界', sub: 'Evidence World', subZh: '证据世界', kind: 'world' },
   { to: '/intelligence', label: 'INTELLIGENCE', compact: 'INTEL', zh: '情报', sub: 'Objects & Knowledge', subZh: '对象与知识', kind: 'intelligence' },
+  { to: '/start', label: 'QUESTIONS', compact: 'ASK', zh: '问答', sub: 'Evidence Dialogue', subZh: '证据对话', kind: 'start' },
   { to: '/investigations', label: 'INVESTIGATIONS', compact: 'CASES', zh: '调查', sub: 'Continuous Inquiry', subZh: '持续调查', kind: 'investigations' },
   { to: '/agents', label: 'AGENTS', compact: 'AGENTS', zh: '智能体', sub: 'Runtime & Memory', subZh: '运行与记忆', kind: 'agents' },
   { to: '/observatory', label: 'OBSERVATORY', compact: 'HEALTH', zh: '观测', sub: 'Operations & Health', subZh: '运行与健康', kind: 'observatory' },
@@ -184,13 +185,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </button>
           <button className="global-start" onClick={() => navigate('/start')}>
             <span className="global-start-glyph"><ProductGlyph kind="start" size={19} /></span>
-            <strong>{text('启动任务', 'START')}</strong>
+            <strong>{text('证据问答', 'ASK')}</strong>
           </button>
         </div>
       </aside>
 
       <div className="shell-scan" aria-hidden="true" />
-      <main id="product-main" className="product-workspace" tabIndex={-1}><div className="studio-topbar"><span><BrandMark size={17} />SECFUSION / <b>{shellSpace.toUpperCase()}</b></span><div className="studio-topbar-actions"><button className="studio-start-action" onClick={() => navigate('/start')} aria-label={text('启动任务', 'Start a task')}><ProductGlyph kind="start" size={19}/><span>{text('启动任务', 'Start')}</span></button><button aria-label={text('搜索情报与调查', 'Search intelligence and investigations')} onClick={() => { setSearchOpen(true); setCommandIndex(0) }}><Search size={14}/>{text('搜索情报与调查', 'Search intelligence & investigations')}<kbd>⌘K</kbd></button></div></div>      <AnimatePresence>
+      <main id="product-main" className="product-workspace" tabIndex={-1}><div className="studio-topbar"><span><BrandMark size={17} />SECFUSION / <b>{shellSpace === 'start' ? text('问答', 'QUESTIONS') : shellSpace.toUpperCase()}</b></span><div className="studio-topbar-actions"><button className="studio-start-action" onClick={() => navigate('/start')} aria-label={text('打开证据问答', 'Open evidence dialogue')}><ProductGlyph kind="start" size={19}/><span>{text('证据问答', 'Ask')}</span></button><button aria-label={text('搜索情报与调查', 'Search intelligence and investigations')} onClick={() => { setSearchOpen(true); setCommandIndex(0) }}><Search size={14}/>{text('搜索情报与调查', 'Search intelligence & investigations')}<kbd>⌘K</kbd></button></div></div>      <AnimatePresence>
         {contextTrace.length > 1 && (
           <motion.nav
             key={`${location.pathname}:${location.search}`}

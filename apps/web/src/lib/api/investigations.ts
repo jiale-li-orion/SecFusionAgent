@@ -157,6 +157,72 @@ export async function askQuestion(input: {
   return body as QuestionResult
 }
 
+export type QuestionStreamEvent =
+  | { event: 'status'; phase: string; request_id: string }
+  | { event: 'model_delta'; kind: 'content' | 'reasoning'; text: string }
+  | { event: 'result'; result: QuestionResult }
+
+export async function streamQuestion(
+  input: Parameters<typeof askQuestion>[0],
+  options: { includeReasoning: boolean; onEvent: (event: QuestionStreamEvent) => void; signal?: AbortSignal },
+): Promise<QuestionResult> {
+  const response = await productFetch('/api/v1/questions/stream', {
+    method: 'POST',
+    headers: productHeaders({ 'Content-Type': 'application/json', Accept: 'text/event-stream' }),
+    body: JSON.stringify({
+      question: input.question,
+      cve_id: input.cveId || undefined,
+      object_id: input.objectId || undefined,
+      session_id: input.sessionId || undefined,
+      task_kind: input.taskKind,
+      required_source_roles: input.requiredSourceRoles ?? [],
+      priority: input.priority ?? 50,
+      interactive_timeout_seconds: input.interactiveTimeoutSeconds ?? 5,
+      retrieval_limit: input.retrievalLimit ?? 8,
+      allow_wait: input.allowWait ?? true,
+      investigation_timeout_seconds: input.investigationTimeoutSeconds ?? 300,
+      agent_turns: input.agentTurns ?? 8,
+      tool_calls: input.toolCalls ?? 12,
+      include_reasoning: options.includeReasoning,
+    }),
+    signal: options.signal,
+  })
+  if (!response.ok || !response.body) {
+    const body = await response.json().catch(() => null)
+    throw new Error(String(body?.detail ?? body?.title ?? `Question stream failed (${response.status})`))
+  }
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let result: QuestionResult | null = null
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    buffer = buffer.replaceAll('\r\n', '\n')
+    let boundary = buffer.indexOf('\n\n')
+    while (boundary >= 0) {
+      const frame = buffer.slice(0, boundary)
+      buffer = buffer.slice(boundary + 2)
+      const name = frame.split('\n').find(line => line.startsWith('event: '))?.slice(7)
+      const raw = frame.split('\n').filter(line => line.startsWith('data: ')).map(line => line.slice(6)).join('\n')
+      if (name && raw) {
+        const data = JSON.parse(raw)
+        if (name === 'error') throw new Error(String(data.message ?? data.code ?? 'Question failed'))
+        if (name === 'status') options.onEvent({ event: 'status', phase: String(data.phase), request_id: String(data.request_id) })
+        if (name === 'model_delta') options.onEvent({ event: 'model_delta', kind: data.kind, text: String(data.text) })
+        if (name === 'result') {
+          result = data as QuestionResult
+          options.onEvent({ event: 'result', result })
+        }
+      }
+      boundary = buffer.indexOf('\n\n')
+    }
+  }
+  if (!result) throw new Error('Question stream ended without a result')
+  return result
+}
+
 export async function cancelInvestigation(caseId: string): Promise<InvestigationView> {
   const response = await productFetch(`/api/v1/investigations/${encodeURIComponent(caseId)}/cancel`, {
     method: 'POST',
