@@ -22,6 +22,7 @@ export function DecisionReport({ decision, onEvidence, dialogue = false }: { dec
   const findings = dialogue ? conclusions.filter(({ conclusion }) => conclusion.type !== 'fact') : conclusions
   const primary = findings.length > 0 ? findings : conclusions
   const supportingFacts = dialogue && findings.length > 0 ? conclusions.filter(({ conclusion }) => conclusion.type === 'fact') : []
+  const paragraphs = dialogue ? decision.report_paragraphs ?? [] : []
   const renderConclusion = ({ conclusion, index }: (typeof conclusions)[number]) => <article key={index}>
     <small>{String(index + 1).padStart(2, '0')} / {conclusionLabel(conclusion.type, text)}</small>
     <p>{conclusion.statement}</p>
@@ -29,12 +30,16 @@ export function DecisionReport({ decision, onEvidence, dialogue = false }: { dec
   </article>
   return (
     <div className="decision-report">
-      {(dialogue || decision.conclusions.length === 0) && answerFields}
-      <div className="decision-report-conclusions">
-        {primary.map(renderConclusion)}
-      </div>
-      {supportingFacts.length > 0 && <details className="decision-report-facts"><summary>{text(`支撑事实 · ${supportingFacts.length}`, `SUPPORTING FACTS · ${supportingFacts.length}`)}</summary><div className="decision-report-conclusions">{supportingFacts.map(renderConclusion)}</div></details>}
-      {!dialogue && decision.conclusions.length > 0 && answerFields && <details className="decision-report-coordinate"><summary>{text('回答补充', 'Additional answer details')}</summary>{answerFields}</details>}
+      {paragraphs.length > 0 && <section className="decision-report-narrative" aria-label={text('研究报告', 'Research report')}>
+        <small>{text('研究报告 · 基于可追溯证据', 'RESEARCH REPORT · TRACEABLE EVIDENCE')}</small>
+        {paragraphs.map((paragraph, index) => <div className="decision-report-paragraph" key={`${index}:${paragraph.text}`}>
+          <p>{paragraph.text}</p>
+          {paragraph.evidence_refs.length > 0 && <div className="decision-report-citations">{[...new Set(paragraph.evidence_refs)].map(ref => <button type="button" key={ref} onClick={() => onEvidence(ref)} title={ref}><Link2 size={12} />{text('证据', 'EVIDENCE')} {refs.indexOf(ref) + 1}</button>)}</div>}
+        </div>)}
+      </section>}
+      {paragraphs.length > 0
+        ? <details className="decision-report-facts"><summary>{text('查看经验证的决策字段与结论', 'Inspect validated decision fields and findings')}</summary>{answerFields}<div className="decision-report-conclusions">{conclusions.map(renderConclusion)}</div></details>
+        : <><div className="decision-report-conclusions">{primary.map(renderConclusion)}</div>{supportingFacts.length > 0 && <details className="decision-report-facts"><summary>{text(`支撑事实 · ${supportingFacts.length}`, `SUPPORTING FACTS · ${supportingFacts.length}`)}</summary><div className="decision-report-conclusions">{supportingFacts.map(renderConclusion)}</div></details>}{answerFields && (decision.conclusions.length === 0 ? answerFields : <details className="decision-report-coordinate"><summary>{text('决策字段', 'Decision fields')}</summary>{answerFields}</details>)}</>}
       {boundaries.filter(({ items }) => items.length > 0).map(({ label, items, tone }) => <section className={`decision-report-boundary boundary-${tone}`} key={tone}><h3>{label}</h3><ul>{items.map((item, index) => <li key={index}>{item}</li>)}</ul></section>)}
       {refs.length > 0 && <details className="decision-report-sources"><summary>{text(`全部证据 · ${refs.length}`, `ALL EVIDENCE · ${refs.length}`)}</summary><div className="decision-report-citations">{refs.map((ref, index) => <button type="button" key={ref} onClick={() => onEvidence(ref)} title={ref}><Link2 size={12} />{text('证据', 'EVIDENCE')} {index + 1}</button>)}</div></details>}
       <details className="decision-report-coordinate"><summary>{text('研判坐标', 'DECISION COORDINATES')}</summary><dl><dt>ID</dt><dd>{decision.decision_id}</dd><dt>REV</dt><dd>{decision.case_revision}</dd><dt>STOP</dt><dd>{decision.stop_reason}</dd><dt>TIME</dt><dd>{new Date(decision.created_at).toLocaleString()}</dd></dl></details>

@@ -310,6 +310,7 @@ class AskQuestionUseCase:
                 citation_sources=context.citation_sources,
                 session_context=history_payload,
                 runtime_metadata=runtime_metadata,
+                include_report=True,
             )
             if isinstance(proposal, DecisionDraft):
                 decision = DecisionService().decide(

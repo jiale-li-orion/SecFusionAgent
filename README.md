@@ -77,7 +77,7 @@ Repository CI continuously runs `ruff`, `mypy`, and `pytest`; PostgreSQL/Redis a
 
 The Product Web at `/product/` exposes six connected spaces: WORLD follows live source material and Hot CVEs; INTELLIGENCE opens evidence-backed dossiers and selected-dimension enrichment; QUESTIONS is a full account-bound dialogue workspace with DIRECT/RETRIEVE/VERIFY/INVESTIGATE/WATCH paths, live answer tokens, optional provider reasoning, citations, context and execution trace; INVESTIGATIONS follows durable Cases; AGENTS explains Role and Task activity; OBSERVATORY shows measured service and worker state. The interface contains no competition demonstration, frozen-proof, or artificial delay path. See [`apps/web/README.md`](apps/web/README.md) for its visual and integration contract.
 
-QUESTIONS now pages through older account conversations and turns. A completed Investigation presents a cited, natural-paragraph research report generated from the same validated Decision; the structured answer and conclusions stay available for audit and evaluation.
+QUESTIONS pages through older account conversations and turns. Completed Product questions and Investigations present cited, natural-paragraph research reports generated from the same validated Decision; structured fields and conclusions stay available for audit and evaluation. Earlier decisions without report paragraphs remain readable through their validated conclusions.
 
 The visual identity now uses a dedicated evidence-aperture mark, distinct source-category and publication seals, and three differentiated WebGL/SVG Agent sculptures. These are presentation identities; the states they accompany remain backed by Product read models.
 

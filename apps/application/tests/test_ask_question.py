@@ -33,7 +33,11 @@ from packages.investigation.state.contracts import (
 )
 from packages.investigation.state.service import InvestigationStateService
 from packages.investigation.storage.models import EvidenceNeedModel, InvestigationCaseModel
-from packages.reasoning.decision import ConclusionType, DecisionConclusion
+from packages.reasoning.decision import (
+    ConclusionType,
+    DecisionConclusion,
+    DecisionReportParagraph,
+)
 from packages.reasoning.model import (
     ContinuationProposal,
     DecisionPlannerResponse,
@@ -417,6 +421,12 @@ async def test_lookup_question_runs_read_only_decision_without_durable_case() ->
                     )
                 ],
                 answer_payload={"cvss_score": 9.8},
+                report_paragraphs=[
+                    DecisionReportParagraph(
+                        text=f"The confirmed CVSS score for {CVE} is 9.8.",
+                        evidence_refs=[f"evidence:{EVIDENCE_ID}"],
+                    )
+                ],
                 stop_reason="evidence_sufficient",
             )
         )
@@ -439,9 +449,11 @@ async def test_lookup_question_runs_read_only_decision_without_durable_case() ->
             assert result.decision.answer == {"cvss_score": 9.8}
             assert result.decision.citations[0].evidence_ref == f"evidence:{EVIDENCE_ID}"
             assert result.decision.citations[0].locator == {"field": "cvss_score"}
+            assert result.decision.report_paragraphs[0].text.endswith("9.8.")
             reread = await DecisionQueries().get(session, result.decision.decision_id)
             assert reread.decision_id == result.decision.decision_id
             assert reread.answer == {"cvss_score": 9.8}
+            assert reread.report_paragraphs[0].evidence_refs == [f"evidence:{EVIDENCE_ID}"]
 
         async with factory() as session:
             assert int(
@@ -463,6 +475,7 @@ async def test_lookup_question_runs_read_only_decision_without_durable_case() ->
         assert metadata["execution_id"]
         assert metadata["case_id"] is None
         assert metadata["product_request_id"] == "question-direct-1"
+        assert metadata["prompt_revision"] == "decision-model-v4"
     finally:
         await engine.dispose()
 

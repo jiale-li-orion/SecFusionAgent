@@ -62,7 +62,7 @@ Every synchronous Question still creates TaskRun / Budget / Execution coordinate
 
 Validated M6 results are persisted immutably by `DecisionResultStore`. M4 remains the owner of which decision is current for a durable Case; the result store only supplies stable DecisionResult identity, including DIRECT/RETRIEVE results that have no Case. `GET /api/v1/decisions/{decision_id}` reads this store and retains a compatibility read from historical M4 DecisionCommit events.
 
-The Product decision projection also exposes optional `report_paragraphs` attached to a validated DecisionResult. Durable Investigation finalization opts into this presentation text in its DecisionRole call; each paragraph's evidence refs must be among the validated conclusion refs. Ordinary synchronous QA keeps its minimal-answer prompt, and evaluation and authority continue to use the existing structured fields.
+The Product decision projection also exposes optional `report_paragraphs` attached to a validated DecisionResult. Both synchronous Product questions and durable Investigation finalization request this presentation text in their DecisionRole calls; each paragraph's evidence refs must be among the validated conclusion refs. The structured answer and conclusions remain the evaluation and authority fields. Older Decisions without report paragraphs retain their validated fields and citations.
 
 ## Boundaries
 
