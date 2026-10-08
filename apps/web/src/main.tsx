@@ -9,7 +9,7 @@ import './product-foundation.css'
 import './product-spaces.css'
 import './account-space.css'
 
-const productBase = import.meta.env.BASE_URL.replace(/\/$/, '') || '/'
+const productBase = import.meta.env.BASE_URL
 
 const queryClient = new QueryClient({
   defaultOptions: {

@@ -117,6 +117,13 @@ export type WorldIncidentCandidate = {
   candidate_id: string
   incident_type: string
   promotion_state: string
+  headline: string
+  summary: string | null
+  source_id: string
+  source_name: string | null
+  canonical_url: string | null
+  published_at: string | null
+  observed_at: string
   signal_count: number
   independent_source_count: number
   anchor_count: number
@@ -127,10 +134,12 @@ export type WorldIncidentCandidate = {
   unresolved_question_count: number
 }
 
-export async function getWorldIncidentCandidates(limit = 24): Promise<{ total: number; total_signals: number; multi_source_candidates: number; anchored_candidates: number; items: WorldIncidentCandidate[] }> {
+export type WorldIncidentCandidateList = { total: number; unfiltered_total: number; total_signals: number; multi_source_candidates: number; anchored_candidates: number; items: WorldIncidentCandidate[] }
+
+export async function getWorldIncidentCandidates(limit = 24): Promise<WorldIncidentCandidateList> {
   const response = await fetch(`/api/v1/world/incident-candidates?limit=${limit}`)
   if (!response.ok) throw new Error(`Incident candidates read failed (${response.status})`)
-  return response.json() as Promise<{ total: number; total_signals: number; multi_source_candidates: number; anchored_candidates: number; items: WorldIncidentCandidate[] }>
+  return response.json() as Promise<WorldIncidentCandidateList>
 }
 
 export type HotBug = {

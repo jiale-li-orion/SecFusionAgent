@@ -21,10 +21,10 @@ const categories = [
   { key: 'incidents', zh: '事件', en: 'Incidents', icon: Fingerprint, path: 'Incident Watch' },
 ]
 
-export function WorldScene({ stories, focusedId, pending, failed, onFocus, onOpen, onInvestigate, onRetry, view, onView, overview, formation, hotTotal, hotFailed, region, onRegion, onHotRetry, changes }: {
-  changes: WorldKnowledgeChange[]; stories: WorldStory[]; focusedId: string | null; pending: boolean; failed: boolean
+export function WorldScene({ stories, focusedId, pending, failed, candidatePending, candidateFailed, onFocus, onOpen, onInvestigate, onRetry, onCandidateRetry, view, onView, overview, formation, hotTotal, hotFailed, region, onRegion, onHotRetry, changes }: {
+  changes: WorldKnowledgeChange[]; stories: WorldStory[]; focusedId: string | null; pending: boolean; failed: boolean; candidatePending: boolean; candidateFailed: boolean
   onFocus: (story: WorldStory) => void; onOpen: (story: WorldStory) => void
-  onInvestigate: (story: WorldStory) => void; onRetry: () => void
+  onInvestigate: (story: WorldStory) => void; onRetry: () => void; onCandidateRetry: () => void
   view: string; onView: (view: string) => void; overview: WorldOverview | undefined; formation: WorldFormation | undefined; hotTotal: number | undefined; hotFailed: boolean; region: string | null; onRegion: (region: string | null) => void; onHotRetry: () => void
 }) {
   const { text, language } = useI18n()
@@ -36,6 +36,10 @@ export function WorldScene({ stories, focusedId, pending, failed, onFocus, onOpe
   const focused = regionStories.find(s => s.story_id === focusedId) ?? regionStories[0] ?? null
   const direction = categories.find(c => c.key === region)
   const category = categories.find(c => c.key === focused?.category)
+  const canOpenDossier = Boolean(focused?.object_id || focused?.incident_id || (focused?.kind === 'HotVulnerability' && focused.facts.cve_id))
+  const canInvestigate = Boolean(focused?.object_id || (focused?.kind === 'HotVulnerability' && focused.facts.cve_id))
+  const regionReadFailed = region === 'incidents' ? candidateFailed : failed
+  const regionReadPending = region === 'incidents' ? candidatePending : pending
 
   return <section className={`evidence-world studio-world ${inspect || region ? 'is-inspecting' : ''}`} aria-label={text('AI 安全证据世界', 'AI security evidence world')}>
     <SpaceHeading index="01" eyebrow="WORLD / EVIDENCE PLANE" title={text('证据世界', 'Evidence world')} description={text('八类来源，四路汇聚。观察信息如何进入、变热，并被留存。', 'Eight source domains. Four processing routes. Follow information into a traceable world.')}><button className="ew-inspect-toggle" onClick={() => { setInspect(!inspect); setRegion(null) }} aria-expanded={inspect}><Layers3 size={16} />{text('追溯证据', 'Trace evidence')}</button></SpaceHeading>
@@ -52,29 +56,31 @@ export function WorldScene({ stories, focusedId, pending, failed, onFocus, onOpe
             <h2>{focused.headline}</h2>
             <p className="ew-observed">{focused.published_at && <><time dateTime={focused.published_at}>{formatDate(focused.published_at, language)}</time> {text('发布', 'published')} · </>}{text('收录于', 'Observed')} <time dateTime={focused.observed_at}>{formatDate(focused.observed_at, language)}</time></p>
             {focused.kind === 'InternetAsset' && <p className="ew-asset-observation">{text(`${sourceLabel(focused)} 记录了这个地址的公网资产观察。`, `${sourceLabel(focused)} recorded an Internet asset observation for this address.`)}</p>}
+            {focused.kind === 'IncidentCandidate' && <p className="ew-asset-observation">{text('事件候选信号 · 尚在关联与核验，未固定为事件档案。', 'Candidate signal · correlation and verification pending; no durable incident yet.')}</p>}
             {focused.excerpt && <div className="ew-excerpt"><span>{text('来源原文 · 保留原语言', 'From the source')}</span><blockquote>{focused.excerpt}</blockquote></div>}
             <div className="ew-actions">
-              <button className="ew-primary" onClick={() => onOpen(focused)}>{text('进入对象', 'Explore object')} <ArrowUpRight size={17} /></button>
-              <button onClick={() => onInvestigate(focused)}>{text('继续调查', 'Investigate')} <ArrowRight size={17} /></button>
+              {canOpenDossier ? <button className="ew-primary" onClick={() => onOpen(focused)}>{text(focused.incident_id ? '打开事件档案' : '进入对象', focused.incident_id ? 'Open incident dossier' : 'Explore object')} <ArrowUpRight size={17} /></button>
+                : <button className="ew-primary" onClick={() => { setInspect(true); setRegion(null) }}>{text('查看信号详情', 'Inspect signal details')} <ArrowUpRight size={17} /></button>}
+              {canInvestigate && <button onClick={() => onInvestigate(focused)}>{text('继续调查', 'Investigate')} <ArrowRight size={17} /></button>}
             </div>
             {focused.external_ref && <a className="ew-original" href={focused.external_ref} target="_blank" rel="noreferrer">{text('阅读完整原文', 'Read the original')}<ArrowUpRight size={13} /></a>}
           </motion.article> : <div className="ew-first-read" role="status">
-            <Scan size={24} /><h2>{failed ? text('世界动态读取失败', 'Could not read world signals') : region ? text('这个方向的证据仍在形成。', 'Evidence is still forming here.') : text('正在读取世界动态', 'Reading world signals')}</h2>
-            {failed && <button onClick={onRetry}>{text('重新读取', 'Retry')}</button>}
+            <Scan size={24} /><h2>{regionReadFailed ? text('这个方向暂时无法读取', 'Could not read this direction') : regionReadPending ? text('正在读取世界动态', 'Reading world signals') : region ? text('这个方向的证据仍在形成。', 'Evidence is still forming here.') : text('正在读取世界动态', 'Reading world signals')}</h2>
+            {regionReadFailed && <button onClick={region === 'incidents' ? onCandidateRetry : onRetry}>{text('重新读取', 'Retry')}</button>}
             {region && <button onClick={() => setRegion(null)}>{text('回到整个世界', 'View the whole world')}<ArrowRight size={16} /></button>}
           </div>}
         </AnimatePresence>
       </div>
       <div className="ew-space-region">
       <div className="ew-field-views" aria-label={text('观察世界', 'Observe the world')}>{[{ key: 'stories', zh: '世界动态', en: 'Signals' }, { key: 'sources', zh: '来源汇聚', en: 'Sources' }, { key: 'hot', zh: '浏览热区', en: 'Hot' }, { key: 'formation', zh: '富化与留存', en: 'Processing' }].map(v => <button key={v.key} aria-pressed={view === v.key} onClick={() => onView(v.key)}>{text(v.zh, v.en)}</button>)}</div>
-      {view === 'sources' ? <WorldSourcesField sources={overview?.sources} directions={categories} stories={stories} onSource={category => { setRegion(category); setInspect(false) }} /> : view === 'hot' ? <WorldHotField stories={stories} focusedId={focused?.story_id} total={hotTotal} failed={hotFailed} onFocus={onFocus} onRetry={onHotRetry} /> : view === 'formation' ? <WorldFormationField formation={formation} /> : <EvidenceAtlas onHot={() => onView('hot')} directions={categories} overview={overview} stories={stories} focusedId={focused?.story_id} onSource={key => { setRegion(key); setInspect(false) }} onFocus={story => { onFocus(story); setInspect(false) }} changes={changes} total={hotTotal} />}
+      {view === 'sources' ? <WorldSourcesField sources={overview?.sources} directions={categories} stories={stories} onSource={category => { setRegion(category); setInspect(false) }} /> : view === 'hot' ? <WorldHotField stories={stories} focusedId={focused?.story_id} total={hotTotal} failed={hotFailed} onFocus={onFocus} onRetry={onHotRetry} /> : view === 'formation' ? <WorldFormationField formation={formation} /> : <EvidenceAtlas onHot={() => onView('hot')} directions={categories} overview={overview} stories={region ? regionStories : stories} focusedId={focused?.story_id} onSource={key => { setRegion(key); setInspect(false) }} onFocus={story => { onFocus(story); setInspect(false) }} changes={changes} total={hotTotal} />}
       </div>
       {region && direction && <WorldSourceInspector category={region} label={text(direction.zh, direction.en)} path={direction.path} materials={stories} onClose={() => setRegion(null)} />}
       {inspect && !region && focused && <aside className="ew-inspector" aria-label={text('当前对象的证据来源', 'Evidence for the focused object')}>
         <div className="ew-inspector-head"><span>{text('证据来处', 'Evidence provenance')}</span><button onClick={() => setInspect(false)} aria-label={text('关闭证据追溯', 'Close evidence trace')}><X size={18} /></button></div>
         <h3>{focused.headline}</h3>
         <p>{sourceLabel(focused)} <ArrowRight size={14} /> {category?.path}</p>
-        <div className="ew-provenance"><span>{text('外部来源', 'Source')}<strong>{sourceLabel(focused)}</strong></span><i /><span>{text('保留的材料', 'Retained material')}<strong>{focused.evidence?.document_revision_id ? text('原文与版本', 'Document and revision') : text('对象观察', 'Object observation')}</strong></span><i /><span>{text('当前落点', 'Current destination')}<strong>{focused.kind === 'HotVulnerability' ? 'Hot working set' : focused.incident_id ? 'Incident' : 'Evidence · Knowledge'}</strong></span></div>
+        <div className="ew-provenance"><span>{text('外部来源', 'Source')}<strong>{sourceLabel(focused)}</strong></span><i /><span>{text('材料状态', 'Material status')}<strong>{focused.kind === 'IncidentCandidate' ? text('候选信号', 'Candidate signal') : focused.kind === 'HotVulnerability' ? text('热区观测', 'Hot observation') : focused.evidence?.document_revision_id ? text('原文与版本', 'Document and revision') : text('对象观察', 'Object observation')}</strong></span><i /><span>{text('当前落点', 'Current destination')}<strong>{focused.kind === 'IncidentCandidate' ? 'Incident Watch' : focused.kind === 'HotVulnerability' ? 'Hot working set' : focused.incident_id ? 'Incident' : 'Evidence · Knowledge'}</strong></span></div>
         {focused.excerpt && <blockquote>{focused.excerpt}</blockquote>}
         {focused.external_ref && <a href={focused.external_ref} target="_blank" rel="noreferrer">{text('打开来源原文', 'Open source')} <ArrowUpRight size={15} /></a>}
         <details><summary>{text('查看技术坐标', 'Technical coordinates')}</summary><pre>{JSON.stringify({ evidence: focused.evidence, facts: focused.facts, observed_at: focused.observed_at, happened_at: focused.happened_at }, null, 2)}</pre></details>
@@ -86,7 +92,7 @@ export function WorldScene({ stories, focusedId, pending, failed, onFocus, onOpe
         {categories.map(c => { return <button key={c.key} className={region === c.key ? 'active' : ''} aria-pressed={region === c.key}
           onClick={() => { setRegion(region === c.key ? null : c.key); setInspect(false) }}><ProductGlyph kind={c.key} size={20} /><span>{text(c.zh, c.en)}</span></button> })}
       </div>
-      {focused && <button className="ew-current-path" onClick={() => { setInspect(true); setRegion(null) }}><span>{sourceLabel(focused)}</span><ArrowRight size={14} /><span>{category?.path}</span><ArrowRight size={14} /><strong>{focused.kind === 'HotVulnerability' ? text('热区驻留 · 尚未据此声明知识留存', 'Hot residency') : focused.incident_id ? text('已留存事件', 'Retained incident') : text('已留存原文与对象', 'Retained material and object')}</strong><span>{text('查看来处', 'Trace this path')} <ArrowUpRight size={12} /></span></button>}
+      {focused && <button className="ew-current-path" onClick={() => { setInspect(true); setRegion(null) }}><span>{sourceLabel(focused)}</span><ArrowRight size={14} /><span>{category?.path}</span><ArrowRight size={14} /><strong>{focused.kind === 'IncidentCandidate' ? text('候选信号 · 尚未固定为事件', 'Candidate · no durable incident yet') : focused.kind === 'HotVulnerability' ? text('热区驻留 · 尚未据此声明知识留存', 'Hot residency') : focused.incident_id ? text('已留存事件', 'Retained incident') : text('已留存原文与对象', 'Retained material and object')}</strong><span>{text('查看来处', 'Trace this path')} <ArrowUpRight size={12} /></span></button>}
       <div className="ew-retention"><span>Evidence</span><i /><span>Knowledge</span><i /><span>Incident</span><i /><span>Insight</span><i /><span>Experience</span></div>
       {pending && stories.length > 0 && <span role="status">{text('正在更新', 'Updating')}</span>}
     </footer>

@@ -166,7 +166,7 @@ details[open]>summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 32px;
+  gap: 20px;
   padding: 25px 4.2%;
   border-bottom: 1px solid var(--line);
 }

@@ -114,6 +114,13 @@ class WorldIncidentCandidateView(BaseModel):
     candidate_id: str
     incident_type: str
     promotion_state: str
+    headline: str
+    summary: str | None = None
+    source_id: str
+    source_name: str | None = None
+    canonical_url: str | None = None
+    published_at: datetime | None = None
+    observed_at: datetime
     signal_count: int = 0
     independent_source_count: int = 0
     anchor_count: int = 0
@@ -126,6 +133,7 @@ class WorldIncidentCandidateView(BaseModel):
 
 class WorldIncidentCandidateListView(BaseModel):
     total: int = 0
+    unfiltered_total: int = 0
     total_signals: int = 0
     multi_source_candidates: int = 0
     anchored_candidates: int = 0

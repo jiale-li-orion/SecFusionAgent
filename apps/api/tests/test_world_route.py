@@ -208,6 +208,62 @@ async def test_world_hot_exposes_ranked_product_safe_hot_bug_view(monkeypatch) -
 
 
 @pytest.mark.asyncio
+async def test_world_incident_watch_filters_general_news(monkeypatch) -> None:
+    from typing import Any, cast
+
+    from fakeredis.aioredis import FakeRedis
+
+    import apps.api.routes.world as world_route
+    from packages.intelligence.incident.contracts import IncidentCandidate, SignalItem
+    from packages.sources.contracts import SourceRole
+
+    client = FakeRedis()
+    examples = [
+        ("reported", "blockbeats-newsflash", "韩国五大商业银行遭黑客攻击, 三家出现客户信息泄露"),
+        ("finance", "blockbeats-newsflash", "Soda Labs完成300万美元种子轮融资"),
+        ("advice", "bleepingcomputer-news", "Ransomware has a new target. Is your backup ready?"),
+    ]
+    for identifier, source_id, title in examples:
+        signal = SignalItem(
+            signal_id=f"signal-{identifier}",
+            acquisition_run_id="run-1",
+            source_id=source_id,
+            source_role=SourceRole.SIGNAL,
+            source_family=source_id,
+            external_object_id=identifier,
+            observed_at=NOW,
+            content_hash=identifier,
+            title=title,
+            canonical_url=f"https://example.invalid/{identifier}",
+            raw_payload={"private": "not exposed"},
+        )
+        candidate = IncidentCandidate(
+            candidate_id=f"candidate-{identifier}",
+            incident_type="security-incident",
+            signal_ids=[signal.signal_id],
+            last_material_change=NOW,
+        )
+        await client.set(f"incident:signal:{signal.signal_id}", signal.model_dump_json())
+        await client.set(f"incident:cluster:{candidate.candidate_id}", candidate.model_dump_json())
+
+    monkeypatch.setattr(world_route.Redis, "from_url", lambda *_args, **_kwargs: cast(Any, client))
+    async with AsyncClient(
+        transport=ASGITransport(app=create_app()), base_url="http://test"
+    ) as http:
+        response = await http.get("/api/v1/world/incident-candidates?limit=2")
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["total"] == 1
+    assert payload["unfiltered_total"] == 3
+    assert len(payload["items"]) == 1
+    assert payload["items"][0]["candidate_id"] == "candidate-reported"
+    assert payload["items"][0]["promotion_state"] == "candidate"
+    assert payload["items"][0]["source_id"] == "blockbeats-newsflash"
+    assert "raw_payload" not in response.text
+
+
+@pytest.mark.asyncio
 async def test_world_knowledge_changes_expose_durable_revision_coordinates() -> None:
     register_runtime_models()
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")

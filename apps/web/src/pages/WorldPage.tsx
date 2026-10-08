@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { getWorldKnowledgeChanges, getWorldStories, getHotWorldItem, getHotWorld, getWorldOverview, getWorldFormation, type HotBug, type WorldStory } from '../lib/api/world'
+import { getWorldKnowledgeChanges, getWorldStories, getHotWorldItem, getHotWorld, getWorldOverview, getWorldFormation, getWorldIncidentCandidates, type HotBug, type WorldIncidentCandidate, type WorldStory } from '../lib/api/world'
 import { WorldScene } from '../components/world/WorldScene'
 import { useI18n } from '../lib/i18n'
 
@@ -17,11 +17,12 @@ export function WorldPage() {
   })
   const workingSet = useQuery({ queryKey: ['world-working-set', 64], queryFn: () => getHotWorld(64),
     refetchInterval: 30_000 })
+  const candidateSet = useQuery({ queryKey: ['world-incident-candidates', 32], queryFn: () => getWorldIncidentCandidates(32), refetchInterval: 30_000 })
   const overview = useQuery({ queryKey: ['world-overview'], queryFn: getWorldOverview, refetchInterval: 30_000 })
   const formation = useQuery({ queryKey: ['world-formation'], queryFn: getWorldFormation, refetchInterval: 15_000 })
   const changes = useQuery({ queryKey: ['world-knowledge-changes'], queryFn: () => getWorldKnowledgeChanges(6), refetchInterval: 15_000 })
   const hotStory = hot.data ? projectHot(hot.data) : null
-  const stories = [ ...(query.data?.items ?? []), ...(workingSet.data?.items ?? []).map(projectHot) ]
+  const stories = [ ...(query.data?.items ?? []), ...(workingSet.data?.items ?? []).map(projectHot), ...(candidateSet.data?.items ?? []).map(projectCandidate) ]
   if (hotStory && !stories.some(s => s.story_id === hotStory.story_id)) stories.push(hotStory)
 
   function focus(story: WorldStory) {
@@ -48,8 +49,9 @@ export function WorldPage() {
     region={params.get('source')} onRegion={source => { setParams(current => { const next = new URLSearchParams(current); if (source) next.set('source', source); else next.delete('source'); return next }, { replace: true }) }}
     onHotRetry={() => void workingSet.refetch()} view={params.get('view') ?? (hotCoordinate ? 'hot' : 'stories')} onView={view => { const next = new URLSearchParams(params); next.set('view', view); next.delete('story'); next.delete('hot'); next.delete('source'); setParams(next, { replace: true }) }}
     changes={changes.data?.items ?? []} overview={overview.data} formation={formation.data} hotTotal={workingSet.data?.resident_total} hotFailed={workingSet.isError}
-    pending={query.isPending} failed={query.isError} onFocus={focus} onOpen={open}
-    onInvestigate={investigate} onRetry={() => void query.refetch()} />
+    pending={query.isPending} failed={query.isError} candidatePending={candidateSet.isPending} candidateFailed={candidateSet.isError}
+    onFocus={focus} onOpen={open} onInvestigate={investigate} onRetry={() => void query.refetch()}
+    onCandidateRetry={() => void candidateSet.refetch()} />
 }
 
 function projectHot(item: HotBug): WorldStory {
@@ -61,5 +63,18 @@ function projectHot(item: HotBug): WorldStory {
     source_id: item.source_id, source_name: item.source_name ?? item.source_id, object_id: null, incident_id: null,
     external_ref: item.canonical_url, evidence: null,
     facts: { cve_id: item.cve_id, external_object_id: item.external_object_id, affected_products: item.affected_products, changed_fields: item.changed_fields, external_revision: item.external_revision, active: item.active, pinned: item.pinned, priority_signals: item.priority_signals, access_count: item.access_count, ttl_seconds: item.ttl_seconds },
+  }
+}
+
+function projectCandidate(item: WorldIncidentCandidate): WorldStory {
+  return {
+    story_id: `candidate:${item.candidate_id}`, category: 'incidents', kind: 'IncidentCandidate',
+    headline: item.headline, excerpt: item.summary, excerpt_origin: item.summary ? 'source_field' : null,
+    happened_at: item.published_at ?? item.observed_at, observed_at: item.observed_at,
+    published_at: item.published_at, source_id: item.source_id, source_name: item.source_name ?? item.source_id,
+    object_id: null, incident_id: null, external_ref: item.canonical_url, evidence: null,
+    facts: { candidate_id: item.candidate_id, signal_count: item.signal_count,
+      independent_source_count: item.independent_source_count, anchor_count: item.anchor_count,
+      promotion_state: item.promotion_state, unresolved_question_count: item.unresolved_question_count },
   }
 }

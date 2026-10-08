@@ -11,6 +11,7 @@ from redis.asyncio import Redis
 from redis.exceptions import RedisError
 
 from apps.api.dependencies import SessionDep
+from apps.application.queries.incident_presentation import is_presentable_incident_signal
 from apps.application.queries.world import list_world_knowledge_changes, world_source_names
 from apps.application.queries.world_formation import read_world_formation
 from apps.application.views.world import (
@@ -30,7 +31,7 @@ from apps.application.views.world import (
 )
 from packages.intelligence.hot_cache.contracts import HotBugCacheEntry
 from packages.intelligence.hot_cache.redis import RedisHotBugCache
-from packages.intelligence.incident.contracts import IncidentCandidate
+from packages.intelligence.incident.contracts import IncidentCandidate, SignalItem
 from packages.monitoring.data_plane_status import data_plane_status
 from packages.shared.config import get_settings
 
@@ -145,6 +146,19 @@ async def world_incident_candidates(
             if cursor == 0:
                 break
         raw_candidates = await redis.mget(keys) if keys else []
+        candidates = [
+            IncidentCandidate.model_validate_json(raw) for raw in raw_candidates if raw is not None
+        ]
+        candidates.sort(
+            key=lambda item: (item.watch_priority, item.last_material_change),
+            reverse=True,
+        )
+        candidates = [item for item in candidates if item.signal_ids]
+        raw_signals = (
+            await redis.mget([f"incident:signal:{item.signal_ids[-1]}" for item in candidates])
+            if candidates
+            else []
+        )
     except RedisError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -153,23 +167,33 @@ async def world_incident_candidates(
     finally:
         await redis.aclose()
 
-    candidates = [
-        IncidentCandidate.model_validate_json(raw) for raw in raw_candidates if raw is not None
+    presentable = [
+        (candidate, signal)
+        for candidate, raw in zip(candidates, raw_signals, strict=True)
+        if candidate.promotion_state == "candidate"
+        if raw is not None
+        if (signal := SignalItem.model_validate_json(raw))
+        if is_presentable_incident_signal(signal)
     ]
-    candidates.sort(
-        key=lambda item: (item.watch_priority, item.last_material_change),
-        reverse=True,
-    )
+    names = world_source_names()
     return WorldIncidentCandidateListView(
-        total=len(candidates),
-        total_signals=sum(len(item.signal_ids) for item in candidates),
-        multi_source_candidates=sum(item.independent_source_count > 1 for item in candidates),
-        anchored_candidates=sum(bool(item.anchor_set) for item in candidates),
+        total=len(presentable),
+        unfiltered_total=len(candidates),
+        total_signals=sum(len(item.signal_ids) for item, _ in presentable),
+        multi_source_candidates=sum(item.independent_source_count > 1 for item, _ in presentable),
+        anchored_candidates=sum(bool(item.anchor_set) for item, _ in presentable),
         items=[
             WorldIncidentCandidateView(
                 candidate_id=item.candidate_id,
                 incident_type=item.incident_type,
                 promotion_state=item.promotion_state,
+                headline=signal.title,
+                summary=signal.summary,
+                source_id=signal.source_id,
+                source_name=names.get(signal.source_id),
+                canonical_url=signal.canonical_url,
+                published_at=signal.published_at,
+                observed_at=signal.observed_at,
                 signal_count=len(item.signal_ids),
                 independent_source_count=item.independent_source_count,
                 anchor_count=sum(len(values) for values in item.anchor_set.values()),
@@ -179,7 +203,7 @@ async def world_incident_candidates(
                 next_poll_at=item.next_poll_at,
                 unresolved_question_count=len(item.unresolved_questions),
             )
-            for item in candidates[:limit]
+            for item, signal in presentable[:limit]
         ],
     )
 
