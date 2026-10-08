@@ -59,6 +59,13 @@ This matters for mutable snapshot sources such as `github-target-repos`. An hour
 
 `oss-security` and `cve-program-cvelist-v5` bound one discovery run with `discovery_method.max_items` and use `schedule_policy.catchup_interval_seconds` between incomplete catch-up batches. Smaller batches reduce the replay work exposed to one late transport failure, while repeated catch-up scheduling supplies throughput across batches. Both adapters select newly disclosed items before historical backlog. `oss-security` retries one transient HTTP transport failure before classifying the run as `fetch_failed`. The source JSON owns the numeric tuning values; this README documents their semantics so configuration changes do not require hand-updating duplicated numbers.
 
+`runtime.execute_collection_run` owns scheduled-source HTTP routing. An optional
+`SECFUSION_UPSTREAM_HTTP_PROXY` is applied only to `SECFUSION_SOURCE_PROXY_IDS`;
+other scheduled sources bypass the host proxy. The source list accepts `"*"` when a
+deployment requires proxying every source. This prevents a proxy needed for GitHub
+Raw from turning otherwise healthy direct vendor/standards feeds into transport
+failures. Model and other non-collection clients retain their own proxy behavior.
+
 `runtime.execute_collection_run` resolves the persisted source definition and dispatches by `RetentionMode`:
 
 ```text

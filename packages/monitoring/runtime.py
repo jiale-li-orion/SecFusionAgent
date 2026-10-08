@@ -57,7 +57,20 @@ async def execute_collection_run(run_id: str, settings: Settings) -> str:
             context = await start_acquisition_run(session, run_id)
         if context is None:
             return "ignored"
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        # A host proxy may be required for selected providers while making other
+        # public sources less reliable. When configured, source routing is explicit:
+        # opted-in sources use the proxy and every other scheduled source goes direct.
+        proxy = (
+            settings.upstream_http_proxy
+            if "*" in settings.source_proxy_ids
+            or context.source.source_id in settings.source_proxy_ids
+            else None
+        )
+        async with httpx.AsyncClient(
+            timeout=30.0,
+            proxy=proxy,
+            trust_env=not bool(settings.upstream_http_proxy),
+        ) as client:
             adapter = create_source_adapter(context.source, client, settings)
             try:
                 async with asyncio.timeout(settings.collection_run_timeout_seconds):

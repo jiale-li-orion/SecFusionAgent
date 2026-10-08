@@ -27,6 +27,14 @@ class Settings(BaseSettings):
     runtime_policy_path: Path = Path("config/runtime-policy.json")
     collection_run_timeout_seconds: int = 15 * 60
     scheduler_tick_seconds: int = 5
+    upstream_http_proxy: str | None = None
+    source_proxy_ids: list[str] = Field(
+        default_factory=lambda: [
+            "cve-program-cvelist-v5",
+            "mitre-atlas",
+            "meta-ai-safety",
+        ]
+    )
 
     artifact_store_backend: Literal["filesystem", "s3"] = "filesystem"
     artifact_root: Path = Path(".local/secfusion-artifacts")

@@ -51,7 +51,11 @@ docker compose -f deploy/docker-compose.yml --profile runtime up -d worker worke
 
 Keep the relay process running while workers need external providers. Override
 `SECFUSION_NO_PROXY` if the deployment has additional private services or a model
-endpoint that must bypass the proxy. A proxy may restore reachability without
+endpoint that must bypass the proxy. Scheduled collection explicitly proxies only
+`SECFUSION_SOURCE_PROXY_IDS` (the CVE Raw feed, MITRE ATLAS and Meta AI by default);
+other scheduled sources connect directly even when the general worker proxy is set.
+Set `SECFUSION_SOURCE_PROXY_IDS='["*"]'` only where every scheduled source requires
+the proxy. A proxy may restore reachability without
 overriding upstream 403 or rate-limit responses; source health still reports those
 conditions.
 
