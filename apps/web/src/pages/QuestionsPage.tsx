@@ -69,6 +69,7 @@ export function QuestionsPage() {
   const [reasoningOpen, setReasoningOpen] = useState(false)
   const [draftRaw, setDraftRaw] = useState('')
   const [reasoningRaw, setReasoningRaw] = useState('')
+  const [completedReasoning, setCompletedReasoning] = useState<{ sessionId: string; turnIndex: number; text: string } | null>(null)
   const [streamPhase, setStreamPhase] = useState('')
   const [pendingQuestion, setPendingQuestion] = useState('')
   const [error, setError] = useState('')
@@ -77,6 +78,7 @@ export function QuestionsPage() {
   const [liveEvents, setLiveEvents] = useState<ProductRuntimeEvent[]>([])
   const [connectedCaseId, setConnectedCaseId] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const reasoningBuffer = useRef('')
 
   const conversations = useQuery({ queryKey: ['account-conversations'], queryFn: ({ signal }) => listAccountConversations(20, signal) })
   const history = useQuery({ queryKey: ['question-session', sessionId], queryFn: () => getQuestionSession(sessionId!), enabled: Boolean(sessionId) })
@@ -131,6 +133,9 @@ export function QuestionsPage() {
     setPendingQuestion(prompt)
     setDraftRaw('')
     setReasoningRaw('')
+    setReasoningOpen(showReasoning)
+    setCompletedReasoning(null)
+    reasoningBuffer.current = ''
     setStreamPhase('connecting')
     try {
       const result = await streamQuestion({
@@ -146,7 +151,10 @@ export function QuestionsPage() {
           if (event.event === 'status') setStreamPhase(event.phase)
           if (event.event === 'model_delta') {
             if (event.kind === 'content') setDraftRaw(current => current + event.text)
-            if (event.kind === 'reasoning') setReasoningRaw(current => current + event.text)
+            if (event.kind === 'reasoning') {
+              reasoningBuffer.current += event.text
+              setReasoningRaw(reasoningBuffer.current)
+            }
           }
         },
       })
@@ -161,6 +169,7 @@ export function QuestionsPage() {
       if (target.trim()) next.set(objectId ? 'object' : 'cve', objectId ?? cve)
       if (result.mode === 'accepted' && result.investigation) next.set('case', result.investigation.case_id)
       if (result.mode === 'completed' && result.decision) next.set('decision', result.decision.decision_id)
+      if (reasoningBuffer.current) setCompletedReasoning({ sessionId: result.session_id, turnIndex: result.turn_index, text: reasoningBuffer.current })
       setParams(next, { replace: true })
       setQuestion('')
       setPendingQuestion('')
@@ -179,6 +188,7 @@ export function QuestionsPage() {
     setPendingQuestion('')
     setDraftRaw('')
     setReasoningRaw('')
+    setCompletedReasoning(null)
     setError('')
   }
 
@@ -212,7 +222,7 @@ export function QuestionsPage() {
           {history.isLoading && <p className="qa-muted">{text('恢复完整会话…', 'Restoring conversation…')}</p>}
           {history.isError && <div className="qa-error">{text('无法读取这段会话。', 'Could not load this conversation.')}<button onClick={() => void history.refetch()}>{text('重试', 'Retry')}</button></div>}
           {!sessionId && !pendingQuestion && <div className="qa-empty"><div className="qa-empty-orbit"><span /><span /><b /></div><small>QUESTION → EVIDENCE → DECISION</small><h2>{text('答案应该能追到它的来源。', 'Every answer should lead back to its source.')}</h2><p>{text('快速回答、检索、核验、调查与持续守望在同一会话中衔接。选择路径后，系统保留目标和上下文；每个结论都能打开原始证据。', 'Direct answers, retrieval, verification, investigation and watch continue in one session. Every conclusion opens its source evidence.')}</p></div>}
-          {turns.map(turn => <ConversationTurn key={turn.turn_index} turn={turn} active={focusTurn?.turn_index === turn.turn_index} sessionId={sessionId!} onSelect={() => { const next = new URLSearchParams(params); next.set('turn', String(turn.turn_index)); setParams(next, { replace: true }) }} onEvidence={setEvidence} />)}
+          {turns.map(turn => <ConversationTurn key={turn.turn_index} turn={turn} active={focusTurn?.turn_index === turn.turn_index} sessionId={sessionId!} reasoning={completedReasoning?.sessionId === sessionId && completedReasoning.turnIndex === turn.turn_index ? completedReasoning.text : null} onSelect={() => { const next = new URLSearchParams(params); next.set('turn', String(turn.turn_index)); setParams(next, { replace: true }) }} onEvidence={setEvidence} />)}
           {pendingQuestion && <div className="qa-turn qa-turn-pending"><div className="qa-question"><small>{text('你 · 当前回合', 'YOU · CURRENT TURN')}</small><p>{pendingQuestion}</p></div><div className="qa-answer"><small><i className="qa-live-dot" />{text('正在形成结构化研判', 'STRUCTURED DECISION IN PROGRESS')}</small>{previewStatement(draftRaw) ? <p className="qa-draft-text">{previewStatement(draftRaw)}<span className="qa-caret" /></p> : <p className="qa-muted">{streamPhase === 'connecting' ? text('正在建立安全流…', 'Connecting to the answer stream…') : text('正在检索上下文并核对证据…', 'Retrieving context and checking evidence…')}</p>}{draftRaw && <small className="qa-draft-label">{text('生成中 · 尚未经证据校验', 'GENERATING · NOT YET EVIDENCE-VALIDATED')}</small>}{reasoningRaw && <details open={reasoningOpen} onToggle={event => setReasoningOpen(event.currentTarget.open)} className="qa-reasoning"><summary>{text('模型推理流', 'Model reasoning stream')}</summary><pre>{reasoningRaw}</pre></details>}</div></div>}
           <div ref={bottomRef} />
         </div>
@@ -230,7 +240,7 @@ export function QuestionsPage() {
   </section>
 }
 
-function ConversationTurn({ turn, active, sessionId, onSelect, onEvidence }: { turn: QuestionSessionTurn; active: boolean; sessionId: string; onSelect: () => void; onEvidence: (ref: string) => void }) {
+function ConversationTurn({ turn, active, sessionId, reasoning, onSelect, onEvidence }: { turn: QuestionSessionTurn; active: boolean; sessionId: string; reasoning: string | null; onSelect: () => void; onEvidence: (ref: string) => void }) {
   const { text, language } = useI18n()
   const decision = useQuery({ queryKey: ['question-turn-decision', turn.decision_ref], queryFn: () => getDecision(turn.decision_ref!), enabled: Boolean(turn.decision_ref), retry: false })
   const caseId = turn.investigation_ref?.replace(/^case:/, '')
@@ -242,6 +252,7 @@ function ConversationTurn({ turn, active, sessionId, onSelect, onEvidence }: { t
       {decision.isLoading && turn.decision_ref && <p className="qa-muted">{text('正在恢复研判…', 'Restoring decision…')}</p>}
       {decision.isError && <button className="qa-retry" onClick={() => void decision.refetch()}>{text('研判读取失败 · 重试', 'Decision failed · Retry')}</button>}
       {decision.data && <DecisionReport decision={decision.data} onEvidence={onEvidence} />}
+      {reasoning && <details className="qa-reasoning"><summary>{text('本次模型推理流 · 仅当前页面保留', 'Provider reasoning · available until reload')}</summary><pre>{reasoning}</pre></details>}
       {investigation.data && <div className="qa-case-result"><strong>{text('证据不足，已转入持续调查', 'Evidence gap opened a continuing investigation')}</strong><p>{investigation.data.goal}</p><div><span>{investigation.data.status}</span><span>{investigation.data.confirmed_findings.length} {text('已确认', 'confirmed')}</span><span>{investigation.data.open_evidence_needs.length} {text('证据缺口', 'open needs')}</span></div>{investigation.data.latest_decision && <DecisionReport decision={investigation.data.latest_decision} onEvidence={onEvidence} />}<Link to={`/investigations?case=${caseId}&session=${sessionId}`}>{text('打开完整调查现场', 'Open full investigation')}<ArrowUpRight size={13} /></Link></div>}
       {!turn.decision_ref && !turn.investigation_ref && <p className="qa-muted">{text('本回合没有持久研判或调查引用。', 'No durable decision or case reference for this turn.')}</p>}
     </div>
