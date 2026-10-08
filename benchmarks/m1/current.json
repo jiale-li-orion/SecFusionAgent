@@ -1,7 +1,7 @@
 {
-  "benchmark_run_id": "d8c2d686-90a1-4226-ad41-170db40a115b",
-  "deployment_revision_id": "deployment:a811b6b5d5316d9d23d28d2ff132a73f",
-  "suite_ref": "m1-monitoring-current@22",
+  "benchmark_run_id": "5a1f53e7-87ca-466b-bef8-3f7140f36b66",
+  "deployment_revision_id": "deployment:2713f58f83915b2d0d0a9621ed4b7ac7",
+  "suite_ref": "m1-monitoring-current@23",
   "window_start": "2026-10-01T10:00:00+00:00",
   "window_end": "2026-10-01T14:02:00+00:00",
   "source_category_count": 8,

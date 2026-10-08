@@ -13,7 +13,7 @@
 | M1 监测时效 | **p50 357.709s (5.96min) / p95 7241.893s (2.01h) / ≤6h 100.000%（12/12）** |
 | M3 富化 Precision / Recall | **99.659% / 99.659%（TP=292, FP=1, FN=1）** |
 | Controlled fault recovery | **100.000%（3/3）** |
-| M6 QA | **Accuracy 100.000% / interactive max 6.063s** |
+| M6 QA | **Accuracy 100.000% / interactive max 3.655s** |
 
 **来源运行口径：101 个 catalog entries → 66 个 executable sources → 39 个 scheduled monitors；8 类产品覆盖，其中 7/8 类存在主动定时监测，`assets` 保持按需查询。**
 **持续监测记账起点：`2026-10-02T04:19:42+08:00`；当前 scheduled source 健康状态 29 healthy / 8 degraded / 2 blocked；epoch 内 Evidence 物理完整性 100.000%。**
@@ -42,13 +42,13 @@ SecFusionAgent 面向 AI 安全漏洞、研究进展与安全事件构建持续�
 | `enrichment_precision` | `m3.micro_precision` | 99.659% | >= 95.000% | **pass** |
 | `enrichment_recall` | `m3.micro_recall` | 99.659% | >= 95.000% | **pass** |
 | `qa_accuracy` | `m6.answer_accuracy` | 100.000% | >= 95.000% | **pass** |
-| `qa_interactive_latency` | `m6.interactive_latency_seconds` | 6.063s | <= 5.000s | **fail** |
+| `qa_interactive_latency` | `m6.interactive_latency_seconds` | 3.655s | <= 5.000s | **pass** |
 
-当前 CompetitionReport：`a7254bd2-03e2-41ce-8329-8af5a9c248a1`；Deployment：`deployment:a811b6b5d5316d9d23d28d2ff132a73f`。
+当前 CompetitionReport：`eb0a1c43-a786-434e-904a-fd976d751105`；Deployment：`deployment:2713f58f83915b2d0d0a9621ed4b7ac7`。
 
 M1 固定窗口 `2026-10-01T10:00:00+00:00` → `2026-10-01T14:02:00+00:00`：12/12 个样本可评，p50 357.709s (5.96min)，p95 7241.893s (2.01h)，≤6h 100.000%；source category=8。
 
-M3 当前选定 run 聚合：TP=292，FP=1，FN=1，precision=99.659%，recall=99.659%。工程故障恢复 `engineering-fault-recovery@5` 为 100.000%（3 cases）。
+M3 当前选定 run 聚合：TP=292，FP=1，FN=1，precision=99.659%，recall=99.659%。工程故障恢复 `engineering-fault-recovery@6` 为 100.000%（3 cases）。
 
 当前 CompetitionReport 未纳入的评测域：M2 parser/entity/evidence diagnostics、Agent runtime、Long Investigation completion、Security adversarial hard gates、Security adversarial breadth。这些域的独立 controlled/diagnostic evidence 不会被混入本报告的 6-run 正式口径。
 

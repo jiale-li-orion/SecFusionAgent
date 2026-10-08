@@ -1,7 +1,7 @@
 {
-  "benchmark_run_id": "48f4f6e2-4975-4ac3-9769-7347d9e16989",
-  "deployment_revision_id": "deployment:a811b6b5d5316d9d23d28d2ff132a73f",
-  "suite_ref": "m6-real-product-qa@13",
+  "benchmark_run_id": "39c86b60-779b-43e6-9162-3ccedd23d1af",
+  "deployment_revision_id": "deployment:2713f58f83915b2d0d0a9621ed4b7ac7",
+  "suite_ref": "m6-real-product-qa@14",
   "manifest_digest": "46486b8a960760834e252a9fc2e04da43e50a1a0a07c59668efd66f270523b53",
   "gold_revision": "qa-gold:6d19118cd9f7c6774d4a1dd61593b9f6be784913dfe90cdd0645df026f144b67",
   "case_count": 14,
@@ -17,7 +17,7 @@
       "unknown_correctness": 1.0,
       "conflict_handling": 1.0,
       "completion_correctness": 1.0,
-      "interactive_latency_seconds": 3.6643843119964004
+      "interactive_latency_seconds": 2.4321082289679907
     },
     "qa-real-7273-known-exploited": {
       "answer_accuracy": 1.0,
@@ -28,7 +28,7 @@
       "unknown_correctness": 1.0,
       "conflict_handling": 1.0,
       "completion_correctness": 1.0,
-      "interactive_latency_seconds": 2.8717621770338155
+      "interactive_latency_seconds": 2.291698178043589
     },
     "qa-real-7273-cross-source-risk": {
       "answer_accuracy": 1.0,
@@ -39,7 +39,7 @@
       "unknown_correctness": 1.0,
       "conflict_handling": 1.0,
       "completion_correctness": 1.0,
-      "interactive_latency_seconds": 3.327529504953418
+      "interactive_latency_seconds": 2.2985622889827937
     },
     "qa-real-67279-cvss-score": {
       "answer_accuracy": 1.0,
@@ -50,7 +50,7 @@
       "unknown_correctness": 1.0,
       "conflict_handling": 1.0,
       "completion_correctness": 1.0,
-      "interactive_latency_seconds": 2.6892569509800524
+      "interactive_latency_seconds": 1.5333087790058926
     },
     "qa-real-67279-cross-source-risk": {
       "answer_accuracy": 1.0,
@@ -61,7 +61,7 @@
       "unknown_correctness": 1.0,
       "conflict_handling": 1.0,
       "completion_correctness": 1.0,
-      "interactive_latency_seconds": 3.607715467980597
+      "interactive_latency_seconds": 2.0182058420032263
     },
     "qa-real-67279-cvss-version": {
       "answer_accuracy": 1.0,
@@ -72,7 +72,7 @@
       "unknown_correctness": 1.0,
       "conflict_handling": 1.0,
       "completion_correctness": 1.0,
-      "interactive_latency_seconds": 2.7774757349980064
+      "interactive_latency_seconds": 1.689261918014381
     },
     "qa-real-48746-cvss-severity": {
       "answer_accuracy": 1.0,
@@ -83,7 +83,7 @@
       "unknown_correctness": 1.0,
       "conflict_handling": 1.0,
       "completion_correctness": 1.0,
-      "interactive_latency_seconds": 2.855359342007432
+      "interactive_latency_seconds": 1.3135095649631694
     },
     "qa-real-47828-cvss-score": {
       "answer_accuracy": 1.0,
@@ -94,7 +94,7 @@
       "unknown_correctness": 1.0,
       "conflict_handling": 1.0,
       "completion_correctness": 1.0,
-      "interactive_latency_seconds": 3.476788609987125
+      "interactive_latency_seconds": 1.1348819970153272
     },
     "qa-real-67215-cve5-version-affected": {
       "answer_accuracy": 1.0,
@@ -105,7 +105,7 @@
       "unknown_correctness": 1.0,
       "conflict_handling": 1.0,
       "completion_correctness": 1.0,
-      "interactive_latency_seconds": 4.335462808958255
+      "interactive_latency_seconds": 2.861753745994065
     },
     "qa-real-67215-redhat-not-affected": {
       "answer_accuracy": 1.0,
@@ -116,7 +116,7 @@
       "unknown_correctness": 1.0,
       "conflict_handling": 1.0,
       "completion_correctness": 1.0,
-      "interactive_latency_seconds": 5.227404493023641
+      "interactive_latency_seconds": 3.655048877990339
     },
     "qa-real-32463-redhat-fixed": {
       "answer_accuracy": 1.0,
@@ -127,7 +127,7 @@
       "unknown_correctness": 1.0,
       "conflict_handling": 1.0,
       "completion_correctness": 1.0,
-      "interactive_latency_seconds": 5.286390285007656
+      "interactive_latency_seconds": 2.9828300490044057
     },
     "qa-real-7273-first-epss-probability": {
       "answer_accuracy": 1.0,
@@ -138,7 +138,7 @@
       "unknown_correctness": 1.0,
       "conflict_handling": 1.0,
       "completion_correctness": 1.0,
-      "interactive_latency_seconds": 2.526115140004549
+      "interactive_latency_seconds": 2.0142943569808267
     },
     "qa-real-3094-missing-cvss-continuation": {
       "answer_accuracy": 1.0,
@@ -149,7 +149,7 @@
       "unknown_correctness": 1.0,
       "conflict_handling": 1.0,
       "completion_correctness": 1.0,
-      "interactive_latency_seconds": 6.063260640017688
+      "interactive_latency_seconds": 2.422865130007267
     },
     "qa-real-48746-pr-merge-commit-multihop": {
       "answer_accuracy": 1.0,
@@ -160,7 +160,7 @@
       "unknown_correctness": 1.0,
       "conflict_handling": 1.0,
       "completion_correctness": 1.0,
-      "interactive_latency_seconds": 3.4802121720276773
+      "interactive_latency_seconds": 2.6108877629740164
     }
   }
 }
