@@ -28,7 +28,7 @@ Public continuous-monitoring epoch: `2026-10-02T04:19:42+08:00`. Pre-epoch rows 
 
 Source contract: 101 catalog entries → 66 executable sources → 39 scheduled monitors; 7/8 categories are actively scheduled and `assets` remains query-time.
 
-Current health: 29 healthy / 8 degraded / 2 blocked / 0 warming. Last-hour runtime: run success 82.353%, queue p95 10.931s, execution p95 9.436s, fresh changes 19, fresh contributing sources/categories 1/1. Public-epoch Evidence integrity: 100.000%.
+Current health: 35 healthy / 2 degraded / 2 blocked / 0 warming. Last-hour runtime: run success 84.211%, queue p95 331.936s (5.53min), execution p95 222.084s (3.70min), fresh changes 25, fresh contributing sources/categories 5/3. Public-epoch Evidence integrity: 100.000%.
 
 `benchmarks/data-plane/current.json` owns 1h/6h/24h/7d rolling windows plus chart-ready hourly/category series; `make data-plane-metrics` refreshes the snapshot.
 <!-- END GENERATED MONITORING STATUS -->
@@ -62,9 +62,10 @@ This matters for mutable snapshot sources such as `github-target-repos`. An hour
 `runtime.execute_collection_run` owns scheduled-source HTTP routing. An optional
 `SECFUSION_UPSTREAM_HTTP_PROXY` is applied only to `SECFUSION_SOURCE_PROXY_IDS`;
 other scheduled sources bypass the host proxy. The source list accepts `"*"` when a
-deployment requires proxying every source. This prevents a proxy needed for GitHub
-Raw from turning otherwise healthy direct vendor/standards feeds into transport
-failures. Model and other non-collection clients retain their own proxy behavior.
+deployment requires proxying every source. Compose does not export this setting as
+process-wide `HTTP_PROXY`, so a collection workaround cannot silently break model
+requests or unrelated task workers. Model and query-time clients use their own
+connection settings.
 
 `runtime.execute_collection_run` resolves the persisted source definition and dispatches by `RetentionMode`:
 

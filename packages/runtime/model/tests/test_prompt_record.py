@@ -139,12 +139,14 @@ async def test_prompt_assembly_record_is_idempotent_and_metadata_only() -> None:
                 request_artifact_ref="artifact:request-1",
             )
             assert replay.request_artifact_ref == "artifact:request-1"
-            with pytest.raises(ValueError, match="binding changed"):
-                await service.bind_request_artifact(
-                    session,
-                    assembly_id=first.assembly_id,
-                    request_artifact_ref="artifact:request-2",
-                )
+            # A later planning step may reuse identical prompt fragments while
+            # creating its own logical model request and request artifact.
+            reused = await service.bind_request_artifact(
+                session,
+                assembly_id=first.assembly_id,
+                request_artifact_ref="artifact:request-2",
+            )
+            assert reused.request_artifact_ref == "artifact:request-1"
     finally:
         await engine.dispose()
 

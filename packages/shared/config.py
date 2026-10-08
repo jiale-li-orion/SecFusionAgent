@@ -33,6 +33,8 @@ class Settings(BaseSettings):
             "cve-program-cvelist-v5",
             "mitre-atlas",
             "meta-ai-safety",
+            "github-target-repos",
+            "bleepingcomputer-news",
         ]
     )
 

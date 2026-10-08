@@ -69,7 +69,7 @@ async def execute_collection_run(run_id: str, settings: Settings) -> str:
         async with httpx.AsyncClient(
             timeout=30.0,
             proxy=proxy,
-            trust_env=not bool(settings.upstream_http_proxy),
+            trust_env=False,
         ) as client:
             adapter = create_source_adapter(context.source, client, settings)
             try:

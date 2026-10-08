@@ -44,16 +44,17 @@ host's loopback address, the optional development relay can expose it on the Doc
 bridge without binding a public interface:
 
 ```bash
-.venv/bin/python scripts/local_proxy_bridge.py --bind 172.17.0.1 --port 17897 --upstream-port 7897
+SECFUSION_HOST_PROXY_PORT=7899 # set this to the host proxy listener
+.venv/bin/python scripts/local_proxy_bridge.py --bind 172.17.0.1 --port 17897 --upstream-port "$SECFUSION_HOST_PROXY_PORT"
 export SECFUSION_UPSTREAM_HTTP_PROXY=http://172.17.0.1:17897
 docker compose -f deploy/docker-compose.yml --profile runtime up -d worker worker-collection scheduler task-event-dispatcher task-event-scheduler
 ```
 
-Keep the relay process running while workers need external providers. Override
-`SECFUSION_NO_PROXY` if the deployment has additional private services or a model
-endpoint that must bypass the proxy. Scheduled collection explicitly proxies only
-`SECFUSION_SOURCE_PROXY_IDS` (the CVE Raw feed, MITRE ATLAS and Meta AI by default);
-other scheduled sources connect directly even when the general worker proxy is set.
+Keep the relay process running while selected sources need it. The proxy setting
+does not become a process-wide `HTTP_PROXY`: model and task workers connect to
+their providers directly. Scheduled collection explicitly proxies only
+`SECFUSION_SOURCE_PROXY_IDS` (CVE Raw, MITRE ATLAS, Meta AI, GitHub repositories
+and BleepingComputer by default); other scheduled sources connect directly.
 Set `SECFUSION_SOURCE_PROXY_IDS='["*"]'` only where every scheduled source requires
 the proxy. A proxy may restore reachability without
 overriding upstream 403 or rate-limit responses; source health still reports those

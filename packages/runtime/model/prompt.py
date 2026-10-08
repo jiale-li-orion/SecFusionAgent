@@ -74,8 +74,9 @@ class PromptAssemblyRecordService:
             model.request_artifact_ref = request_artifact_ref
             await session.flush()
             return _view(model)
-        if model.request_artifact_ref != request_artifact_ref:
-            raise ValueError("prompt assembly request artifact binding changed")
+        # Assembly identity is content-addressed: repeated planning can reuse the
+        # same fragments while issuing a new logical model request. Retain the
+        # first request here; each ModelRequest row owns its own artifact ref.
         return _view(model)
 
     async def get(self, session: AsyncSession, assembly_id: str) -> PromptAssemblyRecord:

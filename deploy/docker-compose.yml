@@ -31,9 +31,7 @@ x-app-runtime: &app-runtime
     SECFUSION_MODEL_API_KEY: ${SECFUSION_MODEL_API_KEY:-}
     SECFUSION_MODEL_NAME: ${SECFUSION_MODEL_NAME:-}
     SECFUSION_UPSTREAM_HTTP_PROXY: ${SECFUSION_UPSTREAM_HTTP_PROXY:-}
-    SECFUSION_SOURCE_PROXY_IDS: ${SECFUSION_SOURCE_PROXY_IDS:-["cve-program-cvelist-v5","mitre-atlas","meta-ai-safety"]}
-    HTTP_PROXY: ${SECFUSION_UPSTREAM_HTTP_PROXY:-}
-    HTTPS_PROXY: ${SECFUSION_UPSTREAM_HTTP_PROXY:-}
+    SECFUSION_SOURCE_PROXY_IDS: ${SECFUSION_SOURCE_PROXY_IDS:-["cve-program-cvelist-v5","mitre-atlas","meta-ai-safety","github-target-repos","bleepingcomputer-news"]}
     NO_PROXY: ${SECFUSION_NO_PROXY:-localhost,127.0.0.1,postgres,redis-broker,redis-cache,redis-task-bus,api,product-web}
   depends_on:
     postgres:
