@@ -342,7 +342,7 @@ runtime-config-check:
 
 dev-runtime-up: dev-up migrate sync-sources sync-skills runtime-config-check
 	docker compose -f deploy/docker-compose.yml --profile runtime up -d --build \
-		scheduler task-event-dispatcher task-event-scheduler worker-collection worker
+		api scheduler task-event-dispatcher task-event-scheduler worker-collection worker
 
 # Long-lived M1-M3 data plane. This intentionally does not configure or require a
 # model provider; with SECFUSION_MODEL_* unset, document indexing stays lexical
@@ -354,7 +354,7 @@ data-plane-down: dev-runtime-down
 data-plane-status:
 	docker compose -f deploy/docker-compose.yml --profile runtime ps \
 		postgres redis-broker redis-cache redis-task-bus \
-		scheduler task-event-dispatcher task-event-scheduler worker-collection worker
+		api scheduler task-event-dispatcher task-event-scheduler worker-collection worker
 	uv run python -m scripts.data_plane_status
 
 data-plane-metrics:

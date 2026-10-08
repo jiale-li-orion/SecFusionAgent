@@ -45,10 +45,12 @@ Identity assets live under `src/components/instrument/`: `BrandMark` is the evid
 
 Question (including SSE) and Case cancellation submissions keep a client `Idempotency-Key` for the same unfinished request and clear it after a successful response. Cancellation sends the displayed Case revision in `If-Match`, so a stale tab receives a conflict instead of cancelling an updated investigation. A completed SSE replay returns its persisted final result without pretending to reproduce earlier model token deltas.
 
-Start the API after infrastructure/migrations are available:
+`make dev-runtime-up` starts the API as a health-checked Compose service on
+`127.0.0.1:8001` alongside the durable workers. For API-only development after
+infrastructure/migrations are available:
 
 ```bash
-.venv/bin/uvicorn apps.api.main:app --host 127.0.0.1 --port 8000
+.venv/bin/uvicorn apps.api.main:app --host 127.0.0.1 --port 8001
 ```
 
 Then start the Web process:
@@ -59,7 +61,15 @@ npm ci
 npm run dev
 ```
 
-Open `http://localhost:5173/product/`. Set `SECFUSION_API_PROXY=http://127.0.0.1:8001` if the API is on another port. Vite proxies `/api`; production Nginx serves the same-origin paths. Configure `SECFUSION_AUTH_ALLOWED_ORIGINS` for the exact external HTTPS origin when the reverse proxy changes the browser origin. An absent model provider yields an explicit dependency error for model-backed QA; source/Knowledge reads remain available.
+Open `http://localhost:5173/product/`. Vite proxies `/api` and `/health` to the
+Compose API on `127.0.0.1:8001` by default; set `SECFUSION_API_PROXY` when the API
+uses another address. Production Nginx serves the same-origin paths. Configure
+`SECFUSION_AUTH_ALLOWED_ORIGINS` for the exact external HTTPS origin when the
+reverse proxy changes the browser origin. The development Compose API already
+allows the default local Vite origins on ports 5173 and 4173, so account writes
+work through Vite without weakening the Origin/CSRF guard. An absent model provider yields an
+explicit dependency error for model-backed QA; source/Knowledge reads remain
+available.
 
 The API routes are documented in [`../api/README.md`](../api/README.md); account/session and personalization behavior is specified in the [Wiki](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Product-Accounts-and-Personalization). The site has no guided competition demo, frozen-proof screen or manufactured delay.
 

@@ -24,8 +24,8 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': process.env.SECFUSION_API_PROXY ?? 'http://127.0.0.1:8000',
-      '/health': process.env.SECFUSION_API_PROXY ?? 'http://127.0.0.1:8000',
+      '/api': process.env.SECFUSION_API_PROXY ?? 'http://127.0.0.1:8001',
+      '/health': process.env.SECFUSION_API_PROXY ?? 'http://127.0.0.1:8001',
     },
   },
 })
