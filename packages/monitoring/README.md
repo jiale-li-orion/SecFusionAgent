@@ -66,6 +66,9 @@ deployment requires proxying every source. Compose does not export this setting 
 process-wide `HTTP_PROXY`, so a collection workaround cannot silently break model
 requests or unrelated task workers. Model and query-time clients use their own
 connection settings.
+An unset or empty proxy value means direct collection for every source, including
+sources named in `SECFUSION_SOURCE_PROXY_IDS`; the empty Compose default must never
+be passed to HTTPX as a proxy URL.
 
 `runtime.execute_collection_run` resolves the persisted source definition and dispatches by `RetentionMode`:
 

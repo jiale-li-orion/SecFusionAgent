@@ -46,6 +46,15 @@ from packages.sources.errors import SourceFetchFailed
 from packages.sources.registry.loader import load_source_definitions
 
 
+def _collection_proxy(settings: Settings, source_id: str) -> str | None:
+    proxy = (settings.upstream_http_proxy or "").strip()
+    if not proxy:
+        return None
+    if "*" in settings.source_proxy_ids or source_id in settings.source_proxy_ids:
+        return proxy
+    return None
+
+
 async def execute_collection_run(run_id: str, settings: Settings) -> str:
     """Execute one durable acquisition run idempotently."""
 
@@ -60,12 +69,7 @@ async def execute_collection_run(run_id: str, settings: Settings) -> str:
         # A host proxy may be required for selected providers while making other
         # public sources less reliable. When configured, source routing is explicit:
         # opted-in sources use the proxy and every other scheduled source goes direct.
-        proxy = (
-            settings.upstream_http_proxy
-            if "*" in settings.source_proxy_ids
-            or context.source.source_id in settings.source_proxy_ids
-            else None
-        )
+        proxy = _collection_proxy(settings, context.source.source_id)
         async with httpx.AsyncClient(
             timeout=30.0,
             proxy=proxy,

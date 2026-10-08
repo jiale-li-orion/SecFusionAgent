@@ -22,9 +22,11 @@ from packages.monitoring.run_service import (
     recover_stale_acquisition_runs,
     start_acquisition_run,
 )
+from packages.monitoring.runtime import _collection_proxy
 from packages.monitoring.scheduler.service import schedule_due_sources
 from packages.monitoring.storage.models import AcquisitionRunModel, SourceStateModel
 from packages.monitoring.storage.service import ensure_source_states
+from packages.shared.config import Settings
 from packages.shared.db import Base
 from packages.shared.outbox.service import dispatch_pending_events
 from packages.shared.storage.models import OutboxEventModel
@@ -32,6 +34,18 @@ from packages.sources.errors import SourceAccessBlocked, SourceFetchFailed, Sour
 from packages.sources.registry.loader import load_source_definitions
 from packages.sources.registry.service import sync_source_definitions
 from packages.sources.storage.models import SourceModel
+
+
+def test_collection_proxy_ignores_empty_configured_proxy() -> None:
+    settings = Settings(
+        upstream_http_proxy="",
+        source_proxy_ids=["github-target-repos"],
+    )
+    assert _collection_proxy(settings, "github-target-repos") is None
+    assert _collection_proxy(settings, "nvd-cves-2") is None
+    configured = settings.model_copy(update={"upstream_http_proxy": "http://proxy:7890"})
+    assert _collection_proxy(configured, "github-target-repos") == "http://proxy:7890"
+    assert _collection_proxy(configured, "nvd-cves-2") is None
 
 
 async def _database() -> tuple[AsyncEngine, async_sessionmaker[AsyncSession]]:
