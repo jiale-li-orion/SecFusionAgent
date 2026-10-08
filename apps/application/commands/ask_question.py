@@ -322,7 +322,8 @@ class AskQuestionUseCase:
                     )
                 except ValueError as exc:
                     raise DecisionValidationError(
-                        "The generated answer did not pass evidence validation. Please retry."
+                        "The generated answer did not pass evidence validation. Please retry.",
+                        context={"run_id": run_id},
                     ) from exc
             else:
                 proposal = DecisionService().request_continuation(context.state, proposal)

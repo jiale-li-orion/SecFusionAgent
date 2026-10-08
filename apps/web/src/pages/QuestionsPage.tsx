@@ -62,6 +62,7 @@ export function QuestionsPage() {
   const [completedReasoning, setCompletedReasoning] = useState<Record<string, string>>({})
   const [streamPhase, setStreamPhase] = useState('')
   const [pendingQuestion, setPendingQuestion] = useState('')
+  const [failedRunId, setFailedRunId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [evidence, setEvidence] = useState<string | null>(null)
@@ -103,10 +104,10 @@ export function QuestionsPage() {
   const visibleTarget = target || resolvedTarget || (targetObjectId ? `object:${targetObjectId}` : '')
   const caseId = focusTurn?.investigation_ref?.replace(/^case:/, '') ?? params.get('case')
   const caseActivity = useQuery({ queryKey: ['question-case-activity', caseId], queryFn: () => getInvestigationActivity(caseId!), enabled: Boolean(caseId), retry: false })
-  const runIds = [...new Set([
+  const runIds = [...new Set((failedRunId ? [failedRunId] : [
     focusTurn?.context_id?.replace(/^context:/, ''),
     ...(caseActivity.data?.events ?? []).map(item => item.task_run_id),
-  ].filter((id): id is string => Boolean(id)))]
+  ]).filter((id): id is string => Boolean(id)))]
   const taskQueries = useQueries({ queries: runIds.map(id => ({ queryKey: ['question-task', id], queryFn: () => getAgentTask(id), retry: false })) })
   const tasks = taskQueries.flatMap(query => query.data ? [query.data] : [])
   const caseDetail = useQuery({ queryKey: ['question-case', caseId], queryFn: () => getInvestigation(caseId!), enabled: Boolean(caseId), refetchInterval: query => ['active', 'waiting'].includes(query.state.data?.status ?? '') ? 4000 : false })
@@ -155,6 +156,7 @@ export function QuestionsPage() {
     setBusy(true)
     setError('')
     setPendingQuestion(prompt)
+    setFailedRunId(null)
     setDraftRaw('')
     setReasoningRaw('')
     setReasoningOpen(showReasoning)
@@ -199,6 +201,7 @@ export function QuestionsPage() {
       setStreamPhase('')
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : text('问答请求失败', 'Question failed'))
+      setFailedRunId(exc && typeof exc === 'object' && 'runId' in exc && typeof exc.runId === 'string' ? exc.runId : null)
       setStreamPhase('failed')
     } finally { setBusy(false) }
   }
@@ -209,6 +212,7 @@ export function QuestionsPage() {
     setTarget('')
     setProfile('RETRIEVE')
     setPendingQuestion('')
+    setFailedRunId(null)
     setDraftRaw('')
     setReasoningRaw('')
     setCompletedReasoning({})
@@ -249,7 +253,7 @@ export function QuestionsPage() {
           {history.isLoading && <p className="qa-muted">{text('恢复完整会话…', 'Restoring conversation…')}</p>}
           {history.isError && <div className="qa-error">{text('无法读取这段会话。', 'Could not load this conversation.')}<button onClick={() => void history.refetch()}>{text('重试', 'Retry')}</button></div>}
           {!sessionId && !pendingQuestion && <div className="qa-empty"><div className="qa-empty-orbit"><span /><span /><b /></div><small>QUESTION → EVIDENCE → DECISION</small><h2>{text('答案应该能追到它的来源。', 'Every answer should lead back to its source.')}</h2><p>{text('快速回答、检索、核验、调查与持续守望在同一会话中衔接。选择路径后，系统保留目标和上下文；每个结论都能打开原始证据。', 'Direct answers, retrieval, verification, investigation and watch continue in one session. Every conclusion opens its source evidence.')}</p></div>}
-          {turns.map(turn => <ConversationTurn key={turn.turn_index} turn={turn} active={focusTurn?.turn_index === turn.turn_index} sessionId={sessionId!} reasoning={completedReasoning[`${sessionId}:${turn.turn_index}`] ?? null} onSelect={() => { const next = new URLSearchParams(params); next.set('turn', String(turn.turn_index)); setParams(next, { replace: true }) }} onEvidence={setEvidence} />)}
+          {turns.map(turn => <ConversationTurn key={turn.turn_index} turn={turn} active={!failedRunId && focusTurn?.turn_index === turn.turn_index} sessionId={sessionId!} reasoning={completedReasoning[`${sessionId}:${turn.turn_index}`] ?? null} onSelect={() => { setFailedRunId(null); const next = new URLSearchParams(params); next.set('turn', String(turn.turn_index)); setParams(next, { replace: true }) }} onEvidence={setEvidence} />)}
           {pendingQuestion && <div className="qa-turn qa-turn-pending"><div className="qa-question"><small>{text('你 · 当前回合', 'YOU · CURRENT TURN')}</small><p>{pendingQuestion}</p></div><StreamedDecisionDraft draftRaw={draftRaw} reasoningRaw={reasoningRaw} reasoningOpen={reasoningOpen} onReasoningOpen={setReasoningOpen} phase={streamPhase} /></div>}
           <div ref={bottomRef} />
         </div>
@@ -261,7 +265,7 @@ export function QuestionsPage() {
         </div>
       </main>
 
-      <AuditRail turn={focusTurn} tasks={tasks} taskLoading={taskQueries.some(query => query.isLoading)} caseId={caseId} caseStatus={caseDetail.data?.status} caseDecision={caseDetail.data?.latest_decision} caseEvents={auditEvents} streamConnected={streamConnected} onEvidence={setEvidence} />
+      <AuditRail turn={failedRunId ? null : focusTurn} failedRunId={failedRunId} tasks={tasks} taskLoading={taskQueries.some(query => query.isLoading)} caseId={failedRunId ? null : caseId} caseStatus={caseDetail.data?.status} caseDecision={failedRunId ? null : caseDetail.data?.latest_decision} caseEvents={failedRunId ? [] : auditEvents} streamConnected={streamConnected} onEvidence={setEvidence} />
     </div>
     <AnimatePresence>{evidence && <EvidenceOverlay key={evidence} evidenceRef={evidence} onClose={() => setEvidence(null)} />}</AnimatePresence>
   </section>
@@ -291,19 +295,21 @@ function ConversationTurn({ turn, active, sessionId, reasoning, onSelect, onEvid
   </article>
 }
 
-function AuditRail({ turn, tasks, taskLoading, caseId, caseStatus, caseDecision, caseEvents, streamConnected, onEvidence }: { turn: QuestionSessionTurn | null; tasks: AgentTaskDetail[]; taskLoading: boolean; caseId: string | null; caseStatus?: string; caseDecision?: DecisionView | null; caseEvents: ProductRuntimeEvent[]; streamConnected: boolean; onEvidence: (ref: string) => void }) {
+function AuditRail({ turn, failedRunId, tasks, taskLoading, caseId, caseStatus, caseDecision, caseEvents, streamConnected, onEvidence }: { turn: QuestionSessionTurn | null; failedRunId: string | null; tasks: AgentTaskDetail[]; taskLoading: boolean; caseId: string | null; caseStatus?: string; caseDecision?: DecisionView | null; caseEvents: ProductRuntimeEvent[]; streamConnected: boolean; onEvidence: (ref: string) => void }) {
   const { text } = useI18n()
   const decision = useQuery({ queryKey: ['question-audit-decision', turn?.decision_ref], queryFn: () => getDecision(turn!.decision_ref!), enabled: Boolean(turn?.decision_ref), retry: false })
   const finalDecision = decision.data ?? caseDecision
   const refs = useMemo(() => finalDecision ? [...new Set([...finalDecision.citations.map(item => item.evidence_ref), ...finalDecision.conclusions.flatMap(item => item.evidence_refs)])] : [], [finalDecision])
   const modelAttempts = tasks.flatMap(task => task.model_attempts.map(item => ({ ...item, role: task.task.role_id })))
+  const failedTask = tasks.find(task => task.task.run_id === failedRunId)
   const contextCount = tasks.filter(task => task.context).length
   const runtimeCount = tasks.reduce((count, task) => count + task.capabilities.length + task.events.length, caseEvents.length)
   return <aside className="qa-audit" aria-label={text('可审计轨迹', 'Auditable trace')}>
-    <header><div><small>TRACE / CONTEXT / SOURCES</small><h2>{text('证据轨迹', 'Evidence trace')}</h2></div><span className={turn ? 'active' : ''}>{turn ? `TURN ${String(turn.turn_index).padStart(2, '0')}` : 'IDLE'}</span></header>
-    {!turn && <div className="qa-audit-empty"><div className="qa-audit-diagram"><span>01</span><i /><span>02</span><i /><span>03</span></div><p>{text('选中一个会话回合后，这里展示证据引用、模型调用、上下文装配和工具执行记录。', 'Select a turn to inspect its citations, model calls, assembled context, and tool activity.')}</p></div>}
-    {turn && <>
-      <div className="qa-audit-coordinate"><small>WORLD REVISION</small><strong>{turn.knowledge_revision ?? '—'}</strong><span>{turn.context_id ?? (caseId ? `case:${caseId}` : turn.request_id)}</span></div>
+    <header><div><small>TRACE / CONTEXT / SOURCES</small><h2>{text('证据轨迹', 'Evidence trace')}</h2></div><span className={failedRunId ? 'failed' : turn ? 'active' : ''}>{failedRunId ? text('失败运行', 'FAILED RUN') : turn ? `TURN ${String(turn.turn_index).padStart(2, '0')}` : 'IDLE'}</span></header>
+    {!turn && !failedRunId && <div className="qa-audit-empty"><div className="qa-audit-diagram"><span>01</span><i /><span>02</span><i /><span>03</span></div><p>{text('选中一个会话回合后，这里展示证据引用、模型调用、上下文装配和工具执行记录。', 'Select a turn to inspect its citations, model calls, assembled context, and tool activity.')}</p></div>}
+    {(turn || failedRunId) && <>
+      <div className="qa-audit-coordinate"><small>{failedRunId ? 'TASK RUN' : 'WORLD REVISION'}</small><strong>{failedRunId ? text('未形成决策', 'NO DECISION') : turn?.knowledge_revision ?? '—'}</strong><span>{failedRunId ? `task-run:${failedRunId}` : turn?.context_id ?? (caseId ? `case:${caseId}` : turn?.request_id)}</span></div>
+      {failedRunId && <div className="qa-audit-failure"><small>{text('停止原因', 'STOP REASON')}</small><strong>{failedTask?.task.stop_reason ?? (taskLoading ? text('读取运行记录…', 'Loading run…') : text('运行记录不可用', 'Run record unavailable'))}</strong></div>}
       <section className="qa-audit-section"><h3>{text('结论引用', 'Citations')} <b>{refs.length}</b></h3>{refs.length ? refs.map((ref, index) => <button className="qa-evidence-ref" key={ref} onClick={() => onEvidence(ref)}><span>{String(index + 1).padStart(2, '0')}</span><span>{ref}</span><Link2 size={13} /></button>) : <p>{text('本回合尚无可引用的最终结论。', 'No final citation yet for this turn.')}</p>}</section>
       <section className="qa-audit-section"><h3>{text('模型调用', 'Model execution')} <b>{modelAttempts.length}</b></h3>{taskLoading && <p>{text('读取模型轨迹…', 'Loading model trace…')}</p>}{modelAttempts.map(item => <div className="qa-audit-row" key={item.model_attempt_id}><small>{item.role} · {item.purpose} · {item.status}</small><strong>{item.actual_model}</strong><span>{item.latency_ms === null ? '—' : `${item.latency_ms} ms`} · {item.input_tokens ?? '—'} in / {item.output_tokens ?? '—'} out {item.reasoning_tokens ? `· ${item.reasoning_tokens} reasoning` : ''}</span></div>)}{!taskLoading && !modelAttempts.length && <p>{text('当前回合没有模型调用记录。', 'No model call recorded for this turn.')}</p>}</section>
       <section className="qa-audit-section"><h3>{text('上下文清单', 'Context manifest')} <b>{contextCount}</b></h3>{tasks.map(task => task.context && <div key={task.task.run_id}><div className="qa-audit-row"><small>{task.context!.role_ref} · REV {task.context!.context_revision}</small><strong>{task.context!.context_id}</strong><span>{task.context!.parent_context_id ? `${text('继承', 'Parent')}: ${task.context!.parent_context_id}` : text('新会话上下文', 'New session context')}</span></div><div className="qa-context-counts"><span>{task.context!.object_refs.length} objects</span><span>{task.context!.relation_refs.length} relations</span><span>{task.context!.evidence_refs.length} evidence</span><span>{task.context!.retrieval_invocation_refs.length} retrievals</span></div>{task.context!.evidence_refs.length > 0 && <details><summary>{text('输入证据引用', 'Input evidence references')}<ChevronRight size={13} /></summary><div className="qa-fragments">{task.context!.evidence_refs.map(ref => <button className="qa-context-ref" key={ref} onClick={() => onEvidence(ref)}>{ref}<ArrowUpRight size={11} /></button>)}</div></details>}{task.context!.retrieval_invocation_refs.length > 0 && <details><summary>{text('检索调用', 'Retrieval invocations')}<ChevronRight size={13} /></summary><div className="qa-fragments">{task.context!.retrieval_invocation_refs.map(ref => <div key={ref}><strong>{ref}</strong></div>)}</div></details>}</div>)}{tasks.flatMap(task => task.prompt_assemblies).map(assembly => <details key={assembly.assembly_id}><summary>{text('Prompt 片段', 'Prompt fragments')} · {assembly.role_revision}<ChevronRight size={13} /></summary><div className="qa-fragments">{assembly.fragments.map((fragment, index) => <div key={index}><small>{fragment.kind ?? 'fragment'} · {fragment.trust_class ?? 'unknown'}</small><strong>{fragment.source_ref ?? 'source unknown'}</strong><span>{fragment.selection_reason ?? ''}</span></div>)}</div></details>)}{!contextCount && !taskLoading && <p>{text('尚无可读取的上下文清单。', 'No context manifest available yet.')}</p>}</section>

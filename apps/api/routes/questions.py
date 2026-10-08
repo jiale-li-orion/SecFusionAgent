@@ -190,7 +190,9 @@ async def stream_question(
                         ).execute(session, command)
                 await queue.put(("result", result.model_dump(mode="json")))
             except ApplicationError as exc:
-                await queue.put(("error", {"code": exc.code, "message": str(exc)}))
+                await queue.put(
+                    ("error", {"code": exc.code, "message": str(exc), "context": exc.context})
+                )
             except Exception:
                 logger.exception(
                     "Question stream execution failed: request_id=%s", context.request_id

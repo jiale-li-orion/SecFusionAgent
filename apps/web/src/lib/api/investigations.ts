@@ -235,7 +235,10 @@ export async function streamQuestion(
         if (name === 'error') {
           // An SSE error is terminal: the server has closed this command, so a retry needs a fresh key.
           pendingQuestionKeys.delete(fingerprint)
-          throw new Error(String(data.message ?? data.code ?? 'Question failed'))
+          throw Object.assign(new Error(String(data.message ?? data.code ?? 'Question failed')), {
+            code: String(data.code ?? 'question_failed'),
+            runId: typeof data.context?.run_id === 'string' ? data.context.run_id : null,
+          })
         }
         if (name === 'status') options.onEvent({ event: 'status', phase: String(data.phase), request_id: String(data.request_id) })
         if (name === 'model_delta') options.onEvent({ event: 'model_delta', kind: data.kind, text: String(data.text) })

@@ -119,6 +119,7 @@
 .qa-audit h2 { margin: 5px 0 0; font-size: 18px; font-weight: 550; }
 .qa-audit header > span { color: #718c8f; font: 10px ui-monospace, monospace; }
 .qa-audit header > span.active { color: #c8f77b; }
+.qa-audit header > span.failed { color: #f0a9a3; }
 .qa-audit-empty { padding: 35px 20px; }
 .qa-audit-empty p, .qa-audit-section > p { color: #82979a; font-size: 11px; line-height: 1.65; }
 .qa-audit-diagram { display: flex; align-items: center; gap: 6px; margin-bottom: 22px; color: #a8c6ab; font: 10px ui-monospace, monospace; }
@@ -128,6 +129,9 @@
 .qa-audit-coordinate small { color: #90b79a; font-size: 9px; letter-spacing: .12em; }
 .qa-audit-coordinate strong { font: 24px ui-monospace, monospace; color: #e9f4dc; }
 .qa-audit-coordinate span { color: #718c89; font: 10px ui-monospace, monospace; overflow-wrap: anywhere; }
+.qa-audit-failure { display: grid; gap: 5px; padding: 13px 19px; border-bottom: 1px solid rgba(235, 123, 113, .2); background: rgba(198, 91, 82, .06); }
+.qa-audit-failure small { color: #b98782; font-size: 9px; letter-spacing: .12em; }
+.qa-audit-failure strong { color: #e6b9b4; font-size: 12px; font-weight: 570; overflow-wrap: anywhere; }
 .qa-audit-section { padding: 17px 19px; border-bottom: 1px solid var(--qa-line); }
 .qa-audit-section h3 { display: flex; justify-content: space-between; align-items: center; margin: 0 0 13px; font-size: 12px; font-weight: 680; color: #c8d9cf; }
 .qa-audit-section h3 b { color: #90aaa3; font: 10px ui-monospace, monospace; }

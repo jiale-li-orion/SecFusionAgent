@@ -188,6 +188,41 @@ async def test_question_stream_uses_authenticated_session_and_emits_durable_resu
 
 
 @pytest.mark.asyncio
+async def test_question_stream_preserves_failed_run_coordinate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from apps.application.errors import DecisionValidationError
+
+    class RejectedUseCase:
+        def __init__(self, **kwargs):
+            del kwargs
+
+        async def execute(self, session, command):
+            del session, command
+            raise DecisionValidationError(
+                "The generated answer did not pass evidence validation. Please retry.",
+                context={"run_id": "failed-run-1"},
+            )
+
+    monkeypatch.setattr("apps.api.routes.questions.AskQuestionUseCase", RejectedUseCase)
+    engine, factory = await _database()
+    app = create_app()
+    app.state.session_factory = factory
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.post(
+                "/api/v1/questions/stream",
+                headers=account_headers(),
+                json={"question": "Verify this CVE", "cve_id": "CVE-2026-61616"},
+            )
+        assert response.status_code == 200
+        assert '"code": "decision_validation_failed"' in response.text
+        assert '"run_id": "failed-run-1"' in response.text
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_product_question_session_lookup_accepts_active_case_without_target() -> None:
     engine, factory = await _database()
     app = create_app()

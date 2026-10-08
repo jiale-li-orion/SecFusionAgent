@@ -502,9 +502,11 @@ async def test_lookup_rejects_unsupported_model_fact_with_retryable_error() -> N
                 ))
             assert failure.value.retryable
             assert "evidence validation" in failure.value.detail
+            failed_run_id = failure.value.context["run_id"]
         async with factory() as session:
             run = await session.scalar(select(TaskRunModel))
             assert run is not None and run.status == "failed"
+            assert run.run_id == failed_run_id
             assert run.stop_reason == "question_decision_rejected"
     finally:
         await engine.dispose()
