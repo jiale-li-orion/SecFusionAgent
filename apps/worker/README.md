@@ -21,6 +21,8 @@ The scheduler never performs provider collection inline.
 
 `worker-collection` consumes only the `collection` queue with its own concurrency budget. The general worker consumes `enrichment,investigation,indexing`. This isolation keeps scheduled monitoring and catch-up reads from waiting behind projection/enrichment backlog after a long runtime outage.
 
+The Product Observatory uses a bounded Celery control ping and `active_queues` probe to report responding workers and consumers for all four queues. This is a point-in-time control-plane observation, not durable heartbeat, uptime accounting or alert delivery. A missing reply is shown as unobserved/unavailable rather than assuming that a worker is healthy or dead.
+
 The runtime image owns its own `/app/.venv`. Root `.dockerignore` excludes the host virtualenv and local caches from the build context, preventing `COPY . .` from replacing container interpreter entry points with host-specific symlinks or shebangs.
 
 Use `make data-plane-status` to inspect dependencies plus all five runtime control/worker processes and `make data-plane-logs` for their logs. `make data-plane-down` stops only runtime processes; `make dev-down` tears down runtime plus dependencies. Host-process `make scheduler`, `make task-event-dispatcher`, `make task-event-scheduler`, `make worker`, and `make worker-collection` remain debugger paths. Formal live QA still quiesces only the three Knowledge-writer processes (`scheduler`, `worker-collection`, `worker`) long enough to freeze one Knowledge head; the Task Event loops may remain up because the general worker is stopped and no Agent execution can mutate Knowledge through that path.

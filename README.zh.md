@@ -61,7 +61,7 @@ M3 当前选定 run 聚合：TP=292，FP=1，FN=1，precision=99.659%，recall=9
 
 SecFusionAgent 当前已经形成 **M1–M3 常态数据面 + 可执行的 Agent / QA / Evaluation 控制面**。scheduled acquisition、Evidence/Knowledge ingestion、enrichment、projection 与 indexing 可以长期运行并持续积累真实 corpus；其上已经落地 durable Task Runtime/TaskEvent、M4 Investigation State 与 Perception、有界 InvestigationRole episode、Context/Skill/Capability/Policy/Budget/Execution 控制面、WATCH wake/resume、M6 typed Decision/Product Question、多轮 Product session、Case-read/continuation、durable RetrievalInvocation provenance、M7 replay/regression/Experience→Skill promotion gate，以及 TD3 DeploymentRevision/BenchmarkSuite/Run/MetricObservation/CompetitionReport 证据链。
 
-当前正式 same-deployment batch 已覆盖 M1、structured M3、CSAF/VEX、controlled recovery、Product QA 与 session QA，并发布一份 CompetitionReport；所选 case 的 runtime/Evidence provenance 也已经闭环。M2、M5 runtime、long-Investigation、retrieval、security 与 evaluation-infrastructure 由各自 controlled/diagnostic suite 持有，不会为了填满比赛报告而被静默混进这 6-run 正式口径。production external Capability binding、OpenShell/Firecracker substrate 验收、更宽的 live denominator 与最终现场 demo 继续保持显式边界。historical replay 在旧 M1–M3 Knowledge world 无法精确读取时仍 fail closed，不会拿 latest projection 冒充历史世界。
+当前正式 same-deployment batch 已覆盖 M1、structured M3、CSAF/VEX、controlled recovery、Product QA 与 session QA，并发布一份 CompetitionReport；所选 case 的 runtime/Evidence provenance 也已经闭环。M2、M5 runtime、long-Investigation、retrieval、security 与 evaluation-infrastructure 由各自 controlled/diagnostic suite 持有，不会为了填满比赛报告而被静默混进这 6-run 正式口径。production external Capability binding、OpenShell/Firecracker substrate 验收与更宽的 live denominator 继续保持显式工程边界。historical replay 在旧 M1–M3 Knowledge world 无法精确读取时仍 fail closed，不会拿 latest projection 冒充历史世界。
 
 仓库质量门：
 
@@ -72,6 +72,14 @@ pytest      领域、重放、状态迁移与契约测试
 ```
 
 主仓库 CI 持续运行 `ruff`、`mypy` 与 `pytest`，PostgreSQL/Redis 与显式 S3 compatibility integration gate 保持独立执行。当前比赛指标不再手写进正文；上方 generated block 直接从 benchmark JSON 渲染，`make evidence-doc-check` 会检查 README 与结构化结果是否漂移。
+
+## Product Web 与账户
+
+`/product/` 提供相互联通的六个空间：WORLD 追踪实时来源材料和 Hot CVE；INTELLIGENCE 打开证据档案并按所选维度提交富化；INVESTIGATIONS 跟进持久 Case；AGENTS 呈现真实 Role/Task；OBSERVATORY 展示有测量时间的服务和 worker 状态；START 创建或恢复真实问答会话。产品界面不设置比赛演示、冻结证明或人为延时路径。视觉与联调契约见 [`apps/web/README.md`](apps/web/README.md)。
+
+用户在 `/product/auth` 注册或登录。服务端会话使用 HttpOnly Cookie 中的随机令牌，数据库仅存令牌哈希；业务写操作校验 Origin 与 CSRF。提问、会话、Case、Decision、Task、推荐和反馈按账户隔离，共享 Evidence/Knowledge 保持可读。用户可保存关注范围、查看有证据的推荐和理由、反馈、发起调查，再次登录后继续原会话。邮箱验证、密码找回与 OAuth 尚未实现，属于独立账户生命周期工作。
+
+上方正式评测数字只适用于记录的部署和样本，不代表当前版本整体准确率或覆盖率。[决赛标准复查](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Finals-Readiness-Review-2026-10-08)按赛题保留持续监测广度、开放维度富化、当前版本 QA 质量和运维验收的剩余边界。
 
 ## 系统概览
 
@@ -191,6 +199,7 @@ package 归属与依赖方向属于仓库契约，而不是目录约定。`packa
 - [`packages/reasoning/README.md`](packages/reasoning/README.md)：typed M6 Decision/Continuation contract 与 evidence/citation validation；
 - [`packages/evaluation/README.md`](packages/evaluation/README.md)：M1–M7/TD3 denominator、frozen world、runtime metric、replay 与 report provenance；
 - [`packages/shared/README.md`](packages/shared/README.md)：共享基础设施、配置、outbox、model protocol；
+- [`apps/web/README.md`](apps/web/README.md)：六空间 Product Web、账户入口、视觉归属与本地 API 联调；
 - [`apps/application/README.md`](apps/application/README.md)：Product use-case composition 与稳定 application boundary；
 - [`apps/api/README.md`](apps/api/README.md)：HTTP bootstrap 与 transport boundary；
 - [`apps/worker/README.md`](apps/worker/README.md)：后台进程、outbox topic 与 Celery task composition。
@@ -265,12 +274,22 @@ make dev-down
 uv run uvicorn apps.api.main:app --reload
 ```
 
-当前 HTTP 面包括：
+当前主要 Product 路由包括：
 
 ```text
-GET /health/live
-GET /api/v1/vulnerabilities/{cve_id}
+GET  /health/live, /health/ready
+POST /api/v1/auth/register, /api/v1/auth/login, /api/v1/auth/logout
+GET  /api/v1/auth/me
+GET  /api/v1/world/overview, /api/v1/world/stories, /api/v1/world/hot
+GET  /api/v1/intelligence/objects/{object_id}, /api/v1/intelligence/recommendations
+PUT  /api/v1/intelligence/preferences
+POST /api/v1/intelligence/objects/{object_id}/enrichment/runs
+POST /api/v1/questions
+GET  /api/v1/questions/sessions, /api/v1/decisions/{decision_id}
+GET  /api/v1/investigations, /api/v1/observatory/system
 ```
+
+Product Web 可运行 `cd apps/web && npm ci && npm run dev`；Vite 将 `/api` 代理到本机 API。API 使用其他端口时设置 `SECFUSION_API_PROXY`。
 
 API 读取 canonical knowledge 与当前仓库状态，不会绕过 ingest 与证据通路直接查询 provider。
 

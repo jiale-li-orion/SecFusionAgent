@@ -61,7 +61,7 @@ Query the durable rows with `make benchmark-query METRIC=m3.micro_precision`; re
 
 SecFusionAgent now has a long-lived **M1–M3 data plane plus executable Agent / QA / evaluation control plane**. Scheduled acquisition, Evidence/Knowledge ingestion, enrichment, projection and indexing can run continuously and accumulate an operational corpus. Above that data plane, the repository contains durable Task Runtime/TaskEvent, M4 Investigation State and Perception, bounded InvestigationRole episodes, Context/Skill/Capability/Policy/Budget/Execution control planes, WATCH wake/resume, typed M6 Decision/Product Question execution, multi-turn Product sessions, Case-read/continuation, durable retrieval-invocation provenance, M7 replay/regression/Experience→Skill promotion gates, and TD3 DeploymentRevision/BenchmarkSuite/Run/MetricObservation/CompetitionReport evidence.
 
-The current formal same-deployment batch now includes M1, structured M3, CSAF/VEX, controlled recovery, Product QA and session QA, with one published CompetitionReport and closed runtime/Evidence provenance for the selected cases. Separate controlled/diagnostic suites cover M2, M5 runtime behavior, long-Investigation measurement, retrieval, security and evaluation-infrastructure closure without being silently mixed into that six-run competition profile. Production external Capability bindings, OpenShell/Firecracker substrate acceptance, broader live denominators and the final live demo remain explicit follow-up boundaries. Historical replay still fails closed when an exact old M1–M3 Knowledge world cannot be read; the runtime never substitutes the latest projection for a pinned historical world.
+The current formal same-deployment batch now includes M1, structured M3, CSAF/VEX, controlled recovery, Product QA and session QA, with one published CompetitionReport and closed runtime/Evidence provenance for the selected cases. Separate controlled/diagnostic suites cover M2, M5 runtime behavior, long-Investigation measurement, retrieval, security and evaluation-infrastructure closure without being silently mixed into that six-run competition profile. Production external Capability bindings, OpenShell/Firecracker substrate acceptance and broader live denominators remain explicit engineering follow-up boundaries. Historical replay still fails closed when an exact old M1–M3 Knowledge world cannot be read; the runtime never substitutes the latest projection for a pinned historical world.
 
 The repository quality gate:
 
@@ -72,6 +72,14 @@ pytest      domain, replay, state-transition and contract tests
 ```
 
 Repository CI continuously runs `ruff`, `mypy`, and `pytest`; PostgreSQL/Redis and explicit S3-compatibility integration gates remain separate commands. Current competition metrics are never copied into this prose: the generated block above is rendered from benchmark JSON and checked for drift by `make evidence-doc-check`.
+
+## Product Web and accounts
+
+The Product Web at `/product/` exposes six connected spaces: WORLD follows live source material and Hot CVEs; INTELLIGENCE opens evidence-backed dossiers and selected-dimension enrichment; INVESTIGATIONS follows durable Cases; AGENTS explains Role and Task activity; OBSERVATORY shows measured service and worker state; START creates or resumes a real question session. The interface contains no competition demonstration, frozen-proof, or artificial delay path. See [`apps/web/README.md`](apps/web/README.md) for its visual and integration contract.
+
+Users can register or sign in at `/product/auth`. Server-side sessions use a hashed opaque token in an HttpOnly cookie; write requests use origin and CSRF checks. Account-owned questions, sessions, Cases, Decisions, Tasks, recommendations and feedback are isolated by the server, while shared Evidence and Knowledge stay readable. A user can save interests, inspect evidence-based recommendations, provide feedback, start an investigation, and resume the same conversation after signing in again. The current implementation does not include email verification, password recovery or OAuth; these are separate account lifecycle work.
+
+The formal benchmark numbers above describe their recorded deployment and sample, not the current Product's overall accuracy or coverage. The [finals readiness review](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Finals-Readiness-Review-2026-10-08) tracks remaining monitoring breadth, open-dimension enrichment, current-version QA quality and operational acceptance against the competition rubric.
 
 ## System overview
 
@@ -191,6 +199,7 @@ Module-level implementation design lives with the code it governs:
 - [`packages/reasoning/README.md`](packages/reasoning/README.md) — typed M6 Decision/Continuation contracts and evidence/citation validation;
 - [`packages/evaluation/README.md`](packages/evaluation/README.md) — M1–M7/TD3 denominators, frozen worlds, runtime metrics, replay and report provenance;
 - [`packages/shared/README.md`](packages/shared/README.md) — common infrastructure contracts, configuration, outbox, model protocol;
+- [`apps/web/README.md`](apps/web/README.md) — six-space Product Web, account shell, visual ownership and local API integration;
 - [`apps/application/README.md`](apps/application/README.md) — Product use-case composition and stable application boundary;
 - [`apps/api/README.md`](apps/api/README.md) — HTTP bootstrap and transport boundary;
 - [`apps/worker/README.md`](apps/worker/README.md) — background-process, outbox-topic, Celery-task composition.
@@ -265,12 +274,22 @@ make dev-down
 uv run uvicorn apps.api.main:app --reload
 ```
 
-Current HTTP surface includes:
+Current Product routes include:
 
 ```text
-GET /health/live
-GET /api/v1/vulnerabilities/{cve_id}
+GET  /health/live, /health/ready
+POST /api/v1/auth/register, /api/v1/auth/login, /api/v1/auth/logout
+GET  /api/v1/auth/me
+GET  /api/v1/world/overview, /api/v1/world/stories, /api/v1/world/hot
+GET  /api/v1/intelligence/objects/{object_id}, /api/v1/intelligence/recommendations
+PUT  /api/v1/intelligence/preferences
+POST /api/v1/intelligence/objects/{object_id}/enrichment/runs
+POST /api/v1/questions
+GET  /api/v1/questions/sessions, /api/v1/decisions/{decision_id}
+GET  /api/v1/investigations, /api/v1/observatory/system
 ```
+
+Run `cd apps/web && npm ci && npm run dev` for the Product Web. Vite proxies `/api` to the local API; set `SECFUSION_API_PROXY` when it runs on another port.
 
 The API reads canonical knowledge/current repository state; it does not bypass the ingestion and evidence pipeline to query providers directly.
 
