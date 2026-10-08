@@ -8,9 +8,7 @@ import {
   CircleAlert,
   FileWarning,
   MessageSquareText,
-  Orbit,
   SearchCheck,
-  Sparkles,
   TerminalSquare,
 } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -220,6 +218,7 @@ function CaseRailBlueprint() {
 
 function InvestigationFieldBlueprint({ loading }: { loading: boolean }) {
   const { text } = useI18n()
+  const navigate = useNavigate()
   const states = [
     { label: text('已确认', 'CONFIRMED'), tone: 'lime', icon: BadgeCheck, copy: text('证据边界内的已证事实', 'evidence-bounded findings') },
     { label: text('冲突', 'CONFLICTS'), tone: 'amber', icon: CircleAlert, copy: text('保留来源分歧与张力', 'preserved source tension') },
@@ -227,45 +226,24 @@ function InvestigationFieldBlueprint({ loading }: { loading: boolean }) {
     { label: text('证据需求', 'EVIDENCE NEEDS'), tone: 'cyan', icon: SearchCheck, copy: text('下一步待获取证据', 'open acquisition gaps') },
   ]
   return (
-    <div className="investigation-blueprint">
-      <div className="investigation-blueprint-case">
-        <div className="case-blueprint-sigil"><ProductGlyph kind="investigations" size={34} /></div>
-        <div><small>{text('持久 CASE / 调查状态', 'DURABLE CASE / INVESTIGATION STATE')}</small><strong>{loading ? text('解析 Case 索引…', 'RESOLVING CASE INDEX…') : text('尚未选择活动 Case', 'NO ACTIVE CASE SELECTED')}</strong><span>{text('VERIFY / INVESTIGATE / WATCH 会创建或恢复这台状态机。', 'VERIFY / INVESTIGATE / WATCH create or resume this state machine.')}</span></div>
-        <div className="case-blueprint-revision"><b>REV —</b><small>{text('CASE 状态', 'CASE STATE')}</small></div>
+    <div className="case-empty-experience">
+      <div className="case-empty-intro">
+        <ProductGlyph kind="investigations" size={36} />
+        <small>{text('调查工作台', 'INVESTIGATION WORKSPACE')}</small>
+        <h2>{loading ? text('正在读取调查记录', 'Reading your investigations') : text('从一个待核验的问题开始', 'Start with a question worth verifying.')}</h2>
+        <p>{text('每次调查都会把证据、已确认事实、冲突与未解问题留在同一个 Case 中。之后的追问可以沿着这条线索继续。', 'An investigation keeps evidence, confirmed findings, conflicts and open questions in one Case. Follow-up questions can continue along the same trail.')}</p>
+        {!loading && <button type="button" onClick={() => navigate('/start?profile=VERIFY')}><SearchCheck size={16} />{text('发起核验', 'Start verification')}</button>}
       </div>
-
-      <div className="investigation-blueprint-state">
-        {states.map(({ label, tone, icon: Icon, copy }, index) => (
-          <motion.div
-            key={label}
-            className={'case-state-blueprint tone-' + tone}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * .05 }}
-          >
-            <div><Icon size={14} /><strong>{label}</strong><span>0</span></div>
-            <i /><i />
-            <small>{copy}</small>
-          </motion.div>
-        ))}
-      </div>
-
-      <div className="investigation-blueprint-convergence">
-        <svg viewBox="0 0 100 32" preserveAspectRatio="none" aria-hidden="true">
-          <path d="M 6 3 C 30 4, 32 15, 50 16" />
-          <path d="M 31 3 C 38 7, 41 14, 50 16" />
-          <path d="M 69 3 C 62 7, 59 14, 50 16" />
-          <path d="M 94 3 C 70 4, 68 15, 50 16" />
-          <path className="decision" d="M 50 16 C 50 22, 50 24, 50 30" />
-        </svg>
-        <div className="argus-node"><Orbit size={17} /><small>ARGUS</small><strong>{text('证据使用', 'EVIDENCE USE')}</strong></div>
-        <div className="oracle-decision-node"><Sparkles size={17} /><small>ORACLE</small><strong>DECISION</strong></div>
-      </div>
-
-      <div className="investigation-blueprint-session">
-        <MessageSquareText size={15} />
-        <div><small>{text('持续 CASE 会话', 'CONTINUOUS CASE SESSION')}</small><strong>{text('后续追问持续绑定同一个 durable Case', 'follow-up stays bound to the same durable Case')}</strong></div>
-        <span>{text('会话 / Case 连续性', 'SESSION / CASE CONTINUITY')}</span>
+      <div className="case-empty-preview">
+        <div className="case-empty-preview-head"><small>{text('一个 Case 会持续整理', 'WHAT A CASE KEEPS TOGETHER')}</small><span>ARGUS → ORACLE</span></div>
+        <div className="case-empty-states">
+          {states.map(({ label, tone, icon: Icon, copy }) => (
+            <div key={label} className={'case-empty-state tone-' + tone}>
+              <Icon size={17} /><strong>{label}</strong><span>{copy}</span>
+            </div>
+          ))}
+        </div>
+        <div className="case-empty-continuity"><MessageSquareText size={19} /><p>{text('调查开始后，活动、决策和证据引用会在这里持续更新。', 'Once work begins, activity, decisions and evidence links will keep updating here.')}</p></div>
       </div>
     </div>
   )
