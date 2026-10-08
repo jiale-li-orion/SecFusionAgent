@@ -185,11 +185,13 @@ async def world_incident_candidates(
         items=[
             WorldIncidentCandidateView(
                 candidate_id=item.candidate_id,
+                signal_id=signal.signal_id,
                 incident_type=item.incident_type,
                 promotion_state=item.promotion_state,
                 headline=signal.title,
                 summary=signal.summary,
                 source_id=signal.source_id,
+                source_role=signal.source_role.value,
                 source_name=names.get(signal.source_id),
                 canonical_url=signal.canonical_url,
                 published_at=signal.published_at,

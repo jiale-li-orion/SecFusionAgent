@@ -115,11 +115,13 @@ export async function getWorldStories(limit = 10): Promise<{ items: WorldStory[]
 
 export type WorldIncidentCandidate = {
   candidate_id: string
+  signal_id: string
   incident_type: string
   promotion_state: string
   headline: string
   summary: string | null
   source_id: string
+  source_role: string
   source_name: string | null
   canonical_url: string | null
   published_at: string | null

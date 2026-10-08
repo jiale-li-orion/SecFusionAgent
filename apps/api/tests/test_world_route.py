@@ -260,6 +260,8 @@ async def test_world_incident_watch_filters_general_news(monkeypatch) -> None:
     assert payload["items"][0]["candidate_id"] == "candidate-reported"
     assert payload["items"][0]["promotion_state"] == "candidate"
     assert payload["items"][0]["source_id"] == "blockbeats-newsflash"
+    assert payload["items"][0]["signal_id"] == "signal-reported"
+    assert payload["items"][0]["source_role"] == "signal"
     assert "raw_payload" not in response.text
 
 

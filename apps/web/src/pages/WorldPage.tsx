@@ -73,7 +73,7 @@ function projectCandidate(item: WorldIncidentCandidate): WorldStory {
     happened_at: item.published_at ?? item.observed_at, observed_at: item.observed_at,
     published_at: item.published_at, source_id: item.source_id, source_name: item.source_name ?? item.source_id,
     object_id: null, incident_id: null, external_ref: item.canonical_url, evidence: null,
-    facts: { candidate_id: item.candidate_id, signal_count: item.signal_count,
+    facts: { candidate_id: item.candidate_id, signal_id: item.signal_id, source_role: item.source_role, signal_count: item.signal_count,
       independent_source_count: item.independent_source_count, anchor_count: item.anchor_count,
       promotion_state: item.promotion_state, unresolved_question_count: item.unresolved_question_count },
   }

@@ -112,11 +112,13 @@ class WorldKnowledgeChangeListView(BaseModel):
 
 class WorldIncidentCandidateView(BaseModel):
     candidate_id: str
+    signal_id: str
     incident_type: str
     promotion_state: str
     headline: str
     summary: str | None = None
     source_id: str
+    source_role: str
     source_name: str | None = None
     canonical_url: str | None = None
     published_at: datetime | None = None
