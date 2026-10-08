@@ -4,10 +4,12 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.application.command_idempotency import claim_command, command_digest, complete_command
 from apps.application.errors import (
     LifecycleConflictError,
     PermissionDeniedError,
     ResourceNotFoundError,
+    RevisionConflictError,
 )
 from apps.application.queries.investigations import InvestigationQueries
 from apps.application.views.investigations import InvestigationView
@@ -31,6 +33,8 @@ class CancelInvestigationCommand(BaseModel):
     request_id: str
     case_id: str
     reason: str = Field(default="product_cancelled", min_length=1, max_length=128)
+    idempotency_key: str | None = Field(default=None, min_length=1, max_length=128)
+    expected_revision: int | None = Field(default=None, ge=0)
 
 
 class CancelInvestigationUseCase:
@@ -50,6 +54,20 @@ class CancelInvestigationUseCase:
         session: AsyncSession,
         command: CancelInvestigationCommand,
     ) -> InvestigationView:
+        record, replay = await claim_command(
+            session,
+            principal=command.principal,
+            operation="cancel_investigation",
+            key=command.idempotency_key,
+            digest=command_digest(command.model_dump(
+                mode="json", exclude={"principal", "request_id", "idempotency_key"}
+            )),
+        )
+        if replay:
+            assert record is not None and record.response_ref is not None
+            return await self._queries.get(
+                session, record.response_ref, principal=command.principal
+            )
         case = await session.scalar(
             select(InvestigationCaseModel)
             .where(InvestigationCaseModel.case_id == command.case_id)
@@ -80,7 +98,22 @@ class CancelInvestigationUseCase:
                 "investigation belongs to another principal",
                 context={"case_id": command.case_id},
             )
+        if (
+            command.expected_revision is not None
+            and case.current_revision != command.expected_revision
+        ):
+            raise RevisionConflictError(
+                "investigation revision changed",
+                context={
+                    "case_id": command.case_id,
+                    "expected_revision": command.expected_revision,
+                    "current_revision": case.current_revision,
+                },
+            )
         if case.status == CaseLifecycle.CANCELLED.value:
+            complete_command(record, command.case_id)
+            if record is not None:
+                await session.commit()
             return await self._queries.get(
                 session,
                 command.case_id,
@@ -130,6 +163,7 @@ class CancelInvestigationUseCase:
             )
 
         await self._cases.cancel(session, command.case_id)
+        complete_command(record, command.case_id)
         await session.commit()
         return await self._queries.get(
             session,

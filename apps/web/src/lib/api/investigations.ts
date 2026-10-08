@@ -1,5 +1,16 @@
 import { productFetch, productHeaders } from './request'
 
+const pendingQuestionKeys = new Map<string, string>()
+const pendingCancelKeys = new Map<string, string>()
+
+function pendingKey(keys: Map<string, string>, fingerprint: string): string {
+  const existing = keys.get(fingerprint)
+  if (existing) return existing
+  const key = crypto.randomUUID()
+  keys.set(fingerprint, key)
+  return key
+}
+
 export type TaskKind =
   | 'lookup'
   | 'retrieve'
@@ -129,32 +140,38 @@ export async function askQuestion(input: {
   investigationTimeoutSeconds?: number
   agentTurns?: number
   toolCalls?: number
+  idempotencyKey?: string
 }): Promise<QuestionResult> {
+  const payload = {
+    question: input.question,
+    cve_id: input.cveId || undefined,
+    object_id: input.objectId || undefined,
+    session_id: input.sessionId || undefined,
+    task_kind: input.taskKind,
+    required_source_roles: input.requiredSourceRoles ?? [],
+    priority: input.priority ?? 50,
+    interactive_timeout_seconds: input.interactiveTimeoutSeconds ?? 5,
+    retrieval_limit: input.retrievalLimit ?? 8,
+    allow_wait: input.allowWait ?? true,
+    investigation_timeout_seconds: input.investigationTimeoutSeconds ?? 300,
+    agent_turns: input.agentTurns ?? 8,
+    tool_calls: input.toolCalls ?? 12,
+  }
+  const fingerprint = JSON.stringify(payload)
+  const key = input.idempotencyKey ?? pendingKey(pendingQuestionKeys, fingerprint)
   const response = await productFetch('/api/v1/questions', {
     method: 'POST',
-    headers: productHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({
-      question: input.question,
-      cve_id: input.cveId || undefined,
-      object_id: input.objectId || undefined,
-      session_id: input.sessionId || undefined,
-      task_kind: input.taskKind,
-      required_source_roles: input.requiredSourceRoles ?? [],
-      priority: input.priority ?? 50,
-      interactive_timeout_seconds: input.interactiveTimeoutSeconds ?? 5,
-      retrieval_limit: input.retrievalLimit ?? 8,
-      allow_wait: input.allowWait ?? true,
-      investigation_timeout_seconds: input.investigationTimeoutSeconds ?? 300,
-      agent_turns: input.agentTurns ?? 8,
-      tool_calls: input.toolCalls ?? 12,
-    }),
+    headers: productHeaders({ 'Content-Type': 'application/json', 'Idempotency-Key': key }),
+    body: fingerprint,
   })
 
   const body = await response.json().catch(() => null)
   if (!response.ok && response.status !== 202) {
     const detail = body?.detail ?? body?.title ?? `Request failed (${response.status})`
+    if (body?.code === 'idempotency_conflict' && String(detail).includes('original command failed')) pendingQuestionKeys.delete(fingerprint)
     throw Object.assign(new Error(String(detail)), { code: body?.code, context: body?.context })
   }
+  pendingQuestionKeys.delete(fingerprint)
   return body as QuestionResult
 }
 
@@ -167,29 +184,35 @@ export async function streamQuestion(
   input: Parameters<typeof askQuestion>[0],
   options: { includeReasoning: boolean; onEvent: (event: QuestionStreamEvent) => void; signal?: AbortSignal },
 ): Promise<QuestionResult> {
+  const payload = {
+    question: input.question,
+    cve_id: input.cveId || undefined,
+    object_id: input.objectId || undefined,
+    session_id: input.sessionId || undefined,
+    task_kind: input.taskKind,
+    required_source_roles: input.requiredSourceRoles ?? [],
+    priority: input.priority ?? 50,
+    interactive_timeout_seconds: input.interactiveTimeoutSeconds ?? 5,
+    retrieval_limit: input.retrievalLimit ?? 8,
+    allow_wait: input.allowWait ?? true,
+    investigation_timeout_seconds: input.investigationTimeoutSeconds ?? 300,
+    agent_turns: input.agentTurns ?? 8,
+    tool_calls: input.toolCalls ?? 12,
+  }
+  const fingerprint = JSON.stringify(payload)
+  const key = input.idempotencyKey ?? pendingKey(pendingQuestionKeys, fingerprint)
   const response = await productFetch('/api/v1/questions/stream', {
     method: 'POST',
-    headers: productHeaders({ 'Content-Type': 'application/json', Accept: 'text/event-stream' }),
+    headers: productHeaders({ 'Content-Type': 'application/json', Accept: 'text/event-stream', 'Idempotency-Key': key }),
     body: JSON.stringify({
-      question: input.question,
-      cve_id: input.cveId || undefined,
-      object_id: input.objectId || undefined,
-      session_id: input.sessionId || undefined,
-      task_kind: input.taskKind,
-      required_source_roles: input.requiredSourceRoles ?? [],
-      priority: input.priority ?? 50,
-      interactive_timeout_seconds: input.interactiveTimeoutSeconds ?? 5,
-      retrieval_limit: input.retrievalLimit ?? 8,
-      allow_wait: input.allowWait ?? true,
-      investigation_timeout_seconds: input.investigationTimeoutSeconds ?? 300,
-      agent_turns: input.agentTurns ?? 8,
-      tool_calls: input.toolCalls ?? 12,
+      ...payload,
       include_reasoning: options.includeReasoning,
     }),
     signal: options.signal,
   })
   if (!response.ok || !response.body) {
     const body = await response.json().catch(() => null)
+    if (body?.code === 'idempotency_conflict' && String(body?.detail).includes('original command failed')) pendingQuestionKeys.delete(fingerprint)
     throw new Error(String(body?.detail ?? body?.title ?? `Question stream failed (${response.status})`))
   }
   const reader = response.body.getReader()
@@ -209,7 +232,10 @@ export async function streamQuestion(
       const raw = frame.split('\n').filter(line => line.startsWith('data: ')).map(line => line.slice(6)).join('\n')
       if (name && raw) {
         const data = JSON.parse(raw)
-        if (name === 'error') throw new Error(String(data.message ?? data.code ?? 'Question failed'))
+        if (name === 'error') {
+          if (data.code === 'question_failed' || String(data.message).includes('original command failed')) pendingQuestionKeys.delete(fingerprint)
+          throw new Error(String(data.message ?? data.code ?? 'Question failed'))
+        }
         if (name === 'status') options.onEvent({ event: 'status', phase: String(data.phase), request_id: String(data.request_id) })
         if (name === 'model_delta') options.onEvent({ event: 'model_delta', kind: data.kind, text: String(data.text) })
         if (name === 'result') {
@@ -221,19 +247,23 @@ export async function streamQuestion(
     }
   }
   if (!result) throw new Error('Question stream ended without a result')
+  pendingQuestionKeys.delete(fingerprint)
   return result
 }
 
-export async function cancelInvestigation(caseId: string): Promise<InvestigationView> {
+export async function cancelInvestigation(caseId: string, revision: number, idempotencyKey?: string): Promise<InvestigationView> {
+  const fingerprint = `${caseId}:${revision}`
+  const key = idempotencyKey ?? pendingKey(pendingCancelKeys, fingerprint)
   const response = await productFetch(`/api/v1/investigations/${encodeURIComponent(caseId)}/cancel`, {
     method: 'POST',
-    headers: productHeaders(),
+    headers: productHeaders({ 'Idempotency-Key': key, 'If-Match': `"${revision}"` }),
   })
   const body = await response.json().catch(() => null)
   if (!response.ok) {
     const detail = body?.detail ?? body?.title ?? `Cancel failed (${response.status})`
     throw new Error(String(detail))
   }
+  pendingCancelKeys.delete(fingerprint)
   return body as InvestigationView
 }
 

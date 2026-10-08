@@ -57,6 +57,7 @@ def _command(payload: AskQuestionRequest, context: RequestContextDep) -> AskQues
         principal=context.principal,
         request_id=context.request_id,
         trace_id=context.trace_id,
+        idempotency_key=context.idempotency_key,
         session_id=payload.session_id,
         question=payload.question,
         cve_id=payload.cve_id,

@@ -145,7 +145,7 @@ export function StartPage() {
   const selected = useMemo(() => modes.find((mode) => mode.id === modeId)!, [modeId])
 
   const cancellation = useMutation({
-    mutationFn: cancelInvestigation,
+    mutationFn: (caseId: string) => cancelInvestigation(caseId, currentCase!.revision),
     onSuccess: (updated) => {
       queryClient.setQueryData(['start-case', updated.case_id], updated)
       void queryClient.invalidateQueries({ queryKey: ['investigations'] })

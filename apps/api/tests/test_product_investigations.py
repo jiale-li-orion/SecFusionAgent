@@ -85,6 +85,7 @@ async def test_product_investigation_http_contract() -> None:
             assert payload["origin_scope"] == "product"
             assert payload["can_cancel"] is True
             assert response.headers["location"] == (f"/api/v1/investigations/{payload['case_id']}")
+            assert response.headers["etag"] == f'"{payload["revision"]}"'
             assert response.headers["x-request-id"] == "product-http-1"
 
             detail = await client.get(
@@ -112,6 +113,7 @@ async def test_product_investigation_http_contract() -> None:
                 f"/api/v1/investigations/{payload['case_id']}/cancel",
                 headers={
                     "X-Request-ID": "product-http-foreign-cancel",
+                    "If-Match": str(payload["revision"]),
                     **account_headers("other"),
                 },
             )
@@ -121,6 +123,7 @@ async def test_product_investigation_http_contract() -> None:
                 f"/api/v1/investigations/{payload['case_id']}/cancel",
                 headers={
                     "X-Request-ID": "product-http-cancel",
+                    "If-Match": str(payload["revision"]),
                     **account_headers("test"),
                 },
             )
@@ -195,6 +198,73 @@ async def test_product_validation_and_not_found_use_problem_detail() -> None:
             assert missing.status_code == 404
             assert missing.json()["code"] == "resource_not_found"
             assert missing.json()["request_id"] == "missing-1"
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_product_investigation_commands_replay_and_guard_revision() -> None:
+    engine, factory = await _database()
+    app = create_app()
+
+    async def override_session() -> AsyncIterator[AsyncSession]:
+        async with factory() as session:
+            yield session
+
+    app.dependency_overrides[database_session] = override_session
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test", headers=account_headers()
+        ) as client:
+            payload = {
+                "cve_id": "CVE-2026-51515",
+                "goal": "Verify fix boundary",
+                "evidence_question": "Which version first contains the fix?",
+                "task_kind": "verify_version_fix",
+            }
+            headers = {"Idempotency-Key": "start-one"}
+            first = await client.post("/api/v1/investigations", headers=headers, json=payload)
+            second = await client.post("/api/v1/investigations", headers=headers, json=payload)
+            assert first.status_code == second.status_code == 202
+            assert first.json()["case_id"] == second.json()["case_id"]
+            async with factory() as session:
+                case_runs = list(await session.scalars(
+                    select(TaskRunModel).where(TaskRunModel.case_id == first.json()["case_id"])
+                ))
+            assert len(case_runs) == 1
+
+            changed = await client.post(
+                "/api/v1/investigations",
+                headers=headers,
+                json={**payload, "goal": "A different goal"},
+            )
+            assert changed.status_code == 409
+            assert changed.json()["code"] == "idempotency_conflict"
+
+            case_id = first.json()["case_id"]
+            stale = await client.post(
+                f"/api/v1/investigations/{case_id}/cancel",
+                headers={"Idempotency-Key": "cancel-stale", "If-Match": "0"},
+            )
+            assert stale.status_code == 409
+            assert stale.json()["code"] == "revision_conflict"
+            revision = first.json()["revision"]
+            cancel_headers = {"Idempotency-Key": "cancel-one", "If-Match": str(revision)}
+            cancelled = await client.post(
+                f"/api/v1/investigations/{case_id}/cancel", headers=cancel_headers
+            )
+            replayed = await client.post(
+                f"/api/v1/investigations/{case_id}/cancel", headers=cancel_headers
+            )
+            assert cancelled.status_code == replayed.status_code == 200
+            assert cancelled.json()["case_id"] == replayed.json()["case_id"]
+            assert cancelled.json()["status"] == "cancelled"
+            conflict = await client.post(
+                f"/api/v1/investigations/{case_id}/cancel",
+                headers={"Idempotency-Key": "cancel-one", "If-Match": str(revision + 1)},
+            )
+            assert conflict.status_code == 409
+            assert conflict.json()["code"] == "idempotency_conflict"
     finally:
         await engine.dispose()
 

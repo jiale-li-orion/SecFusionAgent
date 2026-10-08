@@ -63,7 +63,16 @@ async def _database():
             role_ref="InvestigationRole@1",
             case_ref="case:test",
             knowledge_revision=None,
-            manifest_json={},
+            manifest_json={
+                "context_id": "context-1",
+                "context_revision": 1,
+                "task_contract_ref": "contract-1@1",
+                "role_ref": "InvestigationRole@1",
+                "case_ref": "case:test",
+                "policy_context_ref": "policy-context:policy-v1",
+                "capability_envelope_ref": "capability:fixture",
+                "budget_ref": "budget:task-run-1",
+            },
             content_hash="b" * 64,
             created_at=NOW,
         )

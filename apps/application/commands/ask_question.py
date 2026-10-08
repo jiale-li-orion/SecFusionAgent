@@ -10,6 +10,11 @@ from pydantic import BaseModel, Field, JsonValue, model_validator
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.application.command_idempotency import (
+    claim_command,
+    command_digest,
+    complete_command,
+)
 from apps.application.commands.start_investigation import (
     ContinueInvestigationCommand,
     ContinueInvestigationUseCase,
@@ -81,6 +86,7 @@ class AskQuestionCommand(BaseModel):
     principal: str
     request_id: str
     trace_id: str | None = None
+    idempotency_key: str | None = Field(default=None, min_length=1, max_length=128)
     session_id: str | None = None
     question: str = Field(min_length=1)
     cve_id: str | None = None
@@ -156,6 +162,18 @@ class AskQuestionUseCase:
         session: AsyncSession,
         command: AskQuestionCommand,
     ) -> QuestionResultView:
+        record, replay = await claim_command(
+            session,
+            principal=command.principal,
+            operation="ask_question",
+            key=command.idempotency_key,
+            digest=command_digest(command.model_dump(
+                mode="json", exclude={"principal", "request_id", "trace_id", "idempotency_key"}
+            )),
+        )
+        if replay:
+            assert record is not None and record.response_payload is not None
+            return QuestionResultView.model_validate(record.response_payload)
         session_context = await self._sessions.resolve(
             session,
             session_id=command.session_id,
@@ -197,8 +215,7 @@ class AskQuestionUseCase:
                     decision_ref=None,
                     investigation_ref=f"case:{investigation.case_id}",
                 )
-                await session.commit()
-                return QuestionResultView(
+                result = QuestionResultView(
                     request_id=command.request_id,
                     session_id=session_context.session_id,
                     turn_index=turn.turn_index,
@@ -206,6 +223,12 @@ class AskQuestionUseCase:
                     execution_profile=investigation.execution_profile or "INVESTIGATE",
                     investigation=investigation,
                 )
+                complete_command(
+                    record, f"{session_context.session_id}:{turn.turn_index}",
+                    result.model_dump(mode="json"),
+                )
+                await session.commit()
+                return result
         case_read_id = (
             active_case_id
             if command.task_kind in {TaskKind.LOOKUP, TaskKind.RETRIEVE}
@@ -232,8 +255,7 @@ class AskQuestionUseCase:
                 decision_ref=None,
                 investigation_ref=f"case:{investigation.case_id}",
             )
-            await session.commit()
-            return QuestionResultView(
+            result = QuestionResultView(
                 request_id=command.request_id,
                 session_id=session_context.session_id,
                 turn_index=turn.turn_index,
@@ -241,6 +263,12 @@ class AskQuestionUseCase:
                 execution_profile=investigation.execution_profile or "INVESTIGATE",
                 investigation=investigation,
             )
+            complete_command(
+                record, f"{session_context.session_id}:{turn.turn_index}",
+                result.model_dump(mode="json"),
+            )
+            await session.commit()
+            return result
         if self._provider is None:
             raise DependencyUnavailableError("model provider is not configured")
 
@@ -313,6 +341,9 @@ class AskQuestionUseCase:
                     producer="product-question",
                     stop_reason=stop_reason,
                 )
+                if record is not None:
+                    record.status = "failed"
+                    record.response_ref = f"task-run:{run_id}"
             if isinstance(exc, TimeoutError):
                 raise DeadlineExceededError(
                     "question reasoning exceeded the interactive time limit",
@@ -356,14 +387,19 @@ class AskQuestionUseCase:
                     decision_ref=decision.decision_id,
                     investigation_ref=None,
                 )
-            return QuestionResultView(
-                request_id=command.request_id,
-                session_id=session_context.session_id,
-                turn_index=turn.turn_index,
-                mode="completed",
-                execution_profile=profile.value,
-                decision=decision_view(decision.model_dump(mode="json"), stored.created_at),
-            )
+                result = QuestionResultView(
+                    request_id=command.request_id,
+                    session_id=session_context.session_id,
+                    turn_index=turn.turn_index,
+                    mode="completed",
+                    execution_profile=profile.value,
+                    decision=decision_view(decision.model_dump(mode="json"), stored.created_at),
+                )
+                complete_command(
+                    record, f"{session_context.session_id}:{turn.turn_index}",
+                    result.model_dump(mode="json"),
+                )
+            return result
 
         continuation_target = _continuation_investigation_target(command, proposal.target_objects)
         if command.cve_id is None and command.object_id is None and continuation_target is None:
@@ -407,9 +443,8 @@ class AskQuestionUseCase:
                 priority=proposal.priority,
                 target_object_id=continuation_target,
             )
-        # StartInvestigationUseCase commits its durable launch, then the returned
-        # Product projection opens a read transaction. Reuse that transaction for
-        # the parent sync-task terminal record instead of beginning a second one.
+        # The investigation launch, session turn and parent task terminal record
+        # now commit together; only the earlier sync model attempt is durable.
         await self._execution.finish(
             session,
             execution_id,
@@ -440,8 +475,7 @@ class AskQuestionUseCase:
             decision_ref=None,
             investigation_ref=f"case:{investigation.case_id}",
         )
-        await session.commit()
-        return QuestionResultView(
+        result = QuestionResultView(
             request_id=command.request_id,
             session_id=session_context.session_id,
             turn_index=turn.turn_index,
@@ -449,6 +483,12 @@ class AskQuestionUseCase:
             execution_profile=investigation.execution_profile or "INVESTIGATE",
             investigation=investigation,
         )
+        complete_command(
+            record, f"{session_context.session_id}:{turn.turn_index}",
+            result.model_dump(mode="json"),
+        )
+        await session.commit()
+        return result
 
     async def _open_sync_runtime(
         self,
@@ -986,6 +1026,7 @@ class AskQuestionUseCase:
                 agent_turns=command.agent_turns,
                 tool_calls=command.tool_calls,
             ),
+            commit=False,
         )
         return result.investigation
 
@@ -1027,6 +1068,7 @@ class AskQuestionUseCase:
                 agent_turns=command.agent_turns,
                 tool_calls=command.tool_calls,
             ),
+            commit=False,
         )
         return result.investigation
 

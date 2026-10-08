@@ -66,7 +66,7 @@ export function CaseWorkspace({ investigation, events, eventCue, initialFocus, o
     setCancelBusy(true)
     setCancelError('')
     try {
-      await cancelInvestigation(investigation.case_id)
+      await cancelInvestigation(investigation.case_id, investigation.revision)
       onFollowUpComplete()
     } catch (error) {
       setCancelError(error instanceof Error ? error.message : text('取消调查 失败', 'Cancel failed'))

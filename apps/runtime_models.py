@@ -24,6 +24,7 @@ _MODEL_MODULES = (
     "apps.application.question_sessions",
     "apps.application.intelligence_preferences",
     "apps.application.authentication",
+    "apps.application.command_idempotency",
     "packages.evaluation.benchmark.storage",
     "packages.enrichment.runtime.state_models",
     "packages.shared.storage.models",

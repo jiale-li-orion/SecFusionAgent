@@ -100,6 +100,57 @@ async def test_product_question_complex_route_returns_accepted_investigation() -
 
 
 @pytest.mark.asyncio
+async def test_question_command_replay_keeps_one_case_and_one_session_turn() -> None:
+    engine, factory = await _database()
+    app = create_app()
+    app.state.session_factory = factory
+
+    async def override_session() -> AsyncIterator[AsyncSession]:
+        async with factory() as session:
+            yield session
+
+    app.dependency_overrides[database_session] = override_session
+    payload = {
+        "question": "Which version first contains the fix?",
+        "cve_id": "CVE-2026-61616",
+        "task_kind": "verify_version_fix",
+    }
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test", headers=account_headers()
+        ) as client:
+            first = await client.post(
+                "/api/v1/questions", headers={"Idempotency-Key": "question-one"}, json=payload
+            )
+            second = await client.post(
+                "/api/v1/questions", headers={"Idempotency-Key": "question-one"}, json=payload
+            )
+            assert first.status_code == second.status_code == 202
+            assert first.json() == second.json()
+            history = await client.get(
+                f"/api/v1/questions/sessions/{first.json()['session_id']}"
+            )
+            assert history.status_code == 200
+            assert len(history.json()["turns"]) == 1
+            changed = await client.post(
+                "/api/v1/questions", headers={"Idempotency-Key": "question-one"},
+                json={**payload, "question": "Different question"},
+            )
+            assert changed.status_code == 409
+            assert changed.json()["code"] == "idempotency_conflict"
+            stream = await client.post(
+                "/api/v1/questions/stream",
+                headers={"Idempotency-Key": "question-one"},
+                json=payload,
+            )
+            assert stream.status_code == 200
+            assert "event: result\n" in stream.text
+            assert first.json()["session_id"] in stream.text
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_question_stream_uses_authenticated_session_and_emits_durable_result() -> None:
     engine, factory = await _database()
     app = create_app()

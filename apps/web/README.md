@@ -41,6 +41,8 @@ Identity assets live under `src/components/instrument/`: `BrandMark` is the evid
 
 ## Local integration
 
+Question (including SSE) and Case cancellation submissions keep a client `Idempotency-Key` for the same unfinished request and clear it after a successful response. Cancellation sends the displayed Case revision in `If-Match`, so a stale tab receives a conflict instead of cancelling an updated investigation. A completed SSE replay returns its persisted final result without pretending to reproduce earlier model token deltas.
+
 Start the API after infrastructure/migrations are available:
 
 ```bash

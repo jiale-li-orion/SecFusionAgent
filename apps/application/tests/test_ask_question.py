@@ -468,6 +468,46 @@ async def test_lookup_question_runs_read_only_decision_without_durable_case() ->
 
 
 @pytest.mark.asyncio
+async def test_lookup_idempotency_replays_decision_without_second_model_call() -> None:
+    engine, factory = await _factory()
+    provider = _Provider(
+        DecisionPlannerResponse(
+            action=FinalDecisionProposal(
+                conclusions=[DecisionConclusion(
+                    statement=PROPOSITION,
+                    type=ConclusionType.FACT,
+                    evidence_refs=[f"evidence:{EVIDENCE_ID}"],
+                )],
+                answer_payload={"cvss_score": 9.8},
+                stop_reason="evidence_sufficient",
+            )
+        )
+    )
+    try:
+        async with factory() as session:
+            command = AskQuestionCommand(
+                principal="user:test",
+                request_id="question-idempotent-1",
+                idempotency_key="same-question",
+                question=f"What is the CVSS score for {CVE}?",
+                cve_id=CVE,
+                task_kind=TaskKind.LOOKUP,
+            )
+            first = await _use_case(provider).execute(session, command)
+        async with factory() as session:
+            second = await _use_case(provider).execute(
+                session, command.model_copy(update={"request_id": "question-idempotent-2"})
+            )
+            assert second == first
+            assert len(provider.requests) == 1
+            assert int(await session.scalar(
+                select(func.count()).select_from(TaskRunModel)
+            ) or 0) == 1
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_retrieve_session_rejects_stale_live_case_world() -> None:
     engine, factory = await _factory()
     provider = _Provider(

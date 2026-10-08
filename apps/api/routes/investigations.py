@@ -4,7 +4,7 @@ import asyncio
 import json
 from typing import Literal
 
-from fastapi import APIRouter, Query, Request, Response, status
+from fastapi import APIRouter, Header, Query, Request, Response, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, model_validator
 
@@ -81,6 +81,7 @@ async def start_investigation(
             principal=context.principal,
             request_id=context.request_id,
             trace_id=context.trace_id,
+            idempotency_key=context.idempotency_key,
             cve_id=payload.cve_id,
             object_id=payload.object_id,
             goal=payload.goal,
@@ -96,6 +97,7 @@ async def start_investigation(
         ),
     )
     response.headers["Location"] = f"/api/v1/investigations/{result.investigation.case_id}"
+    response.headers["ETag"] = f'"{result.investigation.revision}"'
     return result.investigation
 
 
@@ -125,10 +127,13 @@ async def list_investigations(
 )
 async def get_investigation(
     case_id: str,
+    response: Response,
     session: SessionDep,
     context: RequestContextDep,
 ) -> InvestigationView:
-    return await InvestigationQueries().get(session, case_id, principal=context.principal)
+    result = await InvestigationQueries().get(session, case_id, principal=context.principal)
+    response.headers["ETag"] = f'"{result.revision}"'
+    return result
 
 
 @router.post(
@@ -142,11 +147,13 @@ async def get_investigation(
 )
 async def cancel_investigation(
     case_id: str,
+    response: Response,
     session: SessionDep,
     context: RequestContextDep,
+    expected_revision: str = Header(alias="If-Match", pattern=r'^(?:[0-9]+|"[0-9]+")$'),
 ) -> InvestigationView:
     settings = get_settings()
-    return await CancelInvestigationUseCase(
+    result = await CancelInvestigationUseCase(
         task_event_stream_name=settings.task_event_stream_name,
     ).execute(
         session,
@@ -154,8 +161,12 @@ async def cancel_investigation(
             principal=context.principal,
             request_id=context.request_id,
             case_id=case_id,
+            idempotency_key=context.idempotency_key,
+            expected_revision=int(expected_revision.strip('"')),
         ),
     )
+    response.headers["ETag"] = f'"{result.revision}"'
+    return result
 
 
 @router.get(

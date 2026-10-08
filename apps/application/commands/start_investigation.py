@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field, JsonValue, model_validator
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.application.command_idempotency import claim_command, command_digest, complete_command
 from apps.application.errors import (
     LifecycleConflictError,
     PermissionDeniedError,
@@ -55,6 +56,7 @@ class StartInvestigationCommand(BaseModel):
     principal: str
     request_id: str
     trace_id: str | None = None
+    idempotency_key: str | None = Field(default=None, min_length=1, max_length=128)
     cve_id: str | None = None
     object_id: str | None = None
     goal: str = Field(min_length=1)
@@ -289,7 +291,25 @@ class StartInvestigationUseCase:
         self,
         session: AsyncSession,
         command: StartInvestigationCommand,
+        *,
+        commit: bool = True,
     ) -> StartInvestigationResult:
+        record, replay = await claim_command(
+            session,
+            principal=command.principal,
+            operation="start_investigation",
+            key=command.idempotency_key,
+            digest=command_digest(command.model_dump(
+                mode="json", exclude={"principal", "request_id", "trace_id", "idempotency_key"}
+            )),
+        )
+        if replay:
+            assert record is not None and record.response_ref is not None
+            return StartInvestigationResult(
+                investigation=await self._queries.get(
+                    session, record.response_ref, principal=command.principal
+                )
+            )
         object_id = await _resolve_target(session, command)
         knowledge_revision = int(
             await session.scalar(select(func.max(KnowledgeRevisionModel.revision))) or 0
@@ -332,7 +352,11 @@ class StartInvestigationUseCase:
             tool_calls=command.tool_calls,
         )
         await self._case_service.activate(session, case.case_id)
-        await session.commit()
+        complete_command(record, case.case_id)
+        if commit:
+            await session.commit()
+        else:
+            await session.flush()
         return StartInvestigationResult(
             investigation=await self._queries.get(
                 session,
@@ -365,6 +389,8 @@ class ContinueInvestigationUseCase:
         self,
         session: AsyncSession,
         command: ContinueInvestigationCommand,
+        *,
+        commit: bool = True,
     ) -> StartInvestigationResult:
         case = await session.scalar(
             select(InvestigationCaseModel)
@@ -442,7 +468,10 @@ class ContinueInvestigationUseCase:
             tool_calls=command.tool_calls,
         )
         await self._cases.activate(session, command.case_id)
-        await session.commit()
+        if commit:
+            await session.commit()
+        else:
+            await session.flush()
         return StartInvestigationResult(
             investigation=await self._queries.get(
                 session,

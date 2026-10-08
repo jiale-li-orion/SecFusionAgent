@@ -211,7 +211,7 @@ async def test_account_owned_cases_decisions_tasks_and_runtime_do_not_cross_acco
             ).status_code == 404
             denied_cancel = await client.post(
                 f"/api/v1/investigations/{system_cases['public']}/cancel",
-                headers={**foreign, "X-SecFusion-CSRF": "1"},
+                headers={**foreign, "X-SecFusion-CSRF": "1", "If-Match": "0"},
             )
             assert denied_cancel.status_code == 403
             assert denied_cancel.json()["code"] == "permission_denied"
