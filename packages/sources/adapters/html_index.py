@@ -156,6 +156,14 @@ class HTMLIndexAdapter:
                 updated_at = None
         revision = etag or last_modified or ref.external_revision
         metadata: dict[str, JsonValue] = dict(ref.locator)
+        if effective_media_type in {"text/html", "application/xhtml+xml"} and not metadata.get(
+            "title"
+        ):
+            heading = HTMLParser(response.content.decode("utf-8", errors="replace")).css_first("h1")
+            if heading is not None:
+                title = " ".join(heading.text(separator=" ", strip=True).split())
+                if 1 <= len(title) <= 250:
+                    metadata["title"] = title
         if etag:
             metadata["etag"] = etag
         if last_modified:

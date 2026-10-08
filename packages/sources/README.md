@@ -12,6 +12,8 @@
 
 `slowmist-reports` follows the 2026 Mid-year English PDF linked from SlowMist's official report index. The publisher page is retained in request metadata; the download is hosted by Google Drive and needs the configured source proxy on this deployment. `DirectDocumentAdapter` accepts verified PDF bytes even when the response uses `application/octet-stream`, then hands them to the PDF parser. Redirects outside the source's explicit host allowlist remain rejected.
 
+For `html_index` on-demand URL queries, the adapter reads a bounded `h1` from the fetched HTML when discovery did not supply a title. The title remains source-derived request metadata; the article parser separately chooses body content, so a related-post card cannot provide the document excerpt for an unrelated headline.
+
 `IngestEnvelope` is the handoff into M1/M2. It carries acquisition-run identity, source/object identity, source timestamps, observation time, provider revision when available, media type, payload/body, request metadata, content hash, and idempotency key. JSON payloads are canonicalized before hashing. The idempotency identity is:
 
 ```text

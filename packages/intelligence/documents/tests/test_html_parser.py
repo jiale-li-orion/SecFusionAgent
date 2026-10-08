@@ -55,3 +55,19 @@ def test_html_parser_falls_back_to_body_text_without_block_markup() -> None:
     assert len(sections) == 1
     assert sections[0].text == "plain security bulletin"
     assert sections[0].source_locator["kind"] == "html_document"
+
+
+def test_html_parser_prefers_article_body_over_related_post_cards() -> None:
+    body = b"""
+    <html><body><main>
+      <div class="entry-content">
+        <p>AI-themed phishing campaigns impersonate trusted tools.</p>
+      </div>
+      <section class="related-posts"><article><h2>Different post</h2>
+        <p>Unrelated CISO perspectives and vulnerability risks.</p></article></section>
+    </main></body></html>
+    """
+    sections = HTMLDocumentParser().parse(body)
+    text = "\n".join(section.text for section in sections)
+    assert "AI-themed phishing campaigns" in text
+    assert "Unrelated CISO" not in text

@@ -95,6 +95,8 @@ Incident signal input follows the single-valued `source_role` / `retention_mode`
 
 A managed document keeps provider/source revision identity separately from parsed/indexed state. Parsers support the media types explicitly registered by the collection runtime. A new parser or media type must be wired in both the parser layer and runtime ownership tests; recognizing a MIME type in a source definition without a parser owner is invalid.
 
+HTML parser v2 prefers the article body container (`.entry-content`, then `main` / `[role=main]`) before generic `article` cards. This prevents a related-post card from becoming the only chunk of an otherwise valid article. Old raw Observations and DocumentRevisions remain immutable; a fresh acquisition of changed source bytes creates a new revision with the corrected parser, rather than rewriting historical Evidence locators.
+
 Document indexing produces lexical state first. Dense embedding and semantic extraction are optional runtime continuations when model configuration exists; lack of model credentials does not invalidate the lexical document path.
 
 `retrieval/context.py`, `operators.py`, and `validation.py` form the current M3→M4 read seam. They resolve current Knowledge/Evidence references and validate world revision/freshness for Investigation context. They intentionally remain below Investigation policy: deciding which evidence need to pursue, whether to perform external observation, and how to integrate a Percept belongs to `packages.investigation`.

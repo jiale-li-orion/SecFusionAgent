@@ -125,6 +125,7 @@ async def test_html_index_query_enforces_allowed_host() -> None:
             trigger=AcquisitionTrigger.INVESTIGATION,
         )
         assert len(result) == 1
+        assert result[0].request_metadata["title"] == "Incident A"
         with pytest.raises(ValueError, match="allowed_hosts"):
             await adapter.query(
                 SOURCE,

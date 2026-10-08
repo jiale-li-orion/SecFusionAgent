@@ -5,7 +5,7 @@ from io import BytesIO
 from typing import ClassVar, Protocol
 
 from pypdf import PdfReader
-from selectolax.parser import HTMLParser
+from selectolax.parser import HTMLParser, Node
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,10 +39,10 @@ class PDFDocumentParser:
 
 class HTMLDocumentParser:
     NAME = "selectolax-html"
-    VERSION = "1"
+    VERSION = "2"
 
     _DROP_SELECTOR = "script,style,noscript,nav,header,footer,aside,form,svg,canvas"
-    _CONTENT_SELECTOR = "article,main,[role=main]"
+    _CONTENT_SELECTORS = (".entry-content", "main", "[role=main]", "article")
     _BLOCK_TAGS: ClassVar[frozenset[str]] = frozenset(
         {"p", "li", "pre", "blockquote", "tr", "dt", "dd"}
     )
@@ -53,7 +53,13 @@ class HTMLDocumentParser:
         for node in tree.css(self._DROP_SELECTOR):
             node.decompose()
 
-        root = tree.css_first(self._CONTENT_SELECTOR)
+        # Selector groups follow document order, which can choose a related-post
+        # card before the actual article body. Prefer the known content container.
+        root: Node | None = None
+        for selector in self._CONTENT_SELECTORS:
+            root = tree.css_first(selector)
+            if root is not None:
+                break
         if root is None:
             pre_nodes = tree.css("pre")
             if len(pre_nodes) == 1:
