@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
+from pydantic import JsonValue
 
 from packages.sources.contracts import (
     AcquisitionTrigger,
@@ -88,7 +89,7 @@ class CVEListV5Adapter:
                         latest_by_cve[ref.external_object_id] = (fetch_time, ref)
 
         completed_raw = state.cursor.get("processed_revisions")
-        completed = (
+        completed: dict[str, JsonValue] = (
             {
                 key: value
                 for key, value in completed_raw.items()
@@ -111,7 +112,7 @@ class CVEListV5Adapter:
         backfill_pending = len(pending) > len(selected)
         if backfill_pending:
             completed.update({ref.external_object_id: marker for _, ref, marker in selected})
-            next_cursor = {
+            next_cursor: dict[str, JsonValue] = {
                 "last_fetch_time": cursor.isoformat() if cursor is not None else None,
                 "processed_revisions": completed,
                 "backfill_pending": True,
