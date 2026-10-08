@@ -65,7 +65,11 @@ def main() -> int:
         "proxy_set_header X-Forwarded-Proto $secfusion_forwarded_proto;",
         owner="nginx /api",
     )
-    _require(nginx, "map $http_x_forwarded_proto $secfusion_forwarded_proto", owner="nginx TLS forwarding")
+    _require(
+        nginx,
+        "map $http_x_forwarded_proto $secfusion_forwarded_proto",
+        owner="nginx TLS forwarding",
+    )
 
     _location_block(nginx, "/health")
 
@@ -90,10 +94,23 @@ def main() -> int:
         "${SECFUSION_HTTP_BIND_ADDRESS:-127.0.0.1}:${SECFUSION_HTTP_PORT:-80}:80",
         owner="production compose",
     )
-    _require(compose, "${SECFUSION_APP_IMAGE:-secfusion-app:production}", owner="production compose")
-    _require(compose, "${SECFUSION_WEB_IMAGE:-secfusion-product-web:production}", owner="production compose")
+    _require(
+        compose, "${SECFUSION_APP_IMAGE:-secfusion-app:production}", owner="production compose"
+    )
+    _require(
+        compose,
+        "${SECFUSION_WEB_IMAGE:-secfusion-product-web:production}",
+        owner="production compose",
+    )
 
-    for service in ("postgres", "redis-broker", "redis-cache", "redis-task-bus", "api", "product-web"):
+    for service in (
+        "postgres",
+        "redis-broker",
+        "redis-cache",
+        "redis-task-bus",
+        "api",
+        "product-web",
+    ):
         service_match = re.search(
             rf"^\s{{2}}{re.escape(service)}:\n(?P<body>.*?)(?=^\s{{2}}\S|\Z)",
             compose,
@@ -101,7 +118,9 @@ def main() -> int:
         )
         if service_match is None:
             raise RuntimeError(f"production compose missing service {service}")
-        if service != "product-web" and re.search(r"^\s+ports:\s*$", service_match.group("body"), re.MULTILINE):
+        if service != "product-web" and re.search(
+            r"^\s+ports:\s*$", service_match.group("body"), re.MULTILINE
+        ):
             raise RuntimeError(f"{service} must not publish host ports in production")
         if service != "api" and "restart: unless-stopped" not in service_match.group("body"):
             raise RuntimeError(f"{service} must restart after host reboot")

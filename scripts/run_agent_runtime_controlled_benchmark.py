@@ -315,7 +315,7 @@ class _DelegatedFixBoundaryModel:
                         delegation_id="model-owned-placeholder",
                         target_object_id=self._object_id,
                         cve_id=self._cve_id,
-                        required_dimensions=[EnrichmentDimension.FIX_REMEDIATION.value],
+                        required_dimensions=[EnrichmentDimension.FIX_REMEDIATION],
                         reason="missing durable fix boundary evidence",
                     )
                 )

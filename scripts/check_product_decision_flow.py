@@ -6,7 +6,7 @@ import argparse
 from urllib.parse import urlencode
 
 import httpx
-from playwright.sync_api import expect, sync_playwright
+from playwright.sync_api import Error, Request, expect, sync_playwright
 
 
 def main() -> int:
@@ -38,17 +38,21 @@ def main() -> int:
             )
             errors: list[str] = []
             posts: list[str] = []
-            page.on("pageerror", lambda error, target=errors: target.append(str(error)))
-            page.on(
-                "request",
-                lambda request, target=posts: (
-                    target.append(request.url) if request.method == "POST" else None
-                ),
-            )
+
+            def record_page_error(error: Error, *, target: list[str] = errors) -> None:
+                target.append(str(error))
+
+            def record_request(request: Request, *, target: list[str] = posts) -> None:
+                if request.method == "POST":
+                    target.append(request.url)
+
+            page.on("pageerror", record_page_error)
+            page.on("request", record_request)
             page.goto(url, wait_until="domcontentloaded")
             report = page.locator(".decision-report")
             expect(report).to_be_visible(timeout=20_000)
-            assert report.bounding_box()["width"] >= min(width - 100, 600), (
+            report_box = report.bounding_box()
+            assert report_box is not None and report_box["width"] >= min(width - 100, 600), (
                 "Decision report is squeezed by the surrounding layout"
             )
             for conclusion in decision["conclusions"]:

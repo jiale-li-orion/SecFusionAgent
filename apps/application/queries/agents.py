@@ -445,13 +445,13 @@ async def get_agent_task_detail(
                 percept_refs=list(item.percept_refs_json),
                 materialized_ref_set_digest=item.materialized_ref_set_digest,
                 fragments=[
-                    {
+                    cast(dict[str, JsonValue], {
                         "kind": fragment.get("kind"),
                         "source_ref": fragment.get("source_ref"),
                         "selection_reason": fragment.get("selection_reason"),
                         "trust_class": fragment.get("trust_class"),
                         "disclosure_level": fragment.get("disclosure_level"),
-                    }
+                    })
                     for fragment in item.fragment_manifest_json
                 ],
                 created_at=item.created_at,
@@ -469,28 +469,14 @@ async def get_agent_task_detail(
                 status=item.status,
                 ordinal=item.ordinal,
                 latency_ms=item.latency_ms,
-                input_tokens=item.usage_json.get("input_tokens"),
-                output_tokens=item.usage_json.get("output_tokens"),
-                reasoning_tokens=item.usage_json.get("reasoning_tokens"),
+                input_tokens=_optional_int(item.usage_json.get("input_tokens")),
+                output_tokens=_optional_int(item.usage_json.get("output_tokens")),
+                reasoning_tokens=_optional_int(item.usage_json.get("reasoning_tokens")),
                 started_at=item.started_at,
             )
             for item in model_attempts
         ],
-        context=AgentContextManifestView(
-            context_id=str(manifest["context_id"]),
-            context_revision=int(manifest["context_revision"]),
-            parent_context_id=manifest.get("parent_context_id"),
-            role_ref=str(manifest["role_ref"]),
-            case_ref=manifest.get("case_ref"),
-            knowledge_revision=manifest.get("knowledge_revision"),
-            evidence_refs=list(manifest.get("evidence_refs", [])),
-            object_refs=list(manifest.get("object_refs", [])),
-            relation_refs=list(manifest.get("relation_refs", [])),
-            retrieval_invocation_refs=list(manifest.get("retrieval_invocation_refs", [])),
-            policy_context_ref=str(manifest["policy_context_ref"]),
-            capability_envelope_ref=str(manifest["capability_envelope_ref"]),
-            budget_ref=str(manifest["budget_ref"]),
-        ) if manifest is not None else None,
+        context=AgentContextManifestView.model_validate(manifest) if manifest is not None else None,
     )
 
 
@@ -662,6 +648,10 @@ def _capability_view(item: CapabilityInvocationModel) -> AgentCapabilityActivity
 
 def _optional_string(value: object) -> str | None:
     return value if isinstance(value, str) and value else None
+
+
+def _optional_int(value: object) -> int | None:
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
 
 
 def _execution_predecessor_run_id(execution: ExecutionRunModel) -> str | None:

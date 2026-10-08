@@ -149,5 +149,6 @@ async def test_direct_document_reads_official_pdf_download_with_octet_stream_hea
             trigger=AcquisitionTrigger.SCHEDULED,
         )
     assert envelope.media_type == "application/pdf"
+    assert envelope.canonical_url is not None
     assert envelope.canonical_url.startswith("https://drive.usercontent.google.com/")
     assert envelope.request_metadata["publisher_page_url"] == "https://www.slowmist.com/report/"
