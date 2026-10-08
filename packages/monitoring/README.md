@@ -28,7 +28,7 @@ Public continuous-monitoring epoch: `2026-10-02T04:19:42+08:00`. Pre-epoch rows 
 
 Source contract: 101 catalog entries → 66 executable sources → 39 scheduled monitors; 7/8 categories are actively scheduled and `assets` remains query-time.
 
-Current health: 35 healthy / 2 degraded / 2 blocked / 0 warming. Last-hour runtime: run success 84.211%, queue p95 331.936s (5.53min), execution p95 222.084s (3.70min), fresh changes 25, fresh contributing sources/categories 5/3. Public-epoch Evidence integrity: 100.000%.
+Current health: 36 healthy / 1 degraded / 2 blocked / 0 warming. Last-hour runtime: run success 85.714%, queue p95 102.077s (1.70min), execution p95 108.106s (1.80min), fresh changes 25, fresh contributing sources/categories 5/3. Public-epoch Evidence integrity: 100.000%.
 
 `benchmarks/data-plane/current.json` owns 1h/6h/24h/7d rolling windows plus chart-ready hourly/category series; `make data-plane-metrics` refreshes the snapshot.
 <!-- END GENERATED MONITORING STATUS -->

@@ -16,8 +16,8 @@ English | [中文](README.zh.md)
 | M6 QA | **Accuracy 100.000% / interactive max 3.655s** |
 
 **Source runtime contract: 101 catalog entries → 66 executable sources → 39 scheduled monitors; 8 product categories, with active scheduled monitoring in 7/8 categories and `assets` intentionally query-time.**
-**Public continuous-monitoring epoch: `2026-10-02T04:19:42+08:00`; scheduled-source health 35 healthy / 2 degraded / 2 blocked; epoch Evidence integrity 100.000%.**
-**Last-1h operations: Run OK 84.211%; provider-boundary fail 15.789%; runtime-owned fail 0.000%; queue p95 331.936s (5.53min); execution p95 222.084s (3.70min).**
+**Public continuous-monitoring epoch: `2026-10-02T04:19:42+08:00`; scheduled-source health 36 healthy / 1 degraded / 2 blocked; epoch Evidence integrity 100.000%.**
+**Last-1h operations: Run OK 85.714%; provider-boundary fail 14.286%; runtime-owned fail 0.000%; queue p95 102.077s (1.70min); execution p95 108.106s (1.80min).**
 
 Every value above is generated from benchmark/source configuration rather than copied by hand; run/deployment/provenance details remain in the formal evidence section below.
 <!-- END GENERATED SCOREBOARD -->
