@@ -205,7 +205,7 @@ export function InvestigationsPage() {
             <div className="activity-head-actions"><span className={`stream-beacon stream-${streamState}`} />{events.length > 8 && <button type="button" className="rail-density-toggle" aria-expanded={eventHistoryExpanded} onClick={() => setEventHistoryExpanded((value) => !value)}>{eventHistoryExpanded ? text('最近', 'RECENT') : text('历史', 'HISTORY')}</button>}</div>
           </div>
           {activityQuery.isError && <div className="activity-fault" role="alert"><CircleAlert size={13} /><span>{text('历史 ProductEvent read 读取失败；SSE 会继续尝试连接。', 'Historical ProductEvent read failed; SSE continues reconnect attempts.')}</span><button className="recovery-action" onClick={() => void activityQuery.refetch()}>{text('重试历史事件', 'RETRY EVENT HISTORY')}</button></div>}
-          {events.length ? <RuntimeEventRail events={events} limit={eventHistoryExpanded ? events.length : 8} activeEventId={eventCue?.eventId ?? null} onFocus={(event) => { const state = eventState(event.event_type); if (state) setEventCue({ eventId: event.event_id, state }) }} /> : <EventRailBlueprint state={streamState} />}
+          {events.length ? <RuntimeEventRail events={events} limit={eventHistoryExpanded ? events.length : 8} activeEventId={eventCue?.eventId ?? null} onFocus={(event) => { const state = eventState(event.event_type); if (state) setEventCue({ eventId: event.event_id, state }) }} onEvidence={setSelectedEvidence} /> : <EventRailBlueprint state={streamState} />}
           {!eventHistoryExpanded && events.length > 8 && <button type="button" className="rail-overflow-note event-overflow" onClick={() => setEventHistoryExpanded(true)}>+{events.length - 8} {text('更早事件', 'earlier events')}</button>}
         </details></aside>
       </div>

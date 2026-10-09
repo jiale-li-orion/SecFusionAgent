@@ -4301,11 +4301,18 @@
   display: flex;
   gap: 12px;
   padding: 15px 0;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 0;
   text-align: left;
   font-size: 11px;
   width: 100%;
 }
+
+.runtime-event-entry { border-bottom: 1px solid var(--line); }
+.runtime-event-entry .runtime-event { padding-bottom: 8px; }
+.runtime-event-actions { display: grid; gap: 8px; padding: 0 0 14px 28px; }
+.runtime-event-actions > a { display: inline-flex; align-items: center; gap: 6px; justify-self: start; font-size: 10px; color: #4b7958; text-decoration: none; }
+.runtime-event-actions > a:hover { text-decoration: underline; }
+.runtime-event-actions .finding-evidence { margin-top: 0; }
 
 .runtime-event>div {
   min-width: 0;

@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion, useReducedMotion } from 'motion/react'
 import { Activity, BadgeCheck, BrainCircuit, CircleAlert, CircleDot, FileWarning, Link2, MessageSquareText, OctagonX, Orbit, SearchCheck, Sparkles, TerminalSquare } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 import { askQuestion, cancelInvestigation, evidenceBoundObjectIds, getEvidence, type EvidenceDetail, type InvestigationFinding, type InvestigationView, type ProductRuntimeEvent, type QuestionResult, type TaskKind } from '../../lib/api'
 import { eventState, investigationStopMessage, type CaseStateFocus, type EventCue } from '../../lib/investigationPresentation'
@@ -273,10 +273,10 @@ function DecisionPanel({ investigation, onEvidence }: { investigation: Investiga
   )
 }
 
-export function RuntimeEventRail({ events, limit, activeEventId, onFocus }: { events: ProductRuntimeEvent[]; limit: number; activeEventId: string | null; onFocus: (event: ProductRuntimeEvent) => void }) {
+export function RuntimeEventRail({ events, limit, activeEventId, onFocus, onEvidence }: { events: ProductRuntimeEvent[]; limit: number; activeEventId: string | null; onFocus: (event: ProductRuntimeEvent) => void; onEvidence: (ref: string) => void }) {
   const { text } = useI18n()
   const visible = events.slice(-limit).reverse()
-  return <div className="runtime-event-list">{visible.map((event, index) => <motion.button type="button" key={event.event_id} onClick={() => onFocus(event)} className={`runtime-event event-${event.event_type} ${activeEventId === event.event_id ? 'event-focused' : ''} ${eventState(event.event_type) ? 'event-actionable' : ''}`} initial={{ opacity: 0, x: 18, scale: .98 }} animate={{ opacity: 1, x: 0, scale: 1 }} transition={{ delay: Math.min(index * .015, .18) }}><span className="event-symbol"><EventIcon type={event.event_type} /></span><div><small>{event.role_id ?? event.actor ?? event.source_kind}</small><strong>{event.summary}</strong><em>{event.technical_type} · {new Date(event.occurred_at).toLocaleTimeString()}</em>{event.evidence_refs.length > 0 && <span className="event-evidence">{text(`${event.evidence_refs.length} 条 evidence refs`, `${event.evidence_refs.length} evidence refs`)}</span>}</div></motion.button>)}</div>
+  return <div className="runtime-event-list">{visible.map((event, index) => <motion.div key={event.event_id} className="runtime-event-entry" initial={{ opacity: 0, x: 18, scale: .98 }} animate={{ opacity: 1, x: 0, scale: 1 }} transition={{ delay: Math.min(index * .015, .18) }}><button type="button" onClick={() => onFocus(event)} className={`runtime-event event-${event.event_type} ${activeEventId === event.event_id ? 'event-focused' : ''} ${eventState(event.event_type) ? 'event-actionable' : ''}`}><span className="event-symbol"><EventIcon type={event.event_type} /></span><div><small>{event.role_id ?? event.actor ?? event.source_kind}</small><strong>{event.summary}</strong><em>{event.technical_type} · {new Date(event.occurred_at).toLocaleTimeString()}</em>{event.evidence_refs.length > 0 && <span className="event-evidence">{text(`${event.evidence_refs.length} 条 evidence refs`, `${event.evidence_refs.length} evidence refs`)}</span>}</div></button>{(event.task_run_id || event.evidence_refs.length > 0) && <div className="runtime-event-actions">{event.task_run_id && <Link to={`/agents?${new URLSearchParams({ run: event.task_run_id, from: 'case', caseRef: event.case_id })}`}><TerminalSquare size={11}/>{text('查看任务轨迹', 'Open task trace')}</Link>}{event.evidence_refs.length > 0 && <EvidenceButtons refs={event.evidence_refs} onEvidence={onEvidence} />}</div>}</motion.div>)}</div>
 }
 
 function EvidenceButtons({ refs, onEvidence }: { refs: string[]; onEvidence: (ref: string) => void }) {
