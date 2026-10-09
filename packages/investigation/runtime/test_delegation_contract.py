@@ -11,6 +11,8 @@ from packages.investigation.runtime.contracts import (
     EnrichmentDelegationRequest,
     InvestigationFrame,
     InvestigationPlannerDecision,
+    StopAction,
+    WaitAction,
 )
 from packages.investigation.runtime.planner import _normalize_action
 
@@ -74,3 +76,30 @@ def test_delegation_identity_is_stable_across_parent_context_refresh() -> None:
 
     assert first.request.delegation_id == replay.request.delegation_id
     assert first.request.delegation_id != another_dimension.request.delegation_id
+
+
+def test_model_stop_and_wait_reasons_fit_task_storage_contract() -> None:
+    frame = InvestigationFrame.model_construct(task_run_id="parent-run", iteration=3)
+
+    def normalize(action: StopAction | WaitAction) -> StopAction | WaitAction:
+        return _normalize_action(
+            action,
+            frame=frame,
+            assembly_hash="prompt-hash",
+            provider_ref="provider@1",
+            budget_ref="budget:parent-run",
+        )
+
+    assert normalize(StopAction(reason="evidence_sufficient")).reason == "evidence_sufficient"
+    assert (
+        normalize(WaitAction(reason="waiting_for_world_update")).reason
+        == "waiting_for_world_update"
+    )
+    assert (
+        normalize(StopAction(reason="证据仍有缺口。" * 40)).reason
+        == "planner_stop_unstructured_reason"
+    )
+    assert (
+        normalize(WaitAction(reason="More evidence is needed. " * 20)).reason
+        == "waiting_for_evidence"
+    )

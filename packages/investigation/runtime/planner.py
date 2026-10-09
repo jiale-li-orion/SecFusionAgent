@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from hashlib import sha256
+from re import fullmatch
 from typing import Protocol, cast
 
 from pydantic import BaseModel, Field, JsonValue
@@ -206,9 +208,10 @@ class ModelInvestigationPlanner:
                 disclosure_level=SkillDisclosureLevel.PROCEDURE,
                 store=self._skill_store,
             )
+            percepts: Sequence[Percept | None] = frame.recent_percepts or [frame.last_percept]
             ephemeral = [
                 fragment
-                for percept in (frame.recent_percepts or [frame.last_percept])
+                for percept in percepts
                 if percept is not None
                 for fragment in _percept_fragments(percept)
             ]
@@ -368,6 +371,17 @@ def _normalize_action(
         return DelegationAction(
             request=action.request.model_copy(update={"delegation_id": f"delegation:{identity}"})
         )
+    if isinstance(action, (StopAction, WaitAction)):
+        # The model may put a paragraph in `reason`, but TaskRun stores a bounded
+        # machine-readable stop code. Prose belongs in its decision note and Case state.
+        reason = action.reason.strip()
+        if fullmatch(r"[a-z][a-z0-9_.:-]{0,89}", reason) is None:
+            reason = (
+                "planner_stop_unstructured_reason"
+                if isinstance(action, StopAction)
+                else "waiting_for_evidence"
+            )
+        return action.model_copy(update={"reason": reason})
     return action
 
 
