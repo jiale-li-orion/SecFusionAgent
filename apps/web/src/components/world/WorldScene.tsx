@@ -1,6 +1,6 @@
 import { SourceArtwork } from '../instrument/SourceArtwork'
 import { ProductGlyph } from '../instrument/ProductGlyph'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { ArrowRight, ArrowUpRight, BookOpen, Braces, Bug, Fingerprint, Globe2, Layers3, Radio, Scale, Shield, X } from 'lucide-react'
 import type { WorldFormation, WorldOverview, WorldStory, WorldKnowledgeChange } from '../../lib/api/world'
@@ -30,6 +30,7 @@ export function WorldScene({ stories, hotStories, focusedId, pending, failed, ca
   const { text, language } = useI18n()
   const reduced = useReducedMotion()
   const [inspect, setInspect] = useState(false)
+  const storyRef = useRef<HTMLDivElement>(null)
   const setRegion = onRegion
   const available = view === 'hot' ? stories.filter(s => s.kind === 'HotVulnerability') : region === 'vulnerability' ? stories : stories.filter(s => s.kind !== 'HotVulnerability')
   const regionStories = region ? available.filter(s => s.category === region) : available
@@ -70,7 +71,7 @@ export function WorldScene({ stories, hotStories, focusedId, pending, failed, ca
     <div className="ew-live-read"><p>{overview ? text(`过去 24 小时，完成 ${overview.windows['24h']?.scheduled_runs ?? 0} 次定时采集，捕获 ${overview.windows['24h']?.fresh_external_changes ?? 0} 次新变化，产生 ${overview.windows['24h']?.canonical_writes ?? 0} 次知识写入。`, `In the past 24 hours: ${overview.windows['24h']?.scheduled_runs ?? 0} scheduled acquisitions, ${overview.windows['24h']?.fresh_external_changes ?? 0} fresh changes and ${overview.windows['24h']?.canonical_writes ?? 0} knowledge writes.`) : overviewFailed ? text('来源与采集状态暂时不可读。', 'Source and acquisition status is unavailable.') : text('读取最近的采集与知识变化', 'Reading recent acquisition and knowledge changes')}</p>{overview ? <small>{text('测量于', 'Measured')} {new Date(overview.generated_at).toLocaleTimeString(language === 'zh' ? 'zh-CN' : 'en-US')}</small> : overviewFailed && <button onClick={onOverviewRetry}>{text('重试状态读取', 'Retry status read')}</button>}</div>
     <div className="ew-composition">
       <div className="ew-horizon" aria-hidden="true" />
-      <div className="ew-foreground">
+      <div className="ew-foreground" ref={storyRef}>
         <AnimatePresence mode="wait" initial={false}>
           {focused ? <motion.article key={focused.story_id} className="ew-story"
             initial={reduced ? false : { opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: reduced ? 0 : .2 }}>
@@ -97,6 +98,11 @@ export function WorldScene({ stories, hotStories, focusedId, pending, failed, ca
         </AnimatePresence>
       </div>
       <div className="ew-space-region">
+      {focused && (view === 'stories' || view === 'hot') && <button className="ew-mobile-spotlight" onClick={() => storyRef.current?.scrollIntoView({ behavior: reduced ? 'instant' : 'smooth', block: 'start' })}>
+        <span>{text('当前关注', 'IN FOCUS')} · {category ? text(category.zh, category.en) : text('世界信号', 'World signal')} / {sourceLabel(focused)}</span>
+        <strong>{focused.headline}</strong>
+        <small>{text('查看材料与来源', 'Read material and source')} <ArrowRight size={13} /></small>
+      </button>}
       <div className="ew-field-views" aria-label={text('观察世界', 'Observe the world')}>{[{ key: 'stories', zh: '世界动态', en: 'Signals' }, { key: 'sources', zh: '来源汇聚', en: 'Sources' }, { key: 'hot', zh: '浏览热区', en: 'Hot' }, { key: 'formation', zh: '富化与留存', en: 'Processing' }].map(v => <button key={v.key} aria-pressed={view === v.key} onClick={() => onView(v.key)}>{text(v.zh, v.en)}</button>)}</div>
       {view === 'sources' ? <WorldSourcesField sources={overview?.sources} failed={overviewFailed} directions={categories} onSource={category => { setRegion(category); setInspect(false) }} onRetry={onOverviewRetry} /> : view === 'hot' ? <WorldHotField stories={hotStories} focusedId={focused?.story_id} total={hotTotal} failed={hotFailed} pending={hotPending} page={hotPage} pageSize={hotPageSize} onPage={onHotPage} onFocus={onFocus} onRetry={onHotRetry} /> : view === 'formation' ? <WorldFormationField formation={formation} failed={formationFailed} onRetry={onFormationRetry} /> : <EvidenceAtlas onHot={() => onView('hot')} onHotSelect={onHotFromAtlas} hotStories={hotStories} directions={categories} overview={overview} stories={region ? regionStories : stories} focusedId={focused?.story_id} onSource={key => { setRegion(key); setInspect(false) }} onFocus={story => { onFocus(story); setInspect(false) }} changes={changes} changesPending={changesPending} changesFailed={changesFailed} onChangesRetry={onChangesRetry} total={hotTotal} />}
       </div>

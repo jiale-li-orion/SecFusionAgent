@@ -43,6 +43,7 @@
 .ew-space-region {
   min-width: 0;
 }
+.ew-mobile-spotlight { display: none; }
 
 .ew-first-read { display: grid; align-content: center; justify-items: start; gap: 14px; min-height: 430px; min-width: 0; padding: 28px 8px; color: #e2ecdc; }
 .ew-first-read > .product-glyph { color: #b7d7bd; }
@@ -5058,6 +5059,10 @@
 }
 
 @media (max-width:850px) {
+  .ew-mobile-spotlight { display: grid; width: 100%; gap: 8px; margin-bottom: 20px; padding: 15px 17px; border: 1px solid #bccab638; border-radius: 12px; background: linear-gradient(110deg,#4e6a4633,#192a22aa); color: #eef1e4; text-align: left; }
+  .ew-mobile-spotlight span { color: #b4d6a4; font-size: 9px; letter-spacing: .1em; }
+  .ew-mobile-spotlight strong { display: -webkit-box; overflow: hidden; -webkit-line-clamp: 3; -webkit-box-orient: vertical; font-size: clamp(16px,2.3vw,23px); font-weight: 560; line-height: 1.35; overflow-wrap: anywhere; }
+  .ew-mobile-spotlight small { display: inline-flex; align-items: center; gap: 5px; color: #c8e5bd; font-size: 10px; }
   .ew-composition {
     grid-template-columns: minmax(0,1fr);
     padding: 30px;
