@@ -3112,6 +3112,22 @@
   font-size: 8px;
   color: var(--muted);
 }
+.task-assembly { display: grid; gap: 15px; padding: 20px; margin: 12px 0; border: 1px solid #b7c7ad; border-radius: 12px; background: linear-gradient(145deg, #f0f3e9, #e5ecdf); min-width: 0; }
+.task-assembly-heading { display: grid; gap: 6px; min-width: 0; }
+.task-assembly-heading small { color: #66845d; font-size: 9px; }
+.task-assembly-heading strong { font-size: 10px; font-weight: 600; overflow-wrap: anywhere; }
+.task-assembly-coordinate > span { display: grid; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+.task-materialized { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 12px; padding-top: 12px; border-top: 1px solid #b7c7ad; font-size: 9px; }
+.task-materialized > div:first-child { display: grid; align-content: start; gap: 5px; }
+.task-materialized small { color: #71876d; font-size: 8px; }
+.task-materialized strong { font-size: 16px; }
+.task-assembly-footer { overflow-wrap: anywhere; }
+.task-assembly-fragments { border-top: 1px solid #b7c7ad; }
+.task-assembly-fragments summary { cursor: pointer; padding: 12px 0 0; font-size: 10px; color: #3e7152; }
+.task-assembly-fragments > div { display: grid; gap: 8px; padding-top: 12px; }
+.task-assembly-fragments > div > div { display: grid; gap: 5px; padding: 9px 11px; border-radius: 7px; background: #ffffff88; min-width: 0; overflow-wrap: anywhere; font-size: 9px; }
+.task-assembly-fragments small { color: #688066; }
+@media (max-width: 600px) { .task-materialized { grid-template-columns: 1fr; } }
 
 .task-context-ledger { padding: 15px; border: 1px solid #b6c8aa; border-radius: 12px; background: linear-gradient(145deg,#f0f4e9,#e1e9d8); box-shadow: inset 0 1px 0 #fff; }
 .task-context-head { display: grid; gap: 6px; min-width: 0; }

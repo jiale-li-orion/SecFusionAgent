@@ -43,11 +43,11 @@ function formatBudget(value: number) {
 export function RuntimeActivityView({ detail, onSkillSelect, onTaskSelect }: { detail: Awaited<ReturnType<typeof getAgentTask>>; onSkillSelect: (skillRef: string) => void; onTaskSelect: (runId: string) => void }) {
   const { text } = useI18n()
   const task = detail.task
-  const assembly = detail.prompt_assemblies[0] ?? null
+  const assembly = detail.prompt_assemblies.length > 0
   const latestCapability = detail.capabilities.at(-1) ?? null
   const latestEvent = detail.events.at(-1) ?? null
   const recovery = buildRecoveryTrace(detail.events)
-  const skills = assembly?.materialized_skill_refs ?? []
+  const skills = [...new Set(detail.prompt_assemblies.flatMap((item) => item.materialized_skill_refs))]
   const stateLabel = recovery
     ? recovery.resumed
       ? text('恢复链已落盘', 'RECOVERY TRACE PERSISTED')
@@ -260,7 +260,6 @@ export function TaskDossier({ detail, onSkillSelect }: { detail: Awaited<ReturnT
   const navigate = useNavigate()
   const [selectedCapability, setSelectedCapability] = useState<string | null>(null)
   const task = detail.task
-  const latestAssembly = detail.prompt_assemblies[0] ?? null
   const recoveryTrace = buildRecoveryTrace(detail.events)
   const blockedPreviousEvent = task.status === 'blocked' && detail.events.length > 1 ? detail.events.at(-2) ?? null : null
   return (
@@ -333,28 +332,30 @@ export function TaskDossier({ detail, onSkillSelect }: { detail: Awaited<ReturnT
         </section>
       )}
       <div className="task-events-title"><BrainCircuit size={14} /><strong>{text('PROMPT 装配', 'PROMPT ASSEMBLY')}</strong><span>{detail.prompt_assemblies.length}</span></div>
-      {latestAssembly ? (
-        <div className="task-assembly">
+      {detail.prompt_assemblies.length ? detail.prompt_assemblies.map((assembly, index) => (
+        <div className="task-assembly" key={assembly.assembly_id}>
+          <div className="task-assembly-heading"><small>{text(`装配 ${index + 1}`, `ASSEMBLY ${index + 1}`)} · {new Date(assembly.created_at).toLocaleString()}</small><strong className="mono">{assembly.assembly_id}</strong></div>
           <div className="task-assembly-coordinate">
-            <span><small>EXECUTION</small><strong className="mono">{latestAssembly.execution_id}</strong></span>
-            <span><small>ROLE REVISION</small><strong>{latestAssembly.role_revision}</strong></span>
-            <span><small>PROFILE REVISION</small><strong>{latestAssembly.execution_profile_revision}</strong></span>
+            <span><small>EXECUTION</small><strong className="mono">{assembly.execution_id}</strong></span>
+            <span><small>ROLE REVISION</small><strong>{assembly.role_revision}</strong></span>
+            <span><small>PROFILE REVISION</small><strong>{assembly.execution_profile_revision}</strong></span>
           </div>
           <div className="task-materialized">
-            <div><small>MATERIALIZED SKILLS</small><strong>{latestAssembly.materialized_skill_refs.length}</strong></div>
+            <div><small>MATERIALIZED SKILLS</small><strong>{assembly.materialized_skill_refs.length}</strong></div>
             <div className="task-ref-list">
-              {latestAssembly.materialized_skill_refs.length ? latestAssembly.materialized_skill_refs.map((ref) => <button key={ref} onClick={() => onSkillSelect(ref)}>{ref}</button>) : <span>{text('没有 materialized Skill', 'no materialized skill')}</span>}
+              {assembly.materialized_skill_refs.length ? assembly.materialized_skill_refs.map((ref) => <button key={ref} onClick={() => onSkillSelect(ref)}>{ref}</button>) : <span>{text('没有 materialized Skill', 'no materialized skill')}</span>}
             </div>
           </div>
           <div className="task-materialized">
-            <div><small>CAPABILITY VIEW</small><strong>{latestAssembly.materialized_capability_view_refs.length}</strong></div>
+            <div><small>CAPABILITY VIEW</small><strong>{assembly.materialized_capability_view_refs.length}</strong></div>
             <div className="task-ref-list">
-              {latestAssembly.materialized_capability_view_refs.length ? latestAssembly.materialized_capability_view_refs.map((ref) => <span key={ref}>{ref}</span>) : <span>{text('没有 materialized Capability view', 'no materialized capability view')}</span>}
+              {assembly.materialized_capability_view_refs.length ? assembly.materialized_capability_view_refs.map((ref) => <span key={ref}>{ref}</span>) : <span>{text('没有 materialized Capability view', 'no materialized capability view')}</span>}
             </div>
           </div>
-          <div className="task-assembly-footer"><span>{text(`${latestAssembly.percept_refs.length} 条 percept refs`, `${latestAssembly.percept_refs.length} percept refs`)}</span><span className="mono">{latestAssembly.materialized_ref_set_digest.slice(0, 18)}…</span></div>
+          <div className="task-assembly-footer"><span>{text(`${assembly.percept_refs.length} 条 percept refs`, `${assembly.percept_refs.length} percept refs`)}</span><span className="mono">{assembly.materialized_ref_set_digest}</span></div>
+          {assembly.fragments.length > 0 && <details className="task-assembly-fragments"><summary>{text('查看 Prompt 片段来源', 'Inspect prompt fragment sources')} · {assembly.fragments.length}</summary><div>{assembly.fragments.map((fragment, fragmentIndex) => <div key={`${assembly.assembly_id}:${fragmentIndex}`}><small>{fragment.kind ?? 'fragment'} · {fragment.trust_class ?? 'unknown'} · {fragment.disclosure_level ?? 'unspecified'}</small><strong className="mono">{fragment.source_ref ?? 'source unknown'}</strong><span>{fragment.selection_reason ?? text('未记录选择原因', 'Selection reason unavailable')}</span></div>)}</div></details>}
         </div>
-      ) : <div className="capability-empty">{text('当前 Task 没有持久化 PromptAssemblyRecord。', 'No persisted PromptAssemblyRecord for this Task.')}</div>}
+      )) : <div className="capability-empty">{text('当前 Task 没有持久化 PromptAssemblyRecord。', 'No persisted PromptAssemblyRecord for this Task.')}</div>}
       <TaskContextLedger context={detail.context} />
       <TaskModelLedger attempts={detail.model_attempts} />
       <div className="task-events-title"><CircleDot size={14} /><strong>{text('预算控制', 'BUDGET GOVERNOR')}</strong><span>{detail.budget ? Object.keys(detail.budget.limits).length : 0}</span></div>
