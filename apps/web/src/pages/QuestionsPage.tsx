@@ -13,18 +13,10 @@ import { getKnowledgeObject, searchIntelligence } from '../lib/api/intelligence'
 import {
   getDecision, getInvestigation, getInvestigationActivity, getQuestionSession,
   listAccountConversations, streamQuestion, type ProductRuntimeEvent,
-  type DecisionView, type QuestionSessionTurn, type TaskKind,
+  type DecisionView, type QuestionSessionTurn,
 } from '../lib/api/investigations'
 import { useI18n } from '../lib/i18n'
 import './questions-space.css'
-
-const profiles: Array<{ id: string; task: TaskKind; zh: string; en: string; description: string; descriptionEn: string; glyph: string }> = [
-  { id: 'DIRECT', task: 'lookup', zh: '快速回答', en: 'Direct', description: '从当前已确认事实回答', descriptionEn: 'Answer from confirmed facts in the current world.', glyph: 'start' },
-  { id: 'RETRIEVE', task: 'retrieve', zh: '证据检索', en: 'Retrieve', description: '在本地证据中寻找相关对象与原文', descriptionEn: 'Find relevant objects and source passages across local evidence.', glyph: 'intelligence' },
-  { id: 'VERIFY', task: 'verify_version_fix', zh: '精准核验', en: 'Verify', description: '核对指定对象的版本、修复与冲突', descriptionEn: 'Verify versions, fixes, and conflicts for a target.', glyph: 'vulnerability' },
-  { id: 'INVESTIGATE', task: 'investigate_incident', zh: '深度调查', en: 'Investigate', description: '启动可继续追问的多步调查', descriptionEn: 'Open a multi-step investigation you can continue.', glyph: 'investigations' },
-  { id: 'WATCH', task: 'watch_incident', zh: '持续守望', en: 'Watch', description: '持续关注目标，世界变化后继续调查', descriptionEn: 'Watch a target and resume when the world changes.', glyph: 'observatory' },
-]
 
 const eventNames = [
   'started', 'status_changed', 'progress', 'finding_added', 'finding_changed',
@@ -32,8 +24,21 @@ const eventNames = [
   'waiting', 'completed', 'failed', 'canceled',
 ]
 
-function profileForTask(task: string) {
-  return profiles.find(item => item.task === task)?.id ?? 'INVESTIGATE'
+function routeLabel(task: string, text: (zh: string, en: string) => string) {
+  if (task === 'lookup') return text('事实核对', 'Fact check')
+  if (task === 'retrieve') return text('证据检索', 'Evidence search')
+  return text('持续调查', 'Investigation')
+}
+
+function readableTarget(value: string) {
+  const urlStart = value.indexOf('https://')
+  if (urlStart < 0) return value
+  try {
+    const url = new URL(value.slice(urlStart))
+    const filename = decodeURIComponent(url.pathname.split('/').at(-1) ?? '')
+      .replace(/\.(pdf|html?)$/i, '').replaceAll('-', ' ').trim()
+    return filename || url.hostname
+  } catch { return value }
 }
 
 function caseStateCopy(status: string, text: (zh: string, en: string) => string) {
@@ -70,13 +75,10 @@ export function QuestionsPage() {
       ? `/?story=${encodeURIComponent(origin)}`
       : null
   const selectedTurn = Number(params.get('turn')) || null
-  const initialProfile = params.get('profile')?.toUpperCase() ?? 'RETRIEVE'
   const routeTarget = params.get('cve') ?? (params.get('object') ? `object:${params.get('object')}` : '')
   const routeQuestion = params.get('question') ?? ''
-  const routeIdentity = JSON.stringify([sessionId, initialProfile, routeTarget, routeQuestion])
+  const routeIdentity = JSON.stringify([sessionId, routeTarget, routeQuestion])
   const [previousRouteIdentity, setPreviousRouteIdentity] = useState(routeIdentity)
-  const [profile, setProfile] = useState(profiles.some(item => item.id === initialProfile) ? initialProfile : 'RETRIEVE')
-  const selectedProfile = profiles.find(item => item.id === profile) ?? profiles[1]
   const [target, setTarget] = useState(routeTarget)
   const [targetLabel, setTargetLabel] = useState('')
   const [searchTarget, setSearchTarget] = useState('')
@@ -100,7 +102,6 @@ export function QuestionsPage() {
 
   if (routeIdentity !== previousRouteIdentity) {
     setPreviousRouteIdentity(routeIdentity)
-    setProfile(profiles.some(item => item.id === initialProfile) ? initialProfile : 'RETRIEVE')
     setTarget(routeTarget)
     setTargetLabel('')
     setQuestion(routeQuestion)
@@ -138,7 +139,8 @@ export function QuestionsPage() {
   })
   const resolvedTarget = targetObject.data?.external_identifiers.cve?.[0]
     ?? (typeof targetObject.data?.properties.display_name === 'string' ? targetObject.data.properties.display_name : null)
-    ?? targetObject.data?.canonical_key
+    ?? (typeof targetObject.data?.properties.title === 'string' ? targetObject.data.properties.title : null)
+    ?? (targetObject.data?.canonical_key ? readableTarget(targetObject.data.canonical_key) : null)
   const visibleTarget = targetLabel || (sessionId ? resolvedTarget : null) || target || (targetObjectId ? `object:${targetObjectId}` : '')
   const caseId = focusTurn?.investigation_ref?.replace(/^case:/, '') ?? params.get('case')
   const caseActivity = useQuery({ queryKey: ['question-case-activity', caseId], queryFn: () => getInvestigationActivity(caseId!), enabled: Boolean(caseId), retry: false })
@@ -198,15 +200,10 @@ export function QuestionsPage() {
   async function submit() {
     const prompt = question.trim()
     if (!prompt || busy) return
-    const selected = selectedProfile
     const cve = target.trim().toUpperCase()
     const objectId = target.trim().match(/^object:(.+)$/i)?.[1]?.trim()
     if (!sessionId && target.trim() && !/^CVE-\d{4}-\d+$/.test(cve) && !objectId) {
       setError(text('请从搜索结果选择对象，或输入完整 CVE 编号。', 'Choose an object from the search results or enter a complete CVE ID.'))
-      return
-    }
-    if (!sessionId && selected.id !== 'RETRIEVE' && !/^CVE-\d{4}-\d+$/.test(cve) && !objectId) {
-      setError(text('请选择 CVE 或 object:<id> 作为调查目标。', 'Select a CVE or object:<id> as the target.'))
       return
     }
     setBusy(true)
@@ -224,7 +221,6 @@ export function QuestionsPage() {
         sessionId: sessionId ?? undefined,
         cveId: !sessionId && /^CVE-\d{4}-\d+$/.test(cve) ? cve : undefined,
         objectId: !sessionId ? objectId : undefined,
-        taskKind: selected.task,
         interactiveTimeoutSeconds: 90,
       }, {
         includeReasoning: showReasoning,
@@ -251,7 +247,6 @@ export function QuestionsPage() {
       }
       next.set('session', result.session_id)
       next.set('turn', String(result.turn_index))
-      next.set('profile', profile)
       if (target.trim()) next.set(objectId ? 'object' : 'cve', objectId ?? cve)
       if (result.mode === 'accepted' && result.investigation) next.set('case', result.investigation.case_id)
       if (result.mode === 'completed' && result.decision) next.set('decision', result.decision.decision_id)
@@ -272,7 +267,6 @@ export function QuestionsPage() {
     setQuestion('')
     setTarget('')
     setTargetLabel('')
-    setProfile('RETRIEVE')
     setPendingQuestion('')
     setFailedRunId(null)
     setDraftRaw('')
@@ -282,7 +276,7 @@ export function QuestionsPage() {
   }
 
   return <section className="qa-workspace">
-    <header className="qa-heading">
+    <header className={`qa-heading ${!sessionId ? 'is-new' : ''}`}>
       <div className="qa-heading-mark" aria-hidden="true"><span /><span /><span /></div>
       <div><small>03 / QUESTION INTELLIGENCE · M6</small><h1>{text('证据问答', 'Evidence Dialogue')}</h1><p>{text('提出问题，沿着证据、上下文与执行轨迹走到结论。', 'Ask a question and follow its evidence, context, and execution to the conclusion.')}</p></div>
       <span className="qa-heading-state"><Radio size={13} />{text('持续会话', 'CONTINUOUS SESSION')}</span>
@@ -290,7 +284,7 @@ export function QuestionsPage() {
 
     {originPath && <div className="qa-origin"><ProductGlyph kind={incidentOrigin ? 'incidents' : originSpace === 'world' ? 'world' : 'intelligence'} size={20} /><div><small>{incidentOrigin ? text('来自事件档案', 'FROM INCIDENT DOSSIER') : originSpace === 'world' ? text('来自证据世界', 'FROM EVIDENCE WORLD') : text('来自情报档案', 'FROM INTELLIGENCE DOSSIER')}</small><strong>{params.get('targetLabel') || incidentOrigin || origin}</strong><p>{incidentOrigin ? text('这里会在现有证据中检索，不会把事件档案自动当作已核验事实。', 'This searches existing evidence; the incident dossier is not automatically treated as verified fact.') : text('沿当前材料继续提问，结论以实际引用的证据为准。', 'Continue from this material; conclusions depend on cited evidence.')}</p></div><Link to={originPath}>{text('返回原位置', 'Back to source')}<ArrowUpRight size={13} /></Link></div>}
 
-    <div className="qa-layout">
+    <div className={`qa-layout ${!sessionId && !pendingQuestion ? 'is-new' : ''} ${!conversationItems.length ? 'is-empty-history' : ''}`}>
       <aside className="qa-sessions" aria-label={text('会话列表', 'Conversations')}>
         <div className="qa-rail-head"><small>YOUR WORKSPACE</small><button onClick={newConversation} aria-label={text('新建会话', 'New conversation')}><Plus size={17} /></button></div>
         <h2>{text('会话', 'Conversations')}</h2>
@@ -298,7 +292,7 @@ export function QuestionsPage() {
         {conversations.isError && <button className="qa-retry" onClick={() => void conversations.refetch()}>{text('重试读取', 'Retry')}</button>}
         <nav className="qa-session-list">{conversationItems.map(item => {
           const current = item.session_id === sessionId
-          const next = new URLSearchParams({ session: item.session_id, turn: String(item.latest_turn.turn_index), profile: profileForTask(item.latest_turn.task_kind) })
+          const next = new URLSearchParams({ session: item.session_id, turn: String(item.latest_turn.turn_index) })
           return <Link key={item.session_id} to={`/start?${next}`} className={current ? 'current' : ''}>
             <span>{item.latest_turn.question}</span><small>{formatTime(item.updated_at, language)}</small><ChevronRight size={13} />
           </Link>
@@ -310,20 +304,19 @@ export function QuestionsPage() {
       </aside>
 
       <main className={`qa-dialogue ${!sessionId && !pendingQuestion ? 'is-new' : ''}`}>
-        <div className="qa-dialogue-head"><div><small>ORACLE / ARGUS</small><strong>{sessionId ? text('正在延续同一条证据链', 'Continuing one evidence chain') : text('从一个有意义的问题开始', 'Begin with a meaningful question')}</strong></div><span>{turns.length ? `${turns.length} ${text('回合', 'turns')}` : 'NEW'}</span></div>
+        <div className="qa-dialogue-head"><div><small>{text('证据会话', 'EVIDENCE SESSION')}</small><strong>{sessionId ? text('沿着已有证据继续追问', 'Continue from the evidence already found') : text('从一个有意义的问题开始', 'Begin with a meaningful question')}</strong></div><span>{turns.length ? `${turns.length} ${text('回合', 'turns')}` : 'NEW'}</span></div>
         <div className="qa-transcript" aria-live="polite" ref={transcriptRef}>
           {history.hasNextPage && <button className="qa-load-more qa-load-turns" onClick={() => void history.fetchNextPage()} disabled={history.isFetchingNextPage}>{history.isFetchingNextPage ? text('正在恢复更早回合…', 'Restoring earlier turns…') : text('查看更早回合', 'Load earlier turns')}</button>}
           {history.isFetchNextPageError && <button className="qa-retry" onClick={() => void history.fetchNextPage()}>{text('重试恢复更早回合', 'Retry earlier turns')}</button>}
           {history.isLoading && <p className="qa-muted">{text('恢复完整会话…', 'Restoring conversation…')}</p>}
           {history.isError && <div className="qa-error">{text('无法读取这段会话。', 'Could not load this conversation.')}<button onClick={() => void history.refetch()}>{text('重试', 'Retry')}</button></div>}
-          {!sessionId && !pendingQuestion && <div className="qa-empty"><div className="qa-empty-orbit"><span /><span /><b /></div><small>QUESTION → EVIDENCE → DECISION</small><h2>{text('答案应该能追到它的来源。', 'Every answer should lead back to its source.')}</h2><p>{text('快速回答、检索、核验、调查与持续守望在同一会话中衔接。选择路径后，系统保留目标和上下文；每个结论都能打开原始证据。', 'Direct answers, retrieval, verification, investigation and watch continue in one session. Every conclusion opens its source evidence.')}</p></div>}
+          {!sessionId && !pendingQuestion && <div className="qa-empty"><small>QUESTION → EVIDENCE → DECISION</small><h2>{text('今天想弄清楚什么？', 'What would you like to investigate?')}</h2><p>{text('直接用自然语言提问。系统会查找相关材料、辨认证据边界，并在需要时继续调查。', 'Ask naturally. The system finds relevant material, checks its evidence, and continues investigating when needed.')}</p><div className="qa-example-questions"><button onClick={() => setQuestion(text('Hugging Face 最近发生了什么安全事件？', 'What happened in the recent Hugging Face security incident?'))}>{text('Hugging Face 最近发生了什么安全事件？', 'What happened in the recent Hugging Face security incident?')}</button><button onClick={() => setQuestion(text('最近有哪些值得关注的供应链攻击？', 'Which recent supply-chain attacks deserve attention?'))}>{text('最近有哪些值得关注的供应链攻击？', 'Which recent supply-chain attacks deserve attention?')}</button></div></div>}
           {turns.map(turn => <ConversationTurn key={turn.turn_index} turn={turn} active={!failedRunId && focusTurn?.turn_index === turn.turn_index} sessionId={sessionId!} reasoning={completedReasoning[`${sessionId}:${turn.turn_index}`] ?? null} onSelect={() => { setFailedRunId(null); const next = new URLSearchParams(params); next.set('turn', String(turn.turn_index)); setParams(next, { replace: true }) }} onEvidence={setEvidence} />)}
           {pendingQuestion && <div className="qa-turn qa-turn-pending"><div className="qa-question"><small>{text('你 · 当前回合', 'YOU · CURRENT TURN')}</small><p>{pendingQuestion}</p></div><StreamedDecisionDraft draftRaw={draftRaw} reasoningRaw={reasoningRaw} reasoningOpen={reasoningOpen} onReasoningOpen={setReasoningOpen} phase={streamPhase} /></div>}
         </div>
         <div className="qa-compose">
-          <div className="qa-profiles" role="group" aria-label={text('问答路径', 'Question path')}>{profiles.map(item => <button key={item.id} className={profile === item.id ? 'selected' : ''} onClick={() => setProfile(item.id)} disabled={busy} aria-pressed={profile === item.id}><ProductGlyph kind={item.glyph} size={22} /><span>{text(item.zh, item.en)}</span><small>{item.id}</small></button>)}</div>
-          <p className="qa-profile-guidance"><span>{text(selectedProfile.description, selectedProfile.descriptionEn)}</span><small>{sessionId ? text('沿用本会话目标', 'SESSION TARGET') : profile === 'RETRIEVE' ? text('目标可选', 'TARGET OPTIONAL') : text('需要 CVE 或对象', 'TARGET REQUIRED')}</small></p>
-          <div className="qa-compose-grid"><label className="qa-target"><small>{text('调查对象', 'TARGET')}</small><input value={visibleTarget} onChange={event => { setTarget(event.target.value); setTargetLabel('') }} disabled={busy || Boolean(sessionId)} placeholder={text('搜索对象或输入 CVE', 'Search an object or enter a CVE')} aria-label={text('查找调查对象', 'Find a question target')} /></label><label className="qa-question-input"><small>{text('你的问题', 'YOUR QUESTION')}</small><textarea value={question} onChange={event => setQuestion(event.target.value)} disabled={busy} rows={2} placeholder={text('问一个具体问题；Ctrl / ⌘ + Enter 发送', 'Ask a precise question; Ctrl / ⌘ + Enter to send')} onKeyDown={event => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !event.nativeEvent.isComposing) { event.preventDefault(); void submit() } }} /></label><button className="qa-send" onClick={() => void submit()} disabled={busy || !question.trim()} aria-label={text('发送问题', 'Send question')}><Send size={18} /><span>{busy ? text('运行中', 'RUNNING') : text('发送', 'SEND')}</span></button></div>
+          <div className="qa-compose-grid"><label className="qa-question-input"><small>{text('向 SecFusion 提问', 'ASK SECFUSION')}</small><textarea value={question} onChange={event => setQuestion(event.target.value)} disabled={busy} rows={3} placeholder={text('例如：你知道 Hugging Face 事件吗？', 'For example: What happened in the Hugging Face incident?')} onKeyDown={event => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !event.nativeEvent.isComposing) { event.preventDefault(); void submit() } }} /></label><button className="qa-send" onClick={() => void submit()} disabled={busy || !question.trim()} aria-label={text('发送问题', 'Send question')}><Send size={18} /><span>{busy ? text('运行中', 'RUNNING') : text('发送', 'SEND')}</span></button></div>
+          {(visibleTarget || !sessionId) && <details className="qa-scope" open={Boolean(routeTarget)}><summary>{visibleTarget ? `${text('已限定对象', 'Scoped to')} · ${visibleTarget}` : text('限定对象或 CVE（可选）', 'Limit to an object or CVE (optional)')}</summary>{!sessionId && <label className="qa-target"><input value={visibleTarget} onChange={event => { setTarget(event.target.value); setTargetLabel('') }} disabled={busy} placeholder={text('搜索对象或输入 CVE', 'Search an object or enter a CVE')} aria-label={text('查找调查对象', 'Find a question target')} /></label>}</details>}
           {targetSearch.isFetching && <p className="qa-target-search-state" role="status">{text('正在查找情报对象…', 'Finding intelligence objects…')}</p>}
           {targetSearch.isError && <button className="qa-retry" onClick={() => void targetSearch.refetch()}>{text('重试对象检索', 'Retry target search')}</button>}
           {targetSearch.data && !targetLabel && searchTarget === target.trim() && <div className="qa-target-results" aria-label={text('匹配的情报对象', 'Matching intelligence objects')}>{targetSearch.data.items.map(item => <button key={item.object_id} onClick={() => { setTarget(`object:${item.object_id}`); setTargetLabel(item.label) }}><ProductGlyph kind={item.object_type} size={19} /><span><strong>{item.label}</strong><small>{item.object_type}</small></span><ArrowUpRight size={13} /></button>)}{!targetSearch.data.items.length && <span>{text('没有匹配对象；可直接输入 CVE 编号。', 'No matching object. You can enter a CVE ID directly.')}</span>}</div>}
@@ -347,7 +340,7 @@ function ConversationTurn({ turn, active, sessionId, reasoning, onSelect, onEvid
   return <article className={`qa-turn ${active ? 'active' : ''}`}>
     <button className="qa-turn-index" onClick={onSelect} aria-label={text(`查看第 ${turn.turn_index} 回合轨迹`, `Inspect turn ${turn.turn_index}`)}>{String(turn.turn_index).padStart(2, '0')}</button>
     <div className="qa-question"><small>{text('你', 'YOU')} / {formatTime(turn.created_at, language)}</small><p>{turn.question}</p></div>
-    <div className="qa-answer"><div className="qa-answer-meta"><span>{turn.decision_ref ? 'ORACLE' : 'ARGUS'} · {profileForTask(turn.task_kind)}</span><button onClick={onSelect}>{text('查看运行轨迹', 'INSPECT TRACE')}<ArrowUpRight size={12} /></button></div>
+    <div className="qa-answer"><div className="qa-answer-meta"><span>{routeLabel(turn.task_kind, text)}</span><button onClick={onSelect}>{text('查看运行轨迹', 'INSPECT TRACE')}<ArrowUpRight size={12} /></button></div>
       {decision.isLoading && turn.decision_ref && <p className="qa-muted">{text('正在恢复研判…', 'Restoring decision…')}</p>}
       {decision.isError && <button className="qa-retry" onClick={() => void decision.refetch()}>{text('研判读取失败 · 重试', 'Decision failed · Retry')}</button>}
       {decision.data && <DecisionReport decision={decision.data} onEvidence={onEvidence} dialogue />}

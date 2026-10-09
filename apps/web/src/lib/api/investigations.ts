@@ -133,7 +133,7 @@ export async function askQuestion(input: {
   cveId?: string
   objectId?: string
   sessionId?: string
-  taskKind: TaskKind
+  taskKind?: TaskKind
   requiredSourceRoles?: string[]
   priority?: number
   interactiveTimeoutSeconds?: number

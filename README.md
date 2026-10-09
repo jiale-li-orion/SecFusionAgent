@@ -29,6 +29,8 @@ SecFusionAgent builds a continuously evolving intelligence system for AI securit
 
 The Agent here sits on top of a verifiable data plane. External reads carry acquisition provenance; important conclusions trace back to the original observation / artifact; historical revisions are retained and current views are rebuildable. Agent work then covers investigation, tool calls and reasoning; it does not replace evidence authority.
 
+In the Product Web, QUESTIONS is a full account-owned conversation. A user asks in natural language; the API identifies stable references, constructs bounded evidence queries, and decides whether the current world supports a cited answer or needs a continuing investigation. The page streams the model's draft, then replaces it with the validated, human-readable report and its evidence, context, model and task trace. An object or CVE can be supplied as optional scope; choosing an internal execution mode is not required.
+
 [Architecture Views](https://jiale-li-orion.github.io/SecFusionAgent/index.en.html) · [Project Wiki](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Home.en) · [Requirements](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Requirements-SPEC.en) · [Technical Design 1](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design-1.en) · [Technical Design 2](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design-2.en) · Website：[jiale-li-orion.github.io/SecFusionAgent](https://jiale-li-orion.github.io/SecFusionAgent/)
 
 <!-- BEGIN GENERATED EVALUATION STATUS -->
