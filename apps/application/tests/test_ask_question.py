@@ -11,6 +11,11 @@ from apps.application.commands.ask_question import AskQuestionCommand, AskQuesti
 from apps.application.errors import LifecycleConflictError, PermissionDeniedError
 from apps.application.queries.decisions import DecisionQueries
 from apps.application.question_facts import render_relation_fact
+from apps.application.question_intent import (
+    infer_question_route,
+    lexical_queries,
+    unbound_target_message,
+)
 from apps.application.question_sessions import QuestionSessionModel, QuestionSessionTurnModel
 from apps.evaluation_runtime import load_product_question_session_trace
 from apps.runtime_models import register_runtime_models
@@ -1203,6 +1208,95 @@ async def test_question_session_rejects_cross_principal_followup() -> None:
         await engine.dispose()
 
 
+def test_chat_intent_keeps_natural_question_and_extracts_stable_identifiers() -> None:
+    assert infer_question_route("你知道Huggingface事件吗", cve_id=None, object_id=None) == (
+        TaskKind.RETRIEVE, None,
+    )
+    assert lexical_queries("你知道Huggingface事件吗") == ["你知道Huggingface事件吗", "Huggingface"]
+    assert infer_question_route(f"{CVE} 影响哪个版本?", cve_id=None, object_id=None) == (
+        TaskKind.RETRIEVE, CVE,
+    )
+    assert "多个" in unbound_target_message("这件事是什么", ambiguous=True)
+
+
+@pytest.mark.asyncio
+async def test_natural_chat_falls_back_to_named_term_and_escalates_with_trace() -> None:
+    class SelectiveRetrieval(_FixtureRetrieval):
+        def __init__(self) -> None:
+            self.queries: list[str] = []
+
+        async def search(self, session, *, query: str, limit: int = 20, source_ids=None):
+            self.queries.append(query)
+            return []
+
+        async def search_compact_name(self, session, *, query: str, limit: int = 20):
+            self.queries.append(f"compact:{query}")
+            return await super().search(session, query=query, limit=limit)
+
+    engine, factory = await _factory()
+    retrieval = SelectiveRetrieval()
+    provider = _Provider(DecisionPlannerResponse(action=ContinuationProposal(
+        proposition_or_question="Verify the event against a primary source",
+        purpose="verify_retrieved_document",
+        target_objects=[DOCUMENT_ID],
+        reason="the retrieved passage needs primary confirmation",
+    )))
+    try:
+        async with factory() as session:
+            result = await _use_case(provider, retrieval=retrieval).execute(
+                session,
+                AskQuestionCommand(
+                    principal="user:test", request_id="natural-chat-fallback-1",
+                    question="你知道Huggingface事件吗",
+                ),
+            )
+        assert result.mode == "accepted"
+        assert result.investigation is not None
+        assert result.investigation.target_object_ids == [DOCUMENT_ID]
+        assert retrieval.queries == ["你知道Huggingface事件吗", "compact:Huggingface"]
+        async with factory() as session:
+            invocations = list(await session.scalars(select(RetrievalInvocationModel)))
+            assert len(invocations) == 2
+            turn = await session.scalar(select(QuestionSessionTurnModel))
+            assert turn is not None and turn.task_kind == "retrieve"
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_natural_chat_without_any_target_returns_clear_unknown() -> None:
+    class NoResultsRetrieval(LexicalRetrievalOperator):
+        async def search(self, session, *, query: str, limit: int = 20, source_ids=None):
+            return []
+
+        async def search_compact_name(self, session, *, query: str, limit: int = 20):
+            return []
+
+    engine, factory = await _factory()
+    provider = _Provider(DecisionPlannerResponse(action=ContinuationProposal(
+        proposition_or_question="Find a source for the event",
+        purpose="find_missing_event",
+        target_objects=[],
+        reason="No bounded source is available",
+    )))
+    try:
+        async with factory() as session:
+            result = await _use_case(provider, retrieval=NoResultsRetrieval()).execute(
+                session,
+                AskQuestionCommand(
+                    principal="user:test", request_id="natural-chat-empty-1",
+                    question="你知道不存在的事件吗",
+                ),
+            )
+        assert result.mode == "completed"
+        assert result.decision is not None
+        assert result.decision.answer == {"status": "insufficient_evidence"}
+        assert result.decision.report_paragraphs[0].evidence_refs == []
+        assert "没有找到可继续调查的对象" in result.decision.report_paragraphs[0].text
+    finally:
+        await engine.dispose()
+
+
 @pytest.mark.asyncio
 async def test_targetless_retrieve_continuation_binds_retrieved_document_target() -> None:
     engine, factory = await _factory()
@@ -1298,7 +1392,7 @@ async def test_targetless_retrieve_continuation_rejects_target_escape() -> None:
 
 
 @pytest.mark.asyncio
-async def test_targetless_retrieve_continuation_without_selected_target_blocks() -> None:
+async def test_targetless_retrieve_continuation_binds_single_found_target() -> None:
     engine, factory = await _factory()
     provider = _Provider(
         DecisionPlannerResponse(
@@ -1312,25 +1406,26 @@ async def test_targetless_retrieve_continuation_without_selected_target_blocks()
     )
     try:
         async with factory() as session:
-            with pytest.raises(LifecycleConflictError, match="requires a bound target"):
-                await _use_case(provider, retrieval=_FixtureRetrieval()).execute(
-                    session,
-                    AskQuestionCommand(
-                        principal="user:test",
-                        request_id="question-retrieve-blocked-1",
-                        question="Find more evidence about the research note",
-                        task_kind=TaskKind.RETRIEVE,
-                    ),
-                )
+            result = await _use_case(provider, retrieval=_FixtureRetrieval()).execute(
+                session,
+                AskQuestionCommand(
+                    principal="user:test",
+                    request_id="question-retrieve-blocked-1",
+                    question="Find more evidence about the research note",
+                    task_kind=TaskKind.RETRIEVE,
+                ),
+            )
+        assert result.mode == "accepted"
+        assert result.investigation is not None
+        assert result.investigation.target_object_ids == [DOCUMENT_ID]
         async with factory() as session:
             assert int(
                 await session.scalar(select(func.count()).select_from(InvestigationCaseModel)) or 0
-            ) == 0
+            ) == 1
             run = await session.scalar(select(TaskRunModel))
             execution = await session.scalar(select(ExecutionRunModel))
-            assert run is not None and run.status == "blocked"
-            assert run.stop_reason == "continuation_requires_bound_target"
-            assert execution is not None and execution.status == "blocked"
+            assert run is not None and run.status == "completed"
+            assert execution is not None and execution.status == "completed"
     finally:
         await engine.dispose()
 

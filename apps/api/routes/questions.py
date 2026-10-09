@@ -33,7 +33,7 @@ class AskQuestionRequest(BaseModel):
     session_id: str | None = None
     cve_id: str | None = None
     object_id: str | None = None
-    task_kind: TaskKind = TaskKind.LOOKUP
+    task_kind: TaskKind | None = None
     required_source_roles: list[str] = Field(default_factory=list)
     priority: int = Field(default=50, ge=0, le=100)
     interactive_timeout_seconds: int = Field(default=5, ge=1, le=120)
@@ -98,7 +98,7 @@ async def ask_question(
     command = _command(payload, context)
     session_factory = getattr(request.app.state, "session_factory", None)
     model_enabled = (
-        payload.task_kind in {TaskKind.LOOKUP, TaskKind.RETRIEVE}
+        command.task_kind in {None, TaskKind.LOOKUP, TaskKind.RETRIEVE}
         and bool(settings.model_base_url)
         and bool(settings.model_name)
         and session_factory is not None
@@ -163,7 +163,7 @@ async def stream_question(
             try:
                 async with factory() as session:
                     model_enabled = (
-                        payload.task_kind in {TaskKind.LOOKUP, TaskKind.RETRIEVE}
+                        command.task_kind in {None, TaskKind.LOOKUP, TaskKind.RETRIEVE}
                         and bool(settings.model_base_url)
                         and bool(settings.model_name)
                     )

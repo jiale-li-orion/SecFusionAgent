@@ -32,6 +32,11 @@ from apps.application.errors import (
 from apps.application.queries.decision_sources import decision_citation_sources
 from apps.application.queries.investigations import decision_view
 from apps.application.question_facts import render_claim_fact, render_relation_fact
+from apps.application.question_intent import (
+    infer_question_route,
+    lexical_queries,
+    unbound_target_message,
+)
 from apps.application.question_sessions import QuestionSessionContext, QuestionSessionStore
 from apps.application.views.questions import QuestionResultView
 from apps.task_admission import create_task_contract_service
@@ -93,7 +98,7 @@ class AskQuestionCommand(BaseModel):
     question: str = Field(min_length=1)
     cve_id: str | None = None
     object_id: str | None = None
-    task_kind: TaskKind = TaskKind.LOOKUP
+    task_kind: TaskKind | None = None
     required_source_roles: list[str] = Field(default_factory=list)
     priority: int = Field(default=50, ge=0, le=100)
     interactive_timeout_seconds: int = Field(default=5, ge=1, le=120)
@@ -111,8 +116,12 @@ class AskQuestionCommand(BaseModel):
             self.cve_id or self.object_id or self.session_id
         ):
             raise ValueError("lookup question requires cve_id, object_id, or session_id")
-        if self.task_kind not in {TaskKind.LOOKUP, TaskKind.RETRIEVE} and not (
+        if (
+            self.task_kind is not None
+            and self.task_kind not in {TaskKind.LOOKUP, TaskKind.RETRIEVE}
+            and not (
             self.cve_id or self.object_id or self.session_id
+            )
         ):
             raise ValueError("investigation question requires cve_id, object_id, or session_id")
         if self.task_kind is TaskKind.ENRICHMENT:
@@ -185,6 +194,11 @@ class AskQuestionUseCase:
             session_id=command.session_id,
             principal=command.principal,
         )
+        if command.task_kind is None:
+            task_kind, cve_id = infer_question_route(
+                command.question, cve_id=command.cve_id, object_id=command.object_id,
+            )
+            command = command.model_copy(update={"task_kind": task_kind, "cve_id": cve_id})
         latest_investigation_turn = await self._sessions.latest_investigation_turn(
             session,
             session_id=command.session_id,
@@ -332,6 +346,30 @@ class AskQuestionUseCase:
                     ) from exc
             else:
                 proposal = DecisionService().request_continuation(context.state, proposal)
+                if not proposal.target_objects and len(context.state.targets) == 1:
+                    proposal = proposal.model_copy(
+                        update={"target_objects": list(context.state.targets)}
+                    )
+                if (
+                    not proposal.target_objects
+                    and command.cve_id is None
+                    and command.object_id is None
+                ):
+                    message = unbound_target_message(
+                        command.question, ambiguous=bool(context.state.targets),
+                    )
+                    proposal = DecisionDraft(
+                        case_id=context.state.case_id,
+                        case_revision=context.state.case_revision,
+                        unknowns=[message],
+                        answer_payload={"status": "insufficient_evidence"},
+                        report_paragraphs=[{"text": message, "evidence_refs": []}],
+                        stop_reason="no_bound_investigation_target",
+                        model_prompt_revision="decision-model-v4",
+                    )
+                    decision = DecisionService().decide(
+                        context.state, proposal, citation_sources=context.citation_sources,
+                    )
         except Exception as exc:
             if isinstance(exc, TimeoutError):
                 stop_reason = "question_deadline_exceeded"
@@ -796,14 +834,14 @@ class AskQuestionUseCase:
                     if added >= _QUESTION_MAX_SECOND_HOP_RELATIONS:
                         break
         if command.task_kind is TaskKind.RETRIEVE:
-            candidates, invocation_ref = await self._retrieve_candidates(
+            candidates, invocation_refs = await self._retrieve_candidates(
                 session,
                 command,
                 session_context=session_context,
                 turn_index=turn_index,
                 revision=revision,
             )
-            retrieval_invocation_refs.append(invocation_ref)
+            retrieval_invocation_refs.extend(invocation_refs)
             for candidate in candidates:
                 chunk_id = candidate.document_chunk_id
                 text = candidate.payload.get("text")
@@ -898,14 +936,14 @@ class AskQuestionUseCase:
         question_state = _question_state_projection(state, goal=command.question)
 
         if command.task_kind is TaskKind.RETRIEVE:
-            candidates, invocation_ref = await self._retrieve_candidates(
+            candidates, invocation_refs = await self._retrieve_candidates(
                 session,
                 command,
                 session_context=session_context,
                 turn_index=turn_index,
                 revision=current_revision,
             )
-            retrieval_invocation_refs.append(invocation_ref)
+            retrieval_invocation_refs.extend(invocation_refs)
             retrieved_items: list[InvestigationStateItem] = []
             for candidate in candidates:
                 chunk_id = candidate.document_chunk_id
@@ -961,11 +999,54 @@ class AskQuestionUseCase:
         session_context: QuestionSessionContext,
         turn_index: int,
         revision: int,
+    ) -> tuple[list[RetrievedCandidate], list[str]]:
+        found: dict[str, RetrievedCandidate] = {}
+        invocation_refs: list[str] = []
+        for query in lexical_queries(command.question):
+            if (
+                query != command.question.strip()
+                and query.isascii()
+                and query.isalpha()
+                and len(query) >= 6
+            ):
+                compact_candidates, compact_ref = await self._retrieve_query(
+                    session, command, query=query, session_context=session_context,
+                    turn_index=turn_index, revision=revision, compact_name=True,
+                )
+                invocation_refs.append(compact_ref)
+                for candidate in compact_candidates:
+                    found.setdefault(candidate.candidate_id, candidate)
+                if found:
+                    break
+            candidates, invocation_ref = await self._retrieve_query(
+                session, command, query=query, session_context=session_context,
+                turn_index=turn_index, revision=revision,
+            )
+            invocation_refs.append(invocation_ref)
+            for candidate in candidates:
+                found.setdefault(candidate.candidate_id, candidate)
+            if found:
+                break
+        return list(found.values())[:command.retrieval_limit], invocation_refs
+
+    async def _retrieve_query(
+        self,
+        session: AsyncSession,
+        command: AskQuestionCommand,
+        *,
+        query: str,
+        compact_name: bool = False,
+        session_context: QuestionSessionContext,
+        turn_index: int,
+        revision: int,
     ) -> tuple[list[RetrievedCandidate], str]:
-        request = RetrievalRequestCoordinate.lexical(
-            query=command.question,
-            knowledge_revision=revision,
-            limit=command.retrieval_limit,
+        request = (
+            RetrievalRequestCoordinate.compact_name(
+                query=query, knowledge_revision=revision, limit=command.retrieval_limit,
+            )
+            if compact_name else RetrievalRequestCoordinate.lexical(
+                query=query, knowledge_revision=revision, limit=command.retrieval_limit,
+            )
         )
         started_at = datetime.now(UTC)
         reusable = await self._retrieval_invocations.find_reusable(
@@ -988,10 +1069,12 @@ class AskQuestionUseCase:
                     disposition = RetrievalDisposition.REUSED
                     reuse_of_invocation_id = reusable.invocation_id
             if candidates is None:
-                candidates = await self._retrieval.search(
-                    session,
-                    query=command.question,
-                    limit=command.retrieval_limit,
+                candidates = await (
+                    self._retrieval.search_compact_name(
+                        session, query=query, limit=command.retrieval_limit,
+                    ) if compact_name else self._retrieval.search(
+                        session, query=query, limit=command.retrieval_limit,
+                    )
                 )
         except Exception as exc:
             # No TaskRun/Context exists yet. Roll back any provisional command

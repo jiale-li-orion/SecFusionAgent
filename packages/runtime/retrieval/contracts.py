@@ -53,6 +53,18 @@ class RetrievalRequestCoordinate(BaseModel):
             source_ids=sorted(set(source_ids or [])),
         )
 
+    @classmethod
+    def compact_name(
+        cls, *, query: str, knowledge_revision: int, limit: int,
+    ) -> RetrievalRequestCoordinate:
+        return cls(
+            operator="compact_name",
+            operator_revision="ascii-name-whitespace-fold-v1",
+            query_digest=sha256(query.strip().casefold().encode()).hexdigest(),
+            knowledge_revision=knowledge_revision,
+            limit=limit,
+        )
+
 
 class RetrievalInvocation(BaseModel):
     invocation_id: str

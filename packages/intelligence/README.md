@@ -80,7 +80,7 @@ The subpackages keep lifecycle-specific storage out of the generic Knowledge mod
 - `promotion/` — explicit hot/source state → durable Evidence/Knowledge promotion;
 - `structured/` — GitHub `Repo / Issue / PullRequest / Commit / Release` mapping and graph relations;
 - `documents/` — managed document identity, revision, parser output, chunks, and InsightCandidate state;
-- `retrieval/` — PostgreSQL lexical/dense index build/read contracts plus reference-preserving Knowledge/Evidence context reads used by M4 Perception; `by_chunk_refs` can deterministically re-read an already-selected ordered chunk set at exact DocumentRevision identity, while runtime reuse policy/provenance stays outside the information plane; retrieval returns candidates/refs and never grants factual authority by itself;
+- `retrieval/` — PostgreSQL lexical/dense index build/read contracts plus reference-preserving Knowledge/Evidence context reads used by M4 Perception; `search_compact_name` is a bounded fallback for Latin names written with or without internal spaces, and `by_chunk_refs` can re-read an ordered chunk set at exact DocumentRevision identity. Runtime reuse/provenance stays outside the information plane; retrieved candidates never gain factual authority by themselves;
 - `incident/` — Redis signal/candidate correlation plus durable Incident revisions/timeline/source links after promotion; each source stream arrives with one primary role/path, while promotion and later material updates change Incident state rather than mutating the source definition;
 - `assets/` — provider-neutral time-bounded `AssetObservation` normalization;
 - `projections/` — materialized current views over durable state.

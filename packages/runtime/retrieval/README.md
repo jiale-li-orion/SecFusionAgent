@@ -16,7 +16,7 @@
 - `reuse_of_invocation_id` when replaying a prior result set;
 - start/finish timestamps.
 
-The request digest is derived from the deterministic retrieval coordinate, not from model output. The current lexical coordinate is `postgres-simple-tsquery-v1`; changing query semantics/ranking/index interpretation requires a new operator revision so a previous invocation cannot be silently reused under different semantics.
+The request digest is derived from the deterministic retrieval coordinate, not from model output. The lexical coordinate is `postgres-simple-tsquery-v1`. Product question fallback for joined Latin names uses a separate `compact_name` coordinate at `ascii-name-whitespace-fold-v1`; it executes only after the original question misses and matches a bounded extracted name. Changing either operator's query semantics/ranking/index interpretation requires a new revision so a prior invocation cannot be silently reused under different semantics.
 
 ## Exact reuse policy
 

@@ -190,6 +190,49 @@ def build_lexical_search_statement(
 
 
 class LexicalRetrievalOperator:
+    async def search_compact_name(
+        self, session: AsyncSession, *, query: str, limit: int = 20,
+    ) -> list[RetrievedCandidate]:
+        """Recover names written with spaces, e.g. Huggingface / Hugging Face.
+
+        This bounded fallback runs only after exact lexical search misses. It
+        never turns an arbitrary long sentence into a broad substring scan.
+        """
+        folded = "".join(
+            character.lower() for character in query
+            if character.isascii() and character.isalnum()
+        )
+        if len(folded) < 6 or len(folded) > 64:
+            return []
+        compact_text = func.regexp_replace(
+            func.lower(DocumentChunkModel.text), "[^a-z0-9]+", "", "g",
+        )
+        rows = (await session.execute(
+            select(
+                DocumentChunkModel, DocumentRevisionModel, DocumentModel,
+                ObservationModel, SourceModel,
+            )
+            .join(
+                DocumentRevisionModel,
+                DocumentRevisionModel.document_revision_id
+                == DocumentChunkModel.document_revision_id,
+            )
+            .join(DocumentModel, DocumentModel.document_id == DocumentRevisionModel.document_id)
+            .join(
+                ObservationModel,
+                ObservationModel.observation_id == DocumentRevisionModel.observation_id,
+            )
+            .join(SourceModel, SourceModel.source_id == ObservationModel.source_id)
+            .where(compact_text.contains(folded))
+            .order_by(
+                func.strpos(compact_text, folded),
+                DocumentChunkModel.ordinal,
+                DocumentChunkModel.chunk_id,
+            )
+            .limit(limit)
+        )).all()
+        return [_document_candidate(*row, score_channels={"compact_name": 1.0}) for row in rows]
+
     async def search(
         self,
         session: AsyncSession,
