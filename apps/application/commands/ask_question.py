@@ -33,8 +33,12 @@ from apps.application.queries.decision_sources import decision_citation_sources
 from apps.application.queries.investigations import decision_view
 from apps.application.question_facts import render_claim_fact, render_relation_fact
 from apps.application.question_intent import (
+    QueryIntent,
+    compile_semantic_queries,
     infer_question_route,
     lexical_queries,
+    needs_semantic_query,
+    plan_semantic_query,
     unbound_target_message,
 )
 from apps.application.question_sessions import QuestionSessionContext, QuestionSessionStore
@@ -58,6 +62,7 @@ from packages.reasoning.model import ModelDecisionPlanner
 from packages.reasoning.storage import DecisionResultStore
 from packages.runtime.budget import BudgetGovernor, BudgetLimits
 from packages.runtime.execution.service import ExecutionRunService
+from packages.runtime.model.storage import ModelRequestModel
 from packages.runtime.policy.loader import load_runtime_policy
 from packages.runtime.retrieval import (
     RetrievalDisposition,
@@ -138,6 +143,8 @@ class _QuestionContext(BaseModel):
     relation_refs: list[str] = Field(default_factory=list)
     evidence_refs: list[str] = Field(default_factory=list)
     retrieval_invocation_refs: list[str] = Field(default_factory=list)
+    query_intent: QueryIntent | None = None
+    query_intent_model_ref: str | None = None
 
 
 class AskQuestionUseCase:
@@ -147,6 +154,7 @@ class AskQuestionUseCase:
         policy_path: Path,
         task_event_stream_name: str,
         model_provider: ModelProvider | None,
+        query_planner_provider: ModelProvider | None = None,
         retrieval: LexicalRetrievalOperator | None = None,
         budget_governor: BudgetGovernor | None = None,
         execution_service: ExecutionRunService | None = None,
@@ -161,6 +169,7 @@ class AskQuestionUseCase:
         self._policy_path = policy_path
         self._stream_name = task_event_stream_name
         self._provider = model_provider
+        self._query_planner_provider = query_planner_provider or model_provider
         self._retrieval = retrieval or LexicalRetrievalOperator()
         self._budget = budget_governor or BudgetGovernor()
         self._execution = execution_service or ExecutionRunService()
@@ -194,6 +203,7 @@ class AskQuestionUseCase:
             session_id=command.session_id,
             principal=command.principal,
         )
+        auto_route = command.task_kind is None
         if command.task_kind is None:
             task_kind, cve_id = infer_question_route(
                 command.question, cve_id=command.cve_id, object_id=command.object_id,
@@ -292,12 +302,48 @@ class AskQuestionUseCase:
         if self._provider is None:
             raise DependencyUnavailableError("model provider is not configured")
 
+        query_intent: QueryIntent | None = None
+        query_intent_model_ref: str | None = None
+        if (
+            auto_route
+            and command.task_kind is TaskKind.RETRIEVE
+            and needs_semantic_query(command.question)
+        ):
+            assert self._query_planner_provider is not None
+            try:
+                query_intent = compile_semantic_queries(await plan_semantic_query(
+                    self._query_planner_provider,
+                    question=command.question,
+                    request_id=command.request_id,
+                    session_id=session_context.session_id,
+                    timeout_seconds=command.interactive_timeout_seconds,
+                ))
+                model_request_id = await session.scalar(
+                    select(ModelRequestModel.model_request_id)
+                    .where(
+                        ModelRequestModel.request_owner_ref
+                        == f"product-request:{command.request_id}",
+                        ModelRequestModel.purpose == "product.query_intent",
+                    )
+                    .order_by(ModelRequestModel.created_at.desc())
+                    .limit(1)
+                )
+                if model_request_id:
+                    query_intent_model_ref = f"model-request:{model_request_id}"
+            except Exception:
+                logging.getLogger(__name__).exception(
+                    "query intent planning failed; using bounded deterministic search",
+                    extra={"request_id": command.request_id},
+                )
+
         context = await self._load_context(
             session,
             command,
             session_context=session_context,
             turn_index=next_turn_index,
             active_case_id=case_read_id,
+            query_intent=query_intent,
+            query_intent_model_ref=query_intent_model_ref,
         )
         history_payload = await self._session_history_payload(session, session_context)
         run_id, execution_id, profile = await self._open_sync_runtime(
@@ -455,7 +501,12 @@ class AskQuestionUseCase:
             return result
 
         continuation_target = _continuation_investigation_target(command, proposal.target_objects)
-        if command.cve_id is None and command.object_id is None and continuation_target is None:
+        if (
+            command.cve_id is None
+            and command.object_id is None
+            and continuation_target is None
+            and not proposal.target_objects
+        ):
             async with session.begin():
                 await self._execution.finish(
                     session,
@@ -495,6 +546,9 @@ class AskQuestionUseCase:
                 required_source_roles=proposal.evidence_contract.required_source_roles,
                 priority=proposal.priority,
                 target_object_id=continuation_target,
+                target_object_ids=(
+                    proposal.target_objects if len(proposal.target_objects) > 1 else None
+                ),
             )
         # The investigation launch, session turn and parent task terminal record
         # now commit together; only the earlier sync model attempt is durable.
@@ -597,6 +651,11 @@ class AskQuestionUseCase:
             relation_refs=list(context.relation_refs),
             evidence_refs=list(context.evidence_refs),
             retrieval_invocation_refs=list(context.retrieval_invocation_refs),
+            query_intent=(
+                cast(dict[str, JsonValue], context.query_intent.model_dump(mode="json"))
+                if context.query_intent is not None else None
+            ),
+            query_intent_model_ref=context.query_intent_model_ref,
             policy_context_ref=f"policy-context:{policy.policy_revision}",
             capability_envelope_ref=(
                 "capability:question:case-read-v1"
@@ -726,6 +785,8 @@ class AskQuestionUseCase:
         session_context: QuestionSessionContext,
         turn_index: int,
         active_case_id: str | None = None,
+        query_intent: QueryIntent | None = None,
+        query_intent_model_ref: str | None = None,
     ) -> _QuestionContext:
         if active_case_id is not None:
             return await self._load_active_case_context(
@@ -734,6 +795,8 @@ class AskQuestionUseCase:
                 session_context=session_context,
                 turn_index=turn_index,
                 case_id=active_case_id,
+                query_intent=query_intent,
+                query_intent_model_ref=query_intent_model_ref,
             )
         view = await _resolve_optional_target(session, command)
         revision = int(await session.scalar(select(func.max(KnowledgeRevisionModel.revision))) or 0)
@@ -840,6 +903,7 @@ class AskQuestionUseCase:
                 session_context=session_context,
                 turn_index=turn_index,
                 revision=revision,
+                query_intent=query_intent,
             )
             retrieval_invocation_refs.extend(invocation_refs)
             for candidate in candidates:
@@ -896,6 +960,8 @@ class AskQuestionUseCase:
             relation_refs=_stable_unique(relation_refs),
             evidence_refs=_stable_unique(evidence_refs),
             retrieval_invocation_refs=_stable_unique(retrieval_invocation_refs),
+            query_intent=query_intent,
+            query_intent_model_ref=query_intent_model_ref,
         )
 
     async def _load_active_case_context(
@@ -906,6 +972,8 @@ class AskQuestionUseCase:
         session_context: QuestionSessionContext,
         turn_index: int,
         case_id: str,
+        query_intent: QueryIntent | None = None,
+        query_intent_model_ref: str | None = None,
     ) -> _QuestionContext:
         state = await self._investigation_state.get_state(session, case_id)
         current_revision = await _current_knowledge_revision(session)
@@ -942,6 +1010,7 @@ class AskQuestionUseCase:
                 session_context=session_context,
                 turn_index=turn_index,
                 revision=current_revision,
+                query_intent=query_intent,
             )
             retrieval_invocation_refs.extend(invocation_refs)
             retrieved_items: list[InvestigationStateItem] = []
@@ -989,6 +1058,8 @@ class AskQuestionUseCase:
             relation_refs=relation_refs,
             evidence_refs=_stable_unique(evidence_refs),
             retrieval_invocation_refs=_stable_unique(retrieval_invocation_refs),
+            query_intent=query_intent,
+            query_intent_model_ref=query_intent_model_ref,
         )
 
     async def _retrieve_candidates(
@@ -999,9 +1070,24 @@ class AskQuestionUseCase:
         session_context: QuestionSessionContext,
         turn_index: int,
         revision: int,
+        query_intent: QueryIntent | None = None,
     ) -> tuple[list[RetrievedCandidate], list[str]]:
         found: dict[str, RetrievedCandidate] = {}
         invocation_refs: list[str] = []
+        if query_intent is not None:
+            phrases = list(dict.fromkeys(query_intent.compiled_queries))[:4]
+            per_query_limit = max(1, command.retrieval_limit // len(phrases))
+            for phrase in phrases:
+                candidates, invocation_ref = await self._retrieve_query(
+                    session, command, query=phrase,
+                    session_context=session_context, turn_index=turn_index,
+                    revision=revision, limit=per_query_limit,
+                )
+                invocation_refs.append(invocation_ref)
+                for candidate in candidates:
+                    found.setdefault(candidate.candidate_id, candidate)
+            if found:
+                return list(found.values())[:command.retrieval_limit], invocation_refs
         for query in lexical_queries(command.question):
             if (
                 query != command.question.strip()
@@ -1039,13 +1125,15 @@ class AskQuestionUseCase:
         session_context: QuestionSessionContext,
         turn_index: int,
         revision: int,
+        limit: int | None = None,
     ) -> tuple[list[RetrievedCandidate], str]:
+        bounded_limit = limit or command.retrieval_limit
         request = (
             RetrievalRequestCoordinate.compact_name(
-                query=query, knowledge_revision=revision, limit=command.retrieval_limit,
+                query=query, knowledge_revision=revision, limit=bounded_limit,
             )
             if compact_name else RetrievalRequestCoordinate.lexical(
-                query=query, knowledge_revision=revision, limit=command.retrieval_limit,
+                query=query, knowledge_revision=revision, limit=bounded_limit,
             )
         )
         started_at = datetime.now(UTC)
@@ -1071,9 +1159,9 @@ class AskQuestionUseCase:
             if candidates is None:
                 candidates = await (
                     self._retrieval.search_compact_name(
-                        session, query=query, limit=command.retrieval_limit,
+                        session, query=query, limit=bounded_limit,
                     ) if compact_name else self._retrieval.search(
-                        session, query=query, limit=command.retrieval_limit,
+                        session, query=query, limit=bounded_limit,
                     )
                 )
         except Exception as exc:
@@ -1120,6 +1208,7 @@ class AskQuestionUseCase:
         required_source_roles: list[str] | None = None,
         priority: int | None = None,
         target_object_id: str | None = None,
+        target_object_ids: list[str] | None = None,
     ):
         kind = command.task_kind
         if kind in {TaskKind.LOOKUP, TaskKind.RETRIEVE}:
@@ -1133,8 +1222,13 @@ class AskQuestionUseCase:
                 principal=command.principal,
                 request_id=command.request_id,
                 trace_id=command.trace_id,
-                cve_id=(None if target_object_id is not None else command.cve_id),
-                object_id=target_object_id or command.object_id,
+                cve_id=(
+                    None if target_object_id is not None or target_object_ids else command.cve_id
+                ),
+                object_id=(
+                    None if target_object_ids else target_object_id or command.object_id
+                ),
+                object_ids=target_object_ids or [],
                 goal=command.question,
                 evidence_question=evidence_question,
                 purpose=purpose,

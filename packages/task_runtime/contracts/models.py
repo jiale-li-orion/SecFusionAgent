@@ -245,6 +245,8 @@ class ContextManifest(BaseModel):
     object_refs: list[str] = Field(default_factory=list)
     relation_refs: list[str] = Field(default_factory=list)
     retrieval_invocation_refs: list[str] = Field(default_factory=list)
+    query_intent: dict[str, JsonValue] | None = None
+    query_intent_model_ref: str | None = None
     trajectory_checkpoint_ref: str | None = None
     skill_selection_refs: list[str] = Field(default_factory=list)
     experience_pattern_refs: list[str] = Field(default_factory=list)

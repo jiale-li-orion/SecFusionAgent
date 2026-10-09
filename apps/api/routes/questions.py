@@ -181,10 +181,17 @@ async def stream_question(
                                 artifact_service=runtime_artifacts,
                                 on_delta=on_delta,
                             )
+                            query_planner_provider = create_recorded_model_provider(
+                                settings,
+                                factory,
+                                client,
+                                artifact_service=runtime_artifacts,
+                            )
                             result = await AskQuestionUseCase(
                                 policy_path=settings.runtime_policy_path,
                                 task_event_stream_name=settings.task_event_stream_name,
                                 model_provider=provider,
+                                query_planner_provider=query_planner_provider,
                                 model_token_reservation_per_attempt=settings.model_token_reservation_per_attempt,
                                 model_max_attempts=settings.model_max_attempts,
                             ).execute(session, command)

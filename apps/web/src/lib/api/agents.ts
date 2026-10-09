@@ -174,6 +174,19 @@ export type AgentTaskDetail = {
     object_refs: string[]
     relation_refs: string[]
     retrieval_invocation_refs: string[]
+    query_intent: {
+      original_text: string
+      targets: string[]
+      requested_predicates: string[]
+      comparison_dimensions: string[]
+      time_scope: string | null
+      evidence_requirements: string[]
+      candidate_subquestions: string[]
+      search_phrases: string[]
+      compiled_queries?: string[]
+      query_revision: string
+    } | null
+    query_intent_model_ref: string | null
     policy_context_ref: string
     capability_envelope_ref: string
     budget_ref: string

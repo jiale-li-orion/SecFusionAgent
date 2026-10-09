@@ -142,6 +142,8 @@ class AgentContextManifestView(BaseModel):
     object_refs: list[str] = Field(default_factory=list)
     relation_refs: list[str] = Field(default_factory=list)
     retrieval_invocation_refs: list[str] = Field(default_factory=list)
+    query_intent: dict[str, JsonValue] | None = None
+    query_intent_model_ref: str | None = None
     policy_context_ref: str
     capability_envelope_ref: str
     budget_ref: str

@@ -59,6 +59,7 @@ class StartInvestigationCommand(BaseModel):
     idempotency_key: str | None = Field(default=None, min_length=1, max_length=128)
     cve_id: str | None = None
     object_id: str | None = None
+    object_ids: list[str] = Field(default_factory=list, max_length=4)
     goal: str = Field(min_length=1)
     evidence_question: str = Field(min_length=1)
     purpose: str = "interactive_investigation"
@@ -72,8 +73,10 @@ class StartInvestigationCommand(BaseModel):
 
     @model_validator(mode="after")
     def validate_target(self) -> StartInvestigationCommand:
-        if bool(self.cve_id) == bool(self.object_id):
-            raise ValueError("exactly one of cve_id or object_id is required")
+        if sum((bool(self.cve_id), bool(self.object_id), bool(self.object_ids))) != 1:
+            raise ValueError("exactly one of cve_id, object_id or object_ids is required")
+        if len(self.object_ids) != len(set(self.object_ids)):
+            raise ValueError("object_ids must be unique")
         if self.task_kind not in _INVESTIGATION_KINDS:
             raise ValueError("task_kind is not an InvestigationRole task")
         return self
@@ -310,14 +313,14 @@ class StartInvestigationUseCase:
                     session, record.response_ref, principal=command.principal
                 )
             )
-        object_id = await _resolve_target(session, command)
+        object_ids = await _resolve_targets(session, command)
         knowledge_revision = int(
             await session.scalar(select(func.max(KnowledgeRevisionModel.revision))) or 0
         )
         case = await self._case_service.create(
             session,
             task_signature=f"product:{command.task_kind.value}",
-            target_object_ids=[object_id],
+            target_object_ids=object_ids,
             goal=command.goal,
             initial_knowledge_revision=knowledge_revision,
         )
@@ -328,7 +331,7 @@ class StartInvestigationUseCase:
             need_id=str(uuid4()),
             proposition_or_question=command.evidence_question,
             purpose=command.purpose,
-            target_objects=[object_id],
+            target_objects=object_ids,
             evidence_contract=EvidenceNeedContract(
                 required_source_roles=command.required_source_roles
             ),
@@ -481,7 +484,18 @@ class ContinueInvestigationUseCase:
         )
 
 
-async def _resolve_target(session: AsyncSession, command: StartInvestigationCommand) -> str:
+async def _resolve_targets(session: AsyncSession, command: StartInvestigationCommand) -> list[str]:
+    if command.object_ids:
+        objects = list(await session.scalars(
+            select(ObjectModel).where(ObjectModel.object_id.in_(command.object_ids))
+        ))
+        resolved = {item.object_id for item in objects}
+        if resolved != set(command.object_ids):
+            raise ResourceNotFoundError(
+                "one or more intelligence objects were not found",
+                context={"missing_object_ids": sorted(set(command.object_ids) - resolved)},
+            )
+        return list(command.object_ids)
     if command.object_id is not None:
         target = await session.get(ObjectModel, command.object_id)
         if target is None:
@@ -489,7 +503,7 @@ async def _resolve_target(session: AsyncSession, command: StartInvestigationComm
                 "intelligence object not found",
                 context={"object_id": command.object_id},
             )
-        return target.object_id
+        return [target.object_id]
     assert command.cve_id is not None
     vulnerability = await get_vulnerability_by_cve(session, command.cve_id)
     if vulnerability is None:
@@ -497,7 +511,7 @@ async def _resolve_target(session: AsyncSession, command: StartInvestigationComm
             "vulnerability not found",
             context={"cve_id": command.cve_id.upper()},
         )
-    return vulnerability.object_id
+    return [vulnerability.object_id]
 
 
 async def _investigation_capability_scope(

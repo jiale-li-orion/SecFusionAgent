@@ -9,11 +9,14 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from apps.application.commands.ask_question import AskQuestionCommand, AskQuestionUseCase
 from apps.application.errors import LifecycleConflictError, PermissionDeniedError
+from apps.application.queries.agents import get_agent_task_detail
 from apps.application.queries.decisions import DecisionQueries
 from apps.application.question_facts import render_relation_fact
 from apps.application.question_intent import (
+    QueryIntent,
     infer_question_route,
     lexical_queries,
+    needs_semantic_query,
     unbound_target_message,
 )
 from apps.application.question_sessions import QuestionSessionModel, QuestionSessionTurnModel
@@ -48,6 +51,7 @@ from packages.reasoning.model import (
     DecisionPlannerResponse,
     FinalDecisionProposal,
 )
+from packages.runtime.model.service import RecordedModelProvider
 from packages.runtime.retrieval.storage import RetrievalInvocationModel
 from packages.runtime.storage.models import ExecutionRunModel
 from packages.shared.config import get_settings
@@ -347,12 +351,14 @@ def _use_case(
     provider,
     *,
     retrieval: LexicalRetrievalOperator | None = None,
+    query_planner_provider=None,
 ) -> AskQuestionUseCase:
     settings = get_settings()
     return AskQuestionUseCase(
         policy_path=settings.runtime_policy_path,
         task_event_stream_name=settings.task_event_stream_name,
         model_provider=provider,
+        query_planner_provider=query_planner_provider,
         retrieval=retrieval,
     )
 
@@ -1217,6 +1223,8 @@ def test_chat_intent_keeps_natural_question_and_extracts_stable_identifiers() ->
         TaskKind.RETRIEVE, CVE,
     )
     assert "多个" in unbound_target_message("这件事是什么", ambiguous=True)
+    assert needs_semantic_query("比较两个事件的攻击入口")
+    assert not needs_semantic_query("你知道Huggingface事件吗")
 
 
 @pytest.mark.asyncio
@@ -1298,6 +1306,81 @@ async def test_natural_chat_without_any_target_returns_clear_unknown() -> None:
 
 
 @pytest.mark.asyncio
+async def test_complex_chat_compiles_model_query_intent_into_audited_retrievals() -> None:
+    class QueryPlanner:
+        name = "fixture-query-planner"
+        version = "v1"
+
+        def __init__(self) -> None:
+            self.requests: list[StructuredModelRequest] = []
+
+        async def generate_structured(self, request, response_model):
+            assert response_model is QueryIntent
+            self.requests.append(request)
+            return QueryIntent(
+                original_text=request.data["question"],
+                targets=["Hugging Face", "Bitget"],
+                comparison_dimensions=["attack entry"],
+                candidate_subquestions=["How did each incident begin?"],
+                search_phrases=["Hugging Face Incident", "Bitget Incident"],
+            )
+
+    class RecordingRetrieval(_FixtureRetrieval):
+        def __init__(self) -> None:
+            self.queries: list[str] = []
+
+        async def search(self, session, *, query: str, limit: int = 20, source_ids=None):
+            self.queries.append(query)
+            return await super().search(session, query=query, limit=limit, source_ids=source_ids)
+
+    engine, factory = await _factory()
+    planner = QueryPlanner()
+    retrieval = RecordingRetrieval()
+    provider = _Provider(DecisionPlannerResponse(action=ContinuationProposal(
+        proposition_or_question="Check the reported attack entry",
+        purpose="verify_compared_incidents",
+        target_objects=[DOCUMENT_ID],
+        reason="the passages need primary confirmation",
+    )))
+    try:
+        async with factory() as session:
+            result = await _use_case(
+                provider, retrieval=retrieval,
+                query_planner_provider=RecordedModelProvider(factory, planner),
+            ).execute(session, AskQuestionCommand(
+                principal="user:test", request_id="complex-chat-plan-1",
+                question="比较 Hugging Face 与 Bitget 事件的攻击入口",
+            ))
+        assert result.mode == "accepted"
+        assert retrieval.queries == ["Hugging Face", "Bitget"]
+        assert planner.requests[0].metadata["model_purpose"] == "product.query_intent"
+        async with factory() as session:
+            run = await session.scalar(
+                select(TaskRunModel).where(TaskRunModel.role_id == "DecisionRole")
+            )
+            assert run is not None
+            context = await session.get(
+                ContextManifestVersionModel, run.context_manifest_version_id,
+            )
+            assert context is not None
+            assert context.manifest_json["query_intent"]["comparison_dimensions"] == [
+                "attack entry",
+            ]
+            assert context.manifest_json["query_intent"]["compiled_queries"] == [
+                "Hugging Face", "Bitget",
+            ]
+            assert len(context.manifest_json["retrieval_invocation_refs"]) == 2
+            assert context.manifest_json["query_intent_model_ref"].startswith("model-request:")
+            detail = await get_agent_task_detail(session, run.run_id, principal="user:test")
+            assert detail is not None
+            assert [attempt.purpose for attempt in detail.model_attempts] == [
+                "product.query_intent",
+            ]
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_targetless_retrieve_continuation_binds_retrieved_document_target() -> None:
     engine, factory = await _factory()
     provider = _Provider(
@@ -1350,6 +1433,51 @@ async def test_targetless_retrieve_continuation_binds_retrieved_document_target(
             assert runs[0].status == "completed"
             assert runs[1].role_id == "InvestigationRole"
             assert runs[1].status == "queued"
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_comparison_continuation_keeps_both_canonical_targets() -> None:
+    class TwoTargetRetrieval(_FixtureRetrieval):
+        async def search(self, session, *, query: str, limit: int = 20, source_ids=None):
+            first = await super().search(
+                session, query=query, limit=limit, source_ids=source_ids,
+            )
+            return [*first, RetrievedCandidate(
+                candidate_id="chunk:question-second-chunk",
+                candidate_kind=CandidateKind.DOCUMENT_CHUNK,
+                object_id=OBJECT_ID,
+                document_chunk_id="question-second-chunk",
+                source_id="vendor-test",
+                revision="document-r1",
+                locator={"section": "comparison"},
+                payload={"text": "The second target needs an independent check."},
+            )]
+
+    engine, factory = await _factory()
+    provider = _Provider(DecisionPlannerResponse(action=ContinuationProposal(
+        proposition_or_question="Compare both sources with primary evidence",
+        purpose="compare_two_targets",
+        target_objects=[DOCUMENT_ID, OBJECT_ID],
+        reason="both sources need verification",
+    )))
+    try:
+        async with factory() as session:
+            result = await _use_case(provider, retrieval=TwoTargetRetrieval()).execute(
+                session, AskQuestionCommand(
+                    principal="user:test", request_id="comparison-two-targets-1",
+                    question="Compare both reported events", task_kind=TaskKind.RETRIEVE,
+                ),
+            )
+        assert result.mode == "accepted"
+        assert result.investigation is not None
+        assert result.investigation.target_object_ids == [DOCUMENT_ID, OBJECT_ID]
+        async with factory() as session:
+            need = await session.get(
+                EvidenceNeedModel, result.investigation.open_evidence_needs[0].need_id,
+            )
+            assert need is not None and need.target_objects == [DOCUMENT_ID, OBJECT_ID]
     finally:
         await engine.dispose()
 

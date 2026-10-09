@@ -439,6 +439,13 @@ async def get_agent_task_detail(
             select(ModelRequestModel).where(ModelRequestModel.task_run_id == run_id)
         )
     )
+    query_model_ref = manifest.get("query_intent_model_ref") if isinstance(manifest, dict) else None
+    if isinstance(query_model_ref, str) and query_model_ref.startswith("model-request:"):
+        query_model = await session.get(
+            ModelRequestModel, query_model_ref.removeprefix("model-request:"),
+        )
+        if query_model is not None and query_model.purpose == "product.query_intent":
+            model_requests.append(query_model)
     model_request_by_id = {item.model_request_id: item for item in model_requests}
     model_attempts = (
         list(
