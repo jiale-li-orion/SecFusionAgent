@@ -13,6 +13,7 @@ import {
   type IntelligenceRecommendation,
 } from '../../lib/api/recommendations'
 import { useI18n } from '../../lib/i18n'
+import { ProductGlyph } from '../instrument/ProductGlyph'
 
 type PreferenceDraft = { keywordText: string; objects: FollowedIntelligenceObject[] }
 
@@ -132,9 +133,13 @@ export function PersonalizedIntelligence() {
         : items.length === 0 ? <p>{configured
           ? text('目前没有匹配你的关注内容的情报。可以调整关键词，或关注其他对象。', 'No retained intelligence matches your interests yet. Adjust your keywords or follow another object.')
           : text('先添加一个关注关键词或对象，保存后即可查看相关情报。', 'Add a keyword or object and save your interests to see related intelligence.')}</p>
-          : items.map((item) => <article key={item.object_id} className="recommendation-card">
-            <small>{objectTypeLabel(item.object_type, text)}{item.feedback === 'interested' && ` · ${text('你感兴趣', 'Interested')}`}</small>
-            <h4><Link to={dossierUrl(item.object_id)}>{readableLabel(item.label, text('情报对象', 'Intelligence object'))}</Link></h4>
+          : items.map((item, index) => <article key={item.object_id} className="recommendation-card">
+            <div className="recommendation-card-head">
+              <span className="recommendation-card-seal"><ProductGlyph kind={item.object_type} size={46} /></span>
+              <div><small>{objectTypeLabel(item.object_type, text)}{item.feedback === 'interested' && ` · ${text('你感兴趣', 'Interested')}`}</small>
+                <h4><Link to={dossierUrl(item.object_id)}>{readableLabel(item.label, text('情报对象', 'Intelligence object'))}</Link></h4></div>
+              <span className="recommendation-card-index" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+            </div>
             <ul className="recommendation-reasons">{item.reasons.map((reason, index) => <li key={`${reason.kind}:${index}`}>
               <span>{recommendationReason(reason, text, preferences.data?.target_objects ?? [])}</span>
               {reason.evidence_refs[0] && <Link to={`${dossierUrl(item.object_id)}&evidence=${encodeURIComponent(reason.evidence_refs[0])}`}>

@@ -128,6 +128,10 @@ export function AgentsPage() {
   const archivedTasks = taskArchive.data?.pages.flatMap((page) => page.items) ?? visibleTasks
   const terminalTasks = archivedTasks.filter((task) => !activeStatuses.has(task.status))
   const focusedRecentTasks = terminalTasks.slice(0, historyExpanded ? undefined : 6)
+  const deepLinkedTask = requestedRun && detailQuery.data?.task.run_id === requestedRun
+    && !visibleTasks.some((task) => task.run_id === requestedRun)
+    && !archivedTasks.some((task) => task.run_id === requestedRun)
+    ? detailQuery.data.task : null
   const activeCount = runtime?.roles.reduce((sum, role) => sum + role.active_tasks, 0) ?? 0
   const totalRuns = runtime?.roles.reduce((sum, role) => sum + role.total_tasks, 0) ?? 0
 
@@ -218,6 +222,8 @@ export function AgentsPage() {
             ? <TaskTopology tasks={visibleTasks} selectedTask={selectedTask} onSelect={selectTask} focusedRole={focusedRole} />
             : <TaskTopologyBlueprint loading={runtimeQuery.isLoading} />}
 
+          {deepLinkedTask && <div className="agent-deep-task"><small>{text('当前直达任务 · 不在已加载历史页', 'DIRECT-LINKED TASK · OUTSIDE LOADED HISTORY')}</small><TaskCard task={deepLinkedTask} selected onSelect={selectTask} /></div>}
+
           <div className="task-ledger">
             <div className="task-ledger-column live">
               <div className="task-ledger-title"><CircleDot size={12} /><strong>{text('实时执行', 'LIVE EXECUTION')}</strong><span>{focusedActiveTasks.length}</span></div>
@@ -243,7 +249,9 @@ export function AgentsPage() {
             <div><small>{text('选中 Task', 'SELECTED TASK')}</small><strong>{detailQuery.data?.task.task_kind ?? text('选择一个 Task', 'Select a task')}</strong></div>
             {detailQuery.data && <span className={`task-state state-${detailQuery.data.task.status}`}>{detailQuery.data.task.status}</span>}
           </div>
-          {detailQuery.data ? <TaskDossier detail={detailQuery.data} onSkillSelect={inspectSkillRef} /> : <TaskLensBlueprint />}
+          {detailQuery.data ? <TaskDossier detail={detailQuery.data} onSkillSelect={inspectSkillRef} /> : detailQuery.isError
+            ? <div className="task-ledger-empty" role="alert">{text('任务详情不可读或不属于当前账户。', 'This task is unavailable or does not belong to your account.')} <button className="recovery-action" onClick={() => void detailQuery.refetch()}>{text('重试', 'Retry')}</button></div>
+            : <TaskLensBlueprint />}
         </aside>
       </div>
 
