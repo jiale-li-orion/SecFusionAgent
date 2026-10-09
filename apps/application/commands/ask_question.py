@@ -386,10 +386,31 @@ class AskQuestionUseCase:
                         citation_sources=context.citation_sources,
                     )
                 except ValueError as exc:
-                    raise DecisionValidationError(
-                        "The generated answer did not pass evidence validation. Please retry.",
-                        context={"run_id": run_id},
-                    ) from exc
+                    logging.getLogger(__name__).warning(
+                        "generated answer rejected by evidence gate for run %s: %s",
+                        run_id,
+                        exc,
+                    )
+                    message = (
+                        "目前还不能可靠回答这个问题。检索到的材料未能形成通过证据校验的结论。"
+                        "因此这次生成的描述不会作为事实呈现。可以补充原始通报或可信分析后继续提问。"
+                        if any("\u4e00" <= char <= "\u9fff" for char in command.question)
+                        else "The retrieved material did not yield a conclusion that passed "
+                        "evidence validation. The generated description will not be presented "
+                        "as fact. Add an original notice or credible analysis and ask again."
+                    )
+                    proposal = DecisionDraft(
+                        case_id=context.state.case_id,
+                        case_revision=context.state.case_revision,
+                        unknowns=[command.question],
+                        answer_payload={"status": "evidence_validation_failed"},
+                        report_paragraphs=[{"text": message, "evidence_refs": []}],
+                        stop_reason="evidence_validation_failed",
+                        model_prompt_revision="decision-validation-fallback-v1",
+                    )
+                    decision = DecisionService().decide(
+                        context.state, proposal, citation_sources=context.citation_sources,
+                    )
             else:
                 proposal = DecisionService().request_continuation(context.state, proposal)
                 if not proposal.target_objects and len(context.state.targets) == 1:

@@ -492,9 +492,7 @@ async def test_lookup_question_runs_read_only_decision_without_durable_case() ->
 
 
 @pytest.mark.asyncio
-async def test_lookup_rejects_unsupported_model_fact_with_retryable_error() -> None:
-    from apps.application.errors import DecisionValidationError
-
+async def test_lookup_replaces_unsupported_model_fact_with_validated_boundary() -> None:
     engine, factory = await _factory()
     provider = _Provider(DecisionPlannerResponse(action=FinalDecisionProposal(
         conclusions=[DecisionConclusion(
@@ -506,19 +504,19 @@ async def test_lookup_rejects_unsupported_model_fact_with_retryable_error() -> N
     )))
     try:
         async with factory() as session:
-            with pytest.raises(DecisionValidationError) as failure:
-                await _use_case(provider).execute(session, AskQuestionCommand(
-                    principal="user:test", request_id="question-invalid-decision",
-                    question=f"What is the CVSS score for {CVE}?", cve_id=CVE,
-                ))
-            assert failure.value.retryable
-            assert "evidence validation" in failure.value.detail
-            failed_run_id = failure.value.context["run_id"]
+            result = await _use_case(provider).execute(session, AskQuestionCommand(
+                principal="user:test", request_id="question-invalid-decision",
+                question=f"What is the CVSS score for {CVE}?", cve_id=CVE,
+            ))
+            assert result.decision is not None
+            assert result.decision.stop_reason == "evidence_validation_failed"
+            assert result.decision.conclusions == []
+            assert result.decision.citations == []
+            assert result.decision.report_paragraphs
         async with factory() as session:
             run = await session.scalar(select(TaskRunModel))
-            assert run is not None and run.status == "failed"
-            assert run.run_id == failed_run_id
-            assert run.stop_reason == "question_decision_rejected"
+            assert run is not None and run.status == "completed"
+            assert run.stop_reason == "evidence_validation_failed"
     finally:
         await engine.dispose()
 

@@ -119,6 +119,7 @@ async def ask_question(
                 policy_path=settings.runtime_policy_path,
                 task_event_stream_name=settings.task_event_stream_name,
                 model_provider=provider,
+                model_payload_persistence="redacted_runtime_artifact",
                 model_token_reservation_per_attempt=settings.model_token_reservation_per_attempt,
                 model_max_attempts=settings.model_max_attempts,
             ).execute(session, command)
@@ -192,6 +193,7 @@ async def stream_question(
                                 task_event_stream_name=settings.task_event_stream_name,
                                 model_provider=provider,
                                 query_planner_provider=query_planner_provider,
+                                model_payload_persistence="redacted_runtime_artifact",
                                 model_token_reservation_per_attempt=settings.model_token_reservation_per_attempt,
                                 model_max_attempts=settings.model_max_attempts,
                             ).execute(session, command)
