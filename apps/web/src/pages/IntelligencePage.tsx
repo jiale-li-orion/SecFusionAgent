@@ -121,7 +121,7 @@ export function IntelligencePage() {
   const incident = incidentQuery.data
   const displayName = documentQuery.data?.current_revision?.title ?? [obj?.properties.display_name, obj?.properties.title, obj?.properties.full_name, obj?.properties.name, obj?.properties.ip].find((v) => typeof v === 'string' && v)
   const headline = incident
-    ? humanize(incident.incident.incident_type)
+    ? incident.incident.current_summary || humanize(incident.incident.incident_type)
     : (typeof displayName === 'string' && displayName) || obj?.external_identifiers.cve?.[0] || obj?.canonical_key || selectedCve || selectedObjectId || text('选择一个对象', 'SELECT AN OBJECT')
 
   async function submitSearch(event: React.FormEvent) {
