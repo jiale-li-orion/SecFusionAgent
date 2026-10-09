@@ -169,18 +169,21 @@ class RedisHotBugCache:
         entries: list[HotBugCacheEntry] = []
         seen: set[str] = set()
         while True:
-            cursor, keys = await self._client.scan(
-                cursor, match=f"bug:*:{normalized}", count=1000
-            )
-            for raw_key in keys:
+            cursor, keys = await self._client.scan(cursor, match="bug:*:*", count=1000)
+            payloads = await self._client.mget(keys) if keys else []
+            for raw_key, payload in zip(keys, payloads, strict=True):
                 key = _as_text(raw_key)
-                if key in seen:
+                if key in seen or payload is None:
                     continue
                 seen.add(key)
-                source_id = key[4 : -(len(normalized) + 1)]
-                if not source_id:
+                record = HotBugRecord.model_validate_json(payload)
+                projected_cve = record.projection.get("cve_id")
+                if record.cache_key != key or not (
+                    record.external_object_id.upper() == normalized
+                    or (isinstance(projected_cve, str) and projected_cve.upper() == normalized)
+                ):
                     continue
-                entry = await self.get_entry(source_id, normalized)
+                entry = await self.get_entry(record.source_id, record.external_object_id)
                 if entry is not None:
                     entries.append(entry)
             if cursor == 0:

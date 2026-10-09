@@ -125,14 +125,19 @@ async def test_find_cve_reaches_resident_record_outside_ranked_window() -> None:
 
     older = record("CVE-2026-42424", "nvd-cves-2", 1)
     newer = record("CVE-2026-42424", "cve-program", 2)
+    linked = record("CVE-2026-42424", "github-advisory", 0).model_copy(
+        update={"external_object_id": "GHSA-abcd-1234-5678"}
+    )
     latest = record("CVE-2026-99999", "nvd-cves-2", 3)
-    for item in (older, newer, latest):
+    for item in (older, newer, linked, latest):
         await cache.admit(item, ttl_seconds=600)
 
     assert [entry.record.external_object_id for entry in await cache.list_ranked(limit=1)] == [
         latest.external_object_id
     ]
     found = await cache.find_cve("cve-2026-42424")
-    assert [item.record.source_id for item in found] == ["cve-program", "nvd-cves-2"]
+    assert [item.record.source_id for item in found] == [
+        "cve-program", "nvd-cves-2", "github-advisory"
+    ]
     assert await cache.find_cve("CVE-2026-99998") == []
     await client.aclose()
