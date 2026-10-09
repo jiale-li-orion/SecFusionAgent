@@ -16,6 +16,7 @@ import {
   type DecisionView, type QuestionSessionTurn,
 } from '../lib/api/investigations'
 import { useI18n } from '../lib/i18n'
+import { displayUnknowns } from '../lib/investigationPresentation'
 import './questions-space.css'
 
 const eventNames = [
@@ -338,6 +339,7 @@ function ConversationTurn({ turn, active, sessionId, reasoning, onSelect, onEvid
   const caseId = turn.investigation_ref?.replace(/^case:/, '')
   const investigation = useQuery({ queryKey: ['question-turn-case', caseId], queryFn: () => getInvestigation(caseId!), enabled: Boolean(caseId), retry: false, refetchInterval: query => ['active', 'waiting'].includes(query.state.data?.status ?? '') ? 5000 : false })
   const caseState = caseStateCopy(investigation.data?.status ?? 'created', text)
+  const unknownCount = investigation.data ? displayUnknowns(investigation.data).length : 0
   return <article className={`qa-turn ${active ? 'active' : ''}`}>
     <button className="qa-turn-index" onClick={onSelect} aria-label={text(`查看第 ${turn.turn_index} 回合轨迹`, `Inspect turn ${turn.turn_index}`)}>{String(turn.turn_index).padStart(2, '0')}</button>
     <div className="qa-question"><small>{text('你', 'YOU')} / {formatTime(turn.created_at, language)}</small><p>{turn.question}</p></div>
@@ -348,7 +350,18 @@ function ConversationTurn({ turn, active, sessionId, reasoning, onSelect, onEvid
       {reasoning && <details className="qa-reasoning"><summary>{text('本次模型推理流 · 仅当前页面保留', 'Provider reasoning · available until reload')}</summary><pre>{reasoning}</pre></details>}
       {caseId && investigation.isLoading && <p className="qa-muted">{text('正在恢复调查状态…', 'Restoring investigation state…')}</p>}
       {caseId && investigation.isError && <button className="qa-retry" onClick={() => void investigation.refetch()}>{text('调查状态读取失败 · 重试', 'Investigation status failed · Retry')}</button>}
-      {investigation.data && <div className={`qa-case-result state-${investigation.data.status}`}><strong>{caseState.headline}</strong>{!investigation.data.latest_decision && <p>{investigation.data.goal}</p>}<div><span>{caseState.label}</span><span>{investigation.data.confirmed_findings.length} {text('已确认', 'confirmed')}</span><span>{investigation.data.open_evidence_needs.length} {text('证据缺口', 'open needs')}</span></div>{investigation.data.latest_decision && <InvestigationReport investigation={investigation.data} onEvidence={onEvidence} />}<Link to={`/investigations?case=${caseId}&session=${sessionId}`}>{text('打开完整调查现场', 'Open full investigation')}<ArrowUpRight size={13} /></Link></div>}
+      {investigation.data && <div className={`qa-case-result state-${investigation.data.status}`}>
+        <strong>{caseState.headline}</strong>
+        {!investigation.data.latest_decision && <p>{investigation.data.goal}</p>}
+        <div>
+          <span>{caseState.label}</span>
+          <span>{investigation.data.confirmed_findings.length} {text('已确认', 'confirmed')}</span>
+          {unknownCount > 0 && <span>{unknownCount} {text('尚未确认', 'unknown')}</span>}
+          {investigation.data.open_evidence_needs.length > 0 && <span>{investigation.data.open_evidence_needs.length} {text('待补证据', 'open needs')}</span>}
+        </div>
+        {investigation.data.latest_decision && <InvestigationReport investigation={investigation.data} onEvidence={onEvidence} />}
+        <Link to={`/investigations?case=${caseId}&session=${sessionId}`}>{text('打开完整调查现场', 'Open full investigation')}<ArrowUpRight size={13} /></Link>
+      </div>}
       {!turn.decision_ref && !turn.investigation_ref && <p className="qa-muted">{text('本回合没有持久研判或调查引用。', 'No durable decision or case reference for this turn.')}</p>}
     </div>
   </article>

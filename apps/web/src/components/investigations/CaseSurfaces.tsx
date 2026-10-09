@@ -8,7 +8,7 @@ import { Activity, BadgeCheck, BrainCircuit, CircleAlert, CircleDot, FileWarning
 import { Link, useNavigate } from 'react-router-dom'
 
 import { askQuestion, cancelInvestigation, evidenceBoundObjectIds, getEvidence, type EvidenceDetail, type InvestigationFinding, type InvestigationView, type ProductRuntimeEvent, type QuestionResult, type TaskKind } from '../../lib/api'
-import { eventState, investigationStopMessage, type CaseStateFocus, type EventCue } from '../../lib/investigationPresentation'
+import { displayUnknowns, eventState, investigationStopMessage, type CaseStateFocus, type EventCue } from '../../lib/investigationPresentation'
 import { formatValue } from '../../lib/intelligencePresentation'
 import { useI18n } from '../../lib/i18n'
 import { DecisionReport } from '../DecisionReport'
@@ -20,6 +20,7 @@ const busyEpisodeStatuses = new Set(['submitted', 'queued', 'running', 'waiting_
 
 export function CaseWorkspace({ investigation, events, eventCue, initialFocus, onEvidence, sessionId, reduceMotion, onFollowUpComplete }: { investigation: InvestigationView; events: ProductRuntimeEvent[]; eventCue: EventCue | null; initialFocus: CaseStateFocus | null; onEvidence: (ref: string) => void; sessionId: string | null; reduceMotion: boolean; onFollowUpComplete: () => void }) {
   const { text } = useI18n()
+  const visibleUnknowns = displayUnknowns(investigation)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [followUp, setFollowUp] = useState('')
@@ -124,7 +125,7 @@ export function CaseWorkspace({ investigation, events, eventCue, initialFocus, o
           <div>
             <small>{investigation.execution_profile ?? 'RUNTIME'} · {investigation.origin_scope.toUpperCase()}</small>
             <strong>{investigation.goal}</strong>
-            <p>{text(`${investigation.confirmed_findings.length} 条确认事实 · ${investigation.conflicts.length} 条来源冲突 · ${investigation.unknowns.length} 个未决问题 · ${investigation.open_evidence_needs.length} 个证据缺口`, `${investigation.confirmed_findings.length} findings · ${investigation.conflicts.length} conflicts · ${investigation.unknowns.length} unknowns · ${investigation.open_evidence_needs.length} evidence needs`)}</p>
+            <p>{text(`${investigation.confirmed_findings.length} 条确认事实 · ${investigation.conflicts.length} 条来源冲突 · ${visibleUnknowns.length} 个未决问题 · ${investigation.open_evidence_needs.length} 个证据缺口`, `${investigation.confirmed_findings.length} findings · ${investigation.conflicts.length} conflicts · ${visibleUnknowns.length} unknowns · ${investigation.open_evidence_needs.length} evidence needs`)}</p>
             <details className="case-technical-coordinate"><summary>{text('技术坐标', 'TECHNICAL COORDINATE')}</summary><span className="mono">CASE {investigation.case_id}</span><span>REV {investigation.revision}</span></details>
           </div>
         </div>
@@ -207,7 +208,7 @@ export function CaseWorkspace({ investigation, events, eventCue, initialFocus, o
       <div className={`case-state-grid ${stateFocus ? `has-state-focus focus-${stateFocus}` : ''}`}>
         <StateColumn key={`confirmed:${eventCue?.state === 'confirmed' ? eventCue.eventId : 'stable'}`} title={text('已确认', 'CONFIRMED')} tone="lime" icon={BadgeCheck} items={investigation.confirmed_findings} onEvidence={onEvidence} active={stateFocus === 'confirmed'} dimmed={Boolean(stateFocus && stateFocus !== 'confirmed')} forged={eventCue?.state === 'confirmed'} reduceMotion={reduceMotion} onFocus={() => toggleFocus('confirmed')} />
         <StateColumn key={`conflicts:${eventCue?.state === 'conflicts' ? eventCue.eventId : 'stable'}`} title={text('冲突', 'CONFLICTS')} tone="amber" icon={CircleAlert} items={investigation.conflicts} onEvidence={onEvidence} active={stateFocus === 'conflicts'} dimmed={Boolean(stateFocus && stateFocus !== 'conflicts')} forged={eventCue?.state === 'conflicts'} reduceMotion={reduceMotion} onFocus={() => toggleFocus('conflicts')} />
-        <StateColumn key={`unknowns:${eventCue?.state === 'unknowns' ? eventCue.eventId : 'stable'}`} title={text('未知', 'UNKNOWNS')} tone="violet" icon={FileWarning} items={investigation.unknowns} onEvidence={onEvidence} active={stateFocus === 'unknowns'} dimmed={Boolean(stateFocus && stateFocus !== 'unknowns')} forged={eventCue?.state === 'unknowns'} reduceMotion={reduceMotion} onFocus={() => toggleFocus('unknowns')} />
+        <StateColumn key={`unknowns:${eventCue?.state === 'unknowns' ? eventCue.eventId : 'stable'}`} title={text('未知', 'UNKNOWNS')} tone="violet" icon={FileWarning} items={visibleUnknowns} onEvidence={onEvidence} active={stateFocus === 'unknowns'} dimmed={Boolean(stateFocus && stateFocus !== 'unknowns')} forged={eventCue?.state === 'unknowns'} reduceMotion={reduceMotion} onFocus={() => toggleFocus('unknowns')} />
         <EvidenceNeeds key={`needs:${eventCue?.state === 'needs' ? eventCue.eventId : 'stable'}`} investigation={investigation} active={stateFocus === 'needs'} dimmed={Boolean(stateFocus && stateFocus !== 'needs')} forged={eventCue?.state === 'needs'} reduceMotion={reduceMotion} onFocus={() => toggleFocus('needs')} />
       </div>
 

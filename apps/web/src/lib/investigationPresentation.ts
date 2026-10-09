@@ -1,7 +1,19 @@
-import type { ProductRuntimeEvent } from './api'
+import type { InvestigationFinding, InvestigationView, ProductRuntimeEvent } from './api'
 
 export type CaseStateFocus = 'confirmed' | 'conflicts' | 'unknowns' | 'needs' | 'decision'
 export type EventCue = { eventId: string; state: CaseStateFocus }
+
+export function displayUnknowns(investigation: InvestigationView): InvestigationFinding[] {
+  const unknowns = [...investigation.unknowns]
+  const seen = new Set(unknowns.map(item => item.proposition.trim()))
+  for (const proposition of investigation.latest_decision?.unknowns ?? []) {
+    const normalized = proposition.trim()
+    if (!normalized || seen.has(normalized)) continue
+    unknowns.push({ proposition: normalized, target_ref: null, evidence_refs: [], updated_revision: investigation.revision })
+    seen.add(normalized)
+  }
+  return unknowns
+}
 
 export function investigationStopMessage(reason: string, text: (zh: string, en: string) => string) {
   const messages: Record<string, [string, string]> = {

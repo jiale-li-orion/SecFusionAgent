@@ -3,7 +3,7 @@ import { AnimatePresence } from 'motion/react'
 import { ArrowUpRight, BrainCircuit, Sparkles } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import type { QuestionResult } from '../../lib/api'
-import { investigationStopMessage } from '../../lib/investigationPresentation'
+import { displayUnknowns, investigationStopMessage } from '../../lib/investigationPresentation'
 import { missionTargetDossierPath, modeTitleEn } from '../../lib/startMissionPresentation'
 import { useI18n } from '../../lib/i18n'
 import { DecisionReport } from '../DecisionReport'
@@ -55,6 +55,7 @@ export function MissionOutcome({ result, target, cancelling, cancelError, onCanc
       {terminal && investigation?.terminal_reason && <p>{investigationStopMessage(investigation.terminal_reason, text)}</p>}
       {investigation && <dl className="mission-case-facts">
         <div><dt>{text('已确认发现', 'Confirmed findings')}</dt><dd>{investigation.confirmed_findings.length}</dd></div>
+        <div><dt>{text('尚未确认', 'Unknowns')}</dt><dd>{displayUnknowns(investigation).length}</dd></div>
         <div><dt>{text('待补充证据', 'Open evidence needs')}</dt><dd>{investigation.open_evidence_needs.length}</dd></div>
         <div><dt>{text('来源冲突', 'Source conflicts')}</dt><dd>{investigation.conflicts.length}</dd></div>
       </dl>}
