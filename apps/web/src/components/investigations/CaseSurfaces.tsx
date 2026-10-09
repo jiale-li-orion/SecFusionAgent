@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom'
 
 import { askQuestion, cancelInvestigation, evidenceBoundObjectIds, getEvidence, type EvidenceDetail, type InvestigationFinding, type InvestigationView, type ProductRuntimeEvent, type QuestionResult, type TaskKind } from '../../lib/api'
 import { eventState, investigationStopMessage, type CaseStateFocus, type EventCue } from '../../lib/investigationPresentation'
+import { formatValue } from '../../lib/intelligencePresentation'
 import { useI18n } from '../../lib/i18n'
 import { DecisionReport } from '../DecisionReport'
 import { InvestigationReport } from './InvestigationReport'
@@ -275,8 +276,9 @@ export function RuntimeEventRail({ events, limit, activeEventId, onFocus }: { ev
 
 function EvidenceButtons({ refs, onEvidence }: { refs: string[]; onEvidence: (ref: string) => void }) {
   const { text } = useI18n()
+  const [expanded, setExpanded] = useState(false)
   if (!refs.length) return null
-  return <div className="finding-evidence">{refs.slice(0, 3).map((ref) => <button key={ref} onClick={() => onEvidence(ref)}><Link2 size={10} /> {text('证据', 'EVIDENCE')}</button>)}{refs.length > 3 && <span>+{refs.length - 3}</span>}</div>
+  return <div className="finding-evidence">{(expanded ? refs : refs.slice(0, 3)).map((ref, index) => <button key={ref} onClick={() => onEvidence(ref)} title={ref}><Link2 size={10} /> {text('证据', 'EVIDENCE')} {index + 1}</button>)}{refs.length > 3 && <button type="button" className="evidence-expand" onClick={() => setExpanded(value => !value)} aria-expanded={expanded}>{expanded ? text('收起', 'Show less') : text(`查看其余 ${refs.length - 3} 条`, `View ${refs.length - 3} more`)}</button>}</div>
 }
 
 export function EvidenceOverlay({ evidenceRef, onClose }: { evidenceRef: string; onClose: () => void }) {
@@ -308,7 +310,7 @@ export function EvidenceOverlay({ evidenceRef, onClose }: { evidenceRef: string;
         <div><small>EVIDENCE TRACE</small><strong>{item?.source.source_id ?? text('解析中…', 'Resolving…')}</strong><span className="mono">{evidenceRef}</span></div>
         <button ref={closeRef} onClick={onClose}>{text('关闭', 'CLOSE')}</button>
       </div>
-      {item ? <EvidenceTrace item={item} /> : <div className="inspector-empty"><Orbit size={30} />{query.isError ? String(query.error.message) : text('解析 Evidence…', 'resolving evidence…')}</div>}
+      {item ? <EvidenceTrace item={item} /> : <div className="inspector-empty"><Orbit size={30} />{query.isError ? <><strong>{text('证据读取失败', 'Evidence read failed')}</strong><p>{String(query.error.message)}</p><button className="evidence-read-retry" onClick={() => void query.refetch()}>{text('重新读取', 'Retry')}</button></> : text('解析 Evidence…', 'resolving evidence…')}</div>}
     </motion.aside>, document.body
   )
 }
@@ -318,7 +320,7 @@ function EvidenceTrace({ item }: { item: EvidenceDetail }) {
   const navigate = useNavigate()
   const locator = Object.entries(item.locator).map(([key, value]) => key + '=' + String(value)).join(' · ') || 'root'
   const objectIds = evidenceBoundObjectIds(item)
-  return <div className="overlay-body"><div className="trace-hero"><BadgeCheck size={22} /><div><small>{item.source.source_role} / {item.source.source_class}</small><strong>{item.target.target_kind} · {item.target.label}</strong><span>{item.observation.external_object_id}</span></div></div><TraceRow label="SOURCE REVISION" value={item.observation.external_revision ?? 'content-addressed'} /><TraceRow label="LOCATOR" value={locator} /><TraceRow label="OBSERVED" value={new Date(item.observation.observed_at).toLocaleString()} /><TraceRow label="TRUST" value={item.artifact?.trust_class ?? 'observation-bound'} />{objectIds.length > 0 && <div className="evidence-object-links"><small>{text('绑定对象', 'BOUND OBJECTS')}</small><div>{objectIds.map((objectId, index) => <button key={objectId} onClick={() => navigate(`/intelligence?object=${encodeURIComponent(objectId)}&from=case`)}><BrainCircuit size={11} /> {index === 0 ? text('打开主体档案', 'OPEN SUBJECT DOSSIER') : text('打开关系对象', 'OPEN RELATED OBJECT')}<span className="mono">{compactEvidenceObjectRef(objectId)}</span></button>)}</div></div>}{item.observation.canonical_url && <a className="investigation-evidence-source" href={item.observation.canonical_url} target="_blank" rel="noreferrer"><Link2 size={11} /> {text('打开规范来源', 'OPEN CANONICAL SOURCE')}</a>}<div className="mono overlay-ref">{item.evidence_ref}</div></div>
+  return <div className="overlay-body"><div className="trace-hero"><BadgeCheck size={22} /><div><small>{item.source.source_role} / {item.source.source_class}</small><strong>{item.target.target_kind} · {item.target.label}</strong><span>{item.observation.external_object_id}</span></div></div>{item.target.target_kind === 'claim' && item.target.detail.value !== undefined && <div className="trace-statement"><small>{text('来源支持的断言', 'SOURCE-BOUND CLAIM')}</small><p>{formatValue(item.target.detail.value)}</p></div>}<TraceRow label="SOURCE REVISION" value={item.observation.external_revision ?? 'content-addressed'} /><TraceRow label="LOCATOR" value={locator} /><TraceRow label="OBSERVED" value={new Date(item.observation.observed_at).toLocaleString()} /><TraceRow label="TRUST" value={item.artifact?.trust_class ?? 'observation-bound'} />{objectIds.length > 0 && <div className="evidence-object-links"><small>{text('绑定对象', 'BOUND OBJECTS')}</small><div>{objectIds.map((objectId, index) => <button key={objectId} onClick={() => navigate(`/intelligence?object=${encodeURIComponent(objectId)}&from=case`)}><BrainCircuit size={11} /> {index === 0 ? text('打开主体档案', 'OPEN SUBJECT DOSSIER') : text('打开关系对象', 'OPEN RELATED OBJECT')}<span className="mono">{compactEvidenceObjectRef(objectId)}</span></button>)}</div></div>}{item.observation.canonical_url && <a className="investigation-evidence-source" href={item.observation.canonical_url} target="_blank" rel="noreferrer"><Link2 size={11} /> {text('打开规范来源', 'OPEN CANONICAL SOURCE')}</a>}<div className="mono overlay-ref">{item.evidence_ref}</div></div>
 }
 
 function compactEvidenceObjectRef(value: string) { return value.length > 30 ? `${value.slice(0, 14)}…${value.slice(-8)}` : value }

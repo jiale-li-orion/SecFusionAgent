@@ -520,6 +520,8 @@ details[open]>summary {
   background: #e1e7dc;
   border-radius: 5px;
 }
+.evidence-capsules .evidence-expand,.finding-evidence .evidence-expand { border: 1px solid #aabf9c; color: #385b4b; background: transparent; }
+.evidence-read-retry { padding: 8px 12px; border: 1px solid #a9b99b; border-radius: 7px; color: #385c49; font-size: 11px; }
 
 .empty-block,.memory-empty,.inspector-empty,.case-list-empty,.state-empty,.case-state-empty,.catalog-empty,.intel-state,.task-ledger-empty,.incident-empty {
   padding: 25px;

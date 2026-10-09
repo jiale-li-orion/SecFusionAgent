@@ -4397,6 +4397,9 @@
   font-size: 11px;
   color: var(--muted);
 }
+.trace-statement { padding: 18px 20px; border: 1px solid #bdcba850; border-radius: 10px; background: #e8eddf; }
+.trace-statement small { color: #67845e; font-size: 9px; letter-spacing: .12em; }
+.trace-statement p { margin: 9px 0 0; color: #253c2d; font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; }
 
 .trace-row {
   padding: 20px 0;

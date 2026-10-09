@@ -134,15 +134,17 @@ function graphPoint(index: number, count: number) {
 
 export function EvidenceCapsules({ evidence, onEvidence, compact = false }: { evidence: EvidenceRef[]; onEvidence: (ref: string) => void; compact?: boolean }) {
   const { text } = useI18n()
+  const [expanded, setExpanded] = useState(false)
   if (evidence.length === 0) return <span className="no-evidence">{text('无 Evidence', 'NO EVIDENCE')}</span>
+  const limit = compact ? 2 : 4
   return (
     <div className={`evidence-capsules ${compact ? 'compact' : ''}`}>
-      {evidence.slice(0, compact ? 2 : 4).map((item) => (
+      {(expanded ? evidence : evidence.slice(0, limit)).map((item) => (
         <button key={item.evidence_ref} onClick={() => onEvidence(item.evidence_ref)} title={item.source_id}>
           <BadgeCheck size={12} /> {compact ? item.source_id.slice(0, 10) : item.source_id}
         </button>
       ))}
-      {evidence.length > (compact ? 2 : 4) && <span>+{evidence.length - (compact ? 2 : 4)}</span>}
+      {evidence.length > limit && <button type="button" className="evidence-expand" onClick={() => setExpanded(value => !value)} aria-expanded={expanded}>{expanded ? text('收起', 'Show less') : text(`查看其余 ${evidence.length - limit} 条`, `View ${evidence.length - limit} more`)}</button>}
     </div>
   )
 }
@@ -169,7 +171,7 @@ export function EvidenceInspector({ evidenceRef, onClose }: { evidenceRef: strin
         ) : query.isLoading ? (
           <motion.div key="loading" className="inspector-empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}><Radar size={30} /> {text('解析 Evidence…', 'resolving evidence…')}</motion.div>
         ) : query.isError ? (
-          <motion.div key="error" className="inspector-empty error-block" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>{String(query.error.message)}</motion.div>
+          <motion.div key="error" className="inspector-empty error-block" initial={{ opacity: 0 }} animate={{ opacity: 1 }}><strong>{text('证据读取失败', 'Evidence read failed')}</strong><p>{String(query.error.message)}</p><button className="evidence-read-retry" onClick={() => void query.refetch()}>{text('重新读取', 'Retry')}</button></motion.div>
         ) : item ? (
           <motion.div key={item.evidence_ref} className={'inspector-body evidence-manuscript ' + evidenceProvenanceClass(item.source.source_role, item.source.source_class)} initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }}>
             <div className="evidence-provenance-stamp">
