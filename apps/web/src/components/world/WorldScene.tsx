@@ -2,7 +2,7 @@ import { SourceArtwork } from '../instrument/SourceArtwork'
 import { ProductGlyph } from '../instrument/ProductGlyph'
 import { useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { ArrowRight, ArrowUpRight, BookOpen, Braces, Bug, Fingerprint, Globe2, Layers3, Radio, Scale, Scan, Shield, X } from 'lucide-react'
+import { ArrowRight, ArrowUpRight, BookOpen, Braces, Bug, Fingerprint, Globe2, Layers3, Radio, Scale, Shield, X } from 'lucide-react'
 import type { WorldFormation, WorldOverview, WorldStory, WorldKnowledgeChange } from '../../lib/api/world'
 import { useI18n } from '../../lib/i18n'
 import { EvidenceAtlas } from './EvidenceAtlas'
@@ -21,11 +21,11 @@ const categories = [
   { key: 'incidents', zh: '事件', en: 'Incidents', icon: Fingerprint, path: 'Incident Watch' },
 ]
 
-export function WorldScene({ stories, hotStories, focusedId, pending, failed, candidatePending, candidateFailed, onFocus, onOpen, onInvestigate, onRetry, onCandidateRetry, view, onView, overview, overviewFailed, onOverviewRetry, formation, hotTotal, hotFailed, hotPending, hotPage, hotPageSize, onHotPage, region, onRegion, onHotRetry, changes }: {
+export function WorldScene({ stories, hotStories, focusedId, pending, failed, candidatePending, candidateFailed, onFocus, onOpen, onInvestigate, onRetry, onCandidateRetry, view, onView, overview, overviewFailed, onOverviewRetry, formation, formationFailed, onFormationRetry, hotTotal, hotFailed, hotPending, hotPage, hotPageSize, onHotPage, region, onRegion, onHotRetry, changes }: {
   changes: WorldKnowledgeChange[]; stories: WorldStory[]; hotStories: WorldStory[]; focusedId: string | null; pending: boolean; failed: boolean; candidatePending: boolean; candidateFailed: boolean
   onFocus: (story: WorldStory) => void; onOpen: (story: WorldStory) => void
   onInvestigate: (story: WorldStory) => void; onRetry: () => void; onCandidateRetry: () => void
-  view: string; onView: (view: string) => void; overview: WorldOverview | undefined; overviewFailed: boolean; onOverviewRetry: () => void; formation: WorldFormation | undefined; hotTotal: number | undefined; hotFailed: boolean; hotPending: boolean; hotPage: number; hotPageSize: number; onHotPage: (page: number) => void; region: string | null; onRegion: (region: string | null) => void; onHotRetry: () => void
+  view: string; onView: (view: string) => void; overview: WorldOverview | undefined; overviewFailed: boolean; onOverviewRetry: () => void; formation: WorldFormation | undefined; formationFailed: boolean; onFormationRetry: () => void; hotTotal: number | undefined; hotFailed: boolean; hotPending: boolean; hotPage: number; hotPageSize: number; onHotPage: (page: number) => void; region: string | null; onRegion: (region: string | null) => void; onHotRetry: () => void
 }) {
   const { text, language } = useI18n()
   const reduced = useReducedMotion()
@@ -40,6 +40,30 @@ export function WorldScene({ stories, hotStories, focusedId, pending, failed, ca
   const canInvestigate = Boolean(focused?.object_id || (focused?.kind === 'HotVulnerability' && focused.facts.cve_id))
   const regionReadFailed = region === 'incidents' ? candidateFailed : failed
   const regionReadPending = region === 'incidents' ? candidatePending : pending
+  const emptyState = (() => {
+    if (view === 'sources') {
+      if (overviewFailed) return { title: text('来源状态暂时不可读', 'Source status is unavailable'), detail: text('来源方向仍可浏览；健康读数需要重新读取。', 'Source directions remain available; health readings need a retry.'), retry: onOverviewRetry }
+      if (overview) return overview.sources.length
+        ? { title: text(`正在观察 ${overview.sources.length} 个来源`, `Observing ${overview.sources.length} sources`), detail: text(`${overview.source_health.healthy} 个健康，${overview.source_health.degraded} 个降级，${overview.source_health.blocked} 个阻塞。选择方向查看每个来源。`, `${overview.source_health.healthy} healthy, ${overview.source_health.degraded} degraded, ${overview.source_health.blocked} blocked. Choose a direction to inspect its sources.`), retry: null }
+        : { title: text('当前没有来源配置', 'No sources configured'), detail: text('来源方向可浏览，运行读数会在配置来源后出现。', 'Source directions remain browsable; operational readings appear after sources are configured.'), retry: null }
+      return { title: text('读取来源状态', 'Reading source status'), detail: '', retry: null }
+    }
+    if (view === 'hot') {
+      if (hotFailed) return { title: text('热区暂时不可读', 'Hot index is unavailable'), detail: text('驻留量和索引需要重新读取。', 'Residency and the index need a retry.'), retry: onHotRetry }
+      if (hotPending) return { title: text('读取热区漏洞', 'Reading Hot vulnerabilities'), detail: '', retry: null }
+      return { title: text('当前页没有热区漏洞', 'No Hot vulnerabilities on this page'), detail: text('可以翻页或输入完整 CVE 编号查找整个驻留热区。', 'Change page or enter a complete CVE ID to search the resident pool.'), retry: null }
+    }
+    if (view === 'formation') {
+      if (formationFailed) return { title: text('处理记录暂时不可读', 'Processing records are unavailable'), detail: '', retry: onFormationRetry }
+      if (formation) return formation.processing.length
+        ? { title: text(`最近 ${formation.processing.length} 条处理记录`, `${formation.processing.length} recent processing records`), detail: text('选择右侧记录，查看处理状态和知识提交。', 'Select a run to inspect its status and knowledge commit.'), retry: null }
+        : { title: text('近期没有富化处理记录', 'No recent enrichment runs'), detail: text('来源与热区仍可独立浏览。', 'Sources and Hot records remain available.'), retry: null }
+      return { title: text('读取处理记录', 'Reading processing records'), detail: '', retry: null }
+    }
+    if (regionReadFailed) return { title: text('这个方向暂时无法读取', 'Could not read this direction'), detail: '', retry: region === 'incidents' ? onCandidateRetry : onRetry }
+    if (regionReadPending) return { title: text('正在读取世界动态', 'Reading world signals'), detail: '', retry: null }
+    return { title: region ? text('这个方向暂无可读材料', 'No readable material in this direction') : text('当前没有新的世界动态', 'No new world signals right now'), detail: text('来源和热区仍可独立浏览。', 'Sources and the Hot index remain available.'), retry: null }
+  })()
 
   return <section className={`evidence-world studio-world ${inspect || region ? 'is-inspecting' : ''}`} aria-label={text('AI 安全证据世界', 'AI security evidence world')}>
     <SpaceHeading index="01" eyebrow="WORLD / EVIDENCE PLANE" title={text('证据世界', 'Evidence world')} description={text('八类来源，四路汇聚。观察信息如何进入、变热，并被留存。', 'Eight source domains. Four processing routes. Follow information into a traceable world.')}><button className="ew-inspect-toggle" onClick={() => { setInspect(!inspect); setRegion(null) }} aria-expanded={inspect}><Layers3 size={16} />{text('追溯证据', 'Trace evidence')}</button></SpaceHeading>
@@ -65,15 +89,16 @@ export function WorldScene({ stories, hotStories, focusedId, pending, failed, ca
             </div>
             {focused.external_ref && <a className="ew-original" href={focused.external_ref} target="_blank" rel="noreferrer">{text('阅读完整原文', 'Read the original')}<ArrowUpRight size={13} /></a>}
           </motion.article> : <div className="ew-first-read" role="status">
-            <Scan size={24} /><h2>{regionReadFailed ? text('这个方向暂时无法读取', 'Could not read this direction') : regionReadPending ? text('正在读取世界动态', 'Reading world signals') : region ? text('这个方向的证据仍在形成。', 'Evidence is still forming here.') : text('正在读取世界动态', 'Reading world signals')}</h2>
-            {regionReadFailed && <button onClick={region === 'incidents' ? onCandidateRetry : onRetry}>{text('重新读取', 'Retry')}</button>}
+            <ProductGlyph kind={view === 'formation' ? 'intelligence' : view === 'sources' ? 'world' : view === 'hot' ? 'vulnerability' : 'world'} size={38} /><h2>{emptyState.title}</h2>
+            {emptyState.detail && <p>{emptyState.detail}</p>}
+            {emptyState.retry && <button onClick={emptyState.retry}>{text('重新读取', 'Retry')}</button>}
             {region && <button onClick={() => setRegion(null)}>{text('回到整个世界', 'View the whole world')}<ArrowRight size={16} /></button>}
           </div>}
         </AnimatePresence>
       </div>
       <div className="ew-space-region">
       <div className="ew-field-views" aria-label={text('观察世界', 'Observe the world')}>{[{ key: 'stories', zh: '世界动态', en: 'Signals' }, { key: 'sources', zh: '来源汇聚', en: 'Sources' }, { key: 'hot', zh: '浏览热区', en: 'Hot' }, { key: 'formation', zh: '富化与留存', en: 'Processing' }].map(v => <button key={v.key} aria-pressed={view === v.key} onClick={() => onView(v.key)}>{text(v.zh, v.en)}</button>)}</div>
-      {view === 'sources' ? <WorldSourcesField sources={overview?.sources} failed={overviewFailed} directions={categories} onSource={category => { setRegion(category); setInspect(false) }} onRetry={onOverviewRetry} /> : view === 'hot' ? <WorldHotField stories={hotStories} focusedId={focused?.story_id} total={hotTotal} failed={hotFailed} pending={hotPending} page={hotPage} pageSize={hotPageSize} onPage={onHotPage} onFocus={onFocus} onRetry={onHotRetry} /> : view === 'formation' ? <WorldFormationField formation={formation} /> : <EvidenceAtlas onHot={() => onView('hot')} directions={categories} overview={overview} stories={region ? regionStories : stories} focusedId={focused?.story_id} onSource={key => { setRegion(key); setInspect(false) }} onFocus={story => { onFocus(story); setInspect(false) }} changes={changes} total={hotTotal} />}
+      {view === 'sources' ? <WorldSourcesField sources={overview?.sources} failed={overviewFailed} directions={categories} onSource={category => { setRegion(category); setInspect(false) }} onRetry={onOverviewRetry} /> : view === 'hot' ? <WorldHotField stories={hotStories} focusedId={focused?.story_id} total={hotTotal} failed={hotFailed} pending={hotPending} page={hotPage} pageSize={hotPageSize} onPage={onHotPage} onFocus={onFocus} onRetry={onHotRetry} /> : view === 'formation' ? <WorldFormationField formation={formation} failed={formationFailed} onRetry={onFormationRetry} /> : <EvidenceAtlas onHot={() => onView('hot')} directions={categories} overview={overview} stories={region ? regionStories : stories} focusedId={focused?.story_id} onSource={key => { setRegion(key); setInspect(false) }} onFocus={story => { onFocus(story); setInspect(false) }} changes={changes} total={hotTotal} />}
       </div>
       {region && direction && <WorldSourceInspector category={region} label={text(direction.zh, direction.en)} path={direction.path} materials={stories} onClose={() => setRegion(null)} />}
       {inspect && !region && focused && <aside className="ew-inspector" aria-label={text('当前对象的证据来源', 'Evidence for the focused object')}>

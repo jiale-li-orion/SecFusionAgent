@@ -44,6 +44,12 @@
   min-width: 0;
 }
 
+.ew-first-read { display: grid; align-content: center; justify-items: start; gap: 14px; min-height: 430px; min-width: 0; padding: 28px 8px; color: #e2ecdc; }
+.ew-first-read > .product-glyph { color: #b7d7bd; }
+.ew-first-read h2 { max-width: 17ch; font-size: clamp(23px, 2.5vw, 37px); line-height: 1.18; font-weight: 520; letter-spacing: -.035em; }
+.ew-first-read p { max-width: 45ch; color: #a4b8a8; font-size: 12px; line-height: 1.75; }
+.ew-first-read button { display: inline-flex; align-items: center; gap: 8px; padding: 9px 0; border-bottom: 1px solid #a7cba06b; color: #c8e5bd; font-size: 11px; }
+
 .ew-story-origin {
   display: flex;
   align-items: center;
@@ -713,6 +719,8 @@
   font-style: normal;
   margin-left: auto;
 }
+.ew-field-more { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; margin-top: 14px; padding: 12px; border: 1px solid #bdd1aa40; border-radius: 10px; color: #d1e4c3; font-size: 11px; }
+.ew-field-more:hover { border-color: #cce4b680; background: #ddeccc0b; }
 
 .ew-processing-detail {
   padding: 18px;
@@ -4959,6 +4967,7 @@
   .ew-foreground {
     padding: 15px 0;
   }
+  .ew-first-read { min-height: 185px; padding: 16px 0; }
   .ew-story h2 {
     font-size: 42px;
     max-width: 650px;

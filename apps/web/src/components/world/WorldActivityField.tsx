@@ -50,16 +50,19 @@ const processors: Record<string, [string, string]> = {
   'osv-enrichment': ['受影响版本补充', 'Affected versions'],
   'redhat-csaf-vex-enrichment': ['适用性与修复补充', 'Applicability and remediation'],
 }
-export function WorldFormationField({ formation }: { formation: WorldFormation | undefined }) {
+export function WorldFormationField({ formation, failed, onRetry }: { formation: WorldFormation | undefined; failed: boolean; onRetry: () => void }) {
   const { text, language } = useI18n()
   const [selected, setSelected] = useState<string | null>(null)
+  const [expanded, setExpanded] = useState(false)
   const running = formation?.processing.filter(p => ['running', 'started'].includes(p.status)) ?? []
-  const items = formation?.processing.slice(0, 5) ?? []
+  const items = expanded ? formation?.processing ?? [] : formation?.processing.slice(0, 5) ?? []
   const current = formation?.processing.find(p => p.run_id === selected)
   return <div className="ew-formation-field">
-    <p className="ew-field-intro">{!formation ? text('正在读取富化记录', 'Reading processing records') : running.length ? text(`${running.length} 个富化处理正在运行`, `${running.length} enrichment processors running`) : text('当前没有运行中的富化处理', 'No enrichment processing is running now')}</p>
+    <p className="ew-field-intro">{failed ? text('处理记录暂时不可读', 'Processing records are unavailable') : !formation ? text('正在读取富化记录', 'Reading processing records') : running.length ? text(`${running.length} 个富化处理正在运行`, `${running.length} enrichment processors running`) : text('当前没有运行中的富化处理', 'No enrichment processing is running now')}</p>
+    {failed && <p className="ew-source-read-fault" role="alert">{text('无法读取最近的富化运行。', 'Recent enrichment runs could not be read.')} <button onClick={onRetry}>{text('重新读取', 'Retry')}</button></p>}
     <div className="ew-formation-axis"><span>{text('来源材料', 'Source material')}</span><ArrowRight size={16} /><span>{text('提取 · 关联', 'Extract · link')}</span><ArrowRight size={16} /><span>{text('知识留存', 'Retained knowledge')}</span></div>
     <div className="ew-processing-field">{items.map(p => { const alias = processors[p.processor_name]; return <button key={p.run_id} className={selected === p.run_id ? 'selected' : ''} onClick={() => setSelected(selected === p.run_id ? null : p.run_id)}><span className="ew-processing-glyph">{p.committed_at ? <Check size={18} /> : <Link2 size={18} />}</span><span><strong>{alias ? text(...alias) : text('情报富化', 'Intelligence enrichment')}</strong><small>{p.source_name ?? text('处理记录', 'Processing record')} · {new Date(p.started_at).toLocaleString(language === 'zh' ? 'zh-CN' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</small></span><em>{p.committed_at ? text('已写入知识', 'Knowledge committed') : p.status === 'success' ? text('处理完成', 'Processed') : ['running', 'started'].includes(p.status) ? text('运行中', 'Running') : text('处理未成功', 'Unsuccessful')}</em></button> })}</div>
+    {(formation?.processing.length ?? 0) > 5 && <button className="ew-field-more" onClick={() => { setExpanded(value => !value); setSelected(null) }}>{expanded ? text('收起处理记录', 'Show fewer runs') : text(`查看其余 ${formation!.processing.length - 5} 条记录`, `View ${formation!.processing.length - 5} more runs`)}<ArrowRight size={14} /></button>}
     {current && <div className="ew-processing-detail"><p>{current.external_object_id ?? current.processor_name}</p><p>{current.committed_at ? text('本次处理有对应的知识提交。', 'This processing run has a linked knowledge commit.') : text('这条处理记录尚无对应的知识提交。', 'No knowledge commit is linked to this processing record.')}</p><details><summary>{text('技术坐标', 'Technical coordinates')}</summary><pre>{JSON.stringify(current, null, 2)}</pre></details></div>}
     <p className="ew-field-note">{text('显示最近的实际处理记录。点击查看该次处理的知识提交与坐标。', 'Recent actual processing records. Select one to inspect its linked commit and coordinates.')}</p>
   </div>
