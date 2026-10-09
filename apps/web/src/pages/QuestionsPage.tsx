@@ -96,6 +96,7 @@ export function QuestionsPage() {
   const [evidence, setEvidence] = useState<string | null>(null)
   const [liveEvents, setLiveEvents] = useState<ProductRuntimeEvent[]>([])
   const [connectedCaseId, setConnectedCaseId] = useState<string | null>(null)
+  const [auditOpen, setAuditOpen] = useState(Boolean(params.get('turn')))
   const transcriptRef = useRef<HTMLDivElement>(null)
   const latestTurnRef = useRef<string | null>(null)
   const reasoningBuffer = useRef('')
@@ -311,7 +312,7 @@ export function QuestionsPage() {
           {history.isLoading && <p className="qa-muted">{text('恢复完整会话…', 'Restoring conversation…')}</p>}
           {history.isError && <div className="qa-error">{text('无法读取这段会话。', 'Could not load this conversation.')}<button onClick={() => void history.refetch()}>{text('重试', 'Retry')}</button></div>}
           {!sessionId && !pendingQuestion && <div className="qa-empty"><small>QUESTION → EVIDENCE → DECISION</small><h2>{text('今天想弄清楚什么？', 'What would you like to investigate?')}</h2><p>{text('直接用自然语言提问。系统会查找相关材料、辨认证据边界，并在需要时继续调查。', 'Ask naturally. The system finds relevant material, checks its evidence, and continues investigating when needed.')}</p><div className="qa-example-questions"><button onClick={() => setQuestion(text('Hugging Face 最近发生了什么安全事件？', 'What happened in the recent Hugging Face security incident?'))}>{text('Hugging Face 最近发生了什么安全事件？', 'What happened in the recent Hugging Face security incident?')}</button><button onClick={() => setQuestion(text('最近有哪些值得关注的供应链攻击？', 'Which recent supply-chain attacks deserve attention?'))}>{text('最近有哪些值得关注的供应链攻击？', 'Which recent supply-chain attacks deserve attention?')}</button></div></div>}
-          {turns.map(turn => <ConversationTurn key={turn.turn_index} turn={turn} active={!failedRunId && focusTurn?.turn_index === turn.turn_index} sessionId={sessionId!} reasoning={completedReasoning[`${sessionId}:${turn.turn_index}`] ?? null} onSelect={() => { setFailedRunId(null); const next = new URLSearchParams(params); next.set('turn', String(turn.turn_index)); setParams(next, { replace: true }) }} onEvidence={setEvidence} />)}
+          {turns.map(turn => <ConversationTurn key={turn.turn_index} turn={turn} active={!failedRunId && focusTurn?.turn_index === turn.turn_index} sessionId={sessionId!} reasoning={completedReasoning[`${sessionId}:${turn.turn_index}`] ?? null} onSelect={() => { setFailedRunId(null); setAuditOpen(true); const next = new URLSearchParams(params); next.set('turn', String(turn.turn_index)); setParams(next, { replace: true }); window.setTimeout(() => document.getElementById('question-audit')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80) }} onEvidence={setEvidence} />)}
           {pendingQuestion && <div className="qa-turn qa-turn-pending"><div className="qa-question"><small>{text('你 · 当前回合', 'YOU · CURRENT TURN')}</small><p>{pendingQuestion}</p></div><StreamedDecisionDraft draftRaw={draftRaw} reasoningRaw={reasoningRaw} reasoningOpen={reasoningOpen} onReasoningOpen={setReasoningOpen} phase={streamPhase} /></div>}
         </div>
         <div className="qa-compose">
@@ -325,7 +326,7 @@ export function QuestionsPage() {
         </div>
       </main>
 
-      <AuditRail turn={failedRunId ? null : focusTurn} failedRunId={failedRunId} tasks={tasks} taskLoading={taskQueries.some(query => query.isLoading)} taskReadFailed={taskQueries.some(query => query.isError)} onRetryTasks={() => taskQueries.forEach(query => { if (query.isError) void query.refetch() })} caseId={failedRunId ? null : caseId} caseStatus={caseDetail.data?.status} caseDecision={failedRunId ? null : caseDetail.data?.latest_decision} caseEvents={failedRunId ? [] : auditEvents} caseActivityLoading={caseActivity.isLoading} caseActivityFailed={caseActivity.isError} onRetryActivity={() => void caseActivity.refetch()} streamConnected={streamConnected} onEvidence={setEvidence} />
+      {auditOpen && <AuditRail turn={failedRunId ? null : focusTurn} failedRunId={failedRunId} tasks={tasks} taskLoading={taskQueries.some(query => query.isLoading)} taskReadFailed={taskQueries.some(query => query.isError)} onRetryTasks={() => taskQueries.forEach(query => { if (query.isError) void query.refetch() })} caseId={failedRunId ? null : caseId} caseStatus={caseDetail.data?.status} caseDecision={failedRunId ? null : caseDetail.data?.latest_decision} caseEvents={failedRunId ? [] : auditEvents} caseActivityLoading={caseActivity.isLoading} caseActivityFailed={caseActivity.isError} onRetryActivity={() => void caseActivity.refetch()} streamConnected={streamConnected} onEvidence={setEvidence} onClose={() => setAuditOpen(false)} />}
     </div>
     <AnimatePresence>{evidence && <EvidenceOverlay key={evidence} evidenceRef={evidence} onClose={() => setEvidence(null)} />}</AnimatePresence>
   </section>
@@ -353,7 +354,7 @@ function ConversationTurn({ turn, active, sessionId, reasoning, onSelect, onEvid
   </article>
 }
 
-function AuditRail({ turn, failedRunId, tasks, taskLoading, taskReadFailed, onRetryTasks, caseId, caseStatus, caseDecision, caseEvents, caseActivityLoading, caseActivityFailed, onRetryActivity, streamConnected, onEvidence }: { turn: QuestionSessionTurn | null; failedRunId: string | null; tasks: AgentTaskDetail[]; taskLoading: boolean; taskReadFailed: boolean; onRetryTasks: () => void; caseId: string | null; caseStatus?: string; caseDecision?: DecisionView | null; caseEvents: ProductRuntimeEvent[]; caseActivityLoading: boolean; caseActivityFailed: boolean; onRetryActivity: () => void; streamConnected: boolean; onEvidence: (ref: string) => void }) {
+function AuditRail({ turn, failedRunId, tasks, taskLoading, taskReadFailed, onRetryTasks, caseId, caseStatus, caseDecision, caseEvents, caseActivityLoading, caseActivityFailed, onRetryActivity, streamConnected, onEvidence, onClose }: { turn: QuestionSessionTurn | null; failedRunId: string | null; tasks: AgentTaskDetail[]; taskLoading: boolean; taskReadFailed: boolean; onRetryTasks: () => void; caseId: string | null; caseStatus?: string; caseDecision?: DecisionView | null; caseEvents: ProductRuntimeEvent[]; caseActivityLoading: boolean; caseActivityFailed: boolean; onRetryActivity: () => void; streamConnected: boolean; onEvidence: (ref: string) => void; onClose: () => void }) {
   const { text } = useI18n()
   const decision = useQuery({ queryKey: ['question-audit-decision', turn?.decision_ref], queryFn: () => getDecision(turn!.decision_ref!), enabled: Boolean(turn?.decision_ref), retry: false })
   const finalDecision = decision.data ?? caseDecision
@@ -362,8 +363,8 @@ function AuditRail({ turn, failedRunId, tasks, taskLoading, taskReadFailed, onRe
   const failedTask = tasks.find(task => task.task.run_id === failedRunId)
   const contextCount = tasks.filter(task => task.context).length
   const runtimeCount = tasks.reduce((count, task) => count + task.capabilities.length + task.events.length, caseEvents.length)
-  return <aside className="qa-audit" aria-label={text('可审计轨迹', 'Auditable trace')}>
-    <header><div><small>TRACE / CONTEXT / SOURCES</small><h2>{text('证据轨迹', 'Evidence trace')}</h2></div><span className={failedRunId ? 'failed' : turn ? 'active' : ''}>{failedRunId ? text('失败运行', 'FAILED RUN') : turn ? `TURN ${String(turn.turn_index).padStart(2, '0')}` : 'IDLE'}</span></header>
+  return <aside id="question-audit" className="qa-audit" aria-label={text('可审计轨迹', 'Auditable trace')}>
+    <header><div><small>TRACE / CONTEXT / SOURCES</small><h2>{text('证据轨迹', 'Evidence trace')}</h2></div><button type="button" className="qa-audit-close" onClick={onClose}>{text('收起轨迹', 'Close trace')}</button><span className={failedRunId ? 'failed' : turn ? 'active' : ''}>{failedRunId ? text('失败运行', 'FAILED RUN') : turn ? `TURN ${String(turn.turn_index).padStart(2, '0')}` : 'IDLE'}</span></header>
     {!turn && !failedRunId && <div className="qa-audit-empty"><div className="qa-audit-diagram"><span>01</span><i /><span>02</span><i /><span>03</span></div><p>{text('选中一个会话回合后，这里展示证据引用、模型调用、上下文装配和工具执行记录。', 'Select a turn to inspect its citations, model calls, assembled context, and tool activity.')}</p></div>}
     {(turn || failedRunId) && <>
       <div className="qa-audit-coordinate"><small>{failedRunId ? 'TASK RUN' : 'WORLD REVISION'}</small><strong>{failedRunId ? text('未形成决策', 'NO DECISION') : turn?.knowledge_revision ?? '—'}</strong><span>{failedRunId ? `task-run:${failedRunId}` : turn?.context_id ?? (caseId ? `case:${caseId}` : turn?.request_id)}</span></div>

@@ -10,6 +10,7 @@ export function DecisionReport({ decision, onEvidence, dialogue = false }: { dec
     ...decision.citations.map((citation) => citation.evidence_ref),
     ...decision.conclusions.flatMap((conclusion) => conclusion.evidence_refs),
   ])]
+  const evidenceBoundary = ['evidence_insufficient', 'evidence_validation_failed', 'no_bound_investigation_target'].includes(decision.stop_reason)
   const boundaries = [
     { label: text('来源冲突', 'SOURCE CONFLICTS'), items: decision.conflicts, tone: 'conflict' },
     { label: text('尚未确认', 'UNKNOWNS'), items: decision.unknowns, tone: 'unknown' },
@@ -30,17 +31,17 @@ export function DecisionReport({ decision, onEvidence, dialogue = false }: { dec
   </article>
   return (
     <div className="decision-report">
-      {paragraphs.length > 0 && <section className="decision-report-narrative" aria-label={text('研究报告', 'Research report')}>
-        <small>{text('研究报告 · 基于可追溯证据', 'RESEARCH REPORT · TRACEABLE EVIDENCE')}</small>
+      {paragraphs.length > 0 && <section className="decision-report-narrative" aria-label={evidenceBoundary ? text('证据边界说明', 'Evidence boundary') : text('研究报告', 'Research report')}>
+        <small>{evidenceBoundary ? text('证据边界 · 暂无可核验结论', 'EVIDENCE BOUNDARY · NO VERIFIED CONCLUSION') : text('研究报告 · 基于可追溯证据', 'RESEARCH REPORT · TRACEABLE EVIDENCE')}</small>
         {paragraphs.map((paragraph, index) => <div className="decision-report-paragraph" key={`${index}:${paragraph.text}`}>
           <p>{paragraph.text}</p>
           {paragraph.evidence_refs.length > 0 && <div className="decision-report-citations">{[...new Set(paragraph.evidence_refs)].map(ref => <button type="button" key={ref} onClick={() => onEvidence(ref)} title={ref}><Link2 size={12} />{text('证据', 'EVIDENCE')} {refs.indexOf(ref) + 1}</button>)}</div>}
         </div>)}
       </section>}
       {paragraphs.length > 0
-        ? <details className="decision-report-facts"><summary>{text('查看经验证的决策字段与结论', 'Inspect validated decision fields and findings')}</summary>{answerFields}<div className="decision-report-conclusions">{conclusions.map(renderConclusion)}</div></details>
+        ? <details className="decision-report-facts"><summary>{evidenceBoundary ? text('查看判断状态', 'Inspect decision status') : text('查看经验证的决策字段与结论', 'Inspect validated decision fields and findings')}</summary>{answerFields}<div className="decision-report-conclusions">{conclusions.map(renderConclusion)}</div></details>
         : <><div className="decision-report-conclusions">{primary.map(renderConclusion)}</div>{supportingFacts.length > 0 && <details className="decision-report-facts"><summary>{text(`支撑事实 · ${supportingFacts.length}`, `SUPPORTING FACTS · ${supportingFacts.length}`)}</summary><div className="decision-report-conclusions">{supportingFacts.map(renderConclusion)}</div></details>}{answerFields && (decision.conclusions.length === 0 ? answerFields : <details className="decision-report-coordinate"><summary>{text('决策字段', 'Decision fields')}</summary>{answerFields}</details>)}</>}
-      {boundaries.filter(({ items }) => items.length > 0).map(({ label, items, tone }) => <section className={`decision-report-boundary boundary-${tone}`} key={tone}><h3>{label}</h3><ul>{items.map((item, index) => <li key={index}>{item}</li>)}</ul></section>)}
+      {boundaries.filter(({ items }) => items.length > 0 && !(dialogue && evidenceBoundary)).map(({ label, items, tone }) => <section className={`decision-report-boundary boundary-${tone}`} key={tone}><h3>{label}</h3><ul>{items.map((item, index) => <li key={index}>{item}</li>)}</ul></section>)}
       {refs.length > 0 && <details className="decision-report-sources"><summary>{text(`全部证据 · ${refs.length}`, `ALL EVIDENCE · ${refs.length}`)}</summary><div className="decision-report-citations">{refs.map((ref, index) => <button type="button" key={ref} onClick={() => onEvidence(ref)} title={ref}><Link2 size={12} />{text('证据', 'EVIDENCE')} {index + 1}</button>)}</div></details>}
       <details className="decision-report-coordinate"><summary>{text('研判坐标', 'DECISION COORDINATES')}</summary><dl><dt>ID</dt><dd>{decision.decision_id}</dd><dt>REV</dt><dd>{decision.case_revision}</dd><dt>STOP</dt><dd>{decision.stop_reason}</dd><dt>TIME</dt><dd>{new Date(decision.created_at).toLocaleString()}</dd></dl></details>
     </div>

@@ -10,19 +10,22 @@ export function InvestigationReport({ investigation, onEvidence }: { investigati
   if (!decision) return null
 
   const paragraphs = decision.report_paragraphs ?? []
+  const insufficient = decision.stop_reason === 'evidence_insufficient'
   const citedRefs = [...new Set(decision.citations.map(item => item.evidence_ref))]
   const cveId = investigation.goal.match(/\bCVE-\d{4}-\d{4,}\b/i)?.[0]
-  const reportTitle = cveId
+  const reportTitle = insufficient
+    ? text('当前证据还不足以回答', 'The evidence is not enough yet')
+    : cveId
     ? `${cveId} · ${text('修复与证据研判', 'Fix and evidence analysis')}`
     : text('调查研究报告', 'Investigation research report')
 
   return <article className="investigation-report">
     <header className="report-masthead">
       <div><small>{text('调查报告', 'INVESTIGATION REPORT')} / ORACLE</small><h2>{reportTitle}</h2></div>
-      <span><BadgeCheck size={14} />{text('已形成研判', 'DECISION READY')}</span>
+      <span><BadgeCheck size={14} />{insufficient ? text('等待更多证据', 'MORE EVIDENCE NEEDED') : text('已形成研判', 'DECISION READY')}</span>
     </header>
     <div className="report-byline">
-      <span>{text('基于已验证的决策与证据', 'Grounded in validated decisions and evidence')}</span>
+      <span>{insufficient ? text('已明确标出当前证据边界', 'Current evidence boundary is explicit') : text('基于已验证的决策与证据', 'Grounded in validated decisions and evidence')}</span>
       <span>{new Date(decision.created_at).toLocaleString(language === 'zh' ? 'zh-CN' : 'en-US')} · {citedRefs.length} {text('条可追溯证据', 'traceable references')}</span>
     </div>
     <div className="report-body">
