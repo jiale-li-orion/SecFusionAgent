@@ -55,6 +55,7 @@ export function IntelligencePage() {
   const [inputOverride, setInputOverride] = useState<string | null>(null)
   const [searchError, setSearchError] = useState('')
   const [searchBusy, setSearchBusy] = useState(false)
+  const [graphLimit, setGraphLimit] = useState(24)
   const input = inputOverride ?? (paramIncident ? `incident:${paramIncident}` : paramObject ? `object:${paramObject}` : paramCve || paramQuery)
   const deferredInput = useDeferredValue(input.trim())
   const evidenceRef = paramEvidence
@@ -101,8 +102,8 @@ export function IntelligencePage() {
     ])
   }, [queryClient, selectedObjectId, selectedCve, obj?.object_id])
   const graphQuery = useQuery({
-    queryKey: ['intelligence-graph', obj?.object_id],
-    queryFn: () => getIntelligenceGraph(obj!.object_id, 24),
+    queryKey: ['intelligence-graph', obj?.object_id, graphLimit],
+    queryFn: () => getIntelligenceGraph(obj!.object_id, graphLimit),
     enabled: Boolean(obj),
     staleTime: 30_000,
   })
@@ -346,6 +347,7 @@ export function IntelligencePage() {
                     selectedLabel={headline}
                     objectType={obj.object_type}
                     onEvidence={openEvidence}
+                    onLoadMore={graphLimit < 64 ? () => setGraphLimit(64) : undefined}
                     onOpenTarget={(objectId) => {
                       setInputOverride(null)
                       setParams({ object: objectId })

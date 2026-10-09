@@ -1467,9 +1467,24 @@
 }
 
 .graph-read-boundary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
   font-size: 10px;
   color: var(--muted);
 }
+
+.graph-read-boundary button { color: #3e7152; border-bottom: 1px solid currentColor; font-size: 10px; }
+.graph-relation-ledger { margin-top: 20px; border-top: 1px solid var(--line); }
+.graph-relation-ledger > summary { padding: 18px 0; cursor: pointer; font-size: 11px; color: #476a55; }
+.graph-relation-ledger > div { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 10px; }
+.graph-ledger-row { display: grid; grid-template-columns: 24px minmax(0, 1fr) 24px; gap: 10px; align-items: start; padding: 15px; border: 1px solid var(--line); border-radius: 10px; background: #e9eee4; }
+.graph-ledger-row > .mono { font-size: 9px; color: #8b9e82; }
+.graph-ledger-row > div { min-width: 0; display: grid; gap: 7px; }
+.graph-ledger-row small { font-size: 9px; color: #789173; }
+.graph-ledger-row strong { font-size: 11px; font-weight: 600; overflow-wrap: anywhere; }
+.graph-ledger-row > button { color: #47755a; }
 
 .graph-zoom-hint {
   position: absolute;

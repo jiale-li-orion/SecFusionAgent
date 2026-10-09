@@ -17,6 +17,7 @@ export function FocusedKnowledgeGraph({
   selectedLabel,
   objectType,
   onEvidence,
+  onLoadMore,
   onOpenTarget,
 }: {
   relations: KnowledgeRelation[]
@@ -27,6 +28,7 @@ export function FocusedKnowledgeGraph({
   selectedLabel: string
   objectType: string
   onEvidence: (ref: string) => void
+  onLoadMore?: () => void
   onOpenTarget: (objectId: string) => void
 }) {
   const { text } = useI18n()
@@ -44,9 +46,9 @@ export function FocusedKnowledgeGraph({
     <section className={`relation-section graph-mode ${selected ? 'graph-focused' : ''}`}>
       <div className="section-title-row">
         <div><small>FOCUSED KNOWLEDGE GRAPH</small><strong>RELATION NEIGHBORHOOD</strong></div>
-        <span>{text(`${totalRelationCount} 条 canonical edges · ${visible.length} 条可见`, `${totalRelationCount} canonical edges · ${visible.length} visible`)}</span>
+        <span>{text(`${totalRelationCount} 条 canonical edges · 图中预览 ${visible.length} 条`, `${totalRelationCount} canonical edges · ${visible.length} in graph preview`)}</span>
       </div>
-      <div className="graph-read-boundary"><span>{neighborhood.replaceAll('_', ' ')}</span>{totalRelationCount > relations.length && <b>{text(`读取窗口 ${relations.length}/${totalRelationCount}`, `read window ${relations.length}/${totalRelationCount}`)}</b>}</div>
+      <div className="graph-read-boundary"><span>{neighborhood.replaceAll('_', ' ')}</span>{totalRelationCount > relations.length && <b>{text(`已读取 ${relations.length}/${totalRelationCount}`, `read ${relations.length}/${totalRelationCount}`)}</b>}{totalRelationCount > relations.length && onLoadMore && <button type="button" onClick={onLoadMore}>{text('读取更多关系', 'Read more relations')}</button>}</div>
       <div className="graph-toolbar">
         <div className="graph-layers">
           {layers.map((item) => <button key={item} className={layer === item ? 'active' : ''} onClick={() => setLayer(item)}>{item}</button>)}
@@ -98,6 +100,14 @@ export function FocusedKnowledgeGraph({
           </motion.aside>}
         </AnimatePresence>
       </div>
+      {semanticRelations.length > 0 && <details className="graph-relation-ledger" open>
+        <summary>{text('关系清单', 'Relation ledger')} · {semanticRelations.length} {text('条已读取', 'loaded')}</summary>
+        <div>{semanticRelations.map((relation, index) => <article key={relation.relation_id} className="graph-ledger-row">
+          <span className="mono">{String(index + 1).padStart(2, '0')}</span>
+          <div><small>{humanize(relation.relation_type)} · {relation.target.object_type}</small><strong>{typeof relation.target.properties.display_name === 'string' ? relation.target.properties.display_name : relation.target.external_identifiers.cve?.[0] ?? relation.target.canonical_key}</strong><EvidenceCapsules evidence={relation.evidence} onEvidence={onEvidence} compact /></div>
+          <button type="button" onClick={() => onOpenTarget(relation.target.object_id)} aria-label={text('打开目标档案', 'Open target dossier')}><ExternalLink size={14} /></button>
+        </article>)}</div>
+      </details>}
     </section>
   )
 }
