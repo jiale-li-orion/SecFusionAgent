@@ -81,11 +81,21 @@
 .qa-answer .decision-answer-fields div { display: flex; gap: 10px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--qa-line); }
 .qa-answer .decision-answer-fields dt { min-width: 110px; color: #87a6a1; font-size: 11px; }
 .qa-answer .decision-answer-fields dd { min-width: 0; margin: 0; color: #e5eae5; font-size: 13px; overflow-wrap: anywhere; }
+.qa-case-result { display: grid; gap: 12px; margin-top: 13px; padding: 17px 19px; border: 1px solid rgba(141, 201, 180, .24); border-radius: 13px; background: linear-gradient(135deg, rgba(76, 145, 122, .12), rgba(29, 66, 62, .07)); }
+.qa-case-result.state-waiting { border-color: rgba(220, 177, 115, .35); background: linear-gradient(135deg, rgba(160, 113, 57, .13), rgba(53, 43, 31, .07)); }
+.qa-case-result.state-failed,.qa-case-result.state-blocked,.qa-case-result.state-cancelled { border-color: rgba(216, 129, 111, .3); background: linear-gradient(135deg, rgba(139, 74, 67, .12), rgba(52, 32, 37, .06)); }
 .qa-case-result > strong { font-size: 16px; font-weight: 560; }
 .qa-case-result > p { color: #b3c3be; font-size: 13px; line-height: 1.65; }
 .qa-case-result > div:not(.decision-report) { display: flex; flex-wrap: wrap; gap: 7px; }
 .qa-case-result > div:not(.decision-report) span { padding: 5px 8px; border: 1px solid var(--qa-line); border-radius: 20px; color: #a6c4bc; font-size: 10px; }
 .qa-case-result > a { display: inline-flex; align-items: center; gap: 5px; margin-top: 14px; color: #c8f77b; font-size: 12px; text-decoration: none; }
+.qa-task-link { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 7px 0; padding: 11px 12px; border: 1px solid rgba(126, 182, 163, .25); border-radius: 10px; background: linear-gradient(110deg, rgba(93, 149, 133, .1), rgba(91, 133, 121, .025)); color: #d9e9df; text-decoration: none; }
+.qa-task-link:hover { border-color: rgba(200, 247, 123, .52); color: #e9f9df; }
+.qa-task-link > span { display: grid; min-width: 0; gap: 3px; }
+.qa-task-link small { color: #a3bdb6; font-size: 9px; }
+.qa-task-link strong { font-size: 12px; font-weight: 560; overflow-wrap: anywhere; }
+.qa-task-link em { color: #87a3a0; font-size: 10px; font-style: normal; overflow-wrap: anywhere; }
+.qa-task-link > svg { flex: 0 0 auto; }
 .qa-live-dot, .qa-case-stream i { display: inline-block; width: 7px; height: 7px; margin-right: 8px; border-radius: 50%; background: #bdde78; box-shadow: 0 0 11px rgba(200, 247, 123, .55); }
 .qa-draft-text { white-space: pre-wrap; color: #e6efe4; font-size: 16px; line-height: 1.7; }
 .qa-caret { display: inline-block; width: 2px; height: 1em; margin-left: 3px; vertical-align: -.15em; background: #c8f77b; animation: qa-blink .75s steps(2) infinite; }
