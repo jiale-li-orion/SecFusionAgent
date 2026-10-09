@@ -260,6 +260,9 @@ export function QuestionsPage() {
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : text('问答请求失败', 'Question failed'))
       setFailedRunId(exc && typeof exc === 'object' && 'runId' in exc && typeof exc.runId === 'string' ? exc.runId : null)
+      setPendingQuestion('')
+      setDraftRaw('')
+      setReasoningRaw('')
       setStreamPhase('failed')
     } finally { setBusy(false) }
   }

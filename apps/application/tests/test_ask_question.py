@@ -602,7 +602,7 @@ async def test_pre_context_retrieval_failure_records_attempt_without_empty_sessi
 
 
 @pytest.mark.asyncio
-async def test_retrieve_session_rejects_stale_live_case_world() -> None:
+async def test_retrieve_session_refreshes_stale_live_case_through_investigation() -> None:
     engine, factory = await _factory()
     provider = _Provider(
         DecisionPlannerResponse(
@@ -626,6 +626,7 @@ async def test_retrieve_session_rejects_stale_live_case_world() -> None:
                 ),
             )
         assert first.investigation is not None
+        await _complete_investigation_episode(factory, first.investigation.case_id)
 
         async with factory() as session, session.begin():
             session.add(
@@ -637,21 +638,21 @@ async def test_retrieve_session_rejects_stale_live_case_world() -> None:
             )
 
         async with factory() as session:
-            with pytest.raises(
-                LifecycleConflictError,
-                match="must be refreshed before retrieval follow-up",
-            ):
-                await _use_case(provider).execute(
-                    session,
-                    AskQuestionCommand(
-                        principal="user:test",
-                        request_id="question-case-retrieve-stale",
-                        session_id=first.session_id,
-                        question="Retrieve more evidence for the active investigation.",
-                        task_kind=TaskKind.RETRIEVE,
-                    ),
-                )
+            followup = await _use_case(provider).execute(
+                session,
+                AskQuestionCommand(
+                    principal="user:test",
+                    request_id="question-case-retrieve-stale",
+                    session_id=first.session_id,
+                    question="Retrieve more evidence for the active investigation.",
+                    task_kind=TaskKind.RETRIEVE,
+                ),
+            )
 
+        assert followup.mode == "accepted"
+        assert followup.turn_index == 2
+        assert followup.investigation is not None
+        assert followup.investigation.case_id == first.investigation.case_id
         assert provider.requests == []
         async with factory() as session:
             assert int(
@@ -660,11 +661,11 @@ async def test_retrieve_session_rejects_stale_live_case_world() -> None:
             ) == 0
             assert int(
                 await session.scalar(select(func.count()).select_from(TaskRunModel)) or 0
-            ) == 1
+            ) == 2
             assert int(
                 await session.scalar(select(func.count()).select_from(QuestionSessionTurnModel))
                 or 0
-            ) == 1
+            ) == 2
     finally:
         await engine.dispose()
 

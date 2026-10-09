@@ -12,6 +12,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.application.command_idempotency import (
+    ProductCommandRecordModel,
     claim_command,
     command_digest,
     complete_command,
@@ -57,7 +58,7 @@ from packages.investigation.state.contracts import InvestigationState, Investiga
 from packages.investigation.state.service import InvestigationStateService
 from packages.investigation.storage.models import InvestigationCaseModel
 from packages.reasoning.citation import CitationSource
-from packages.reasoning.decision import DecisionDraft, DecisionService
+from packages.reasoning.decision import DecisionDraft, DecisionReportParagraph, DecisionService
 from packages.reasoning.model import ModelDecisionPlanner
 from packages.reasoning.storage import DecisionResultStore
 from packages.runtime.budget import BudgetGovernor, BudgetLimits
@@ -209,6 +210,7 @@ class AskQuestionUseCase:
                 command.question, cve_id=command.cve_id, object_id=command.object_id,
             )
             command = command.model_copy(update={"task_kind": task_kind, "cve_id": cve_id})
+        assert command.task_kind is not None
         latest_investigation_turn = await self._sessions.latest_investigation_turn(
             session,
             session_id=command.session_id,
@@ -227,38 +229,9 @@ class AskQuestionUseCase:
                         "active investigation follow-up cannot rebind the session target",
                         context={"case_id": active_case_id},
                     )
-                investigation = await self._continue_investigation(
-                    session,
-                    command,
-                    case_id=active_case_id,
+                return await self._accept_active_case_followup(
+                    session, command, session_context, active_case_id, record,
                 )
-                turn = await self._sessions.append_turn(
-                    session,
-                    session_id=session_context.session_id,
-                    principal=command.principal,
-                    request_id=command.request_id,
-                    question=command.question,
-                    task_kind=command.task_kind.value,
-                    target_object_ids=investigation.target_object_ids,
-                    knowledge_revision=await _current_knowledge_revision(session),
-                    context_id=None,
-                    decision_ref=None,
-                    investigation_ref=f"case:{investigation.case_id}",
-                )
-                result = QuestionResultView(
-                    request_id=command.request_id,
-                    session_id=session_context.session_id,
-                    turn_index=turn.turn_index,
-                    mode="accepted",
-                    execution_profile=investigation.execution_profile or "INVESTIGATE",
-                    investigation=investigation,
-                )
-                complete_command(
-                    record, f"{session_context.session_id}:{turn.turn_index}",
-                    result.model_dump(mode="json"),
-                )
-                await session.commit()
-                return result
         case_read_id = (
             active_case_id
             if command.task_kind in {TaskKind.LOOKUP, TaskKind.RETRIEVE}
@@ -266,7 +239,14 @@ class AskQuestionUseCase:
             and command.object_id is None
             else None
         )
+        if case_read_id is not None and command.task_kind is TaskKind.RETRIEVE:
+            state = await self._investigation_state.get_state(session, case_read_id)
+            if state.last_world_revision != await _current_knowledge_revision(session):
+                return await self._accept_active_case_followup(
+                    session, command, session_context, case_read_id, record,
+                )
         command = _bind_session_target(command, session_context)
+        assert command.task_kind is not None
         next_turn_index = (
             session_context.latest_turn.turn_index + 1 if session_context.latest_turn else 1
         )
@@ -336,15 +316,27 @@ class AskQuestionUseCase:
                     extra={"request_id": command.request_id},
                 )
 
-        context = await self._load_context(
-            session,
-            command,
-            session_context=session_context,
-            turn_index=next_turn_index,
-            active_case_id=case_read_id,
-            query_intent=query_intent,
-            query_intent_model_ref=query_intent_model_ref,
-        )
+        try:
+            context = await self._load_context(
+                session,
+                command,
+                session_context=session_context,
+                turn_index=next_turn_index,
+                active_case_id=case_read_id,
+                query_intent=query_intent,
+                query_intent_model_ref=query_intent_model_ref,
+            )
+        except LifecycleConflictError as exc:
+            if (
+                case_read_id is None
+                or command.task_kind is not TaskKind.RETRIEVE
+                or exc.detail
+                != "active investigation state must be refreshed before retrieval follow-up"
+            ):
+                raise
+            return await self._accept_active_case_followup(
+                session, command, session_context, case_read_id, record,
+            )
         history_payload = await self._session_history_payload(session, session_context)
         run_id, execution_id, profile = await self._open_sync_runtime(
             session,
@@ -404,7 +396,7 @@ class AskQuestionUseCase:
                         case_revision=context.state.case_revision,
                         unknowns=[command.question],
                         answer_payload={"status": "evidence_validation_failed"},
-                        report_paragraphs=[{"text": message, "evidence_refs": []}],
+                        report_paragraphs=[DecisionReportParagraph(text=message)],
                         stop_reason="evidence_validation_failed",
                         model_prompt_revision="decision-validation-fallback-v1",
                     )
@@ -430,7 +422,7 @@ class AskQuestionUseCase:
                         case_revision=context.state.case_revision,
                         unknowns=[message],
                         answer_payload={"status": "insufficient_evidence"},
-                        report_paragraphs=[{"text": message, "evidence_refs": []}],
+                        report_paragraphs=[DecisionReportParagraph(text=message)],
                         stop_reason="no_bound_investigation_target",
                         model_prompt_revision="decision-model-v4",
                     )
@@ -617,6 +609,46 @@ class AskQuestionUseCase:
             target_object_ids=investigation.target_object_ids,
             knowledge_revision=context.state.last_world_revision,
             context_id=f"context:{run_id}",
+            decision_ref=None,
+            investigation_ref=f"case:{investigation.case_id}",
+        )
+        result = QuestionResultView(
+            request_id=command.request_id,
+            session_id=session_context.session_id,
+            turn_index=turn.turn_index,
+            mode="accepted",
+            execution_profile=investigation.execution_profile or "INVESTIGATE",
+            investigation=investigation,
+        )
+        complete_command(
+            record, f"{session_context.session_id}:{turn.turn_index}",
+            result.model_dump(mode="json"),
+        )
+        await session.commit()
+        return result
+
+    async def _accept_active_case_followup(
+        self,
+        session: AsyncSession,
+        command: AskQuestionCommand,
+        session_context: QuestionSessionContext,
+        case_id: str,
+        record: ProductCommandRecordModel | None,
+    ) -> QuestionResultView:
+        assert command.task_kind is not None
+        investigation = await self._continue_investigation(
+            session, command, case_id=case_id,
+        )
+        turn = await self._sessions.append_turn(
+            session,
+            session_id=session_context.session_id,
+            principal=command.principal,
+            request_id=command.request_id,
+            question=command.question,
+            task_kind=command.task_kind.value,
+            target_object_ids=investigation.target_object_ids,
+            knowledge_revision=await _current_knowledge_revision(session),
+            context_id=None,
             decision_ref=None,
             investigation_ref=f"case:{investigation.case_id}",
         )
@@ -1249,6 +1281,7 @@ class AskQuestionUseCase:
         target_object_ids: list[str] | None = None,
     ):
         kind = command.task_kind
+        assert kind is not None
         if kind in {TaskKind.LOOKUP, TaskKind.RETRIEVE}:
             kind = TaskKind.INVESTIGATE_RELATION
         result = await StartInvestigationUseCase(
@@ -1298,6 +1331,7 @@ class AskQuestionUseCase:
         priority: int | None = None,
     ):
         kind = command.task_kind
+        assert kind is not None
         if kind in {TaskKind.LOOKUP, TaskKind.RETRIEVE}:
             kind = TaskKind.INVESTIGATE_RELATION
         result = await ContinueInvestigationUseCase(
