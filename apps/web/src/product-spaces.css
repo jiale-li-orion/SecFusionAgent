@@ -4143,6 +4143,8 @@
   color: var(--muted);
   margin-top: 12px;
 }
+.state-show-more { width: 100%; margin-top: 12px; padding: 11px 13px; border: 1px solid #b5c5ab; border-radius: 8px; color: #4f745b; font-size: 11px; text-align: center; }
+.state-show-more:hover { background: #e7eddf; }
 
 .need-item,.evidence-need {
   padding: 15px 0;

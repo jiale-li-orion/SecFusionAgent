@@ -214,6 +214,7 @@ export function CaseWorkspace({ investigation, events, eventCue, initialFocus, o
 
 function StateColumn({ title, tone, icon: Icon, items, onEvidence, active, dimmed, forged, reduceMotion, onFocus }: { title: string; tone: string; icon: typeof BadgeCheck; items: InvestigationFinding[]; onEvidence: (ref: string) => void; active: boolean; dimmed: boolean; forged: boolean; reduceMotion: boolean; onFocus: () => void }) {
   const { text } = useI18n()
+  const [expanded, setExpanded] = useState(false)
   return (
     <motion.section
       className={`state-column tone-${tone} ${active ? 'state-focused' : ''} ${dimmed ? 'state-dimmed' : ''} ${forged ? 'state-forged' : ''}`}
@@ -223,13 +224,14 @@ function StateColumn({ title, tone, icon: Icon, items, onEvidence, active, dimme
     >
       <button type="button" className="state-column-head" onClick={onFocus}><Icon size={14} /><strong>{title}</strong><span>{items.length}</span></button>
       <div className="state-items">
-        {items.slice(0, 8).map((item, index) => (
+        {(expanded ? items : items.slice(0, 8)).map((item, index) => (
           <motion.article key={`${item.proposition}:${index}`} className="state-item" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
             <strong>{item.proposition}</strong>
             <EvidenceButtons refs={item.evidence_refs} onEvidence={onEvidence} />
           </motion.article>
         ))}
         {items.length === 0 && <div className="state-empty">{text('当前没有条目。', 'No current items.')}</div>}
+        {items.length > 8 && <button type="button" className="state-show-more" aria-expanded={expanded} onClick={() => setExpanded(value => !value)}>{expanded ? text('收起条目', 'Show fewer') : text(`查看其余 ${items.length - 8} 条`, `View ${items.length - 8} more`)}</button>}
       </div>
     </motion.section>
   )
@@ -237,17 +239,20 @@ function StateColumn({ title, tone, icon: Icon, items, onEvidence, active, dimme
 
 function EvidenceNeeds({ investigation, active, dimmed, forged, reduceMotion, onFocus }: { investigation: InvestigationView; active: boolean; dimmed: boolean; forged: boolean; reduceMotion: boolean; onFocus: () => void }) {
   const { text } = useI18n()
+  const [expanded, setExpanded] = useState(false)
+  const needs = investigation.open_evidence_needs
   return (
     <motion.section className={`state-column tone-cyan ${active ? 'state-focused' : ''} ${dimmed ? 'state-dimmed' : ''} ${forged ? 'state-forged' : ''}`} initial={forged && !reduceMotion ? { opacity: .38, y: 7 } : false} animate={{ opacity: dimmed ? .78 : 1, y: 0 }} transition={{ duration: reduceMotion ? 0 : .28 }}>
       <button type="button" className="state-column-head" onClick={onFocus}><SearchCheck size={14} /><strong>{text('证据缺口', 'EVIDENCE NEEDS')}</strong><span>{investigation.open_evidence_needs.length}</span></button>
       <div className="state-items">
-        {investigation.open_evidence_needs.slice(0, 8).map((need) => (
+        {(expanded ? needs : needs.slice(0, 8)).map((need) => (
           <article key={need.need_id} className="state-item evidence-need-item">
             <strong>{need.question}</strong><small>{need.purpose} · priority {need.priority}</small>
             <div className="need-roles">{need.required_source_roles.map((role) => <span key={role}>{role}</span>)}</div>
           </article>
         ))}
-        {investigation.open_evidence_needs.length === 0 && <div className="state-empty">{text('当前没有开放的证据缺口。', 'No open evidence gaps.')}</div>}
+        {needs.length === 0 && <div className="state-empty">{text('当前没有开放的证据缺口。', 'No open evidence gaps.')}</div>}
+        {needs.length > 8 && <button type="button" className="state-show-more" aria-expanded={expanded} onClick={() => setExpanded(value => !value)}>{expanded ? text('收起缺口', 'Show fewer') : text(`查看其余 ${needs.length - 8} 个缺口`, `View ${needs.length - 8} more needs`)}</button>}
       </div>
     </motion.section>
   )
