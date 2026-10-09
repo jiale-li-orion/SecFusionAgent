@@ -1423,6 +1423,11 @@ async def test_targetless_retrieve_continuation_binds_retrieved_document_target(
             )
             assert need is not None
             assert need.target_objects == [DOCUMENT_ID]
+            assert need.proposition_or_question == (
+                "What does the research note establish about the fix?"
+            )
+            assert need.purpose == "verify_retrieved_answer"
+            assert need.evidence_contract["required_source_roles"] == []
             runs = list(
                 await session.scalars(select(TaskRunModel).order_by(TaskRunModel.created_at))
             )

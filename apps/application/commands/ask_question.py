@@ -548,23 +548,40 @@ class AskQuestionUseCase:
             raise LifecycleConflictError(
                 "question continuation requires a bound target before investigation escalation"
             )
+        verify_retrieved_question = (
+            context.case_ref is None
+            and command.task_kind is TaskKind.RETRIEVE
+            and bool(context.state.tentative)
+            and not context.state.confirmed
+        )
+        evidence_question = (
+            command.question if verify_retrieved_question else proposal.proposition_or_question
+        )
+        evidence_purpose = (
+            "verify_retrieved_answer" if verify_retrieved_question else proposal.purpose
+        )
+        evidence_roles = (
+            list(command.required_source_roles)
+            if verify_retrieved_question
+            else proposal.evidence_contract.required_source_roles
+        )
         if context.case_ref is not None:
             investigation = await self._continue_investigation(
                 session,
                 command,
                 case_id=context.case_ref,
-                question=proposal.proposition_or_question,
-                purpose=proposal.purpose,
-                required_source_roles=proposal.evidence_contract.required_source_roles,
+                question=evidence_question,
+                purpose=evidence_purpose,
+                required_source_roles=evidence_roles,
                 priority=proposal.priority,
             )
         else:
             investigation = await self._start_investigation(
                 session,
                 command,
-                proposal.proposition_or_question,
-                purpose=proposal.purpose,
-                required_source_roles=proposal.evidence_contract.required_source_roles,
+                evidence_question,
+                purpose=evidence_purpose,
+                required_source_roles=evidence_roles,
                 priority=proposal.priority,
                 target_object_id=continuation_target,
                 target_object_ids=(
