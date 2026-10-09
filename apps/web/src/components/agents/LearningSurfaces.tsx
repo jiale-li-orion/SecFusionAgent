@@ -60,7 +60,7 @@ function SkillGovernanceRef({ label, values, empty }: { label: string; values: s
   return (
     <div className="skill-governance-ref">
       <small>{label}</small>
-      {values.length ? values.slice(0, 4).map((value) => <span key={value} className="mono">{value}</span>) : <em>{empty}</em>}
+      {values.length ? values.map((value) => <span key={value} className="mono">{value}</span>) : <em>{empty}</em>}
     </div>
   )
 }
@@ -157,7 +157,7 @@ function TrajectoryEvidence({ record, experienceRef }: { record: ProductExperien
 }
 
 function formatEvaluation(evaluation: Record<string, unknown>) {
-  const items = Object.entries(evaluation).slice(0, 3).map(([key, value]) => {
+  const items = Object.entries(evaluation).map(([key, value]) => {
     if (typeof value === 'number') return key + '=' + (Number.isInteger(value) ? String(value) : value.toFixed(3))
     if (typeof value === 'boolean' || typeof value === 'string') return key + '=' + String(value)
     return key

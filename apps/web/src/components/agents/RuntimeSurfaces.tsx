@@ -88,8 +88,7 @@ export function RuntimeActivityView({ detail, onSkillSelect, onTaskSelect }: { d
           <span>03</span>
           <div><small>ASSEMBLY / SKILL</small><strong>{assembly ? text(`${skills.length} 个 materialized Skill`, `${skills.length} materialized skills`) : text('无 PromptAssembly', 'NO PROMPT ASSEMBLY')}</strong></div>
           <div className="runtime-activity-ref">
-            {skills.slice(0, 2).map((ref) => <button key={ref} onClick={() => onSkillSelect(ref)}>{ref}</button>)}
-            {skills.length > 2 && <em>+{skills.length - 2}</em>}
+            {skills.map((ref) => <button key={ref} onClick={() => onSkillSelect(ref)}>{ref}</button>)}
           </div>
         </div>
         <RuntimeActivityNode
