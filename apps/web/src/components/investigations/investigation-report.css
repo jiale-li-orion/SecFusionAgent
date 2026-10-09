@@ -27,3 +27,10 @@
   .report-body { padding: 29px 26px 35px; }
   .report-audit { padding: 0 26px; }
 }
+@container case-report (max-width: 400px) {
+  .report-masthead { padding: 22px 18px; }
+  .report-byline { padding: 14px 18px; }
+  .report-body { padding: 24px 18px 30px; }
+  .report-paragraph:first-child p { font-size: 17px; line-height: 1.78; }
+  .report-audit { padding: 0 18px; }
+}
