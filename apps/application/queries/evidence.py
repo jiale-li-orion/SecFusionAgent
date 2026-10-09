@@ -3,15 +3,18 @@ from __future__ import annotations
 from typing import cast
 
 from pydantic import JsonValue
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.application.views.evidence import (
     EvidenceArtifactView,
+    EvidenceDocumentPassageView,
     EvidenceObservationView,
     EvidenceSourceView,
     EvidenceTargetView,
     EvidenceView,
 )
+from packages.intelligence.storage.document_models import DocumentChunkModel, DocumentRevisionModel
 from packages.intelligence.storage.evidence_models import EvidenceArtifactModel, ObservationModel
 from packages.intelligence.storage.knowledge_models import (
     ClaimModel,
@@ -71,7 +74,54 @@ async def get_evidence_by_ref(session: AsyncSession, evidence_ref: str) -> Evide
             if artifact is not None
             else None
         ),
+        document_passages=await _public_document_passages(
+            session, observation.observation_id, source, artifact
+        ),
     )
+
+
+async def _public_document_passages(
+    session: AsyncSession,
+    observation_id: str,
+    source: SourceModel,
+    artifact: EvidenceArtifactModel | None,
+) -> list[EvidenceDocumentPassageView]:
+    if source.retention_mode != "durable_managed":
+        return []
+    if source.access_rights.get("classification") != "public":
+        return []
+    if artifact is not None and artifact.access_rights.get("classification") not in (
+        None,
+        "public",
+    ):
+        return []
+    revision = await session.scalar(
+        select(DocumentRevisionModel)
+        .where(DocumentRevisionModel.observation_id == observation_id)
+        .order_by(
+            DocumentRevisionModel.created_at.desc(),
+            DocumentRevisionModel.document_revision_id.desc(),
+        )
+        .limit(1)
+    )
+    if revision is None:
+        return []
+    chunks = list(
+        await session.scalars(
+            select(DocumentChunkModel)
+            .where(DocumentChunkModel.document_revision_id == revision.document_revision_id)
+            .order_by(DocumentChunkModel.ordinal)
+            .limit(6)
+        )
+    )
+    return [
+        EvidenceDocumentPassageView(
+            chunk_ref=f"document-chunk:{chunk.chunk_id}@{revision.document_revision_id}",
+            section=chunk.section,
+            text=chunk.text[:320],
+        )
+        for chunk in chunks
+    ]
 
 
 async def _target_view(session: AsyncSession, link: EvidenceLinkModel) -> EvidenceTargetView:
@@ -104,7 +154,7 @@ async def _target_view(session: AsyncSession, link: EvidenceLinkModel) -> Eviden
     if link.target_kind == "object":
         obj = await session.get(ObjectModel, link.target_id)
         if obj is not None:
-            display = obj.properties.get("display_name")
+            display = obj.properties.get("display_name") or obj.properties.get("title")
             return EvidenceTargetView(
                 target_kind="object",
                 target_id=obj.object_id,

@@ -4450,6 +4450,14 @@
 .trace-statement small { color: #67845e; font-size: 9px; letter-spacing: .12em; }
 .trace-statement p { margin: 9px 0 0; color: #253c2d; font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; }
 
+.evidence-document-passages { margin: 3px 0 22px; border: 1px solid #c8d1c0; border-radius: 16px; overflow: hidden; background: #f7f8f1; }
+.evidence-document-passages header { padding: 20px 22px 17px; background: #e8eee2; }
+.evidence-document-passages header small { color: #47654d; font-size: 10px; font-weight: 700; letter-spacing: .12em; }
+.evidence-document-passages header p { margin: 9px 0 0; color: #5c705f; font-size: 11px; line-height: 1.6; }
+.evidence-document-passages article { padding: 19px 22px 21px; border-top: 1px solid #d7ded1; }
+.evidence-document-passages article span { color: #6e886f; font-size: 10px; letter-spacing: .06em; }
+.evidence-document-passages article p { margin: 10px 0 0; color: #21352b; font-size: 13px; line-height: 1.8; overflow-wrap: anywhere; }
+
 .trace-row {
   padding: 20px 0;
   border-bottom: 1px solid var(--line);

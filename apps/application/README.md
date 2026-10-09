@@ -28,6 +28,8 @@ The current Product layer also owns account/session coordination (`authenticatio
 
 `queries/world.py` curates the front-page story candidates without deleting source material: obvious publisher landing-page titles such as `Blog` and `Download Now` stay in Evidence/Document storage but do not displace an article or advisory in WORLD/INTELLIGENCE. Category interleaving, source revision text and Evidence coordinates remain unchanged. When WORLD focuses the vulnerability direction, the Product client may read a genuine Hot vulnerability in its story pane, with the replaceable Hot versus durable Evidence boundary still visible.
 
+`queries/evidence.py` exposes source identity, immutable Observation/Artifact metadata and the bound claim/object without disclosing raw storage paths or request metadata. For a publicly classified managed document, the Evidence detail additionally returns at most six 320-character passages from the latest parser revision of the exact cited Observation. Restricted sources return no passages. This is a bounded source preview for human verification, not an assertion that an object-level EvidenceLink has a sentence-level locator.
+
 `packages/intelligence/incident/relevance.py` applies a conservative reported-security-event screen to the broad Redis incident-signal pool for the public candidate watch read. The collection owner uses the same screen before correlating two broad news feeds, so ordinary market headlines no longer create new Incident candidates. This is selection, not a promotion decision or a replacement for incident correlation. The product shows candidate source coordinates separately from durable Incident dossiers.
 
 TD2A Slice C now adds the Product QA routing seam:

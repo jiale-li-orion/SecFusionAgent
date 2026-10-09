@@ -171,6 +171,7 @@ export type EvidenceDetail = {
     trust_class: string
     created_at: string
   } | null
+  document_passages: Array<{ chunk_ref: string; section: string | null; text: string }>
 }
 
 export async function getVulnerability(cveId: string): Promise<KnowledgeObject> {

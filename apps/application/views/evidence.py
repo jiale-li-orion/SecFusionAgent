@@ -41,6 +41,12 @@ class EvidenceTargetView(BaseModel):
     detail: dict[str, JsonValue] = Field(default_factory=dict)
 
 
+class EvidenceDocumentPassageView(BaseModel):
+    chunk_ref: str
+    section: str | None = None
+    text: str
+
+
 class EvidenceView(BaseModel):
     evidence_ref: str
     source: EvidenceSourceView
@@ -48,3 +54,4 @@ class EvidenceView(BaseModel):
     target: EvidenceTargetView
     locator: dict[str, JsonValue] = Field(default_factory=dict)
     artifact: EvidenceArtifactView | None = None
+    document_passages: list[EvidenceDocumentPassageView] = Field(default_factory=list)

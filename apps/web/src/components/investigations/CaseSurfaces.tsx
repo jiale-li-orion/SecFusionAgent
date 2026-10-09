@@ -331,7 +331,51 @@ function EvidenceTrace({ item }: { item: EvidenceDetail }) {
   const navigate = useNavigate()
   const locator = Object.entries(item.locator).map(([key, value]) => key + '=' + String(value)).join(' · ') || 'root'
   const objectIds = evidenceBoundObjectIds(item)
-  return <div className="overlay-body"><div className="trace-hero"><BadgeCheck size={22} /><div><small>{item.source.source_role} / {item.source.source_class}</small><strong>{item.target.target_kind} · {item.target.label}</strong><span>{item.observation.external_object_id}</span></div></div>{item.target.target_kind === 'claim' && item.target.detail.value !== undefined && <div className="trace-statement"><small>{text('来源支持的断言', 'SOURCE-BOUND CLAIM')}</small><p>{formatValue(item.target.detail.value)}</p></div>}<TraceRow label="SOURCE REVISION" value={item.observation.external_revision ?? 'content-addressed'} /><TraceRow label="LOCATOR" value={locator} /><TraceRow label="OBSERVED" value={new Date(item.observation.observed_at).toLocaleString()} /><TraceRow label="TRUST" value={item.artifact?.trust_class ?? 'observation-bound'} />{objectIds.length > 0 && <div className="evidence-object-links"><small>{text('绑定对象', 'BOUND OBJECTS')}</small><div>{objectIds.map((objectId, index) => <button key={objectId} onClick={() => navigate(`/intelligence?object=${encodeURIComponent(objectId)}&from=case`)}><BrainCircuit size={11} /> {index === 0 ? text('打开主体档案', 'OPEN SUBJECT DOSSIER') : text('打开关系对象', 'OPEN RELATED OBJECT')}<span className="mono">{compactEvidenceObjectRef(objectId)}</span></button>)}</div></div>}{item.observation.canonical_url && <a className="investigation-evidence-source" href={item.observation.canonical_url} target="_blank" rel="noreferrer"><Link2 size={11} /> {text('打开规范来源', 'OPEN CANONICAL SOURCE')}</a>}<div className="mono overlay-ref">{item.evidence_ref}</div></div>
+  return <div className="overlay-body">
+    <div className="trace-hero">
+      <BadgeCheck size={22} />
+      <div>
+        <small>{item.source.source_role} / {item.source.source_class}</small>
+        <strong>{item.target.target_kind} · {item.target.label}</strong>
+        <span className="mono" title={item.observation.external_object_id}>{compactEvidenceObjectRef(item.observation.external_object_id)}</span>
+      </div>
+    </div>
+    {item.target.target_kind === 'claim' && item.target.detail.value !== undefined &&
+      <div className="trace-statement">
+        <small>{text('来源支持的断言', 'SOURCE-BOUND CLAIM')}</small>
+        <p>{formatValue(item.target.detail.value)}</p>
+      </div>}
+    {item.document_passages?.length > 0 &&
+      <section className="evidence-document-passages">
+        <header>
+          <small>{text('固定版本原文节选', 'SOURCE PASSAGES')}</small>
+          <p>{text('这些是固定来源的解析片段；具体断言仍按引用与定位核对。', 'Passages from the fixed source; verify each claim against its citation and locator.')}</p>
+        </header>
+        {item.document_passages.map((passage, index) =>
+          <article key={passage.chunk_ref} title={passage.chunk_ref}>
+            <span>{String(index + 1).padStart(2, '0')} / {passage.section ?? text('正文', 'BODY')}</span>
+            <p>{passage.text}</p>
+          </article>)}
+      </section>}
+    <TraceRow label="SOURCE REVISION" value={item.observation.external_revision ?? 'content-addressed'} />
+    <TraceRow label="LOCATOR" value={locator} />
+    <TraceRow label="OBSERVED" value={new Date(item.observation.observed_at).toLocaleString()} />
+    <TraceRow label="TRUST" value={item.artifact?.trust_class ?? 'observation-bound'} />
+    {objectIds.length > 0 && <div className="evidence-object-links">
+      <small>{text('绑定对象', 'BOUND OBJECTS')}</small>
+      <div>{objectIds.map((objectId, index) =>
+        <button key={objectId} onClick={() => navigate(`/intelligence?object=${encodeURIComponent(objectId)}&from=case`)}>
+          <BrainCircuit size={11} />
+          {index === 0 ? text('打开主体档案', 'OPEN SUBJECT DOSSIER') : text('打开关系对象', 'OPEN RELATED OBJECT')}
+          <span className="mono">{compactEvidenceObjectRef(objectId)}</span>
+        </button>)}</div>
+    </div>}
+    {item.observation.canonical_url &&
+      <a className="investigation-evidence-source" href={item.observation.canonical_url} target="_blank" rel="noreferrer">
+        <Link2 size={11} /> {text('打开规范来源', 'OPEN CANONICAL SOURCE')}
+      </a>}
+    <div className="mono overlay-ref">{item.evidence_ref}</div>
+  </div>
 }
 
 function compactEvidenceObjectRef(value: string) { return value.length > 30 ? `${value.slice(0, 14)}…${value.slice(-8)}` : value }
