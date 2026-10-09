@@ -41,6 +41,8 @@ class AgentTaskSummaryView(BaseModel):
 class AgentTaskPageView(BaseModel):
     generated_at: datetime
     items: list[AgentTaskSummaryView] = Field(default_factory=list)
+    next_cursor: str | None = None
+    has_more: bool = False
 
 
 class AgentTaskEventView(BaseModel):

@@ -1,7 +1,7 @@
 import { RoleConstellation } from '../components/agents/RoleConstellation'
 import { SpaceHeading } from '../components/instrument/SpaceHeading'
 import { useEffect, useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { useReducedMotion } from 'motion/react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
@@ -13,7 +13,7 @@ import {
   TimerReset,
   Waypoints,
 } from 'lucide-react'
-import { getAgentExperiences, getAgentLearning, getAgentRuntime, getAgentSkill, getAgentSkills, getAgentTask } from '../lib/api'
+import { getAgentExperiences, getAgentLearning, getAgentRuntime, getAgentSkill, getAgentSkills, getAgentTask, listAgentTasks } from '../lib/api'
 import { ExperienceMemory, SkillFamilyDetail } from '../components/agents/LearningSurfaces'
 import { RuntimeActivityView, TaskCard, TaskDossier, TaskTopology } from '../components/agents/RuntimeSurfaces'
 import { groupSkillFamilies, skillFamilyKeyFromRef } from '../lib/agentLearning'
@@ -104,6 +104,13 @@ export function AgentsPage() {
   const skillFamilies = useMemo(() => groupSkillFamilies(skillsQuery.data ?? []), [skillsQuery.data])
   const [selectedSkillFamily, setSelectedSkillFamily] = useState<string | null>(null)
   const focusedRole = roleParam && rolePresentation[roleParam] ? roleParam : null
+  const taskArchive = useInfiniteQuery({
+    queryKey: ['agent-task-archive', focusedRole],
+    queryFn: ({ pageParam }) => listAgentTasks({ roleId: focusedRole ?? undefined, limit: 24, cursor: pageParam ?? undefined }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (page) => page.next_cursor,
+    enabled: sectionParam !== 'memory',
+  })
   const selectedSkill = skillFamilies.find((item) => item.key === (selectedSkillFamily ?? skillFamilies[0]?.key)) ?? null
   const selectedSkillRef = selectedSkill?.records[0]?.skill_ref ?? null
   const selectedSkillDetailQuery = useQuery({
@@ -118,7 +125,9 @@ export function AgentsPage() {
   )
   const focusedActiveTasks = useMemo(() => visibleTasks.filter((task) => activeStatuses.has(task.status)), [visibleTasks])
   const [historyExpanded, setHistoryExpanded] = useState(false)
-  const focusedRecentTasks = useMemo(() => visibleTasks.filter((task) => !activeStatuses.has(task.status)).slice(0, historyExpanded ? 22 : 6), [visibleTasks, historyExpanded])
+  const archivedTasks = taskArchive.data?.pages.flatMap((page) => page.items) ?? visibleTasks
+  const terminalTasks = archivedTasks.filter((task) => !activeStatuses.has(task.status))
+  const focusedRecentTasks = terminalTasks.slice(0, historyExpanded ? undefined : 6)
   const activeCount = runtime?.roles.reduce((sum, role) => sum + role.active_tasks, 0) ?? 0
   const totalRuns = runtime?.roles.reduce((sum, role) => sum + role.total_tasks, 0) ?? 0
 
@@ -218,10 +227,12 @@ export function AgentsPage() {
               </div>
             </div>
             <div className="task-ledger-column history">
-              <div className="task-ledger-title"><TimerReset size={12} /><strong>{text('近期执行', 'RECENT TERMINAL HISTORY')}</strong><span>{focusedRecentTasks.length}</span></div>
+              <div className="task-ledger-title"><TimerReset size={12} /><strong>{text('历史执行', 'TASK HISTORY')}</strong><span>{terminalTasks.length}{taskArchive.hasNextPage ? '+' : ''}</span></div>
               <div>
                 {focusedRecentTasks.map((task) => <TaskCard key={task.run_id} task={task} selected={task.run_id === selectedTask} onSelect={selectTask} />)}
-                {visibleTasks.filter(task => !activeStatuses.has(task.status)).length > 6 && <button className="agent-history-toggle" onClick={() => setHistoryExpanded(v => !v)}>{historyExpanded ? text("收起历史", "Less history") : text("查看更多运行", "More runs")}</button>}
+                {terminalTasks.length > 6 && <button className="agent-history-toggle" onClick={() => setHistoryExpanded(v => !v)}>{historyExpanded ? text('收起历史', 'Less history') : text('展开已加载历史', 'Show loaded history')}</button>}
+                {(historyExpanded || terminalTasks.length <= 6) && taskArchive.hasNextPage && <button className="agent-history-toggle agent-history-next" disabled={taskArchive.isFetchingNextPage} onClick={() => void taskArchive.fetchNextPage()}>{taskArchive.isFetchingNextPage ? text('正在读取…', 'Loading…') : text('读取更早任务', 'Load older tasks')}</button>}
+                {taskArchive.isError && <button className="agent-history-toggle agent-history-error" onClick={() => void taskArchive.refetch()}>{text('历史任务读取失败，重试', 'Task history failed to load. Retry')}</button>}
               </div>
             </div>
           </div>

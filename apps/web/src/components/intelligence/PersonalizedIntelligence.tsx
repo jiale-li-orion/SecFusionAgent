@@ -24,6 +24,7 @@ export function PersonalizedIntelligence() {
   const [objectQuery, setObjectQuery] = useState('')
   const [saved, setSaved] = useState(false)
   const [ignored, setIgnored] = useState<{ objectId: string; label: string } | null>(null)
+  const [visibleLimit, setVisibleLimit] = useState(6)
   const preferences = useQuery({
     queryKey: ['intelligence-preferences'], queryFn: getIntelligencePreferences, retry: false,
   })
@@ -38,7 +39,7 @@ export function PersonalizedIntelligence() {
     enabled: objectQuery.length >= 2, retry: false, staleTime: 30_000,
   })
   const recommendations = useQuery({
-    queryKey: ['intelligence-recommendations'], queryFn: () => getIntelligenceRecommendations(5),
+    queryKey: ['intelligence-recommendations', visibleLimit], queryFn: () => getIntelligenceRecommendations(visibleLimit),
     enabled: Boolean(preferences.data), retry: false,
   })
   const save = useMutation({
@@ -49,6 +50,7 @@ export function PersonalizedIntelligence() {
       queryClient.setQueryData(['intelligence-preferences'], profile)
       setDraft(null)
       setSaved(true)
+      setVisibleLimit(6)
       void queryClient.invalidateQueries({ queryKey: ['intelligence-recommendations'] })
     },
   })
@@ -122,7 +124,8 @@ export function PersonalizedIntelligence() {
         </div>
       </div>}
     {preferences.data && <div className="recommendation-results">
-      <header><h3>{text('为你推荐', 'Recommended for you')}</h3>
+      <header><div><h3>{text('为你推荐', 'Recommended for you')}</h3>
+        {items.length > 0 && <small>{text(`当前显示 ${items.length} 条有证据的匹配情报`, `Showing ${items.length} evidence-backed matches`)}</small>}</div>
         <button type="button" disabled={recommendations.isFetching} onClick={() => void recommendations.refetch()}>{text('刷新推荐', 'Refresh recommendations')}</button></header>
       {recommendations.isPending ? <p role="status">{text('正在查找相关情报…', 'Finding related intelligence…')}</p>
         : recommendations.isError ? <p role="alert">{text('推荐暂时不可读，请稍后刷新。', 'Recommendations are temporarily unavailable. Refresh to retry.')}</p>
@@ -133,7 +136,10 @@ export function PersonalizedIntelligence() {
             <small>{objectTypeLabel(item.object_type, text)}{item.feedback === 'interested' && ` · ${text('你感兴趣', 'Interested')}`}</small>
             <h4><Link to={dossierUrl(item.object_id)}>{readableLabel(item.label, text('情报对象', 'Intelligence object'))}</Link></h4>
             <ul className="recommendation-reasons">{item.reasons.map((reason, index) => <li key={`${reason.kind}:${index}`}>
-              {recommendationReason(reason, text, preferences.data?.target_objects ?? [])}
+              <span>{recommendationReason(reason, text, preferences.data?.target_objects ?? [])}</span>
+              {reason.evidence_refs[0] && <Link to={`${dossierUrl(item.object_id)}&evidence=${encodeURIComponent(reason.evidence_refs[0])}`}>
+                {text('查看依据', 'Inspect evidence')}<ArrowRight size={11} />
+              </Link>}
             </li>)}</ul>
             <div className="recommendation-evidence">{item.evidence.slice(0, 3).map((evidence, index) => <Link key={evidence.evidence_ref}
               to={`${dossierUrl(item.object_id)}&evidence=${encodeURIComponent(evidence.evidence_ref)}`}>
@@ -148,6 +154,12 @@ export function PersonalizedIntelligence() {
               <button type="button" disabled={feedback.isPending} onClick={() => feedback.mutate({ objectId: item.object_id, value: 'ignored', label: readableLabel(item.label, text('这条情报', 'This intelligence')) })}>{text('忽略', 'Ignore')}</button>
             </div>
           </article>)}
+      {!recommendations.isPending && !recommendations.isError && items.length === visibleLimit && visibleLimit < 24 &&
+        <button className="recommendation-more" type="button" disabled={recommendations.isFetching}
+          onClick={() => setVisibleLimit((limit) => Math.min(limit + 6, 24))}>
+          <span>{recommendations.isFetching ? text('正在读取更多情报…', 'Loading more intelligence…') : text('继续浏览相关情报', 'Explore more relevant intelligence')}</span>
+          <ArrowRight size={16} />
+        </button>}
       {feedback.isError && <p role="alert">{text('反馈未保存，请重试。', 'Feedback was not saved. Please retry.')}</p>}
       {ignored && <p className="recommendation-undo" role="status">{text(`已忽略「${ignored.label}」`, `Ignored “${ignored.label}”`)} <button disabled={feedback.isPending} onClick={() => feedback.mutate({ objectId: ignored.objectId, value: 'neutral' })}>{text('撤销', 'Undo')}</button></p>}
     </div>}

@@ -5,12 +5,14 @@ export async function listAgentTasks(input: {
   status?: string
   caseId?: string
   limit?: number
+  cursor?: string
 } = {}): Promise<AgentTaskPage> {
   const params = new URLSearchParams()
   if (input.roleId) params.set('role_id', input.roleId)
   if (input.status) params.set('status', input.status)
   if (input.caseId) params.set('case_id', input.caseId)
   params.set('limit', String(input.limit ?? 72))
+  if (input.cursor) params.set('cursor', input.cursor)
   const response = await productFetch(`/api/v1/tasks?${params.toString()}`)
   if (!response.ok) throw new Error(`Task list read failed (${response.status})`)
   return response.json() as Promise<AgentTaskPage>
@@ -105,6 +107,8 @@ export type AgentRuntimeOverview = {
 export type AgentTaskPage = {
   generated_at: string
   items: AgentTaskSummary[]
+  next_cursor: string | null
+  has_more: boolean
 }
 
 export type AgentTaskDetail = {

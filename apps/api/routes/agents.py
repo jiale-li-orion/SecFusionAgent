@@ -88,15 +88,20 @@ async def tasks(
     status_filter: str | None = Query(default=None, alias="status", max_length=32),
     case_id: str | None = Query(default=None, max_length=64),
     limit: int = Query(default=72, ge=1, le=200),
+    cursor: str | None = Query(default=None, max_length=512),
 ) -> AgentTaskPageView:
-    return await list_agent_tasks(
-        session,
-        role_id=role_id,
-        status=status_filter,
-        case_id=case_id,
-        limit=limit,
-        principal=context.principal,
-    )
+    try:
+        return await list_agent_tasks(
+            session,
+            role_id=role_id,
+            status=status_filter,
+            case_id=case_id,
+            limit=limit,
+            cursor=cursor,
+            principal=context.principal,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.get("/tasks/{run_id}", response_model=AgentTaskDetailView)

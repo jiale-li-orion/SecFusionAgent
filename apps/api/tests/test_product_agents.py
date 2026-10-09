@@ -309,6 +309,20 @@ async def test_product_agent_task_detail_exposes_durable_delegation_neighbors() 
         ) as client:
             root = await client.get("/api/v1/tasks/task-run-1")
             child = await client.get("/api/v1/tasks/task-run-child")
+            first_page = await client.get("/api/v1/tasks", params={"limit": 1})
+            second_page = await client.get(
+                "/api/v1/tasks",
+                params={"limit": 1, "cursor": first_page.json()["next_cursor"]},
+            )
+            invalid_cursor = await client.get("/api/v1/tasks", params={"cursor": "bad"})
+
+        assert first_page.status_code == 200, first_page.text
+        assert first_page.json()["has_more"] is True
+        assert [item["run_id"] for item in first_page.json()["items"]] == ["task-run-child"]
+        assert second_page.status_code == 200, second_page.text
+        assert [item["run_id"] for item in second_page.json()["items"]] == ["task-run-1"]
+        assert second_page.json()["has_more"] is False
+        assert invalid_cursor.status_code == 422
 
         assert root.status_code == 200, root.text
         root_body = root.json()

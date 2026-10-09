@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 from collections import Counter, defaultdict
 from datetime import UTC, datetime
@@ -8,7 +9,7 @@ from pathlib import Path
 from typing import cast
 
 from pydantic import JsonValue
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.application.queries.ownership import visible_task_run_ids
@@ -222,6 +223,7 @@ async def list_agent_tasks(
     status: str | None = None,
     case_id: str | None = None,
     limit: int = 72,
+    cursor: str | None = None,
     principal: str | None = None,
 ) -> AgentTaskPageView:
     statement = select(TaskRunModel).where(TaskRunModel.run_id.in_(visible_task_run_ids(principal)))
@@ -231,13 +233,50 @@ async def list_agent_tasks(
         statement = statement.where(TaskRunModel.status == status)
     if case_id:
         statement = statement.where(TaskRunModel.case_id == case_id)
+    if cursor:
+        updated_at, run_id = _decode_task_cursor(cursor)
+        statement = statement.where(
+            or_(
+                TaskRunModel.updated_at < updated_at,
+                and_(TaskRunModel.updated_at == updated_at, TaskRunModel.run_id < run_id),
+            )
+        )
     runs = list(
-        await session.scalars(statement.order_by(TaskRunModel.updated_at.desc()).limit(limit))
+        await session.scalars(
+            statement.order_by(TaskRunModel.updated_at.desc(), TaskRunModel.run_id.desc())
+            .limit(limit + 1)
+        )
     )
+    has_more = len(runs) > limit
+    visible = runs[:limit]
     return AgentTaskPageView(
         generated_at=datetime.now(UTC),
-        items=await _task_summaries(session, runs, principal=principal),
+        items=await _task_summaries(session, visible, principal=principal),
+        next_cursor=_encode_task_cursor(visible[-1].updated_at, visible[-1].run_id)
+        if has_more and visible else None,
+        has_more=has_more,
     )
+
+
+def _encode_task_cursor(updated_at: datetime, run_id: str) -> str:
+    raw = json.dumps([updated_at.isoformat(), run_id], separators=(",", ":")).encode()
+    return base64.urlsafe_b64encode(raw).decode().rstrip("=")
+
+
+def _decode_task_cursor(cursor: str) -> tuple[datetime, str]:
+    try:
+        padded = cursor + "=" * (-len(cursor) % 4)
+        value = json.loads(base64.urlsafe_b64decode(padded.encode()).decode())
+        if (
+            not isinstance(value, list)
+            or len(value) != 2
+            or not isinstance(value[1], str)
+            or not value[1]
+        ):
+            raise ValueError("invalid task cursor")
+        return datetime.fromisoformat(value[0]), value[1]
+    except (ValueError, TypeError, IndexError, UnicodeDecodeError) as exc:
+        raise ValueError("invalid task cursor") from exc
 
 
 async def _model_runtime_view(

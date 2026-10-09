@@ -30,6 +30,7 @@ POST /api/v1/questions/stream
 GET /api/v1/questions/sessions
 GET /api/v1/questions/sessions/{session_id}
 GET /api/v1/tasks/{run_id}
+GET /api/v1/tasks?limit=24&cursor=... (owner-checked history; next_cursor/has_more)
 GET /api/v1/observatory/system
 ```
 

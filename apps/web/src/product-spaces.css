@@ -2883,6 +2883,10 @@
   font-size: 11px;
   color: var(--muted);
 }
+.agent-history-next { width: 100%; margin-top: 10px; border: 1px solid #8ea58a55; border-radius: 12px; background: linear-gradient(110deg, #e3e9dd, #eff1e8); color: #2d553f; text-align: center; }
+.agent-history-next:hover:not(:disabled) { border-color: #6e9b75; }
+.agent-history-next:disabled { opacity: .6; }
+.agent-history-error { color: #a35442; }
 
 .task-dossier-body {
   font-size: 12px;
@@ -3649,10 +3653,13 @@
 .recommendation-results > header { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
 .recommendation-results h3 { font-size: 20px; font-weight: 500; }
 .recommendation-results > header button { font-size: 11px; color: var(--muted); }
+.recommendation-results > header small { display: block; margin-top: 6px; color: var(--muted); font-size: 10px; }
 .recommendation-card { padding: 24px 0; border-top: 1px solid var(--line); }
 .recommendation-card > small { color: #a16b47; font-size: 10px; }
 .recommendation-card h4 { font-size: clamp(19px, 2vw, 25px); font-weight: 500; margin: 9px 0; overflow-wrap: anywhere; }
-.recommendation-reasons { display: flex; gap: 9px 22px; flex-wrap: wrap; padding-left: 16px; color: var(--muted); font-size: 11px; margin: 12px 0; }
+.recommendation-reasons { display: grid; gap: 8px; padding-left: 17px; color: var(--muted); font-size: 11px; margin: 12px 0; }
+.recommendation-reasons li { padding-left: 2px; line-height: 1.6; }
+.recommendation-reasons li a { display: inline-flex; align-items: center; gap: 3px; margin-left: 10px; color: #356b69; border-bottom: 1px solid #356b6940; white-space: nowrap; }
 .recommendation-evidence { display: flex; flex-wrap: wrap; gap: 12px; font-size: 10px; color: #6b7c68; }
 .recommendation-evidence a { border-bottom: 1px solid #6b7c6830; padding-bottom: 3px; }
 .recommendation-feedback { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 18px; font-size: 11px; }
@@ -3661,6 +3668,9 @@
 .recommendation-feedback > button[aria-pressed=true] { background: #d3ddca; border-color: #80977460; }
 .recommendation-undo { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding: 15px 18px; border-radius: 12px; background: #e3e8dc; }
 .recommendation-undo button { text-decoration: underline; }
+.recommendation-more { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 14px; margin-top: 8px; padding: 18px 20px; border: 1px solid #98a88f6b; border-radius: 15px; background: linear-gradient(115deg, #e4eadd, #f1f2e9); color: #2c4738; font-size: 12px; font-weight: 600; text-align: left; transition: border-color .2s, transform .2s, box-shadow .2s; }
+.recommendation-more:hover:not(:disabled) { border-color: #6f8d76; box-shadow: 0 8px 22px #294a2612; transform: translateY(-2px); }
+.recommendation-more:disabled { opacity: .6; cursor: wait; }
 @media (max-width:600px) { .personalized-intelligence > header,.recommendation-preferences { grid-template-columns: minmax(0, 1fr); gap: 18px; } .recommendation-preferences { padding: 22px; } }
 
 /* The dossier's executable enrichment workflow shares the folio material. */
