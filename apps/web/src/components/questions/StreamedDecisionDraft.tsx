@@ -19,8 +19,25 @@ function streamingString(raw: string, start: number): string {
 function previewReport(raw: string): string {
   const reportStart = raw.indexOf('"report_paragraphs"')
   if (reportStart < 0) return ''
-  return [...raw.slice(reportStart).matchAll(/"text"\s*:\s*"/g)]
-    .map(match => streamingString(raw.slice(reportStart), (match.index ?? 0) + match[0].length))
+  const arrayStart = raw.indexOf('[', reportStart + '"report_paragraphs"'.length)
+  if (arrayStart < 0) return ''
+  let depth = 1
+  let inString = false
+  let escaped = false
+  let arrayEnd = raw.length
+  for (let index = arrayStart + 1; index < raw.length; index += 1) {
+    const char = raw[index]
+    if (inString) {
+      if (escaped) escaped = false
+      else if (char === '\\') escaped = true
+      else if (char === '"') inString = false
+    } else if (char === '"') inString = true
+    else if (char === '[') depth += 1
+    else if (char === ']' && --depth === 0) { arrayEnd = index; break }
+  }
+  const paragraphs = raw.slice(arrayStart + 1, arrayEnd)
+  return [...paragraphs.matchAll(/"text"\s*:\s*"/g)]
+    .map(match => streamingString(paragraphs, (match.index ?? 0) + match[0].length))
     .filter(Boolean)
     .join('\n\n')
 }
