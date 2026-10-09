@@ -92,6 +92,17 @@ async def test_model_decision_planner_enables_report_only_for_durable_investigat
 
 
 @pytest.mark.asyncio
+async def test_exhausted_investigation_requests_a_partial_final_report() -> None:
+    provider = _Provider(DecisionPlannerResponse(action=FinalDecisionProposal(
+        stop_reason="evidence_insufficient",
+    )))
+    await ModelDecisionPlanner(provider).plan(
+        _state(), citation_sources=[], include_report=True, prefer_partial_final=True
+    )
+    assert provider.requests[0].data["prefer_partial_final"] is True
+
+
+@pytest.mark.asyncio
 async def test_model_decision_planner_emits_typed_continuation_without_need_id() -> None:
     provider = _Provider(
         DecisionPlannerResponse(

@@ -14,7 +14,9 @@ from apps.decision_runtime import (
     open_case_decision_execution,
 )
 from packages.investigation.cases.service import CaseService
+from packages.investigation.state.contracts import InvestigationState
 from packages.investigation.state.service import InvestigationStateService
+from packages.reasoning.decision import DecisionDraft, DecisionReportParagraph
 from packages.reasoning.model import ModelDecisionPlanner
 from packages.runtime.execution.service import ExecutionRunService
 from packages.shared.config import Settings
@@ -55,7 +57,14 @@ class FinalizeInvestigationUseCase:
         decision_run_id = str(uuid5(NAMESPACE_URL, f"secfusion:case-decision:{parent_run_id}"))
         async with self._factory() as session, session.begin():
             parent = await get_task_run(session, parent_run_id)
-            if parent.status is not TaskRunStatus.COMPLETED or parent.case_id is None:
+            insufficient = parent.status is TaskRunStatus.BLOCKED and parent.stop_reason in {
+                "no_progress",
+                "budget_exhausted",
+            }
+            if (
+                (parent.status is not TaskRunStatus.COMPLETED and not insufficient)
+                or parent.case_id is None
+            ):
                 return None
             contract = await get_task_contract_for_run(session, parent_run_id)
             if not contract.principal.startswith("user:"):
@@ -94,32 +103,51 @@ class FinalizeInvestigationUseCase:
             remaining = (envelope.deadline_at - datetime.now(UTC)).total_seconds()
             if remaining <= 0:
                 raise TimeoutError("Decision execution deadline exhausted")
-            proposal = await ModelDecisionPlanner(self._provider).plan(
-                state,
-                citation_sources=citations,
-                include_report=True,
-                runtime_metadata={
-                    "execution_id": coordinate.execution_id,
-                    "task_run_id": coordinate.task_run_id,
-                    "budget_ref": coordinate.budget_ref,
-                    "model_wall_seconds": remaining,
-                    "model_token_reservation": self._settings.model_token_reservation_per_attempt,
-                },
-            )
+            if insufficient and not state.confirmed:
+                proposal = _insufficient_evidence_report(state)
+            else:
+                proposal = await ModelDecisionPlanner(self._provider).plan(
+                    state,
+                    citation_sources=citations,
+                    include_report=True,
+                    prefer_partial_final=insufficient,
+                    runtime_metadata={
+                        "execution_id": coordinate.execution_id,
+                        "task_run_id": coordinate.task_run_id,
+                        "budget_ref": coordinate.budget_ref,
+                        "model_wall_seconds": remaining,
+                        "model_token_reservation": (
+                            self._settings.model_token_reservation_per_attempt
+                        ),
+                    },
+                )
             async with self._factory() as session, session.begin():
                 current_run = await get_task_run(session, decision_run_id)
                 if current_run.status in TERMINAL_TASK_RUN_STATUSES:
                     return current_run.result_ref
-                outcome = await DecisionRuntime().commit_proposal(
-                    session,
-                    state=state,
-                    proposal=proposal,
-                    citation_sources=citations,
-                )
+                try:
+                    outcome = await DecisionRuntime().commit_proposal(
+                        session,
+                        state=state,
+                        proposal=proposal,
+                        citation_sources=citations,
+                    )
+                except ValueError:
+                    proposal = _insufficient_evidence_report(state)
+                    insufficient = True
+                    outcome = await DecisionRuntime().commit_proposal(
+                        session,
+                        state=state,
+                        proposal=proposal,
+                        citation_sources=citations,
+                    )
                 if outcome.decision is not None:
                     result_ref = outcome.decision.decision_id
                     stop_reason = outcome.decision.stop_reason
-                    await CaseService().resolve(session, state.case_id)
+                    if insufficient:
+                        await CaseService().wait(session, state.case_id)
+                    else:
+                        await CaseService().resolve(session, state.case_id)
                 else:
                     assert outcome.continuation is not None
                     result_ref = f"evidence-need:{outcome.continuation.need.need_id}"
@@ -148,6 +176,33 @@ class FinalizeInvestigationUseCase:
                         surface="product-investigation-finalize",
                     )
             raise
+
+
+def _insufficient_evidence_report(state: InvestigationState) -> DecisionDraft:
+    chinese = any("\u4e00" <= char <= "\u9fff" for char in state.goal)
+    if chinese:
+        paragraph = (
+            "目前还不能可靠回答这个问题。现有材料尚未形成足以支持结论的已核验证据。"
+            "继续描述具体事件经过、攻击入口或应对措施会超出证据范围。"
+            "补充原始通报或可信的分析材料后可沿用这段会话继续调查。"
+        )
+    else:
+        paragraph = (
+            "The available material does not yet support a reliable answer. "
+            "No verified evidence has been established for the requested conclusion, "
+            "so describing specific events, entry points, or responses would go beyond "
+            "the evidence. Add an original incident notice or a credible analysis "
+            "to continue this investigation."
+        )
+    return DecisionDraft(
+        case_id=state.case_id,
+        case_revision=state.case_revision,
+        unknowns=[state.goal],
+        answer_payload={"status": "insufficient_evidence"},
+        report_paragraphs=[DecisionReportParagraph(text=paragraph)],
+        stop_reason="evidence_insufficient",
+        model_prompt_revision="decision-insufficient-v1",
+    )
 
 
 @asynccontextmanager

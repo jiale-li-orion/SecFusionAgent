@@ -20,6 +20,7 @@ from packages.investigation.cases.service import CaseService
 from packages.investigation.perception.contracts import (
     EvidenceRequirement,
     EvidenceTarget,
+    Percept,
     PerceptionOperation,
     PerceptionRequest,
     PerceptionTarget,
@@ -507,6 +508,8 @@ async def test_investigation_role_perceives_evidence_commits_state_and_completes
             assert state.case_revision == 4
             assert len(state.confirmed) == 1
             assert state.confirmed[0].evidence_refs == [evidence_id]
+            context = await get_task_context(session, run_id)
+            assert evidence_id in context.evidence_refs
             events = await list_task_events(session, run_id)
         assert [event.event_type.value for event in events] == [
             "TaskCreated",
@@ -518,6 +521,54 @@ async def test_investigation_role_perceives_evidence_commits_state_and_completes
             "ContextUpdated",
             "TaskCompleted",
         ]
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_investigation_role_keeps_distinct_percepts_available_to_later_planning() -> None:
+    class TwoSourcePerception:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        async def execute(self, session, *, request, plan, task_run_id):
+            del session, plan, task_run_id
+            self.calls += 1
+            return Percept(
+                percept_id=f"percept:test:{self.calls}",
+                request_id=request.request_id,
+                evidence_handles=[f"evidence-{self.calls}"],
+            )
+
+    class TwoSourcePlanner:
+        async def next_action(self, frame: InvestigationFrame):
+            if frame.iteration <= 2:
+                return PerceptionAction(request=PerceptionRequest(
+                    request_id=f"test:{frame.iteration}",
+                    operation=PerceptionOperation.INSPECT,
+                    target=PerceptionTarget(object_id=frame.state.targets[0]),
+                ))
+            assert [item.evidence_handles for item in frame.recent_percepts] == [
+                ["evidence-1"], ["evidence-2"],
+            ]
+            return StopAction(reason="sources_inspected")
+
+    engine, factory = await _database()
+    try:
+        async with factory() as session, session.begin():
+            case_id, object_id, need_id, _ = await _seed_case_need_and_evidence(session)
+            run_id = await _create_run(
+                session, case_id=case_id, object_id=object_id, need_id=need_id,
+            )
+        outcome = await InvestigationRoleRuntime(
+            factory, TwoSourcePlanner(), perception_runtime=TwoSourcePerception(),
+            stream_name=STREAM, now=lambda: NOW,
+        ).run(run_id)
+        assert outcome.run_status is TaskRunStatus.BLOCKED
+        assert outcome.result.stop_reason == "sources_inspected"
+        async with factory() as session:
+            context = await get_task_context(session, run_id)
+            assert context.evidence_refs == ["evidence-1", "evidence-2"]
     finally:
         await engine.dispose()
 

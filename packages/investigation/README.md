@@ -26,6 +26,9 @@ External observations that may affect durable state must return through the Evid
 
 `runtime/` owns bounded InvestigationRole episodes for VERIFY/INVESTIGATE/WATCH tasks. The Role reads the pinned TaskContract, InvestigationState and Percept inputs, then emits typed state actions or delegated tasks. It may delegate M3 EnrichmentTask through the shared Task Runtime; child natural-language output is never accepted as fact authority.
 
+After a Percept, the next ContextManifest revision retains its evidence handles. The planner also receives a bounded history of recent distinct Percepts, including their source excerpts: EvidenceRef metadata alone does not contain the retrieved passage text. Repeated A/B perceptions count as no progress rather than consuming the entire turn budget while forgetting the other source.
+The source-document planner's `investigation-model-v2-source` guidance asks it to commit each supported subfinding as soon as it has a citable passage and to leave an unresolved comparison dimension open. That runtime guidance is included in the recorded PromptAssembly disclosure scope; a failed focused search should not restart the same inspection loop.
+
 When a replayed delegation resolves to an already completed child, InvestigationRole now inspects current canonical evidence in the same episode and gives that Percept to its planner instead of waiting for a terminal child event that has already been consumed. A terminal failed/blocked child ends the parent episode with a clear blocked reason. This prevents a live Case from parking indefinitely on an already terminal EnrichmentRole run while preserving the usual event-driven wait for an active child.
 
 Delegation identity is stable for one parent TaskRun, target CVE, and canonical dimension set. Context refreshes and planner iterations therefore reuse the same child run. Replay validates the child's fixed contract and authority coordinates while keeping its original Knowledge snapshot, even if parent and child context revisions advanced after creation. A later follow-up TaskRun can request fresh enrichment independently.
@@ -65,6 +68,7 @@ The full control path is now implemented as `Trajectory/Experience → Experienc
 TD2 的 M4/M5 没有落成一个“万能 Agent service”。Case lifecycle 由 `cases/` 持有；事实缺口与 durable state write 由 `state/` 持有；read planning/execution 由 `perception/` 持有；bounded Agent loop、delegation、WAIT/WATCH 在 `runtime/`；程序性先验在 `skills/`；运行经验在 `trajectory/experience`；historical coordinate 在 `replay/`。这些 owner 通过 ID/revision/reference 连接，而不是通过共享可变 dict。
 
 当前 production composition 位于 `apps/investigation_runtime.py`：Context/Skill/model/local Perception/delegation 已接入；external Capability catalog/binding/executor 尚未接入，因此真实 search/browser/repository/asset tool action 会 fail unavailable，而不是绕开 Policy 直接调用 provider。这是当前 M5 最主要的实现边界。
+来源与文档类调查现在把最近四个不同的 Percept 连同可追溯 EvidenceRef 一起装配给规划器，并明确要求先把已找到的可引用局部发现写入 M4，再继续寻找比较维度的缺口。重复读取相同片段会触发 `no_progress` 终止。若终止时仍无已确认事实，Product M6 会提交零事实、零引用的自然语言证据边界说明，并让 Case 等待新材料；这不会把候选材料冒充已核验结论。
 
 ## Dependency boundary
 

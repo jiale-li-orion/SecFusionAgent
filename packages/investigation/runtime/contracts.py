@@ -96,6 +96,7 @@ class InvestigationFrame(BaseModel):
     selected_need: EvidenceNeed | None = None
     iteration: int
     last_percept: Percept | None = None
+    recent_percepts: list[Percept] = Field(default_factory=list)
 
 
 class InvestigationPlanner(Protocol):

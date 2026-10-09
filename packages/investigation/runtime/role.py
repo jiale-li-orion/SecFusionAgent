@@ -112,11 +112,12 @@ class InvestigationRoleRuntime:
 
     async def _run_loop(self, run_id: str) -> InvestigationRoleOutcome:
         last_percept: Percept | None = None
-        seen_percept_signal: str | None = None
+        recent_percepts: list[Percept] = []
+        seen_percept_signals: set[str] = set()
         no_progress = 0
 
         for iteration in range(1, self._max_iterations + 1):
-            frame = await self._load_frame(run_id, iteration, last_percept)
+            frame = await self._load_frame(run_id, iteration, last_percept, recent_percepts)
             await self._refresh_context_for_frame(run_id, frame)
             completion = await self._completion(run_id, frame)
             if completion is not None:
@@ -132,22 +133,24 @@ class InvestigationRoleRuntime:
                 assert isinstance(action, PerceptionAction)
                 last_percept = await self._execute_perception(run_id, frame, action)
                 percept_signal = _percept_signal(last_percept)
-                if percept_signal == seen_percept_signal:
+                if percept_signal in seen_percept_signals:
                     no_progress += 1
                 else:
                     no_progress = 0
-                    seen_percept_signal = percept_signal
+                    seen_percept_signals.add(percept_signal)
+                    recent_percepts = [*recent_percepts, last_percept][-4:]
             elif action.kind is InvestigationActionKind.DELEGATE:
                 assert isinstance(action, DelegationAction)
                 delegated = await self._delegate(run_id, frame, action, iteration)
                 if isinstance(delegated, Percept):
                     last_percept = delegated
                     percept_signal = _percept_signal(delegated)
-                    if percept_signal == seen_percept_signal:
+                    if percept_signal in seen_percept_signals:
                         no_progress += 1
                     else:
                         no_progress = 0
-                        seen_percept_signal = percept_signal
+                        seen_percept_signals.add(percept_signal)
+                        recent_percepts = [*recent_percepts, delegated][-4:]
                 else:
                     return delegated
             elif action.kind is InvestigationActionKind.PATCH:
@@ -167,6 +170,8 @@ class InvestigationRoleRuntime:
                     last_percept = None
                     if result.state.case_revision > before_revision:
                         no_progress = 0
+                        recent_percepts = []
+                        seen_percept_signals.clear()
                     else:
                         no_progress += 1
             elif action.kind is InvestigationActionKind.WAIT:
@@ -196,7 +201,9 @@ class InvestigationRoleRuntime:
                 )
 
             if no_progress >= self._no_progress_limit:
-                refreshed = await self._load_frame(run_id, iteration, last_percept)
+                refreshed = await self._load_frame(
+                    run_id, iteration, last_percept, recent_percepts,
+                )
                 return await self._finish(
                     run_id,
                     refreshed,
@@ -205,7 +212,9 @@ class InvestigationRoleRuntime:
                     iteration,
                 )
 
-        frame = await self._load_frame(run_id, self._max_iterations, last_percept)
+        frame = await self._load_frame(
+            run_id, self._max_iterations, last_percept, recent_percepts,
+        )
         return await self._finish(
             run_id,
             frame,
@@ -286,6 +295,7 @@ class InvestigationRoleRuntime:
         run_id: str,
         iteration: int,
         last_percept: Percept | None,
+        recent_percepts: list[Percept] | None = None,
     ) -> InvestigationFrame:
         async with self._session_factory() as session, session.begin():
             contract = await get_task_contract_for_run(session, run_id)
@@ -312,6 +322,7 @@ class InvestigationRoleRuntime:
                 selected_need=selected,
                 iteration=iteration,
                 last_percept=last_percept,
+                recent_percepts=list(recent_percepts or []),
             )
 
     async def _refresh_context_for_frame(
@@ -323,9 +334,13 @@ class InvestigationRoleRuntime:
             manifest = await get_task_context(session, run_id)
             world_revision = await current_knowledge_revision(session)
             state_ref = f"case:{frame.state.case_id}@{frame.state.case_revision}"
+            discovered_evidence = (
+                frame.last_percept.evidence_handles if frame.last_percept is not None else []
+            )
             if (
                 manifest.knowledge_revision == world_revision
                 and manifest.investigation_state_ref == state_ref
+                and set(discovered_evidence).issubset(manifest.evidence_refs)
             ):
                 return
             refreshed = refresh_context(
@@ -334,6 +349,7 @@ class InvestigationRoleRuntime:
                     context_revision=manifest.context_revision + 1,
                     knowledge_revision=world_revision,
                     investigation_state_ref=state_ref,
+                    add_evidence_refs=discovered_evidence,
                     cache_hint=None,
                 ),
             )
@@ -671,7 +687,7 @@ def _percept_signal(percept: Percept) -> str:
         [
             *sorted(percept.evidence_handles),
             *sorted(percept.independent_source_keys),
-            *sorted(percept.unresolved),
+            *sorted(item.candidate_id for item in percept.candidate_evidence),
         ]
     )
     return sha256(value.encode()).hexdigest()

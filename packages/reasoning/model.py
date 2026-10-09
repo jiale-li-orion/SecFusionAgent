@@ -92,6 +92,7 @@ class ModelDecisionPlanner:
         session_context: list[dict[str, JsonValue]] | None = None,
         runtime_metadata: dict[str, JsonValue] | None = None,
         include_report: bool = False,
+        prefer_partial_final: bool = False,
     ) -> DecisionDraft | ContinuationRequest:
         prompt_revision = (
             self.REPORT_PROMPT_REVISION if include_report else self.PROMPT_REVISION
@@ -129,6 +130,10 @@ class ModelDecisionPlanner:
                 "Inferences must preserve "
                 "their support. If the current state cannot support a defensible answer, return a "
                 "continuation proposal describing the evidence gap instead of guessing. "
+                "If prefer_partial_final is true, the investigation has already exhausted its "
+                "current evidence budget. Return a final answer with only the confirmed facts "
+                "that answer the question and state the remaining uncertainty in natural prose; "
+                "do not request another continuation. "
                 "For a final answer, stop_reason is a short machine-readable lifecycle code, "
                 "prefer snake_case such as evidence_sufficient; do not put explanation text there. "
                 "For continuation, purpose is likewise a short machine-readable purpose code, "
@@ -141,6 +146,7 @@ class ModelDecisionPlanner:
                     [item.model_dump(mode="json") for item in citation_sources],
                 ),
                 "session_context": cast(JsonValue, list(session_context or [])),
+                "prefer_partial_final": prefer_partial_final,
             },
             metadata=metadata,
         )

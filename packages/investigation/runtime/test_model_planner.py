@@ -523,6 +523,8 @@ async def test_research_object_planner_excludes_cve_only_delegation() -> None:
 
         async def generate_structured(self, request, response_model):
             assert response_model is SourceInvestigationPlannerDecision
+            assert request.metadata["prompt_revision"] == "investigation-model-v2-source"
+            assert "source_investigation_guidance" in request.system_instruction
             schema = response_model.model_json_schema()
             assert "DelegationAction" not in schema["$defs"]
             return response_model(action=PerceptionAction(request=PerceptionRequest(

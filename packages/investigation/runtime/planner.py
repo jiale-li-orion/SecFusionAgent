@@ -101,6 +101,27 @@ class SourceInvestigationPlannerDecision(BaseModel):
     decision_note: str | None = None
 
 
+_SOURCE_EVIDENCE_GUIDANCE = MaterializedFragment.build(
+    kind="source_investigation_guidance",
+    source_ref="runtime-guidance:source-investigation-v2",
+    source_revision="source-investigation-v2",
+    trust_class=FragmentTrustClass.RUNTIME_CONTROL,
+    cache_class=FragmentCacheClass.TASK_STABLE,
+    content={
+        "instruction": (
+            "For a source or document investigation, persist each clearly supported "
+            "subfinding with a StatePatch as soon as its citable passage is available. "
+            "Do not wait until every target or comparison dimension is covered before "
+            "recording a supported fact. Leave resolves_need_id empty until the whole "
+            "EvidenceNeed is satisfied. Use only evidence_refs visible in the Percepts "
+            "and bound target object IDs. A source's silence is not proof of a negative "
+            "fact. After a focused search returns no new evidence, report the remaining "
+            "gap with WAIT or STOP; do not repeat the same inspection."
+        )
+    },
+)
+
+
 class ModelInvestigationPlanner:
     def __init__(
         self,
@@ -138,6 +159,7 @@ class ModelInvestigationPlanner:
             )
             object_ref_aliases = _visible_object_ref_aliases(context_fragments)
             object_types = _object_types(context_fragments)
+            source_task = "Vulnerability" not in object_types
             role = canonical_roles()["InvestigationRole"]
             selection = await self._skill_resolver.resolve(
                 session,
@@ -184,7 +206,12 @@ class ModelInvestigationPlanner:
                 disclosure_level=SkillDisclosureLevel.PROCEDURE,
                 store=self._skill_store,
             )
-            ephemeral = _percept_fragments(frame.last_percept)
+            ephemeral = [
+                fragment
+                for percept in (frame.recent_percepts or [frame.last_percept])
+                if percept is not None
+                for fragment in _percept_fragments(percept)
+            ]
             assembly = await materialize_investigation_prompt(
                 session,
                 task_run_id=frame.task_run_id,
@@ -192,10 +219,14 @@ class ModelInvestigationPlanner:
                 disclosure_fragments=[
                     *capability_context.disclosure_fragments,
                     *skill_fragments,
+                    *([_SOURCE_EVIDENCE_GUIDANCE] if source_task else []),
                 ],
                 additional_dynamic_fragments=capability_context.dynamic_fragments,
                 ephemeral_fragments=ephemeral,
-                runtime_disclosure_refs=capability_context.runtime_disclosure_refs,
+                runtime_disclosure_refs=(
+                    capability_context.runtime_disclosure_refs
+                    | ({_SOURCE_EVIDENCE_GUIDANCE.source_ref} if source_task else set())
+                ),
                 percept_refs=[item.source_ref for item in ephemeral],
                 execution_profile_revision=capability_context.execution_profile_revision,
             )
@@ -205,20 +236,23 @@ class ModelInvestigationPlanner:
                 context_manifest_ref=f"context:{manifest.context_id}",
             )
 
+        prompt_revision = (
+            "investigation-model-v2-source" if source_task else "investigation-model-v1"
+        )
         request = assembly.to_model_request()
         request = request.model_copy(
             update={
                 "metadata": {
                     **request.metadata,
                     "model_purpose": "m5.investigation_plan",
-                    "prompt_revision": "investigation-model-v1",
+                    "prompt_revision": prompt_revision,
                     "request_owner_ref": f"task-run:{frame.task_run_id}",
                     "execution_id": assembly.execution_id,
                     "task_run_id": assembly.task_run_id,
                     "case_id": frame.state.case_id,
                     "prompt_assembly_id": assembly.assembly_id,
                     "budget_ref": manifest.budget_ref,
-                    "planner": "investigation-model-v1",
+                    "planner": prompt_revision,
                     "iteration": frame.iteration,
                     "selected_need_id": (
                         frame.selected_need.need_id if frame.selected_need is not None else None

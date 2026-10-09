@@ -134,7 +134,7 @@ async def _run_investigation(run_id: str) -> str:
             {"InvestigationRole": execute_role},
             stream_name=settings.task_event_stream_name,
         ).execute(run_id)
-        if result.final_status is TaskRunStatus.COMPLETED:
+        if result.final_status in {TaskRunStatus.COMPLETED, TaskRunStatus.BLOCKED}:
             async with httpx.AsyncClient(timeout=settings.model_timeout_seconds) as client:
                 artifacts = await create_runtime_artifact_service(settings)
                 provider = create_recorded_model_provider(

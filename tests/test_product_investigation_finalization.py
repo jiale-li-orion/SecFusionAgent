@@ -206,3 +206,73 @@ async def test_decision_evidence_gap_waits_with_a_durable_need(lease) -> None:
             )
     finally:
         await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_blocked_product_investigation_returns_honest_readable_answer(lease) -> None:
+    engine, factory = await _database()
+    try:
+        run_id, _object_id, _contract, state, _need, _manifest = await _seed(factory)
+        async with factory() as session, session.begin():
+            await CaseService().activate(session, state.case_id)
+            for status in (TaskRunStatus.QUEUED, TaskRunStatus.RUNNING, TaskRunStatus.BLOCKED):
+                await transition_task_run(
+                    session,
+                    run_id=run_id,
+                    target=status,
+                    idempotency_key=f"test:insufficient:{status}",
+                    payload_ref="test",
+                    stream_name="secfusion:test-finalize",
+                    stop_reason="no_progress" if status is TaskRunStatus.BLOCKED else None,
+                )
+        provider = DecisionProvider()
+        result_ref = await FinalizeInvestigationUseCase(
+            factory, Settings(), provider, lease=lease
+        ).execute(run_id)
+        assert result_ref and result_ref.startswith("decision:")
+        assert provider.calls == 0
+        async with factory() as session:
+            current = await InvestigationStateService().get_state(session, state.case_id)
+            assert current.current_decision is not None
+            assert current.current_decision["stop_reason"] == "evidence_insufficient"
+            assert current.current_decision["report_paragraphs"][0]["text"]
+            assert current.current_decision["citations"] == []
+            case = await session.get(InvestigationCaseModel, state.case_id)
+            assert case is not None and case.status == "waiting"
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_invalid_final_report_is_replaced_with_evidence_boundary(lease) -> None:
+    class InvalidProvider(DecisionProvider):
+        async def generate_structured(self, request: Any, response_model: Any) -> Any:
+            return response_model.model_validate({"action": {
+                "kind": "final",
+                "stop_reason": "evidence_sufficient",
+                "conclusions": [{
+                    "statement": "An unsupported reformulation of the finding.",
+                    "type": "fact",
+                    "evidence_refs": (
+                        request.data["investigation_state"]["confirmed"][0]["evidence_refs"]
+                    ),
+                }],
+            }})
+
+    engine, factory = await _database()
+    try:
+        run_id, state = await _completed_case(factory)
+        result_ref = await FinalizeInvestigationUseCase(
+            factory, Settings(), InvalidProvider(), lease=lease
+        ).execute(run_id)
+        assert result_ref and result_ref.startswith("decision:")
+        async with factory() as session:
+            current = await InvestigationStateService().get_state(session, state.case_id)
+            assert current.current_decision is not None
+            assert current.current_decision["stop_reason"] == "evidence_insufficient"
+            assert current.current_decision["conclusions"] == []
+            assert current.current_decision["citations"] == []
+            case = await session.get(InvestigationCaseModel, state.case_id)
+            assert case is not None and case.status == "waiting"
+    finally:
+        await engine.dispose()
