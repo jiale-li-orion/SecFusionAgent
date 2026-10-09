@@ -936,12 +936,18 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
   border-top: 1px solid var(--line);
   padding: 25px 0;
   font-size: 10px;
   letter-spacing: .07em;
   color: var(--muted);
 }
+
+.vision-shelf-tools { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.vision-hot-index-link { display: inline-flex; align-items: center; gap: 5px; padding: 8px 10px; border: 1px solid #91aa82; border-radius: 6px; color: #315c38; font-size: 10px; font-weight: 650; letter-spacing: 0; background: #e8f0de; }
+.vision-hot-index-link:hover { background: #dcebcf; border-color: #628c65; }
 
 .vision-folio-shelf {
   display: flex;

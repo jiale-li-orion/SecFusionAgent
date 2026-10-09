@@ -85,6 +85,7 @@ The INTELLIGENCE Vulnerabilities filter shows a bounded live Hot CVE window with
 WORLD's Hot index pages through resident source records, with exact CVE lookup across the entire resident pool. The index no longer caps discovery at its initially loaded ranking window.
 INVESTIGATIONS pages through older account-owned Cases using the existing API cursor and keeps a directly linked Case visible in the index after its detail loads.
 AGENTS exposes each Task's ContextManifest and model attempts, with navigable input evidence and explicit usage-versus-budget settlement labels.
+INTELLIGENCE's curated vulnerability shelf links to WORLD's paged Hot index for broader discovery.
 
 The Incidents filter reads a separate candidate watch projection. It displays source headlines and links for conservatively selected security-event signals, while keeping candidate status distinct from a durable Incident. Broad news feeds now screen general headlines before candidate correlation; the product watch read also excludes older unrelated entries still in the Redis working set. A candidate is never presented as independently corroborated or durable.
 
