@@ -14,9 +14,15 @@ from apps.decision_runtime import (
     open_case_decision_execution,
 )
 from packages.investigation.cases.service import CaseService
+from packages.investigation.state.continuation import ContinuationRequest
 from packages.investigation.state.contracts import InvestigationState
 from packages.investigation.state.service import InvestigationStateService
-from packages.reasoning.decision import DecisionDraft, DecisionReportParagraph
+from packages.reasoning.decision import (
+    ConclusionType,
+    DecisionConclusion,
+    DecisionDraft,
+    DecisionReportParagraph,
+)
 from packages.reasoning.model import ModelDecisionPlanner
 from packages.runtime.execution.service import ExecutionRunService
 from packages.shared.config import Settings
@@ -70,14 +76,13 @@ class FinalizeInvestigationUseCase:
             if not contract.principal.startswith("user:"):
                 return None
             state = await service.get_state(session, parent.case_id)
+            incomplete = insufficient or bool(state.unknowns or state.evidence_need_ids)
             try:
                 previous = await get_task_run(session, decision_run_id)
             except LookupError:
                 previous = None
             if previous is not None and previous.status in TERMINAL_TASK_RUN_STATUSES:
                 return previous.result_ref
-            if state.current_decision is not None:
-                return str(state.current_decision["decision_id"])
             if previous is None:
                 coordinate = await open_case_decision_execution(
                     session,
@@ -103,14 +108,15 @@ class FinalizeInvestigationUseCase:
             remaining = (envelope.deadline_at - datetime.now(UTC)).total_seconds()
             if remaining <= 0:
                 raise TimeoutError("Decision execution deadline exhausted")
-            if insufficient and not state.confirmed:
+            proposal: DecisionDraft | ContinuationRequest
+            if incomplete and not state.confirmed:
                 proposal = _insufficient_evidence_report(state)
             else:
                 proposal = await ModelDecisionPlanner(self._provider).plan(
                     state,
                     citation_sources=citations,
                     include_report=True,
-                    prefer_partial_final=insufficient,
+                    prefer_partial_final=incomplete,
                     runtime_metadata={
                         "execution_id": coordinate.execution_id,
                         "task_run_id": coordinate.task_run_id,
@@ -121,6 +127,8 @@ class FinalizeInvestigationUseCase:
                         ),
                     },
                 )
+                if incomplete and isinstance(proposal, ContinuationRequest):
+                    proposal = _partial_evidence_report(state)
             async with self._factory() as session, session.begin():
                 current_run = await get_task_run(session, decision_run_id)
                 if current_run.status in TERMINAL_TASK_RUN_STATUSES:
@@ -134,7 +142,7 @@ class FinalizeInvestigationUseCase:
                     )
                 except ValueError:
                     proposal = _insufficient_evidence_report(state)
-                    insufficient = True
+                    incomplete = True
                     outcome = await DecisionRuntime().commit_proposal(
                         session,
                         state=state,
@@ -144,7 +152,7 @@ class FinalizeInvestigationUseCase:
                 if outcome.decision is not None:
                     result_ref = outcome.decision.decision_id
                     stop_reason = outcome.decision.stop_reason
-                    if insufficient:
+                    if incomplete:
                         await CaseService().wait(session, state.case_id)
                     else:
                         await CaseService().resolve(session, state.case_id)
@@ -202,6 +210,51 @@ def _insufficient_evidence_report(state: InvestigationState) -> DecisionDraft:
         report_paragraphs=[DecisionReportParagraph(text=paragraph)],
         stop_reason="evidence_insufficient",
         model_prompt_revision="decision-insufficient-v1",
+    )
+
+
+def _partial_evidence_report(state: InvestigationState) -> DecisionDraft:
+    """Bounded fallback if a model still requests continuation for a partial final."""
+    confirmed = sorted(state.confirmed, key=lambda item: item.updated_revision, reverse=True)[:3]
+    conclusions = [
+        DecisionConclusion(
+            statement=item.proposition,
+            type=ConclusionType.FACT,
+            evidence_refs=item.evidence_refs,
+        )
+        for item in confirmed
+    ]
+    chinese = any("\u4e00" <= char <= "\u9fff" for char in state.goal)
+    if chinese:
+        known = "现有证据能够确认以下事实:\u0020" + "\uff1b".join(
+            item.proposition.rstrip("\u3002\uff1b") for item in confirmed
+        ) + "\u3002"
+        boundary = "其他应对细节仍缺少可核验材料\uff0c现阶段不能据此作出进一步结论\u3002"
+    else:
+        known = "The available evidence confirms the following: " + "; ".join(
+            item.proposition.rstrip(". ;") for item in confirmed
+        ) + "."
+        boundary = (
+            "Other response details remain unverified, "
+            "so no further conclusion is supported yet."
+        )
+    return DecisionDraft(
+        case_id=state.case_id,
+        case_revision=state.case_revision,
+        conclusions=conclusions,
+        unknowns=[item.proposition for item in state.unknowns] or [state.goal],
+        answer_payload={"status": "partial_evidence"},
+        report_paragraphs=[
+            DecisionReportParagraph(
+                text=known[:2399],
+                evidence_refs=list(dict.fromkeys(
+                    ref for item in confirmed for ref in item.evidence_refs
+                )),
+            ),
+            DecisionReportParagraph(text=boundary),
+        ],
+        stop_reason="partial_evidence",
+        model_prompt_revision="decision-partial-fallback-v1",
     )
 
 
