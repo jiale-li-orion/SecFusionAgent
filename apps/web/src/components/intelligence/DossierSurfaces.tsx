@@ -90,12 +90,14 @@ export function IncidentArchiveRail({
   items,
   loading,
   error,
+  onRetry,
   activeId,
   onSelect,
 }: {
   items: Awaited<ReturnType<typeof listIncidents>>['items']
   loading: boolean
   error: boolean
+  onRetry: () => void
   activeId: string
   onSelect: (incidentId: string) => void
 }) {
@@ -109,7 +111,7 @@ export function IncidentArchiveRail({
       {loading ? (
         <div className="incident-archive-state">{text('解析 Incident 索引…', 'RESOLVING INCIDENT INDEX…')}</div>
       ) : error ? (
-        <div className="incident-archive-state error-block" role="alert">{text('Incident read 读取失败。', 'Incident read failed.')}</div>
+        <div className="incident-archive-state error-block" role="alert">{text('事件档案索引读取失败。', 'Incident archive read failed.')} <button onClick={onRetry}>{text('重新读取', 'Retry')}</button></div>
       ) : items.length === 0 ? (
         <div className="incident-archive-state">
           <Radar size={18} />

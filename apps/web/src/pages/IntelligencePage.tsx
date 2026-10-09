@@ -327,7 +327,7 @@ export function IntelligencePage() {
               {knowledgeQuery.isError && !hotMatch && <div className="intel-state error-block"><span>{String(knowledgeQuery.error.message)}</span><button className="recovery-action" onClick={() => void knowledgeQuery.refetch()}>{text('重试 Knowledge read', 'RETRY KNOWLEDGE READ')}</button></div>}
               {!selectedCve && !selectedObjectId && !paramIncident && <><IntelligenceIndex stories={entryQuery.data?.items ?? []} hot={hotQuery.data?.items ?? []} hotTotal={hotQuery.data?.resident_total ?? 0} candidates={candidateQuery.data?.items ?? []} candidateTotal={candidateQuery.data?.total ?? 0} loading={entryQuery.isPending} hotLoading={hotQuery.isPending} candidateLoading={candidateQuery.isPending} error={entryQuery.isError ? String(entryQuery.error.message) : null} hotError={hotQuery.isError ? String(hotQuery.error.message) : null} candidateError={candidateQuery.isError ? String(candidateQuery.error.message) : null} onSelect={item => { if (item.object_id) openSearchResult(item.object_id); else if (item.incident_id) setParams({ incident: item.incident_id }) }} onHotSelect={item => { const cve = item.cve_id ?? item.external_object_id; setParams({ cve, hot: `${item.source_id}:${item.external_object_id}` }) }} onCandidateSelect={item => navigate(`/?${new URLSearchParams({ view: 'stories', source: 'incidents', story: `candidate:${item.candidate_id}` })}`)} />{auth.authenticated ? <PersonalizedIntelligence /> : <AccountLoginPrompt title={text('找到与你有关的情报', 'Find intelligence relevant to you')} description={text('登录后保存关注的技术与对象，查看带有来源的推荐。', 'Sign in to save technologies and objects you follow, and see recommendations with their sources.')} />}</>}
               {!obj && hotMatch && <HotWorkingSetPanel item={hotMatch} />}
-              {!obj && (selectedCve || selectedObjectId) && !hotMatch && <IntelligenceArchiveBlueprint target={selectedCve || selectedObjectId} />}
+              {!obj && (selectedCve || selectedObjectId) && !hotMatch && !knowledgeQuery.isError && <IntelligenceArchiveBlueprint target={selectedCve || selectedObjectId} />}
 
               {obj && (
                 <div className="intel-reading-deck">
@@ -355,14 +355,16 @@ export function IntelligencePage() {
               )}
             </>
           )}
+          {paramIncident && incidentQuery.isPending && <div className="intel-state" role="status">{text('正在读取事件档案与来源时间线…', 'Reading incident dossier and source timeline…')}</div>}
           {incidentQuery.isError && <div className="intel-state error-block" role="alert"><span>{String(incidentQuery.error.message)}</span><button className="recovery-action" onClick={() => void incidentQuery.refetch()}>{text('重试 Incident read', 'RETRY INCIDENT READ')}</button></div>}
         </motion.div>
 
-        {(readingMode === 'evidence' || (incidentListQuery.data?.items.length ?? 0) > 0) && <aside className="intel-side">
+        {(readingMode === 'evidence' || Boolean(paramIncident) || incidentListQuery.isError || (incidentListQuery.data?.items.length ?? 0) > 0) && <aside className="intel-side">
           <IncidentArchiveRail
             items={incidentListQuery.data?.items ?? []}
             loading={incidentListQuery.isLoading}
             error={incidentListQuery.isError}
+            onRetry={() => void incidentListQuery.refetch()}
             activeId={paramIncident}
             onSelect={(incidentId) => {
               setInputOverride(null)

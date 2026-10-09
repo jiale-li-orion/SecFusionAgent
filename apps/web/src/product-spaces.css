@@ -2051,6 +2051,7 @@
   gap: 15px;
   padding: 20px 0;
 }
+.incident-archive-state.error-block button { justify-self: start; padding-bottom: 3px; border-bottom: 1px solid currentColor; color: #8e644d; font-size: 11px; }
 
 /* START — the question desk and a sculptural approach selector. */
 
