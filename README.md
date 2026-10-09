@@ -95,7 +95,7 @@ INTELLIGENCE's curated vulnerability shelf links to WORLD's paged Hot index for 
 
 The Incidents filter reads a separate candidate watch projection. It displays source headlines and links for conservatively selected security-event signals, while keeping candidate status distinct from a durable Incident. Broad news feeds now screen general headlines before candidate correlation; the product watch read also excludes older unrelated entries still in the Redis working set. A candidate is never presented as independently corroborated or durable.
 
-Managed HTML article parsing now prefers the actual body over related-post cards. A mismatched Microsoft Security Blog excerpt found in the live Product was repaired by a new on-demand Observation and parser-v2 DocumentRevision; historical source bytes remain retained for audit.
+Managed HTML article parsing prefers the actual body over related-post cards, including research sites that use `.post-content` for the report and `<article>` only for previews. Parser v3 can create a new immutable DocumentRevision from an existing Observation when source bytes are unchanged; current lexical/dense search reads only the latest parsed revision while exact historical chunk references remain replayable. This repaired live Chainalysis research that had been indexed as a related Bitget headline instead of its report body.
 
 Free-text INTELLIGENCE search now resolves the submitted input against the API directly, so rapid typing and Enter cannot open a stale suggestion from a previous query.
 

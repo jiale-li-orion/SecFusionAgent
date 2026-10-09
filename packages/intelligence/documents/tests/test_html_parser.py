@@ -71,3 +71,25 @@ def test_html_parser_prefers_article_body_over_related_post_cards() -> None:
     text = "\n".join(section.text for section in sections)
     assert "AI-themed phishing campaigns" in text
     assert "Unrelated CISO" not in text
+
+
+def test_html_parser_prefers_post_content_over_related_article_cards() -> None:
+    body = b"""
+    <html><body>
+      <div class="single-post__content post-content">
+        <h1>Incident investigation</h1>
+        <p>Investigators traced the theft through several exchanges.</p>
+        <h2>Response</h2>
+        <p>The affected organization suspended withdrawals.</p>
+      </div>
+      <section class="related-posts">
+        <article class="related-posts__card"><h2>Another incident</h2>
+          <p>This preview is not part of the investigation.</p></article>
+      </section>
+    </body></html>
+    """
+    sections = HTMLDocumentParser().parse(body)
+    text = "\n".join(section.text for section in sections)
+    assert "Investigators traced the theft" in text
+    assert "suspended withdrawals" in text
+    assert "This preview is not part" not in text

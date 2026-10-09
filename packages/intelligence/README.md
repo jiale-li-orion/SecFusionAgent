@@ -97,7 +97,7 @@ Incident signal input follows the single-valued `source_role` / `retention_mode`
 
 A managed document keeps provider/source revision identity separately from parsed/indexed state. Parsers support the media types explicitly registered by the collection runtime. A new parser or media type must be wired in both the parser layer and runtime ownership tests; recognizing a MIME type in a source definition without a parser owner is invalid.
 
-HTML parser v2 prefers the article body container (`.entry-content`, then `main` / `[role=main]`) before generic `article` cards. This prevents a related-post card from becoming the only chunk of an otherwise valid article. Old raw Observations and DocumentRevisions remain immutable; a fresh acquisition of changed source bytes creates a new revision with the corrected parser, rather than rewriting historical Evidence locators.
+HTML parser v3 prefers known article body containers (`.entry-content`, `.post-content`, then `main` / `[role=main]`) before generic `article` cards. Some research sites wrap the real body in `.post-content` while their only `<article>` elements are related-post previews. A parser upgrade creates a new immutable DocumentRevision keyed by Observation and parser name/version even when the source bytes have not changed. The original Observation/Artifact and earlier parsed revisions remain intact; retrieval selects the latest parsed revision for current document reads.
 
 Document indexing produces lexical state first. Dense embedding and semantic extraction are optional runtime continuations when model configuration exists; lack of model credentials does not invalidate the lexical document path.
 

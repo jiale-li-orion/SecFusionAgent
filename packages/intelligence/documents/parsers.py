@@ -39,10 +39,16 @@ class PDFDocumentParser:
 
 class HTMLDocumentParser:
     NAME = "selectolax-html"
-    VERSION = "2"
+    VERSION = "3"
 
     _DROP_SELECTOR = "script,style,noscript,nav,header,footer,aside,form,svg,canvas"
-    _CONTENT_SELECTORS = (".entry-content", "main", "[role=main]", "article")
+    _CONTENT_SELECTORS = (
+        ".entry-content",
+        ".post-content",
+        "main",
+        "[role=main]",
+        "article",
+    )
     _BLOCK_TAGS: ClassVar[frozenset[str]] = frozenset(
         {"p", "li", "pre", "blockquote", "tr", "dt", "dd"}
     )

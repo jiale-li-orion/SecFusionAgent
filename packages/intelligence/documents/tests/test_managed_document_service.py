@@ -51,8 +51,9 @@ async def test_managed_document_versions_are_durable_and_chunked() -> None:
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
     factory = async_sessionmaker(engine, expire_on_commit=False)
+    artifact_store = MemoryArtifactStore()
     service = ManagedDocumentService(
-        EvidenceIngress(MemoryArtifactStore(), now=lambda: NOW),
+        EvidenceIngress(artifact_store, now=lambda: NOW),
         {"text/plain": PlainTextDocumentParser()},
         now=lambda: NOW,
     )
@@ -215,6 +216,31 @@ async def test_managed_document_versions_are_durable_and_chunked() -> None:
                 provider=FakeEmbeddingProvider(),
             )
             assert replay_dense.changed is False
+
+        class RevisedPlainTextParser(PlainTextDocumentParser):
+            VERSION = "2"
+
+        revised_service = ManagedDocumentService(
+            EvidenceIngress(artifact_store, now=lambda: NOW),
+            {"text/plain": RevisedPlainTextParser()},
+            now=lambda: NOW,
+        )
+        async with factory() as session, session.begin():
+            reparsed = await revised_service.ingest(session, SOURCE, first)
+        assert reparsed.replay is False
+        assert reparsed.document_revision_id != result1.document_revision_id
+        assert reparsed.observation_id == result1.observation_id
+        async with factory() as session:
+            assert await _count(session, ObservationModel) == 2
+            assert await _count(session, DocumentRevisionModel) == 3
+            assert await _count(session, ProcessingRunModel) == 3
+            reparsed_insight = await session.scalar(
+                select(InsightCandidateModel).where(
+                    InsightCandidateModel.document_revision_id == reparsed.document_revision_id
+                )
+            )
+            assert reparsed_insight is not None
+            assert reparsed_insight.change_type == "reparsed"
     finally:
         await engine.dispose()
 

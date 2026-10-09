@@ -68,7 +68,9 @@ class ManagedDocumentService:
         observation = await self._evidence_ingress.accept(session, source, envelope)
         existing_revision = await session.scalar(
             select(DocumentRevisionModel).where(
-                DocumentRevisionModel.observation_id == observation.observation_id
+                DocumentRevisionModel.observation_id == observation.observation_id,
+                DocumentRevisionModel.parser_name == parser.NAME,
+                DocumentRevisionModel.parser_version == parser.VERSION,
             )
         )
         if existing_revision is not None:
@@ -182,7 +184,8 @@ class ManagedDocumentService:
             await session.flush()
 
         document_revision_id = _stable_id(
-            f"document-revision:{document_id}:{observation.observation_id}"
+            f"document-revision:{document_id}:{observation.observation_id}:"
+            f"{parser.NAME}:{parser.VERSION}"
         )
         session.add(
             DocumentRevisionModel(
@@ -245,21 +248,34 @@ class ManagedDocumentService:
         locator_hash = sha256(
             json.dumps(locator, sort_keys=True, separators=(",", ":")).encode()
         ).hexdigest()
-        session.add(
-            EvidenceLinkModel(
-                evidence_link_id=_stable_id(
-                    f"evidence-link:object:{object_id}:{observation.observation_id}:{locator_hash}"
-                ),
-                target_kind="object",
-                target_id=object_id,
-                observation_id=observation.observation_id,
-                artifact_id=observation.artifact_id,
-                locator=locator,
-                locator_hash=locator_hash,
-            )
+        evidence_link_id = _stable_id(
+            f"evidence-link:object:{object_id}:{observation.observation_id}:{locator_hash}"
         )
+        if await session.get(EvidenceLinkModel, evidence_link_id) is None:
+            session.add(
+                EvidenceLinkModel(
+                    evidence_link_id=evidence_link_id,
+                    target_kind="object",
+                    target_id=object_id,
+                    observation_id=observation.observation_id,
+                    artifact_id=observation.artifact_id,
+                    locator=locator,
+                    locator_hash=locator_hash,
+                )
+            )
 
         change_type = "new_document" if is_new_document else "new_revision"
+        if (
+            not is_new_document
+            and await session.scalar(
+                select(DocumentRevisionModel.document_revision_id).where(
+                    DocumentRevisionModel.observation_id == observation.observation_id,
+                    DocumentRevisionModel.document_revision_id != document_revision_id,
+                )
+            )
+            is not None
+        ):
+            change_type = "reparsed"
         insight_candidate_id = _stable_id(f"insight-candidate:{document_revision_id}")
         session.add(
             InsightCandidateModel(

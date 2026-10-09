@@ -27,7 +27,14 @@ class DocumentModel(Base):
 
 class DocumentRevisionModel(Base):
     __tablename__ = "document_revisions"
-    __table_args__ = (UniqueConstraint("observation_id", name="uq_document_revision_observation"),)
+    __table_args__ = (
+        UniqueConstraint(
+            "observation_id",
+            "parser_name",
+            "parser_version",
+            name="uq_document_revision_observation_parser",
+        ),
+    )
 
     document_revision_id: Mapped[str] = mapped_column(String(36), primary_key=True)
     document_id: Mapped[str] = mapped_column(

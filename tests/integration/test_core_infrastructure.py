@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
@@ -12,7 +12,7 @@ from redis.asyncio import Redis
 from sqlalchemy import delete, select, text
 
 from apps.worker.celery_app import celery_app
-from packages.intelligence.documents.parsers import PlainTextDocumentParser
+from packages.intelligence.documents.parsers import ParsedSection, PlainTextDocumentParser
 from packages.intelligence.documents.service import ManagedDocumentService
 from packages.intelligence.hot_cache.contracts import HotBugRecord
 from packages.intelligence.hot_cache.redis import RedisHotBugCache
@@ -127,9 +127,7 @@ async def test_current_projection_postgres_upsert_is_concurrency_safe_and_monoto
     finally:
         async with factory() as session, session.begin():
             await session.execute(
-                delete(CurrentProjectionModel).where(
-                    CurrentProjectionModel.subject_id == object_id
-                )
+                delete(CurrentProjectionModel).where(CurrentProjectionModel.subject_id == object_id)
             )
             await session.execute(delete(ObjectModel).where(ObjectModel.object_id == object_id))
             if revision_id is not None:
@@ -187,8 +185,9 @@ async def test_postgres_fts_pgvector_and_managed_document_roundtrip() -> None:
                     request_metadata={"title": "Integration retrieval probe"},
                     observed_at=NOW,
                 )
+                artifact_store = MemoryArtifactStore()
                 managed = await ManagedDocumentService(
-                    EvidenceIngress(MemoryArtifactStore(), now=lambda: NOW),
+                    EvidenceIngress(artifact_store, now=lambda: NOW),
                     {"text/plain": PlainTextDocumentParser()},
                     now=lambda: NOW,
                 ).ingest(session, source, envelope)
@@ -272,6 +271,42 @@ async def test_postgres_fts_pgvector_and_managed_document_roundtrip() -> None:
                     if "lexical" in item.score_channels and "dense" in item.score_channels
                 )
                 assert merged.source_id == source.source_id
+
+                class RevisedParser(PlainTextDocumentParser):
+                    VERSION = "2"
+
+                    def parse(self, body: bytes) -> list[ParsedSection]:
+                        del body
+                        return [ParsedSection(text="Corrected source body")]
+
+                revised = await ManagedDocumentService(
+                    EvidenceIngress(artifact_store, now=lambda: NOW),
+                    {"text/plain": RevisedParser()},
+                    now=lambda: NOW + timedelta(seconds=1),
+                ).ingest(session, source, envelope)
+                await indexer.build_lexical_index(
+                    session, document_revision_id=revised.document_revision_id
+                )
+                assert revised.observation_id == managed.observation_id
+                assert (
+                    await LexicalRetrievalOperator().search(
+                        session, query="authentication", source_ids=[source.source_id]
+                    )
+                    == []
+                )
+                corrected = await LexicalRetrievalOperator().search(
+                    session, query="corrected", source_ids=[source.source_id]
+                )
+                assert len(corrected) == 1
+                assert corrected[0].revision == revised.document_revision_id
+                assert (
+                    await DenseRetrievalOperator().search(
+                        session,
+                        query_vector=[1.0, 0.0, 0.0],
+                        source_ids=[source.source_id],
+                    )
+                    == []
+                )
 
                 extension = await session.scalar(
                     text("SELECT extversion FROM pg_extension WHERE extname='vector'")

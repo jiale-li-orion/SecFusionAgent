@@ -3,8 +3,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any, cast
 
-from sqlalchemy import func, literal_column, or_, select
+from sqlalchemy import and_, func, literal_column, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 from sqlalchemy.sql import Select
 
 from packages.intelligence.retrieval.contracts import CandidateKind, RetrievedCandidate
@@ -141,6 +142,25 @@ class StructuredRetrievalOperator:
         ]
 
 
+def _is_current_document_revision():
+    newer = aliased(DocumentRevisionModel)
+    return ~(
+        select(newer.document_revision_id)
+        .where(
+            newer.document_id == DocumentRevisionModel.document_id,
+            or_(
+                newer.created_at > DocumentRevisionModel.created_at,
+                and_(
+                    newer.created_at == DocumentRevisionModel.created_at,
+                    newer.document_revision_id > DocumentRevisionModel.document_revision_id,
+                ),
+            ),
+        )
+        .correlate(DocumentRevisionModel)
+        .exists()
+    )
+
+
 def build_lexical_search_statement(
     *,
     query: str,
@@ -182,7 +202,7 @@ def build_lexical_search_statement(
             ObservationModel.observation_id == DocumentRevisionModel.observation_id,
         )
         .join(SourceModel, SourceModel.source_id == ObservationModel.source_id)
-        .where(vector.op("@@")(tsquery))
+        .where(vector.op("@@")(tsquery), _is_current_document_revision())
     )
     if source_ids:
         statement = statement.where(ObservationModel.source_id.in_(source_ids))
@@ -191,7 +211,11 @@ def build_lexical_search_statement(
 
 class LexicalRetrievalOperator:
     async def search_compact_name(
-        self, session: AsyncSession, *, query: str, limit: int = 20,
+        self,
+        session: AsyncSession,
+        *,
+        query: str,
+        limit: int = 20,
     ) -> list[RetrievedCandidate]:
         """Recover names written with spaces, e.g. Huggingface / Hugging Face.
 
@@ -199,38 +223,45 @@ class LexicalRetrievalOperator:
         never turns an arbitrary long sentence into a broad substring scan.
         """
         folded = "".join(
-            character.lower() for character in query
-            if character.isascii() and character.isalnum()
+            character.lower() for character in query if character.isascii() and character.isalnum()
         )
         if len(folded) < 6 or len(folded) > 64:
             return []
         compact_text = func.regexp_replace(
-            func.lower(DocumentChunkModel.text), "[^a-z0-9]+", "", "g",
+            func.lower(DocumentChunkModel.text),
+            "[^a-z0-9]+",
+            "",
+            "g",
         )
-        rows = (await session.execute(
-            select(
-                DocumentChunkModel, DocumentRevisionModel, DocumentModel,
-                ObservationModel, SourceModel,
+        rows = (
+            await session.execute(
+                select(
+                    DocumentChunkModel,
+                    DocumentRevisionModel,
+                    DocumentModel,
+                    ObservationModel,
+                    SourceModel,
+                )
+                .join(
+                    DocumentRevisionModel,
+                    DocumentRevisionModel.document_revision_id
+                    == DocumentChunkModel.document_revision_id,
+                )
+                .join(DocumentModel, DocumentModel.document_id == DocumentRevisionModel.document_id)
+                .join(
+                    ObservationModel,
+                    ObservationModel.observation_id == DocumentRevisionModel.observation_id,
+                )
+                .join(SourceModel, SourceModel.source_id == ObservationModel.source_id)
+                .where(compact_text.contains(folded), _is_current_document_revision())
+                .order_by(
+                    func.strpos(compact_text, folded),
+                    DocumentChunkModel.ordinal,
+                    DocumentChunkModel.chunk_id,
+                )
+                .limit(limit)
             )
-            .join(
-                DocumentRevisionModel,
-                DocumentRevisionModel.document_revision_id
-                == DocumentChunkModel.document_revision_id,
-            )
-            .join(DocumentModel, DocumentModel.document_id == DocumentRevisionModel.document_id)
-            .join(
-                ObservationModel,
-                ObservationModel.observation_id == DocumentRevisionModel.observation_id,
-            )
-            .join(SourceModel, SourceModel.source_id == ObservationModel.source_id)
-            .where(compact_text.contains(folded))
-            .order_by(
-                func.strpos(compact_text, folded),
-                DocumentChunkModel.ordinal,
-                DocumentChunkModel.chunk_id,
-            )
-            .limit(limit)
-        )).all()
+        ).all()
         return [_document_candidate(*row, score_channels={"compact_name": 1.0}) for row in rows]
 
     async def search(
@@ -431,7 +462,7 @@ class DenseRetrievalOperator:
                 ObservationModel.observation_id == DocumentRevisionModel.observation_id,
             )
             .join(SourceModel, SourceModel.source_id == ObservationModel.source_id)
-            .where(DocumentChunkModel.embedding.is_not(None))
+            .where(DocumentChunkModel.embedding.is_not(None), _is_current_document_revision())
         )
         if source_ids:
             statement = statement.where(ObservationModel.source_id.in_(source_ids))
