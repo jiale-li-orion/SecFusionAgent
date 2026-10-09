@@ -31,8 +31,8 @@ export function ObservatoryPage() {
             <button onClick={refresh}>{text('重新读取', 'RETRY')}</button>
           </div>
         )}
-        <ObservatoryPulse world={worldQuery.data ?? null} windowKey={windowKey} />
-        <LiveObservatory world={worldQuery.data ?? null} agents={agentsQuery.data ?? null} system={systemQuery.data ?? null} windowKey={windowKey} setWindowKey={setWindowKey} />
+        <ObservatoryPulse world={worldQuery.data ?? null} windowKey={windowKey} failed={worldQuery.isError} />
+        <LiveObservatory world={worldQuery.data ?? null} agents={agentsQuery.data ?? null} system={systemQuery.data ?? null} failures={{ world: worldQuery.isError, agents: agentsQuery.isError, system: systemQuery.isError }} windowKey={windowKey} setWindowKey={setWindowKey} />
       </div>
     </section>
   )

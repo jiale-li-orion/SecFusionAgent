@@ -48,7 +48,7 @@ function AgentLiveInstrument({ runtime }: { runtime: Awaited<ReturnType<typeof g
   )
 }
 
-export function LiveObservatory({ world, agents, system, windowKey, setWindowKey }: { world: WorldOverview | null; agents: Awaited<ReturnType<typeof getAgentRuntime>> | null; system: SystemOverview | null; windowKey: ObservatoryWindow; setWindowKey: (value: ObservatoryWindow) => void }) {
+export function LiveObservatory({ world, agents, system, failures, windowKey, setWindowKey }: { world: WorldOverview | null; agents: Awaited<ReturnType<typeof getAgentRuntime>> | null; system: SystemOverview | null; failures: { world: boolean; agents: boolean; system: boolean }; windowKey: ObservatoryWindow; setWindowKey: (value: ObservatoryWindow) => void }) {
   const { text } = useI18n()
   const navigate = useNavigate()
   const { authenticated } = useAuth()
@@ -56,7 +56,7 @@ export function LiveObservatory({ world, agents, system, windowKey, setWindowKey
   const current = world?.windows[windowKey]
   const hours = windowKey === '1h' ? 1 : windowKey === '6h' ? 6 : windowKey === '24h' ? 24 : 168
   const series = useMemo(() => (world?.hourly_series ?? []).slice(-hours), [world?.hourly_series, hours])
-  const agentSummary = agents ? text(`当前账户与公共任务中有 ${agents.roles.reduce((sum, role) => sum + role.active_tasks, 0)} 个活动任务、${agents.roles.reduce((sum, role) => sum + role.total_tasks, 0)} 次持久执行。`, `Your account and public tasks include ${agents.roles.reduce((sum, role) => sum + role.active_tasks, 0)} active tasks and ${agents.roles.reduce((sum, role) => sum + role.total_tasks, 0)} retained runs.`) : authenticated ? text('账户任务状态尚未载入。', 'Account task status is not loaded yet.') : text('登录后可查看与你有关的任务运行状态。', 'Sign in to inspect task activity for your account.')
+  const agentSummary = agents ? text(`当前账户与公共任务中有 ${agents.roles.reduce((sum, role) => sum + role.active_tasks, 0)} 个活动任务、${agents.roles.reduce((sum, role) => sum + role.total_tasks, 0)} 次持久执行。`, `Your account and public tasks include ${agents.roles.reduce((sum, role) => sum + role.active_tasks, 0)} active tasks and ${agents.roles.reduce((sum, role) => sum + role.total_tasks, 0)} retained runs.`) : authenticated ? failures.agents ? text('账户任务读数不可用，可重试。', 'Account task read unavailable; retry.') : text('账户任务状态尚未载入。', 'Account task status is not loaded yet.') : text('登录后可查看与你有关的任务运行状态。', 'Sign in to inspect task activity for your account.')
   const totalSources = world ? world.source_health.healthy + world.source_health.degraded + world.source_health.blocked : 0
   const chooseFocus = (next: 'world' | 'sources' | 'agents' | 'system') => setFocus(next)
 
@@ -66,7 +66,7 @@ export function LiveObservatory({ world, agents, system, windowKey, setWindowKey
         <p>{world && current ? text(
           `这份 ${windowKey === '168h' ? '7 天' : windowKey} 运行窗口覆盖 ${totalSources} 个来源，其中 ${world.source_health.healthy} 个健康。窗口内出现 ${compactNumber(current.fresh_external_changes)} 次外部新变化；采集队列 p95 为 ${seconds(current.queue_delay_p95_seconds)}，执行 p95 为 ${seconds(current.execution_p95_seconds)}，计划采集成功率为 ${current.scheduled_run_success_rate == null ? '未测量' : pct(current.scheduled_run_success_rate)}。${agentSummary}`,
           `This ${windowKey === '168h' ? '7-day' : windowKey} operational window covers ${totalSources} sources, with ${world.source_health.healthy} healthy. It contains ${compactNumber(current.fresh_external_changes)} fresh external changes; acquisition queue p95 is ${seconds(current.queue_delay_p95_seconds)}, execution p95 is ${seconds(current.execution_p95_seconds)}, and scheduled-run success is ${current.scheduled_run_success_rate == null ? 'not measured' : pct(current.scheduled_run_success_rate)}. ${agentSummary}`,
-        ) : text('正在读取来源、数据流、Agent 与服务状态。', 'Reading source, data-plane, Agent, and service state.')}</p>
+        ) : failures.world ? text('来源与数据流读数不可用。请重新读取状态。', 'Source and data-plane readings are unavailable. Retry the status read.') : text('正在读取来源、数据流、Agent 与服务状态。', 'Reading source, data-plane, Agent, and service state.')}</p>
         <div className="observatory-focus-tabs" aria-label={text('聚焦运行面', 'Focus operational surface')}>
           <button className={focus === 'sources' ? 'active' : ''} onClick={() => chooseFocus('sources')}>{text('来源', 'SOURCES')}</button>
           <button className={focus === 'world' ? 'active' : ''} onClick={() => chooseFocus('world')}>{text('数据流', 'DATA PLANE')}</button>
@@ -76,7 +76,7 @@ export function LiveObservatory({ world, agents, system, windowKey, setWindowKey
       </div>
 
       <div className="live-window-row">
-        <div className="live-now"><span className="scan-dot" /><strong>{text('运行快照', 'OPERATIONAL SNAPSHOT')}</strong><span>{world ? snapshotAge(world.generated_at) : text('加载中', 'loading')}</span></div>
+        <div className="live-now"><span className="scan-dot" /><strong>{text('运行快照', 'OPERATIONAL SNAPSHOT')}</strong><span>{world ? snapshotAge(world.generated_at) : failures.world ? text('读数不可用', 'read unavailable') : text('加载中', 'loading')}</span></div>
         <div className="window-switch">{observatoryWindows.map((item) => <button key={item} className={windowKey === item ? 'active' : ''} onClick={() => setWindowKey(item)}>{item === '168h' ? '7d' : item}</button>)}</div>
       </div>
 
@@ -84,11 +84,11 @@ export function LiveObservatory({ world, agents, system, windowKey, setWindowKey
         {focus === 'world' && <section className={`telemetry-panel telemetry-wide ${focus === 'world' ? 'focus-selected' : focus ? 'focus-dimmed' : ''}`}>
           <PanelHead eyebrow="DATA PLANE" title={text('世界活动', 'WORLD ACTIVITY')} meta={text(`${series.length} 个小时样本`, `${series.length} hourly samples`)} icon={ScanLine} />
           <div className="telemetry-charts">
-            <TelemetryChart title="FRESH / BACKFILL" series={series} lines={[{ key: 'fresh_external_changes', label: 'fresh', tone: 'cyan' }, { key: 'backfill_observations', label: 'backfill', tone: 'violet' }]} />
-            <TelemetryChart title="CANONICAL WRITES" series={series} lines={[{ key: 'canonical_writes', label: 'writes', tone: 'lime' }, { key: 'observations', label: 'observations', tone: 'blue' }]} />
-            <TelemetryChart title="QUEUE / EXECUTION" series={series} lines={[{ key: 'queue_delay_p95_seconds', label: 'queue p95', tone: 'violet' }, { key: 'execution_p95_seconds', label: 'execution p95', tone: 'amber' }]} />
-            <TelemetryChart title="DOCUMENT GROWTH" series={series} lines={[{ key: 'document_chunks', label: 'chunks', tone: 'cyan' }]} />
-            <TelemetryChart title="FRESH SOURCE BREADTH" series={series} lines={[{ key: 'fresh_contributing_sources', label: 'sources', tone: 'lime' }, { key: 'fresh_contributing_categories', label: 'categories', tone: 'violet' }]} />
+            <TelemetryChart title="FRESH / BACKFILL" series={series} failed={failures.world} lines={[{ key: 'fresh_external_changes', label: 'fresh', tone: 'cyan' }, { key: 'backfill_observations', label: 'backfill', tone: 'violet' }]} />
+            <TelemetryChart title="CANONICAL WRITES" series={series} failed={failures.world} lines={[{ key: 'canonical_writes', label: 'writes', tone: 'lime' }, { key: 'observations', label: 'observations', tone: 'blue' }]} />
+            <TelemetryChart title="QUEUE / EXECUTION" series={series} failed={failures.world} lines={[{ key: 'queue_delay_p95_seconds', label: 'queue p95', tone: 'violet' }, { key: 'execution_p95_seconds', label: 'execution p95', tone: 'amber' }]} />
+            <TelemetryChart title="DOCUMENT GROWTH" series={series} failed={failures.world} lines={[{ key: 'document_chunks', label: 'chunks', tone: 'cyan' }]} />
+            <TelemetryChart title="FRESH SOURCE BREADTH" series={series} failed={failures.world} lines={[{ key: 'fresh_contributing_sources', label: 'sources', tone: 'lime' }, { key: 'fresh_contributing_categories', label: 'categories', tone: 'violet' }]} />
           </div>
           <div className="world-measurement-ledger">
             <MeasurementFact label="DOCUMENT REVISIONS" value={current ? compactNumber(current.document_revisions) : '—'} />
@@ -115,7 +115,7 @@ export function LiveObservatory({ world, agents, system, windowKey, setWindowKey
                 <small>{category.healthy} H · {category.degraded} D · {category.blocked} B</small>
               </motion.button>
             })}
-            {!world && <SourceSpectrumBlueprint />}
+            {!world && (failures.world ? <p className="observatory-read-fault">{text('来源健康读数暂时不可用。', 'Source health readings are unavailable.')}</p> : <SourceSpectrumBlueprint />)}
           </div>
         </section>}
 
@@ -131,7 +131,7 @@ export function LiveObservatory({ world, agents, system, windowKey, setWindowKey
                 <RoleBars counts={role.status_counts} />
               </button>
             })}
-            {!agents && <AgentSpectrumBlueprint />}
+            {!agents && (failures.agents ? <p className="observatory-read-fault">{text('Agent 运行读数暂时不可用。', 'Agent runtime readings are unavailable.')}</p> : <AgentSpectrumBlueprint />)}
           </div>
           <div className="capability-activity-summary"><Binary size={13} /><span>{text('持久化 CapabilityInvocation', 'Persisted CapabilityInvocation')}</span><strong>{agents ? agents.recent_capabilities.length : '—'}</strong></div>
           {agents && <AgentLiveInstrument runtime={agents} />}
@@ -155,7 +155,7 @@ export function LiveObservatory({ world, agents, system, windowKey, setWindowKey
                 <span>{dependency.latency_ms == null ? '—' : `${dependency.latency_ms.toFixed(1)}ms`}</span>
               </div>
             ))}
-            {!system && <div className="system-dependency-empty">{text('解析依赖健康…', 'RESOLVING DEPENDENCY HEALTH…')}</div>}
+            {!system && <div className="system-dependency-empty">{failures.system ? text('服务依赖状态不可用。', 'Service dependency status is unavailable.') : text('解析依赖健康…', 'RESOLVING DEPENDENCY HEALTH…')}</div>}
           </div>
           <div className="system-backlog-strip">
             <SystemBacklog label="OUTBOX PENDING" value={system?.outbox.pending_count} oldest={system?.outbox.oldest_pending_at ?? null} />
@@ -170,7 +170,7 @@ export function LiveObservatory({ world, agents, system, windowKey, setWindowKey
   )
 }
 
-function TelemetryChart({ title, series, lines }: { title: string; series: Array<Record<string, number | string | null>>; lines: Array<{ key: string; label: string; tone: string }> }) {
+function TelemetryChart({ title, series, lines, failed }: { title: string; series: Array<Record<string, number | string | null>>; lines: Array<{ key: string; label: string; tone: string }>; failed: boolean }) {
   const { text } = useI18n()
   const reduceMotion = Boolean(useReducedMotion())
   const width = 520
@@ -184,7 +184,7 @@ function TelemetryChart({ title, series, lines }: { title: string; series: Array
   return <div className={`telemetry-chart ${series.length ? '' : 'chart-unresolved'}`}><div className="chart-head"><strong>{title}</strong><div>{lines.map((line) => <span key={line.key} className={`tone-${line.tone}`}><i />{line.label} · {sampleValue(lastSample?.[line.key]) == null ? '—' : line.key.endsWith('_seconds') ? seconds(sampleValue(lastSample?.[line.key])) : compactNumber(sampleValue(lastSample?.[line.key])!)}</span>)}</div></div><div className="chart-canvas"><svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none"><defs><linearGradient id={`fade-${title.replaceAll(' ', '-')}`} x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="currentColor" stopOpacity=".16"/><stop offset="1" stopColor="currentColor" stopOpacity="0"/></linearGradient></defs>{[.25,.5,.75].map((part) => <line key={part} x1="0" x2={width} y1={height * part} y2={height * part} className="chart-gridline" />)}{paths.map((path) => <motion.path key={`${path.key}:${revision}`} className={`chart-line tone-${path.tone}`} d={path.d} fill="none" initial={reduceMotion ? false : { pathLength: 0, opacity: .28 }} animate={{ pathLength: 1, opacity: 1 }} transition={{ duration: reduceMotion ? 0 : .58, ease: [0.22, 1, 0.36, 1] }} />)}{series.length === 1 && lines.map(line => {
       const value = sampleValue(series[0][line.key])
       return value == null ? null : <circle key={line.key} className={`chart-sample tone-${line.tone}`} cx={width / 2} cy={height - Math.min(value / max, 1) * (height - 10) - 5} r="4" />
-    })}</svg>{series.length === 0 && <div className="chart-await"><ScanLine size={16}/><strong>{text('等待运行样本', 'AWAITING OPERATIONAL SAMPLES')}</strong><small>{text('数据到达后显示趋势', 'Trends appear when samples arrive')}</small></div>}<div className="chart-scanline" /></div></div>
+    })}</svg>{series.length === 0 && <div className="chart-await"><ScanLine size={16}/><strong>{failed ? text('运行样本不可用', 'OPERATIONAL SAMPLES UNAVAILABLE') : text('等待运行样本', 'AWAITING OPERATIONAL SAMPLES')}</strong><small>{failed ? text('可通过顶部按钮重新读取', 'Retry from the status control above') : text('数据到达后显示趋势', 'Trends appear when samples arrive')}</small></div>}<div className="chart-scanline" /></div></div>
 }
 
 function SourceSpectrumBlueprint() {

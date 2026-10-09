@@ -1150,6 +1150,17 @@
   line-height: 1.6;
 }
 
+.observatory-read-fault {
+  margin: 0;
+  padding: 20px;
+  border: 1px solid rgba(221, 156, 126, .24);
+  border-radius: 10px;
+  color: #cbb0a0;
+  background: rgba(145, 89, 68, .08);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
 .object-facet-core>div {
   display: grid;
   gap: 9px;
