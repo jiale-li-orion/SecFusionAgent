@@ -6,6 +6,7 @@ import { Activity, ArrowDownRight, BrainCircuit, CircleDot, GitFork, TerminalSqu
 import { getAgentTask, type AgentTaskSummary } from '../../lib/api'
 import { activeStatuses, rolePresentation } from '../../lib/agentRuntimePresentation'
 import { useI18n } from '../../lib/i18n'
+import { TaskContextLedger, TaskModelLedger } from './TaskAuditSurfaces'
 
 function DelegationActivityNode({ parent, predecessor, children, onTaskSelect }: { parent: AgentTaskSummary | null; predecessor: AgentTaskSummary | null; children: AgentTaskSummary[]; onTaskSelect: (runId: string) => void }) {
   const { text } = useI18n()
@@ -355,6 +356,8 @@ export function TaskDossier({ detail, onSkillSelect }: { detail: Awaited<ReturnT
           <div className="task-assembly-footer"><span>{text(`${latestAssembly.percept_refs.length} 条 percept refs`, `${latestAssembly.percept_refs.length} percept refs`)}</span><span className="mono">{latestAssembly.materialized_ref_set_digest.slice(0, 18)}…</span></div>
         </div>
       ) : <div className="capability-empty">{text('当前 Task 没有持久化 PromptAssemblyRecord。', 'No persisted PromptAssemblyRecord for this Task.')}</div>}
+      <TaskContextLedger context={detail.context} />
+      <TaskModelLedger attempts={detail.model_attempts} />
       <div className="task-events-title"><CircleDot size={14} /><strong>{text('预算控制', 'BUDGET GOVERNOR')}</strong><span>{detail.budget ? Object.keys(detail.budget.limits).length : 0}</span></div>
       {detail.budget ? (
         <div className="task-budget">

@@ -29,6 +29,7 @@ The WORLD material atlas uses orbit placement on wide screens and a separate foc
 
 The INVESTIGATIONS empty state provides a direct verification action and a readable preview of the Case contents. It uses the active space stylesheet at desktop and mobile widths; no legacy blueprint CSS is required for an account with no Cases.
 The Case index loads older account-owned investigations through the existing API cursor. Expanding the current batch and fetching older batches are separate actions; a directly linked older Case is inserted into the visible index after its owner-checked detail loads.
+The AGENTS Task dossier now reads its persisted ContextManifest and every ModelAttempt. Evidence and object references open their corresponding INTELLIGENCE views; relation, retrieval, policy, capability, and budget coordinates remain inspectable. Each model card separates provider-reported tokens from budget settlement, including upper-bound fallback, overrun, and release before dispatch.
 
 The user flow is register/sign in → save interests → inspect evidence-based recommendations and feedback → ask/investigate → resume a recent conversation → sign out/sign in again. `/auth?mode=login|register&returnTo=...` uses a same-origin account session. Protected actions and private reads require the server session; the browser does not send a user-selected principal. Account changes clear query state and close old streams.
 
