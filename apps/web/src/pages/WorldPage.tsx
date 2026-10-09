@@ -36,6 +36,9 @@ export function WorldPage() {
     if (params.get('view')) next.set('view', params.get('view')!)
     setParams(next, { replace: true })
   }
+  function openHotFromAtlas(story: WorldStory) {
+    setParams(new URLSearchParams({ view: 'hot', story: story.story_id, hot: story.story_id.slice(4) }), { replace: true })
+  }
   function open(story: WorldStory) {
     const context = { from: 'world', worldRef: story.story_id }
     if (story.incident_id) navigate(`/intelligence?${new URLSearchParams({ ...context, incident: story.incident_id })}`)
@@ -59,7 +62,7 @@ export function WorldPage() {
     changes={changes.data?.items ?? []} overview={overview.data} overviewFailed={overview.isError} onOverviewRetry={() => void overview.refetch()} formation={formation.data} formationFailed={formation.isError} onFormationRetry={() => void formation.refetch()} hotTotal={workingSet.data?.resident_total} hotFailed={workingSet.isError} hotPending={workingSet.isPending} hotPage={hotPage} hotPageSize={hotPageSize}
     onHotPage={page => { setHotPage(page); setParams(current => { const next = new URLSearchParams(current); next.delete('story'); next.delete('hot'); return next }, { replace: true }) }}
     pending={query.isPending} failed={query.isError} candidatePending={candidateSet.isPending} candidateFailed={candidateSet.isError}
-    onFocus={focus} onOpen={open} onInvestigate={investigate} onRetry={() => void query.refetch()}
+    onFocus={focus} onHotFromAtlas={openHotFromAtlas} onOpen={open} onInvestigate={investigate} onRetry={() => void query.refetch()}
     onCandidateRetry={() => void candidateSet.refetch()} />
 }
 

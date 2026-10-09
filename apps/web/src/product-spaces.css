@@ -307,6 +307,22 @@
   color: #dbe3cd;
 }
 
+.vision-hot-preview { display: grid; gap: 12px; margin-top: 21px; padding-top: 17px; border-top: 1px solid #becaa819; }
+.vision-hot-preview-head { display: flex; align-items: end; justify-content: space-between; gap: 12px; }
+.vision-hot-preview-head > div { display: grid; min-width: 0; gap: 4px; }
+.vision-hot-preview-head small { color: #a8c99c; font-size: 8px; letter-spacing: .15em; }
+.vision-hot-preview-head strong { color: #e2ecd7; font-size: 16px; font-weight: 590; }
+.vision-hot-preview-head span { color: #94a88d; font-size: 9px; line-height: 1.4; }
+.vision-hot-preview-head > button { display: inline-flex; align-items: center; gap: 5px; flex: none; color: #cce6bc; font-size: 10px; }
+.vision-hot-preview-list { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+.vision-hot-preview-list > button { position: relative; display: grid; align-content: start; gap: 5px; min-width: 0; min-height: 82px; padding: 10px 27px 10px 11px; border: 1px solid #c1d6b72b; border-radius: 9px; color: #dce9d2; text-align: left; background: linear-gradient(135deg,#a7c7a30f,#a7c7a303); }
+.vision-hot-preview-list > button:hover { border-color: #cde5bb89; background: #a7c7a31d; }
+.vision-hot-preview-list small { overflow: hidden; color: #9ec491; font-size: 8px; letter-spacing: .04em; text-overflow: ellipsis; white-space: nowrap; }
+.vision-hot-preview-list strong { overflow: hidden; font-size: 12px; font-weight: 680; text-overflow: ellipsis; white-space: nowrap; }
+.vision-hot-preview-list span { display: -webkit-box; overflow: hidden; color: #a7b6a3; font-size: 9px; line-height: 1.35; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.vision-hot-preview-list svg { position: absolute; right: 9px; top: 10px; color: #8ca880; }
+@media (max-width: 600px) { .vision-hot-preview-list { grid-template-columns: minmax(0,1fr); } }
+
 .vision-story-mobile-art {
   display: none;
 }
