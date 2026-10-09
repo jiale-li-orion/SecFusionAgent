@@ -292,7 +292,7 @@
   padding-top: 20px;
 }
 
-.vision-world-measures button {
+.vision-world-measures > button {
   display: flex;
   gap: 14px;
   align-items: center;
@@ -306,6 +306,8 @@
   font-weight: 500;
   color: #dbe3cd;
 }
+.vision-change-measure { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 5px 9px; text-align: right; }
+.vision-change-measure button { border-bottom: 1px solid currentColor; color: #c6dcb8; font-size: 9px; }
 
 .vision-hot-preview { display: grid; gap: 12px; margin-top: 21px; padding-top: 17px; border-top: 1px solid #becaa819; }
 .vision-hot-preview-head { display: flex; align-items: end; justify-content: space-between; gap: 12px; }

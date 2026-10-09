@@ -46,6 +46,7 @@ Submitting a free-text INTELLIGENCE search issues a request for the exact curren
 
 WORLD's Hot index presents 24 source cards per page with a separate resident total. An exact CVE searches the entire resident Hot pool through `/api/v1/world/hot/search`; title or mechanism text filters only the loaded page. Both result types keep their Hot-cache identity separate from durable Knowledge.
 The WORLD atlas also previews four current Hot records beside its source materials and links directly to their selected position in the paged Hot index. The preview count is editorial; the resident total and full-CVE search remain the scope indicators.
+The atlas' latest knowledge-commit label distinguishes a real empty change window from loading and read failure; a failed read can be retried in place.
 
 ## Visual ownership
 
