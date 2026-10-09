@@ -8,7 +8,7 @@ import { Activity, BadgeCheck, BrainCircuit, CircleAlert, CircleDot, FileWarning
 import { Link, useNavigate } from 'react-router-dom'
 
 import { askQuestion, cancelInvestigation, evidenceBoundObjectIds, getEvidence, type EvidenceDetail, type InvestigationFinding, type InvestigationView, type ProductRuntimeEvent, type QuestionResult, type TaskKind } from '../../lib/api'
-import { displayUnknowns, eventState, investigationStopMessage, type CaseStateFocus, type EventCue } from '../../lib/investigationPresentation'
+import { displayUnknowns, eventState, investigationStopMessage, runtimeActorLabel, runtimeEventSummary, runtimeTaskLabel, type CaseStateFocus, type EventCue } from '../../lib/investigationPresentation'
 import { formatValue } from '../../lib/intelligencePresentation'
 import { useI18n } from '../../lib/i18n'
 import { DecisionReport } from '../DecisionReport'
@@ -86,14 +86,14 @@ export function CaseWorkspace({ investigation, events, eventCue, initialFocus, o
         <div className="conversation-title"><MessageSquareText size={15} /><div><small>{text('持续交互', 'CONTINUOUS INTERACTION')}</small><strong>{text('调查会话', 'INVESTIGATION SESSION')}</strong></div><span>{sessionId ? text('保留当前调查上下文', 'CONTEXT RETAINED') : text('该历史 Case 没有 Product session', 'NO PRODUCT SESSION FOR THIS HISTORICAL CASE')}</span></div>
         <div className="conversation-preview">
           {sessionId && <SessionHistory sessionId={sessionId} />}
-          <div className="system-message"><ProductGlyph kind="agents" size={18} /><ProgressiveReveal text={latestNarrative(events, investigation)} /></div>
+          <div className="system-message"><ProductGlyph kind="agents" size={18} /><ProgressiveReveal text={latestNarrative(events, text)} /></div>
           {sessionTurns.map((turn, index) => <motion.div key={`${turn.kind}:${index}`} className={`session-turn turn-${turn.kind}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}><small>{turn.kind === 'user' ? 'YOU' : 'SECFUSION'}</small><p>{turn.text}</p>{turn.result?.decision && <DecisionReport decision={turn.result.decision} onEvidence={onEvidence} />}</motion.div>)}
           <div id="case-session-composer" className={`case-session-composer ${sessionId ? 'enabled' : 'disabled'}`}>
             <div className="case-injection-coordinate">
               <span className="case-injection-glyph"><TerminalSquare size={13} /></span>
               <div>
                 <small>{text(continuesSameCase ? '继续当前调查' : '发起后续调查', continuesSameCase ? 'CONTINUE THIS INVESTIGATION' : 'START A FOLLOW-UP INVESTIGATION')}</small>
-                <strong>{investigation.current_activity.actor_role ?? 'InvestigationRole'} · {continuationKind}</strong>
+                <strong>{text('下一轮调查', 'Next investigation')} · {runtimeTaskLabel(continuationKind, text)}</strong>
               </div>
               <em>{sessionId ? text('会话上下文已保留', 'session context retained') : text('历史 Case 未绑定会话', 'historical case has no session')}</em>
             </div>
@@ -282,7 +282,7 @@ function DecisionPanel({ investigation, onEvidence }: { investigation: Investiga
 export function RuntimeEventRail({ events, limit, activeEventId, onFocus, onEvidence }: { events: ProductRuntimeEvent[]; limit: number; activeEventId: string | null; onFocus: (event: ProductRuntimeEvent) => void; onEvidence: (ref: string) => void }) {
   const { text } = useI18n()
   const visible = events.slice(-limit).reverse()
-  return <div className="runtime-event-list">{visible.map((event, index) => <motion.div key={event.event_id} className="runtime-event-entry" initial={{ opacity: 0, x: 18, scale: .98 }} animate={{ opacity: 1, x: 0, scale: 1 }} transition={{ delay: Math.min(index * .015, .18) }}><button type="button" onClick={() => onFocus(event)} className={`runtime-event event-${event.event_type} ${activeEventId === event.event_id ? 'event-focused' : ''} ${eventState(event.event_type) ? 'event-actionable' : ''}`}><span className="event-symbol"><EventIcon type={event.event_type} /></span><div><small>{event.role_id ?? event.actor ?? event.source_kind}</small><strong>{event.summary}</strong><em>{event.technical_type} · {new Date(event.occurred_at).toLocaleTimeString()}</em>{event.evidence_refs.length > 0 && <span className="event-evidence">{text(`${event.evidence_refs.length} 条 evidence refs`, `${event.evidence_refs.length} evidence refs`)}</span>}</div></button>{(event.task_run_id || event.evidence_refs.length > 0) && <div className="runtime-event-actions">{event.task_run_id && <Link to={`/agents?${new URLSearchParams({ run: event.task_run_id, from: 'case', caseRef: event.case_id })}`}><TerminalSquare size={11}/>{text('查看任务轨迹', 'Open task trace')}</Link>}{event.evidence_refs.length > 0 && <EvidenceButtons refs={event.evidence_refs} onEvidence={onEvidence} />}</div>}</motion.div>)}</div>
+  return <div className="runtime-event-list">{visible.map((event, index) => <motion.div key={event.event_id} className="runtime-event-entry" initial={{ opacity: 0, x: 18, scale: .98 }} animate={{ opacity: 1, x: 0, scale: 1 }} transition={{ delay: Math.min(index * .015, .18) }}><button type="button" onClick={() => onFocus(event)} className={`runtime-event event-${event.event_type} ${activeEventId === event.event_id ? 'event-focused' : ''} ${eventState(event.event_type) ? 'event-actionable' : ''}`}><span className="event-symbol"><EventIcon type={event.event_type} /></span><div><small>{event.role_id ? runtimeActorLabel(event.role_id, text) : event.actor ?? event.source_kind}</small><strong>{runtimeEventSummary(event, text)}</strong><em>{event.technical_type} · {new Date(event.occurred_at).toLocaleTimeString()}</em>{event.evidence_refs.length > 0 && <span className="event-evidence">{text(`${event.evidence_refs.length} 条证据引用`, `${event.evidence_refs.length} evidence refs`)}</span>}</div></button>{(event.task_run_id || event.evidence_refs.length > 0) && <div className="runtime-event-actions">{event.task_run_id && <Link to={`/agents?${new URLSearchParams({ run: event.task_run_id, from: 'case', caseRef: event.case_id })}`}><TerminalSquare size={11}/>{text('查看任务轨迹', 'Open task trace')}</Link>}{event.evidence_refs.length > 0 && <EvidenceButtons refs={event.evidence_refs} onEvidence={onEvidence} />}</div>}</motion.div>)}</div>
 }
 
 function EvidenceButtons({ refs, onEvidence }: { refs: string[]; onEvidence: (ref: string) => void }) {
@@ -383,7 +383,7 @@ function compactEvidenceObjectRef(value: string) { return value.length > 30 ? `$
 function TraceRow({ label, value }: { label: string; value: string }) { return <div className="trace-row"><small>{label}</small><strong>{value}</strong></div> }
 function EventIcon({ type }: { type: string }) { if (type === 'failed') return <CircleAlert size={13} />; if (type === 'decision_ready') return <Sparkles size={13} />; if (type === 'finding_added') return <BadgeCheck size={13} />; if (type === 'evidence_need_changed') return <SearchCheck size={13} />; if (type === 'waiting') return <Orbit size={13} />; return <TerminalSquare size={13} /> }
 export function RadioState({ state }: { state: string }) { return state === 'live' ? <CircleDot size={11} /> : <Activity size={11} /> }
-function latestNarrative(events: ProductRuntimeEvent[], investigation: InvestigationView) { const latest = events[events.length - 1]; return latest?.summary ?? `${investigation.current_activity.actor_role ?? 'Runtime'} is ${investigation.current_activity.phase}.` }
+function latestNarrative(events: ProductRuntimeEvent[], text: (zh: string, en: string) => string) { const latest = events[events.length - 1]; return latest ? runtimeEventSummary(latest, text) : text('调查正在整理当前证据与执行状态。', 'The investigation is organizing its evidence and runtime state.') }
 
 function ProgressiveReveal({ text }: { text: string }) {
   const reduced = useReducedMotion()
