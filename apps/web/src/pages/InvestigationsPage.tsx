@@ -1,7 +1,7 @@
 import { ProductGlyph } from '../components/instrument/ProductGlyph'
 import { SpaceHeading } from '../components/instrument/SpaceHeading'
 import { useEffect, useMemo, useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import {
   BadgeCheck,
@@ -40,14 +40,21 @@ export function InvestigationsPage() {
   const reduceMotion = Boolean(useReducedMotion())
   const [params, setParams] = useSearchParams()
   const queryClient = useQueryClient()
-  const listQuery = useQuery({ queryKey: ['investigations'], queryFn: () => listInvestigations(48), refetchInterval: 20_000 })
+  const listQuery = useInfiniteQuery({
+    queryKey: ['investigations'],
+    queryFn: ({ pageParam }) => listInvestigations(48, pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: page => page.has_more ? page.next_cursor ?? undefined : undefined,
+    refetchInterval: 20_000,
+  })
   const preferredCase = params.get('case')
   const sessionParam = params.get('session')
   const origin = params.get('from')
   const originRun = params.get('run')
   const focusParam = params.get('focus')
   const evidenceParam = params.get('evidence')
-  const fallbackCase = listQuery.data?.items.find(hasRecentRuntimeActivity)?.case_id ?? listQuery.data?.items[0]?.case_id ?? null
+  const listedCases = useMemo(() => listQuery.data?.pages.flatMap(page => page.items) ?? [], [listQuery.data?.pages])
+  const fallbackCase = listedCases.find(hasRecentRuntimeActivity)?.case_id ?? listedCases[0]?.case_id ?? null
   const selectedCase = preferredCase ?? fallbackCase
   const detailQuery = useQuery({ queryKey: ['investigation', selectedCase], queryFn: () => getInvestigation(selectedCase!), enabled: Boolean(selectedCase), refetchInterval: selectedCase ? 15_000 : false })
   const activityQuery = useQuery({ queryKey: ['investigation-activity', selectedCase], queryFn: () => getInvestigationActivity(selectedCase!), enabled: Boolean(selectedCase) })
@@ -98,7 +105,8 @@ export function InvestigationsPage() {
 
   const selected = detailQuery.data
   const sessionId = selected?.continuation_session_id ?? sessionParam
-  const cases = useMemo(() => listQuery.data?.items ?? [], [listQuery.data?.items])
+  const cases = useMemo(() => selected && !listedCases.some(item => item.case_id === selected.case_id)
+    ? [selected, ...listedCases] : listedCases, [listedCases, selected])
   const liveCount = cases.filter(hasRecentRuntimeActivity).length
   const stalledCount = cases.filter(isStalledRuntime).length
   const visibleCases = useMemo(() => {
@@ -125,7 +133,7 @@ export function InvestigationsPage() {
         <div className="investigation-status-brief">
           <p>{text(
             `最近载入 ${cases.length} 个调查 · ${liveCount} 个近期有活动${stalledCount ? ` · ${stalledCount} 个长期未更新` : ''}。`,
-            `${cases.length} investigation cases are retained. ${liveCount} have runtime activity within the last 30 minutes${stalledCount ? `; ${stalledCount} more still carry an active/waiting durable state but have not advanced for a long time, so the Product treats them as stalled while retaining them for diagnosis` : ''}. Selecting a case restores its activity from durable history and SSE.`,
+            `${cases.length} investigation cases loaded. ${liveCount} have runtime activity within the last 30 minutes${stalledCount ? `; ${stalledCount} more still carry an active/waiting durable state but have not advanced for a long time, so the Product treats them as stalled while retaining them for diagnosis` : ''}. Selecting a case restores its activity from durable history and SSE.`,
           )}</p>
           <span className={`stream-state stream-${streamState}`}><RadioState state={streamState} /> {streamState.toUpperCase()}</span>
         </div>
@@ -147,9 +155,9 @@ export function InvestigationsPage() {
             <SearchCheck size={15} />
             <strong>{text('调查记录', 'CASE FILES')}</strong>
             <span>{cases.length}</span>
-            {cases.length > 6 && <button type="button" className="rail-density-toggle" aria-expanded={caseArchiveExpanded} onClick={() => setCaseArchiveExpanded((value) => !value)}>{caseArchiveExpanded ? text('聚焦', 'FOCUS') : text('全部', 'ALL')}</button>}
+            {cases.length > 6 && <button type="button" className="rail-density-toggle" aria-expanded={caseArchiveExpanded} onClick={() => setCaseArchiveExpanded((value) => !value)}>{caseArchiveExpanded ? text('收起', 'COLLAPSE') : text('展开已载入', 'EXPAND LOADED')}</button>}
           </div>
-          {listQuery.isError && (
+          {listQuery.isError && !listQuery.isFetchNextPageError && (
             <div className="case-index-fault" role="alert">
               <CircleAlert size={14} />
               <div><small>{text('CASE 索引读取失败', 'CASE INDEX READ ERROR')}</small><strong>{text('durable Case 索引读取失败。', 'The durable Case index read failed.')}</strong></div>
@@ -165,6 +173,8 @@ export function InvestigationsPage() {
               </button>
             ))}
             {!caseArchiveExpanded && cases.length > visibleCases.length && <button type="button" className="rail-overflow-note" onClick={() => setCaseArchiveExpanded(true)}>+{cases.length - visibleCases.length} {text('历史 Case', 'archived cases')}</button>}
+            {listQuery.hasNextPage && <button type="button" className="rail-overflow-note" disabled={listQuery.isFetchingNextPage} onClick={() => { setCaseArchiveExpanded(true); void listQuery.fetchNextPage() }}>{listQuery.isFetchingNextPage ? text('读取更早调查…', 'Loading older cases…') : text('载入更早调查', 'Load older cases')}</button>}
+            {listQuery.isFetchNextPageError && <button type="button" className="rail-overflow-note" onClick={() => void listQuery.fetchNextPage()}>{text('重试载入更早调查', 'Retry older cases')}</button>}
             {listQuery.isLoading && <div className="case-list-empty">{text('加载 durable Cases…', 'Loading durable cases…')}</div>}
             {!listQuery.isLoading && cases.length === 0 && <CaseRailBlueprint />}
           </div>

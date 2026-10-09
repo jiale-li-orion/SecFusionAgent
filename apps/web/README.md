@@ -28,6 +28,7 @@ WORLD only offers the multi-step investigation action when the focused material 
 The WORLD material atlas uses orbit placement on wide screens and a separate focus-then-neighbours composition below 600px. On narrow screens the source cards follow the central artifact in a grid, keeping their labels and actions clear of the 3D object and its category caption.
 
 The INVESTIGATIONS empty state provides a direct verification action and a readable preview of the Case contents. It uses the active space stylesheet at desktop and mobile widths; no legacy blueprint CSS is required for an account with no Cases.
+The Case index loads older account-owned investigations through the existing API cursor. Expanding the current batch and fetching older batches are separate actions; a directly linked older Case is inserted into the visible index after its owner-checked detail loads.
 
 The user flow is register/sign in → save interests → inspect evidence-based recommendations and feedback → ask/investigate → resume a recent conversation → sign out/sign in again. `/auth?mode=login|register&returnTo=...` uses a same-origin account session. Protected actions and private reads require the server session; the browser does not send a user-selected principal. Account changes clear query state and close old streams.
 

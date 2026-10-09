@@ -108,8 +108,10 @@ export type ProductRuntimeEvent = {
   occurred_at: string
 }
 
-export async function listInvestigations(limit = 40): Promise<{ items: InvestigationView[]; next_cursor: string | null; has_more: boolean }> {
-  const response = await productFetch(`/api/v1/investigations?origin_scope=product&limit=${limit}`, { headers: productHeaders() })
+export async function listInvestigations(limit = 40, cursor?: string | null): Promise<{ items: InvestigationView[]; next_cursor: string | null; has_more: boolean }> {
+  const params = new URLSearchParams({ origin_scope: 'product', limit: String(limit) })
+  if (cursor) params.set('cursor', cursor)
+  const response = await productFetch(`/api/v1/investigations?${params}`, { headers: productHeaders() })
   if (!response.ok) throw new Error(`Investigation index read failed (${response.status})`)
   return response.json()
 }
