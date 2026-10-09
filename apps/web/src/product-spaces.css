@@ -1142,6 +1142,14 @@
   margin-left: 8px;
 }
 
+.incident-mission-boundary {
+  max-width: 680px;
+  margin: 12px 0 0;
+  color: #829aa1;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
 .object-facet-core>div {
   display: grid;
   gap: 9px;

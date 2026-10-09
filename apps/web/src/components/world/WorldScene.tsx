@@ -37,7 +37,7 @@ export function WorldScene({ stories, hotStories, focusedId, pending, failed, ca
   const direction = categories.find(c => c.key === region)
   const category = categories.find(c => c.key === focused?.category)
   const canOpenDossier = Boolean(focused?.object_id || focused?.incident_id || (focused?.kind === 'HotVulnerability' && focused.facts.cve_id))
-  const canInvestigate = Boolean(focused?.object_id || (focused?.kind === 'HotVulnerability' && focused.facts.cve_id))
+  const canInvestigate = Boolean(focused?.object_id || focused?.incident_id || (focused?.kind === 'HotVulnerability' && focused.facts.cve_id))
   const regionReadFailed = region === 'incidents' ? candidateFailed : failed
   const regionReadPending = region === 'incidents' ? candidatePending : pending
   const emptyState = (() => {
@@ -85,7 +85,7 @@ export function WorldScene({ stories, hotStories, focusedId, pending, failed, ca
             <div className="ew-actions">
               {canOpenDossier ? <button className="ew-primary" onClick={() => onOpen(focused)}>{text(focused.incident_id ? '打开事件档案' : '进入对象', focused.incident_id ? 'Open incident dossier' : 'Explore object')} <ArrowUpRight size={17} /></button>
                 : <button className="ew-primary" onClick={() => { setInspect(true); setRegion(null) }}>{text('查看信号详情', 'Inspect signal details')} <ArrowUpRight size={17} /></button>}
-              {canInvestigate && <button onClick={() => onInvestigate(focused)}>{text('继续调查', 'Investigate')} <ArrowRight size={17} /></button>}
+              {canInvestigate && <button onClick={() => onInvestigate(focused)}>{focused.incident_id && !focused.object_id ? text('检索事件证据', 'Search incident evidence') : text('继续调查', 'Investigate')} <ArrowRight size={17} /></button>}
             </div>
             {focused.external_ref && <a className="ew-original" href={focused.external_ref} target="_blank" rel="noreferrer">{text('阅读完整原文', 'Read the original')}<ArrowUpRight size={13} /></a>}
           </motion.article> : <div className="ew-first-read" role="status">

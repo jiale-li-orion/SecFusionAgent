@@ -43,8 +43,11 @@ export function WorldPage() {
     else if (story.kind === 'HotVulnerability') navigate(`/intelligence?${new URLSearchParams({ ...context, cve: String(story.facts.cve_id ?? story.facts.external_object_id), hot: story.story_id.slice(4) })}`)
   }
   function investigate(story: WorldStory) {
-    const next = new URLSearchParams({ profile: 'INVESTIGATE', from: 'world', origin: story.story_id, targetLabel: story.headline,
-      question: text(`调查「${story.headline}」的安全机制、影响范围与证据。`, `Investigate the mechanism, impact and evidence of “${story.headline}”.`) })
+    const incidentWithoutTarget = Boolean(story.incident_id && !story.object_id)
+    const next = new URLSearchParams({ profile: incidentWithoutTarget ? 'RETRIEVE' : 'INVESTIGATE', from: 'world', origin: story.story_id, targetLabel: story.headline,
+      question: incidentWithoutTarget
+        ? text(`围绕事件「${story.headline}」检索现有证据、来源、冲突与未知。`, `Search existing evidence, sources, conflicts and unknowns for “${story.headline}”.`)
+        : text(`调查「${story.headline}」的安全机制、影响范围与证据。`, `Investigate the mechanism, impact and evidence of “${story.headline}”.`) })
     if (story.object_id) next.set('object', story.object_id)
     if (story.incident_id) next.set('incident', story.incident_id)
     if (story.kind === 'HotVulnerability' && typeof story.facts.cve_id === 'string') next.set('cve', story.facts.cve_id)

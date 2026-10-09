@@ -11,6 +11,14 @@
 .qa-heading h1 { margin: 4px 0 3px; font-size: clamp(29px, 3.4vw, 48px); font-weight: 630; letter-spacing: -.055em; line-height: 1.08; }
 .qa-heading p { margin: 0; color: #9babad; font-size: 13px; line-height: 1.6; }
 .qa-heading-state { margin-left: auto; white-space: nowrap; display: inline-flex; align-items: center; gap: 8px; color: var(--qa-glow); border: 1px solid rgba(200, 247, 123, .27); background: rgba(200, 247, 123, .05); padding: 9px 13px; border-radius: 30px; font-size: 10px; letter-spacing: .13em; }
+.qa-origin { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 14px; max-width: 1800px; margin: 18px auto 0; padding: 14px 18px; border: 1px solid rgba(132, 194, 187, .25); border-radius: 13px; background: linear-gradient(105deg, rgba(66, 128, 125, .15), rgba(35, 65, 64, .045)); }
+.qa-origin > svg { color: #93d9ce; }
+.qa-origin > div { display: grid; min-width: 0; gap: 4px; }
+.qa-origin small { color: #8bc7bd; font-size: 9px; font-weight: 700; letter-spacing: .14em; }
+.qa-origin strong { overflow: hidden; color: #e7f2ed; font-size: 13px; font-weight: 580; text-overflow: ellipsis; white-space: nowrap; }
+.qa-origin p { margin: 0; color: #9db6af; font-size: 11px; line-height: 1.5; }
+.qa-origin a { display: inline-flex; align-items: center; gap: 5px; color: #c5efaa; font-size: 11px; text-decoration: none; white-space: nowrap; }
+@media (max-width: 700px) { .qa-origin { grid-template-columns: 26px minmax(0, 1fr); gap: 9px; padding: 12px; } .qa-origin a { grid-column: 2; } }
 .qa-layout { display: grid; grid-template-columns: minmax(190px, 228px) minmax(0, 1fr) minmax(260px, 328px); gap: 0; max-width: 1800px; min-height: min(790px, calc(100vh - 190px)); margin: 24px auto 0; border: 1px solid var(--qa-line); border-radius: 18px; overflow: hidden; background: linear-gradient(125deg, rgba(18, 30, 35, .96), rgba(11, 19, 24, .98)); box-shadow: 0 35px 90px rgba(0, 0, 0, .25); }
 .qa-sessions, .qa-audit { min-width: 0; background: rgba(7, 15, 19, .52); }
 .qa-sessions { display: flex; flex-direction: column; padding: 22px 14px; border-right: 1px solid var(--qa-line); }

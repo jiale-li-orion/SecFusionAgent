@@ -179,7 +179,7 @@ export function IntelligencePage() {
     selectReadingMode(returnReadingMode)
   }
 
-  function openMission(profile: 'VERIFY' | 'INVESTIGATE') {
+  function openMission(profile: 'VERIFY' | 'INVESTIGATE' | 'RETRIEVE') {
     const mission = new URLSearchParams({ profile })
     if (selectedCve) mission.set('cve', selectedCve)
     else if (obj?.object_id) mission.set('object', obj.object_id)
@@ -192,7 +192,9 @@ export function IntelligencePage() {
         : selectedCve
           ? `cve:${selectedCve}`
           : 'intelligence')
-    const prompt = profile === 'VERIFY'
+    const prompt = profile === 'RETRIEVE'
+      ? text(`围绕事件「${headline}」检索现有证据：已确认什么、来源是什么、还有哪些未知或相互冲突的信息？`, `Search existing evidence about “${headline}”: what is confirmed, which sources support it, and what remains unknown or conflicting?`)
+      : profile === 'VERIFY'
       ? text(`核验 ${headline} 的关键事实，列出来源和仍待确认的问题。`, `Verify the key Claims, Relations, and Evidence boundaries for ${headline}.`)
       : text(`调查 ${headline} 的关联证据、冲突、未知与外部上下文。`, `Investigate the related evidence, conflicts, unknowns, and external context for ${headline}.`)
     mission.set('question', prompt)
@@ -277,12 +279,12 @@ export function IntelligencePage() {
                 </>
               )}
             </div>
-            {(obj || hotMatch?.cve_id) && (
+            {(obj || hotMatch?.cve_id || incident) && (
               <div className="dossier-mission-actions">
-                <button onClick={() => openMission('VERIFY')}><ShieldCheck size={13} /><span>{text(hotMatch && !obj ? '核验这个 Hot CVE' : '核验这个对象', hotMatch && !obj ? 'VERIFY THIS HOT CVE' : 'VERIFY OBJECT')}</span><em>ARGUS · VERIFY</em></button>
-                <button onClick={() => openMission('INVESTIGATE')}><Telescope size={13} /><span>{text('展开调查', 'INVESTIGATE')}</span><em>ARGUS · INVESTIGATE</em></button>
+                {incident ? <button onClick={() => openMission('RETRIEVE')}><FileSearch size={13} /><span>{text('围绕事件检索证据', 'Search evidence for this incident')}</span><em>ORACLE · RETRIEVE</em></button> : <><button onClick={() => openMission('VERIFY')}><ShieldCheck size={13} /><span>{text(hotMatch && !obj ? '核验这个 Hot CVE' : '核验这个对象', hotMatch && !obj ? 'VERIFY THIS HOT CVE' : 'VERIFY OBJECT')}</span><em>ARGUS · VERIFY</em></button><button onClick={() => openMission('INVESTIGATE')}><Telescope size={13} /><span>{text('展开调查', 'INVESTIGATE')}</span><em>ARGUS · INVESTIGATE</em></button></>}
               </div>
             )}
+            {incident && <p className="incident-mission-boundary">{text('事件档案为检索提供问题上下文；回答只依据实际检索到的证据，不会自动将事件绑定为核验目标。', 'The incident frames the search question. The answer relies on retrieved evidence; this is not a target-bound verification.')}</p>}
             {obj && (
               <div className="intel-reading-switch" role="tablist" aria-label={text('情报阅读视角', 'Intelligence reading view')}>
                 <button role="tab" aria-selected={readingMode === 'dossier'} className={readingMode === 'dossier' ? 'active' : ''} onClick={() => { selectReadingMode('dossier'); setReturnReadingMode('dossier') }}><FileSearch size={12} /> {text('档案', 'DOSSIER')}</button>

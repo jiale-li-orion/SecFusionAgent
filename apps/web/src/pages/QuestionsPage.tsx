@@ -57,6 +57,18 @@ export function QuestionsPage() {
   const queryClient = useQueryClient()
   const [params, setParams] = useSearchParams()
   const sessionId = params.get('session')
+  const origin = params.get('origin')
+  const originSpace = params.get('from')
+  const incidentOrigin = origin?.startsWith('incident:') ? origin.slice('incident:'.length) : null
+  const originPath = incidentOrigin
+    ? `/intelligence?incident=${encodeURIComponent(incidentOrigin)}`
+    : origin?.startsWith('object:')
+      ? `/intelligence?object=${encodeURIComponent(origin.slice('object:'.length))}`
+      : origin?.startsWith('cve:')
+        ? `/intelligence?cve=${encodeURIComponent(origin.slice('cve:'.length))}`
+    : originSpace === 'world' && origin
+      ? `/?story=${encodeURIComponent(origin)}`
+      : null
   const selectedTurn = Number(params.get('turn')) || null
   const initialProfile = params.get('profile')?.toUpperCase() ?? 'RETRIEVE'
   const routeTarget = params.get('cve') ?? (params.get('object') ? `object:${params.get('object')}` : '')
@@ -133,6 +145,7 @@ export function QuestionsPage() {
   const runIds = [...new Set((failedRunId ? [failedRunId] : [
     focusTurn?.context_id?.replace(/^context:/, ''),
     ...(caseActivity.data?.events ?? []).map(item => item.task_run_id),
+    ...liveEvents.filter(item => item.case_id === caseId).map(item => item.task_run_id),
   ]).filter((id): id is string => Boolean(id)))]
   const taskQueries = useQueries({ queries: runIds.map(id => ({ queryKey: ['question-task', id], queryFn: () => getAgentTask(id), retry: false })) })
   const tasks = taskQueries.flatMap(query => query.data ? [query.data] : [])
@@ -158,8 +171,10 @@ export function QuestionsPage() {
       try {
         const item = JSON.parse(message.data) as ProductRuntimeEvent
         setLiveEvents(current => current.some(event => event.event_id === item.event_id) ? current : [...current, item])
+        if (item.task_run_id) void queryClient.invalidateQueries({ queryKey: ['question-case-activity', caseId] })
         if (['decision_ready', 'completed', 'failed', 'canceled'].includes(item.event_type)) {
           void queryClient.invalidateQueries({ queryKey: ['question-case', caseId] })
+          void queryClient.invalidateQueries({ queryKey: ['question-case-activity', caseId] })
         }
       } catch { /* A malformed event must not stop the stream. */ }
     }
@@ -229,6 +244,11 @@ export function QuestionsPage() {
         queryClient.invalidateQueries({ queryKey: ['question-session', result.session_id] }),
       ])
       const next = new URLSearchParams()
+      if (origin && originSpace && originPath) {
+        next.set('origin', origin)
+        next.set('from', originSpace)
+        if (params.get('targetLabel')) next.set('targetLabel', params.get('targetLabel')!)
+      }
       next.set('session', result.session_id)
       next.set('turn', String(result.turn_index))
       next.set('profile', profile)
@@ -267,6 +287,8 @@ export function QuestionsPage() {
       <div><small>03 / QUESTION INTELLIGENCE · M6</small><h1>{text('证据问答', 'Evidence Dialogue')}</h1><p>{text('提出问题，沿着证据、上下文与执行轨迹走到结论。', 'Ask a question and follow its evidence, context, and execution to the conclusion.')}</p></div>
       <span className="qa-heading-state"><Radio size={13} />{text('持续会话', 'CONTINUOUS SESSION')}</span>
     </header>
+
+    {originPath && <div className="qa-origin"><ProductGlyph kind={incidentOrigin ? 'incidents' : originSpace === 'world' ? 'world' : 'intelligence'} size={20} /><div><small>{incidentOrigin ? text('来自事件档案', 'FROM INCIDENT DOSSIER') : originSpace === 'world' ? text('来自证据世界', 'FROM EVIDENCE WORLD') : text('来自情报档案', 'FROM INTELLIGENCE DOSSIER')}</small><strong>{params.get('targetLabel') || incidentOrigin || origin}</strong><p>{incidentOrigin ? text('这里会在现有证据中检索，不会把事件档案自动当作已核验事实。', 'This searches existing evidence; the incident dossier is not automatically treated as verified fact.') : text('沿当前材料继续提问，结论以实际引用的证据为准。', 'Continue from this material; conclusions depend on cited evidence.')}</p></div><Link to={originPath}>{text('返回原位置', 'Back to source')}<ArrowUpRight size={13} /></Link></div>}
 
     <div className="qa-layout">
       <aside className="qa-sessions" aria-label={text('会话列表', 'Conversations')}>
@@ -310,7 +332,7 @@ export function QuestionsPage() {
         </div>
       </main>
 
-      <AuditRail turn={failedRunId ? null : focusTurn} failedRunId={failedRunId} tasks={tasks} taskLoading={taskQueries.some(query => query.isLoading)} taskReadFailed={taskQueries.some(query => query.isError)} caseId={failedRunId ? null : caseId} caseStatus={caseDetail.data?.status} caseDecision={failedRunId ? null : caseDetail.data?.latest_decision} caseEvents={failedRunId ? [] : auditEvents} streamConnected={streamConnected} onEvidence={setEvidence} />
+      <AuditRail turn={failedRunId ? null : focusTurn} failedRunId={failedRunId} tasks={tasks} taskLoading={taskQueries.some(query => query.isLoading)} taskReadFailed={taskQueries.some(query => query.isError)} onRetryTasks={() => taskQueries.forEach(query => { if (query.isError) void query.refetch() })} caseId={failedRunId ? null : caseId} caseStatus={caseDetail.data?.status} caseDecision={failedRunId ? null : caseDetail.data?.latest_decision} caseEvents={failedRunId ? [] : auditEvents} caseActivityLoading={caseActivity.isLoading} caseActivityFailed={caseActivity.isError} onRetryActivity={() => void caseActivity.refetch()} streamConnected={streamConnected} onEvidence={setEvidence} />
     </div>
     <AnimatePresence>{evidence && <EvidenceOverlay key={evidence} evidenceRef={evidence} onClose={() => setEvidence(null)} />}</AnimatePresence>
   </section>
@@ -338,7 +360,7 @@ function ConversationTurn({ turn, active, sessionId, reasoning, onSelect, onEvid
   </article>
 }
 
-function AuditRail({ turn, failedRunId, tasks, taskLoading, taskReadFailed, caseId, caseStatus, caseDecision, caseEvents, streamConnected, onEvidence }: { turn: QuestionSessionTurn | null; failedRunId: string | null; tasks: AgentTaskDetail[]; taskLoading: boolean; taskReadFailed: boolean; caseId: string | null; caseStatus?: string; caseDecision?: DecisionView | null; caseEvents: ProductRuntimeEvent[]; streamConnected: boolean; onEvidence: (ref: string) => void }) {
+function AuditRail({ turn, failedRunId, tasks, taskLoading, taskReadFailed, onRetryTasks, caseId, caseStatus, caseDecision, caseEvents, caseActivityLoading, caseActivityFailed, onRetryActivity, streamConnected, onEvidence }: { turn: QuestionSessionTurn | null; failedRunId: string | null; tasks: AgentTaskDetail[]; taskLoading: boolean; taskReadFailed: boolean; onRetryTasks: () => void; caseId: string | null; caseStatus?: string; caseDecision?: DecisionView | null; caseEvents: ProductRuntimeEvent[]; caseActivityLoading: boolean; caseActivityFailed: boolean; onRetryActivity: () => void; streamConnected: boolean; onEvidence: (ref: string) => void }) {
   const { text } = useI18n()
   const decision = useQuery({ queryKey: ['question-audit-decision', turn?.decision_ref], queryFn: () => getDecision(turn!.decision_ref!), enabled: Boolean(turn?.decision_ref), retry: false })
   const finalDecision = decision.data ?? caseDecision
@@ -359,12 +381,12 @@ function AuditRail({ turn, failedRunId, tasks, taskLoading, taskReadFailed, case
           <span><small>{task.task.role_id} · {task.task.status}</small><strong>{task.task.task_kind}</strong><em>{task.task.stop_reason ?? `task-run:${task.task.run_id}`}</em></span><ArrowUpRight size={14} />
         </Link>)}
         {taskLoading && <p>{text('读取关联任务…', 'Reading linked task runs…')}</p>}
-        {taskReadFailed && <p role="alert">{text('部分关联任务读取失败，当前轨迹可能不完整。', 'Some linked task reads failed; this trace may be incomplete.')}</p>}
+        {taskReadFailed && <p role="alert">{text('部分关联任务读取失败，当前轨迹可能不完整。', 'Some linked task reads failed; this trace may be incomplete.')} <button className="qa-retry" onClick={onRetryTasks}>{text('重试任务读取', 'Retry task reads')}</button></p>}
         {!taskLoading && !taskReadFailed && !tasks.length && <p>{text('本回合尚无可读取的任务档案。', 'No task dossier is available for this turn.')}</p>}
       </section>
       <section className="qa-audit-section"><h3>{text('模型调用', 'Model execution')} <b>{modelAttempts.length}</b></h3>{taskLoading && <p>{text('读取模型轨迹…', 'Loading model trace…')}</p>}{modelAttempts.map(item => <div className="qa-audit-row" key={item.model_attempt_id}><small>{item.role} · {item.purpose} · {item.status}</small><strong>{item.actual_model}</strong><span>{item.latency_ms === null ? '—' : `${item.latency_ms} ms`} · {item.input_tokens ?? '—'} in / {item.output_tokens ?? '—'} out {item.reasoning_tokens ? `· ${item.reasoning_tokens} reasoning` : ''}</span><span className="qa-audit-measurement"><b>{item.usage_source === 'provider_exact' ? text('提供方精确用量', 'Provider-reported usage') : text('用量未返回', 'Usage unavailable')}</b>{item.total_tokens != null && ` · ${item.total_tokens.toLocaleString()} tokens`}{item.budget_settlement === 'upper_bound' && item.budget_committed_model_tokens != null && ` · ${text('预算按上界结算', 'Budgeted at upper bound')} ${item.budget_committed_model_tokens.toLocaleString()}`}{item.budget_settlement === 'provider_exact_overrun' && ` · ${text('超过预留估算', 'Exceeded reservation estimate')}`}</span></div>)}{!taskLoading && !modelAttempts.length && <p>{text('当前回合没有模型调用记录。', 'No model call recorded for this turn.')}</p>}</section>
       <section className="qa-audit-section"><h3>{text('上下文清单', 'Context manifest')} <b>{contextCount}</b></h3>{tasks.map(task => task.context && <div key={task.task.run_id}><div className="qa-audit-row"><small>{task.context!.role_ref} · REV {task.context!.context_revision}</small><strong>{task.context!.context_id}</strong><span>{task.context!.parent_context_id ? `${text('继承', 'Parent')}: ${task.context!.parent_context_id}` : text('新会话上下文', 'New session context')}</span></div><div className="qa-context-counts"><span>{task.context!.object_refs.length} objects</span><span>{task.context!.relation_refs.length} relations</span><span>{task.context!.evidence_refs.length} evidence</span><span>{task.context!.retrieval_invocation_refs.length} retrievals</span></div>{task.context!.evidence_refs.length > 0 && <details><summary>{text('输入证据引用', 'Input evidence references')}<ChevronRight size={13} /></summary><div className="qa-fragments">{task.context!.evidence_refs.map(ref => <button className="qa-context-ref" key={ref} onClick={() => onEvidence(ref)}>{ref}<ArrowUpRight size={11} /></button>)}</div></details>}{task.context!.retrieval_invocation_refs.length > 0 && <details><summary>{text('检索调用', 'Retrieval invocations')}<ChevronRight size={13} /></summary><div className="qa-fragments">{task.context!.retrieval_invocation_refs.map(ref => <div key={ref}><strong>{ref}</strong></div>)}</div></details>}</div>)}{tasks.flatMap(task => task.prompt_assemblies).map(assembly => <details key={assembly.assembly_id}><summary>{text('Prompt 片段', 'Prompt fragments')} · {assembly.role_revision}<ChevronRight size={13} /></summary><div className="qa-fragments">{assembly.fragments.map((fragment, index) => <div key={index}><small>{fragment.kind ?? 'fragment'} · {fragment.trust_class ?? 'unknown'}</small><strong>{fragment.source_ref ?? 'source unknown'}</strong><span>{fragment.selection_reason ?? ''}</span></div>)}</div></details>)}{!contextCount && !taskLoading && <p>{text('尚无可读取的上下文清单。', 'No context manifest available yet.')}</p>}</section>
-      <section className="qa-audit-section"><h3>{text('工具与执行事件', 'Tools & runtime')} <b>{runtimeCount}</b></h3>{tasks.flatMap(task => task.capabilities).map(item => <div className="qa-audit-row" key={item.invocation_id}><small>TOOL · {item.status}</small><strong>{item.capability_id}</strong><span>{item.tool_impl_id}</span></div>)}{tasks.flatMap(task => task.events.map(item => ({ ...item, role: task.task.role_id }))).map(item => <div className="qa-audit-row" key={item.event_id}><small>{item.role} · TASK {item.seq}</small><strong>{item.event_type}</strong><span>{item.producer}</span></div>)}{caseId && <p className="qa-case-stream"><i className={streamConnected ? 'connected' : ''} />{text('调查事件流', 'Investigation event stream')} · {caseStatus ?? 'active'}</p>}{caseEvents.map(item => <div className="qa-audit-row" key={item.event_id}><small>{item.event_type} · {item.actor ?? item.source_kind}</small><strong>{item.summary}</strong>{item.evidence_refs.map(ref => <button key={ref} onClick={() => onEvidence(ref)}>{ref}<ArrowUpRight size={11} /></button>)}</div>)}</section>
+      <section className="qa-audit-section"><h3>{text('工具与执行事件', 'Tools & runtime')} <b>{runtimeCount}</b></h3>{tasks.flatMap(task => task.capabilities).map(item => <div className="qa-audit-row" key={item.invocation_id}><small>TOOL · {item.status}</small><strong>{item.capability_id}</strong><span>{item.tool_impl_id}</span></div>)}{tasks.flatMap(task => task.events.map(item => ({ ...item, role: task.task.role_id }))).map(item => <div className="qa-audit-row" key={item.event_id}><small>{item.role} · TASK {item.seq}</small><strong>{item.event_type}</strong><span>{item.producer}</span></div>)}{caseId && <p className="qa-case-stream"><i className={streamConnected ? 'connected' : ''} />{text('调查事件流', 'Investigation event stream')} · {caseStatus ?? text('状态待读取', 'status pending')} · {streamConnected ? text('实时连接', 'live') : text('实时连接中断；仍可读取已保存事件', 'live connection unavailable; saved events remain readable')}</p>}{caseId && caseActivityLoading && <p>{text('读取已保存的调查事件…', 'Reading saved investigation events…')}</p>}{caseId && caseActivityFailed && <p role="alert">{text('调查事件读取失败，当前轨迹可能不完整。', 'Investigation events failed to load; this trace may be incomplete.')} <button className="qa-retry" onClick={onRetryActivity}>{text('重试事件读取', 'Retry event read')}</button></p>}{caseEvents.map(item => <div className="qa-audit-row" key={item.event_id}><small>{item.event_type} · {item.actor ?? item.source_kind}</small><strong>{item.summary}</strong>{item.evidence_refs.map(ref => <button key={ref} onClick={() => onEvidence(ref)}>{ref}<ArrowUpRight size={11} /></button>)}</div>)}</section>
     </>}
   </aside>
 }
