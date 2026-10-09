@@ -7,13 +7,12 @@ import { DecisionReport } from '../components/DecisionReport'
 import { ProductGlyph } from '../components/instrument/ProductGlyph'
 import { StreamedDecisionDraft } from '../components/questions/StreamedDecisionDraft'
 import { EvidenceOverlay } from '../components/investigations/CaseSurfaces'
-import { InvestigationReport } from '../components/investigations/InvestigationReport'
 import { getAgentTask, type AgentTaskDetail } from '../lib/api/agents'
 import { getKnowledgeObject, searchIntelligence } from '../lib/api/intelligence'
 import {
   getDecision, getInvestigation, getInvestigationActivity, getQuestionSession,
   listAccountConversations, streamQuestion, type ProductRuntimeEvent,
-  type DecisionView, type QuestionSessionTurn,
+  type QuestionSessionTurn,
 } from '../lib/api/investigations'
 import { useI18n } from '../lib/i18n'
 import { displayUnknowns, runtimeActorLabel, runtimeEventSummary } from '../lib/investigationPresentation'
@@ -153,10 +152,31 @@ export function QuestionsPage() {
   ]).filter((id): id is string => Boolean(id)))]
   const taskQueries = useQueries({ queries: runIds.map(id => ({ queryKey: ['question-task', id], queryFn: () => getAgentTask(id), retry: false })) })
   const tasks = taskQueries.flatMap(query => query.data ? [query.data] : [])
+  const turnRunIds = new Set<string>()
+  if (focusTurn) {
+    for (const task of tasks) {
+      if (task.task.request_id === focusTurn.request_id
+        || focusTurn.context_id === `context:${task.task.run_id}`) turnRunIds.add(task.task.run_id)
+    }
+    let changed = true
+    while (changed) {
+      changed = false
+      for (const task of tasks) {
+        if (!turnRunIds.has(task.task.run_id)
+          && (turnRunIds.has(task.task.parent_run_id ?? '')
+            || turnRunIds.has(task.task.predecessor_run_id ?? ''))) {
+          turnRunIds.add(task.task.run_id)
+          changed = true
+        }
+      }
+    }
+  }
+  const auditTasks = failedRunId ? tasks : tasks.filter(task => turnRunIds.has(task.task.run_id))
   const caseDetail = useQuery({ queryKey: ['question-case', caseId], queryFn: () => getInvestigation(caseId!), enabled: Boolean(caseId), refetchInterval: query => ['active', 'waiting'].includes(query.state.data?.status ?? '') ? 4000 : false })
   const auditEventMap = new Map<string, ProductRuntimeEvent>()
   for (const item of [...(caseActivity.data?.events ?? []), ...liveEvents.filter(event => event.case_id === caseId)]) auditEventMap.set(item.event_id, item)
   const auditEvents = [...auditEventMap.values()].sort((a, b) => a.occurred_at.localeCompare(b.occurred_at))
+  const turnAuditEvents = auditEvents.filter(event => event.task_run_id && turnRunIds.has(event.task_run_id))
   const streamConnected = Boolean(caseId && connectedCaseId === caseId)
 
   useEffect(() => {
@@ -179,12 +199,13 @@ export function QuestionsPage() {
         if (['decision_ready', 'completed', 'failed', 'canceled'].includes(item.event_type)) {
           void queryClient.invalidateQueries({ queryKey: ['question-case', caseId] })
           void queryClient.invalidateQueries({ queryKey: ['question-case-activity', caseId] })
+          void queryClient.invalidateQueries({ queryKey: ['question-session', sessionId, 'pages'] })
         }
       } catch { /* A malformed event must not stop the stream. */ }
     }
     eventNames.forEach(name => source.addEventListener(name, onEvent as EventListener))
     return () => { eventNames.forEach(name => source.removeEventListener(name, onEvent as EventListener)); source.close() }
-  }, [caseId, queryClient])
+  }, [caseId, queryClient, sessionId])
 
   const latestTurnIndex = turns.at(-1)?.turn_index ?? null
   const latestTurnKey = sessionId && latestTurnIndex !== null ? `${sessionId}:${latestTurnIndex}` : null
@@ -330,7 +351,7 @@ export function QuestionsPage() {
         </div>
       </main>
 
-      {auditOpen && <AuditRail turn={failedRunId ? null : focusTurn} failedRunId={failedRunId} tasks={tasks} taskLoading={taskQueries.some(query => query.isLoading)} taskReadFailed={taskQueries.some(query => query.isError)} onRetryTasks={() => taskQueries.forEach(query => { if (query.isError) void query.refetch() })} caseId={failedRunId ? null : caseId} caseStatus={caseDetail.data?.status} caseDecision={failedRunId ? null : caseDetail.data?.latest_decision} caseEvents={failedRunId ? [] : auditEvents} caseActivityLoading={caseActivity.isLoading} caseActivityFailed={caseActivity.isError} onRetryActivity={() => void caseActivity.refetch()} streamConnected={streamConnected} onEvidence={setEvidence} onClose={() => setAuditOpen(false)} />}
+      {auditOpen && <AuditRail turn={failedRunId ? null : focusTurn} failedRunId={failedRunId} tasks={auditTasks} taskLoading={taskQueries.some(query => query.isLoading)} taskReadFailed={taskQueries.some(query => query.isError)} onRetryTasks={() => taskQueries.forEach(query => { if (query.isError) void query.refetch() })} caseId={failedRunId ? null : caseId} caseStatus={caseDetail.data?.status} caseEvents={failedRunId ? [] : turnAuditEvents} caseActivityLoading={caseActivity.isLoading} caseActivityFailed={caseActivity.isError} onRetryActivity={() => void caseActivity.refetch()} streamConnected={streamConnected} onEvidence={setEvidence} onClose={() => setAuditOpen(false)} />}
     </div>
     <AnimatePresence>{evidence && <EvidenceOverlay key={evidence} evidenceRef={evidence} onClose={() => setEvidence(null)} />}</AnimatePresence>
   </section>
@@ -355,14 +376,13 @@ function ConversationTurn({ turn, active, sessionId, reasoning, onSelect, onEvid
       {caseId && investigation.isError && <button className="qa-retry" onClick={() => void investigation.refetch()}>{text('调查状态读取失败 · 重试', 'Investigation status failed · Retry')}</button>}
       {investigation.data && <div className={`qa-case-result state-${investigation.data.status}`}>
         <strong>{caseState.headline}</strong>
-        {!investigation.data.latest_decision && <p>{investigation.data.goal}</p>}
+        {!turn.decision_ref && <p>{investigation.data.latest_decision ? text('本回合没有单独归档的报告。打开调查现场可查看当前进展。', 'This turn has no separately archived report. Open the case for current progress.') : investigation.data.goal}</p>}
         <div>
           <span>{caseState.label}</span>
           <span>{investigation.data.confirmed_findings.length} {text('已确认', 'confirmed')}</span>
           {unknownCount > 0 && <span>{unknownCount} {text('尚未确认', 'unknown')}</span>}
           {investigation.data.open_evidence_needs.length > 0 && <span>{investigation.data.open_evidence_needs.length} {text('待补证据', 'open needs')}</span>}
         </div>
-        {investigation.data.latest_decision && <InvestigationReport investigation={investigation.data} onEvidence={onEvidence} />}
         <Link to={`/investigations?case=${caseId}&session=${sessionId}`}>{text('打开完整调查现场', 'Open full investigation')}<ArrowUpRight size={13} /></Link>
       </div>}
       {!turn.decision_ref && !turn.investigation_ref && <p className="qa-muted">{text('本回合没有持久研判或调查引用。', 'No durable decision or case reference for this turn.')}</p>}
@@ -370,10 +390,10 @@ function ConversationTurn({ turn, active, sessionId, reasoning, onSelect, onEvid
   </article>
 }
 
-function AuditRail({ turn, failedRunId, tasks, taskLoading, taskReadFailed, onRetryTasks, caseId, caseStatus, caseDecision, caseEvents, caseActivityLoading, caseActivityFailed, onRetryActivity, streamConnected, onEvidence, onClose }: { turn: QuestionSessionTurn | null; failedRunId: string | null; tasks: AgentTaskDetail[]; taskLoading: boolean; taskReadFailed: boolean; onRetryTasks: () => void; caseId: string | null; caseStatus?: string; caseDecision?: DecisionView | null; caseEvents: ProductRuntimeEvent[]; caseActivityLoading: boolean; caseActivityFailed: boolean; onRetryActivity: () => void; streamConnected: boolean; onEvidence: (ref: string) => void; onClose: () => void }) {
+function AuditRail({ turn, failedRunId, tasks, taskLoading, taskReadFailed, onRetryTasks, caseId, caseStatus, caseEvents, caseActivityLoading, caseActivityFailed, onRetryActivity, streamConnected, onEvidence, onClose }: { turn: QuestionSessionTurn | null; failedRunId: string | null; tasks: AgentTaskDetail[]; taskLoading: boolean; taskReadFailed: boolean; onRetryTasks: () => void; caseId: string | null; caseStatus?: string; caseEvents: ProductRuntimeEvent[]; caseActivityLoading: boolean; caseActivityFailed: boolean; onRetryActivity: () => void; streamConnected: boolean; onEvidence: (ref: string) => void; onClose: () => void }) {
   const { text } = useI18n()
   const decision = useQuery({ queryKey: ['question-audit-decision', turn?.decision_ref], queryFn: () => getDecision(turn!.decision_ref!), enabled: Boolean(turn?.decision_ref), retry: false })
-  const finalDecision = decision.data ?? caseDecision
+  const finalDecision = decision.data
   const refs = useMemo(() => finalDecision ? [...new Set([...finalDecision.citations.map(item => item.evidence_ref), ...finalDecision.conclusions.flatMap(item => item.evidence_refs)])] : [], [finalDecision])
   const modelAttempts = tasks.flatMap(task => task.model_attempts.map(item => ({ ...item, role: task.task.role_id })))
   const failedTask = tasks.find(task => task.task.run_id === failedRunId)

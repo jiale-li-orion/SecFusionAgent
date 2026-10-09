@@ -7,6 +7,7 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from apps.application.queries.decision_sources import decision_citation_sources
+from apps.application.question_sessions import QuestionSessionStore
 from apps.decision_runtime import (
     DecisionExecutionCoordinate,
     DecisionRuntime,
@@ -102,6 +103,10 @@ class FinalizeInvestigationUseCase:
                 )
             citations = await decision_citation_sources(session, state)
             envelope = await ExecutionRunService().get(session, coordinate.execution_id)
+            parent_envelope = await ExecutionRunService().get(
+                session, parent.execution_envelope_ref
+            )
+            request_id = parent_envelope.trace_context.get("request_id")
 
         # Provider recording uses its own short transactions; no DB lock spans the model call.
         try:
@@ -152,6 +157,14 @@ class FinalizeInvestigationUseCase:
                 if outcome.decision is not None:
                     result_ref = outcome.decision.decision_id
                     stop_reason = outcome.decision.stop_reason
+                    if isinstance(request_id, str):
+                        await QuestionSessionStore().bind_investigation_decision(
+                            session,
+                            principal=contract.principal,
+                            request_id=request_id,
+                            case_id=state.case_id,
+                            decision_id=result_ref,
+                        )
                     if incomplete:
                         await CaseService().wait(session, state.case_id)
                     else:

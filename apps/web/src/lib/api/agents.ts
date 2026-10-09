@@ -34,6 +34,7 @@ export type AgentRoleRuntime = {
 
 export type AgentTaskSummary = {
   run_id: string
+  request_id: string | null
   task_kind: string
   case_id: string | null
   parent_run_id: string | null

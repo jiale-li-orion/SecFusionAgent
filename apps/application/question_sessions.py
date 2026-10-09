@@ -349,6 +349,34 @@ class QuestionSessionStore:
             .limit(1)
         )
 
+    async def bind_investigation_decision(
+        self,
+        session: AsyncSession,
+        *,
+        principal: str,
+        request_id: str,
+        case_id: str,
+        decision_id: str,
+    ) -> bool:
+        """Pin one finished investigation episode's immutable Decision to its turn."""
+        turn = await session.scalar(
+            select(QuestionSessionTurnModel)
+            .join(QuestionSessionModel)
+            .where(
+                QuestionSessionModel.principal == principal,
+                QuestionSessionTurnModel.request_id == request_id,
+                QuestionSessionTurnModel.investigation_ref == f"case:{case_id}",
+            )
+            .with_for_update()
+        )
+        if turn is None:
+            return False
+        if turn.decision_ref is not None and turn.decision_ref != decision_id:
+            raise ValueError("investigation turn already bound to another decision")
+        turn.decision_ref = decision_id
+        await session.flush()
+        return True
+
 
 def _require_principal(model: QuestionSessionModel, principal: str) -> None:
     if model.principal != principal:

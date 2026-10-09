@@ -21,6 +21,7 @@ class AgentRoleRuntimeView(BaseModel):
 
 class AgentTaskSummaryView(BaseModel):
     run_id: str
+    request_id: str | None = None
     task_kind: str
     case_id: str | None = None
     parent_run_id: str | None = None

@@ -614,6 +614,9 @@ async def _task_summaries(
     predecessor_by_run = {
         item.task_run_id: _execution_predecessor_run_id(item) for item in executions
     }
+    request_by_run = {
+        item.task_run_id: _execution_request_id(item) for item in executions
+    }
     events_by_run: dict[str, list[TaskEventModel]] = defaultdict(list)
     for event in events:
         events_by_run[event.task_run_id].append(event)
@@ -624,6 +627,7 @@ async def _task_summaries(
             task_kind=task_kind_by_contract.get(run.task_contract_version_id, "unknown"),
             events=events_by_run.get(run.run_id, []),
             predecessor_run_id=predecessor_by_run.get(run.run_id),
+            request_id=request_by_run.get(run.run_id),
         )
         for run in runs
     ]
@@ -657,10 +661,12 @@ def _task_summary(
     task_kind: str,
     events: list[TaskEventModel],
     predecessor_run_id: str | None = None,
+    request_id: str | None = None,
 ) -> AgentTaskSummaryView:
     latest = events[-1] if events else None
     return AgentTaskSummaryView(
         run_id=run.run_id,
+        request_id=request_id,
         task_kind=task_kind,
         case_id=run.case_id,
         parent_run_id=run.parent_run_id,
@@ -719,3 +725,8 @@ def _execution_predecessor_run_id(execution: ExecutionRunModel) -> str | None:
     if trace.get("surface") == "product-investigation-finalize":
         return _optional_string(trace.get("request_id"))
     return None
+
+
+def _execution_request_id(execution: ExecutionRunModel) -> str | None:
+    trace = execution.envelope_json.get("trace_context", {})
+    return _optional_string(trace.get("request_id")) if isinstance(trace, dict) else None

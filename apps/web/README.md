@@ -78,7 +78,7 @@ Identity assets live under `src/components/instrument/`: `BrandMark` is the evid
 
 ## Local integration
 
-Question (including SSE) and Case cancellation submissions keep a client `Idempotency-Key` for the same unfinished request and clear it after a successful response. A failed Question submission clears its unsaved streaming draft and keeps the editable question for retry. Cancellation sends the displayed Case revision in `If-Match`, so a stale tab receives a conflict instead of cancelling an updated investigation. A completed SSE replay returns its persisted final result without pretending to reproduce earlier model token deltas.
+Question (including SSE) and Case cancellation submissions keep a client `Idempotency-Key` for the same unfinished request and clear it after a successful response. A failed Question submission clears its unsaved streaming draft and keeps the editable question for retry. Investigation reports in the transcript load through the turn's immutable `decision_ref`; the latest mutable Case report is not painted onto older turns. Case events refresh the saved turn after finalization. The audit rail scopes TaskRuns and runtime events to the selected turn's request ID and linked child/predecessor runs while the Case page retains the whole timeline. Cancellation sends the displayed Case revision in `If-Match`, so a stale tab receives a conflict instead of cancelling an updated investigation. A completed SSE replay returns its persisted final result without pretending to reproduce earlier model token deltas.
 
 `make dev-runtime-up` starts the API as a health-checked Compose service on
 `127.0.0.1:8001` alongside the durable workers. For API-only development after
