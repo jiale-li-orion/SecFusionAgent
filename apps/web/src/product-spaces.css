@@ -4246,14 +4246,19 @@
   margin-top: 15px;
 }
 
-.case-injection-input input {
+.case-injection-input textarea {
   width: 100%;
   min-height: 110px;
   padding: 20px;
   background: #eef1e6;
   border: 0;
+  font-family: inherit;
   font-size: 13px;
+  resize: vertical;
+  line-height: 1.65;
 }
+
+.case-target-expand { color: #456e57; }
 
 .case-injection-input button {
   padding: 13px 15px;

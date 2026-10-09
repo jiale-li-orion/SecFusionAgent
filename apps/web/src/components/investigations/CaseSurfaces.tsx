@@ -23,17 +23,21 @@ export function CaseWorkspace({ investigation, events, eventCue, initialFocus, o
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [followUp, setFollowUp] = useState('')
+  const [followUpError, setFollowUpError] = useState('')
+  const [targetsExpanded, setTargetsExpanded] = useState(false)
   const [conversationMount, setConversationMount] = useState<HTMLElement | null>(null)
-  useEffect(() => { setConversationMount(document.getElementById('case-conversation-mount')) }, [investigation.case_id])
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setConversationMount(document.getElementById('case-conversation-mount')))
+    return () => cancelAnimationFrame(frame)
+  }, [investigation.case_id])
   const [followUpBusy, setFollowUpBusy] = useState(false)
   const [sessionTurns, setSessionTurns] = useState<Array<{ kind: 'user' | 'system'; text: string; result?: QuestionResult }>>([])
   const [cancelBusy, setCancelBusy] = useState(false)
   const [cancelError, setCancelError] = useState('')
-  const [stateFocus, setStateFocus] = useState<CaseStateFocus | null>(initialFocus)
-
-  useEffect(() => {
-    if (eventCue) setStateFocus(eventCue.state)
-  }, [eventCue])
+  const cueId = eventCue?.eventId ?? null
+  const [focusSelection, setFocusSelection] = useState<{ cueId: string | null; state: CaseStateFocus | null }>({ cueId, state: initialFocus })
+  const stateFocus = focusSelection.cueId === cueId ? focusSelection.state : eventCue?.state ?? focusSelection.state
+  const toggleFocus = (state: CaseStateFocus) => setFocusSelection({ cueId, state: stateFocus === state ? null : state })
 
   const latestTaskRunId = [...events].reverse().find((event) => event.task_run_id)?.task_run_id ?? null
   const continuationKind = continuationTaskKind(investigation.current_activity.task_kind, investigation.execution_profile)
@@ -46,18 +50,18 @@ export function CaseWorkspace({ investigation, events, eventCue, initialFocus, o
     const question = followUp.trim()
     if (!question || !sessionId || episodeBusy || followUpBusy) return
     setFollowUpBusy(true)
-    setSessionTurns((current) => [...current, { kind: 'user', text: question }])
-    setFollowUp('')
+    setFollowUpError('')
     try {
       const result = await askQuestion({ question, sessionId, taskKind: continuationKind })
-      setSessionTurns((current) => [...current, { kind: 'system', text: result.mode === 'completed' ? text('研判已生成', 'DECISION READY') : followUpNarrative(result, text), result }])
+      setSessionTurns((current) => [...current, { kind: 'user', text: question }, { kind: 'system', text: result.mode === 'completed' ? text('研判已生成', 'DECISION READY') : followUpNarrative(result, text), result }])
+      setFollowUp('')
       void queryClient.invalidateQueries({ queryKey: ['question-session', sessionId] })
       onFollowUpComplete()
       if (result.mode === 'accepted' && result.investigation?.case_id && result.investigation.case_id !== investigation.case_id) {
         navigate(`/investigations?${new URLSearchParams({ case: result.investigation.case_id, session: result.session_id, from: 'case' })}`)
       }
     } catch (error) {
-      setSessionTurns((current) => [...current, { kind: 'system', text: error instanceof Error ? error.message : text('后续追问失败', 'Follow-up failed') }])
+      setFollowUpError(error instanceof Error ? error.message : text('后续追问失败', 'Follow-up failed'))
     } finally {
       setFollowUpBusy(false)
     }
@@ -94,7 +98,7 @@ export function CaseWorkspace({ investigation, events, eventCue, initialFocus, o
             </div>
             <div className="case-injection-channel" aria-hidden="true"><i /><span>{text(continuesSameCase ? '继续写入同一 Case' : '继承目标与历史，创建后续 Case', continuesSameCase ? 'CONTINUE THE SAME CASE' : 'CARRY CONTEXT INTO A FOLLOW-UP CASE')}</span><i /></div>
             <div className="case-injection-input">
-              <input id="case-followup-input" aria-describedby="case-injection-contract" value={followUp} onChange={(event) => setFollowUp(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void sendFollowUp() } }} disabled={!canSubmitFollowUp || followUpBusy} placeholder={sessionId ? episodeBusy ? text('当前运行回合结束后可追加下一步调查意图', 'Wait for the current runtime episode before adding the next intent') : text('补充信息，或提出下一步调查问题…', 'Inject the next investigation intent…') : text('该历史 Case 没有会话；可从下方重新发起', 'This historical Case has no session; start a follow-up below')} />
+              <textarea id="case-followup-input" rows={4} aria-describedby={`case-injection-contract${followUpError ? ' case-followup-error' : ''}`} value={followUp} onChange={(event) => { setFollowUp(event.target.value); if (followUpError) setFollowUpError('') }} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void sendFollowUp() } }} disabled={!canSubmitFollowUp || followUpBusy} placeholder={sessionId ? episodeBusy ? text('当前运行回合结束后可追加下一步调查意图', 'Wait for the current runtime episode before adding the next intent') : text('补充信息，或提出下一步调查问题…', 'Inject the next investigation intent…') : text('该历史 Case 没有会话；可从下方重新发起', 'This historical Case has no session; start a follow-up below')} />
               {sessionId ? <button onClick={() => void sendFollowUp()} disabled={!canSubmitFollowUp || !followUp.trim() || followUpBusy}>{followUpBusy ? text('提交中…', 'ADMITTING…') : text(continuesSameCase ? '继续调查' : '发起后续调查', continuesSameCase ? 'CONTINUE INVESTIGATION' : 'START FOLLOW-UP')}</button> : <button onClick={() => {
                 const target = investigation.target_object_ids[0]
                 const query = new URLSearchParams({ profile: investigation.execution_profile ?? 'INVESTIGATE', from: 'case', origin: `case:${investigation.case_id}` })
@@ -103,6 +107,7 @@ export function CaseWorkspace({ investigation, events, eventCue, initialFocus, o
                 navigate(`/start?${query.toString()}`)
               }}>{text('围绕当前目标发起新调查', 'START FROM THIS CASE TARGET')}</button>}
             </div>
+            {followUpError && <p id="case-followup-error" className="conversation-error" role="alert">{text('提交失败，问题已保留，可重试：', 'Submission failed. Your question is retained for retry: ')}{followUpError}</p>}
             <small id="case-injection-contract" className="case-injection-contract">{episodeBusy
               ? text('当前 InvestigationRole 仍有一个未结束的运行回合。为了避免并发修改同一 Case，系统会等它结束后再接受新的调查回合。', 'An InvestigationRole episode is still active. To avoid concurrent mutation of the same Case, a new investigation episode is admitted only after the current one ends.')
               : text(continuesSameCase ? '这次追问会继续写入当前 durable Case，并保留既有目标、证据和状态。' : '当前 Case 已经结束；追问会沿同一 session 保留目标和历史，并建立新的 follow-up Case。', continuesSameCase ? 'This follow-up continues the current durable Case while preserving its targets, evidence, and state.' : 'This Case is terminal; a follow-up retains session targets and history, then opens a new follow-up Case.')}</small>
@@ -128,10 +133,10 @@ export function CaseWorkspace({ investigation, events, eventCue, initialFocus, o
       {investigation.target_object_ids.length > 0 && (
         <div className="case-target-strip">
           <small>{text('调查目标', 'CASE TARGETS')}</small>
-          <div>{investigation.target_object_ids.slice(0, 6).map((objectId) => <button key={objectId} onClick={() => {
+          <div>{(targetsExpanded ? investigation.target_object_ids : investigation.target_object_ids.slice(0, 6)).map((objectId) => <button key={objectId} onClick={() => {
             const query = new URLSearchParams({ object: objectId, from: 'case', caseRef: investigation.case_id })
             navigate(`/intelligence?${query.toString()}`)
-          }}><BrainCircuit size={11} /><span>{text('打开对象档案', 'OPEN OBJECT DOSSIER')}</span><b className="mono">{compactEvidenceObjectRef(objectId)}</b></button>)}</div>
+          }}><BrainCircuit size={11} /><span>{text('打开对象档案', 'OPEN OBJECT DOSSIER')}</span><b className="mono">{compactEvidenceObjectRef(objectId)}</b></button>)}{investigation.target_object_ids.length > 6 && <button className="case-target-expand" type="button" aria-expanded={targetsExpanded} onClick={() => setTargetsExpanded(value => !value)}>{targetsExpanded ? text('收起目标', 'Show fewer targets') : text(`查看其余 ${investigation.target_object_ids.length - 6} 个目标`, `View ${investigation.target_object_ids.length - 6} more targets`)}</button>}</div>
         </div>
       )}
 
@@ -186,13 +191,13 @@ export function CaseWorkspace({ investigation, events, eventCue, initialFocus, o
         aria-pressed={stateFocus === 'decision'}
         onClick={(event) => {
           if ((event.target as HTMLElement).closest('button,a,summary')) return
-          setStateFocus((current) => current === 'decision' ? null : 'decision')
+          toggleFocus('decision')
         }}
         onKeyDown={(event) => {
           if (event.target !== event.currentTarget) return
           if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault()
-            setStateFocus((current) => current === 'decision' ? null : 'decision')
+            toggleFocus('decision')
           }
         }}
       >
@@ -200,10 +205,10 @@ export function CaseWorkspace({ investigation, events, eventCue, initialFocus, o
       </motion.div>
 
       <div className={`case-state-grid ${stateFocus ? `has-state-focus focus-${stateFocus}` : ''}`}>
-        <StateColumn key={`confirmed:${eventCue?.state === 'confirmed' ? eventCue.eventId : 'stable'}`} title={text('已确认', 'CONFIRMED')} tone="lime" icon={BadgeCheck} items={investigation.confirmed_findings} onEvidence={onEvidence} active={stateFocus === 'confirmed'} dimmed={Boolean(stateFocus && stateFocus !== 'confirmed')} forged={eventCue?.state === 'confirmed'} reduceMotion={reduceMotion} onFocus={() => setStateFocus((current) => current === 'confirmed' ? null : 'confirmed')} />
-        <StateColumn key={`conflicts:${eventCue?.state === 'conflicts' ? eventCue.eventId : 'stable'}`} title={text('冲突', 'CONFLICTS')} tone="amber" icon={CircleAlert} items={investigation.conflicts} onEvidence={onEvidence} active={stateFocus === 'conflicts'} dimmed={Boolean(stateFocus && stateFocus !== 'conflicts')} forged={eventCue?.state === 'conflicts'} reduceMotion={reduceMotion} onFocus={() => setStateFocus((current) => current === 'conflicts' ? null : 'conflicts')} />
-        <StateColumn key={`unknowns:${eventCue?.state === 'unknowns' ? eventCue.eventId : 'stable'}`} title={text('未知', 'UNKNOWNS')} tone="violet" icon={FileWarning} items={investigation.unknowns} onEvidence={onEvidence} active={stateFocus === 'unknowns'} dimmed={Boolean(stateFocus && stateFocus !== 'unknowns')} forged={eventCue?.state === 'unknowns'} reduceMotion={reduceMotion} onFocus={() => setStateFocus((current) => current === 'unknowns' ? null : 'unknowns')} />
-        <EvidenceNeeds key={`needs:${eventCue?.state === 'needs' ? eventCue.eventId : 'stable'}`} investigation={investigation} active={stateFocus === 'needs'} dimmed={Boolean(stateFocus && stateFocus !== 'needs')} forged={eventCue?.state === 'needs'} reduceMotion={reduceMotion} onFocus={() => setStateFocus((current) => current === 'needs' ? null : 'needs')} />
+        <StateColumn key={`confirmed:${eventCue?.state === 'confirmed' ? eventCue.eventId : 'stable'}`} title={text('已确认', 'CONFIRMED')} tone="lime" icon={BadgeCheck} items={investigation.confirmed_findings} onEvidence={onEvidence} active={stateFocus === 'confirmed'} dimmed={Boolean(stateFocus && stateFocus !== 'confirmed')} forged={eventCue?.state === 'confirmed'} reduceMotion={reduceMotion} onFocus={() => toggleFocus('confirmed')} />
+        <StateColumn key={`conflicts:${eventCue?.state === 'conflicts' ? eventCue.eventId : 'stable'}`} title={text('冲突', 'CONFLICTS')} tone="amber" icon={CircleAlert} items={investigation.conflicts} onEvidence={onEvidence} active={stateFocus === 'conflicts'} dimmed={Boolean(stateFocus && stateFocus !== 'conflicts')} forged={eventCue?.state === 'conflicts'} reduceMotion={reduceMotion} onFocus={() => toggleFocus('conflicts')} />
+        <StateColumn key={`unknowns:${eventCue?.state === 'unknowns' ? eventCue.eventId : 'stable'}`} title={text('未知', 'UNKNOWNS')} tone="violet" icon={FileWarning} items={investigation.unknowns} onEvidence={onEvidence} active={stateFocus === 'unknowns'} dimmed={Boolean(stateFocus && stateFocus !== 'unknowns')} forged={eventCue?.state === 'unknowns'} reduceMotion={reduceMotion} onFocus={() => toggleFocus('unknowns')} />
+        <EvidenceNeeds key={`needs:${eventCue?.state === 'needs' ? eventCue.eventId : 'stable'}`} investigation={investigation} active={stateFocus === 'needs'} dimmed={Boolean(stateFocus && stateFocus !== 'needs')} forged={eventCue?.state === 'needs'} reduceMotion={reduceMotion} onFocus={() => toggleFocus('needs')} />
       </div>
 
       {conversationMount ? createPortal(conversation, conversationMount) : conversation}
