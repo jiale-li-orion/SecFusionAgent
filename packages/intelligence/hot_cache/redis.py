@@ -92,10 +92,10 @@ class RedisHotBugCache:
         await pipeline.execute()
 
 
-    async def list_ranked(self, *, limit: int = 24) -> list[HotBugCacheEntry]:
-        if limit < 1:
+    async def list_ranked(self, *, limit: int = 24, offset: int = 0) -> list[HotBugCacheEntry]:
+        if limit < 1 or offset < 0:
             return []
-        candidate_limit = max(limit * 4, limit)
+        candidate_limit = (offset + limit) * 4
         updated_keys = await cast(
             Awaitable[Any],
             self._client.zrevrange(self.UPDATED_KEY, 0, candidate_limit - 1),
@@ -158,7 +158,7 @@ class RedisHotBugCache:
             ),
             reverse=True,
         )
-        return entries[:limit]
+        return entries[offset : offset + limit]
 
     async def find_cve(self, cve_id: str, *, limit: int = 12) -> list[HotBugCacheEntry]:
         """Read exact CVE matches across resident payloads, beyond the ranked window."""

@@ -212,13 +212,16 @@ async def world_incident_candidates(
 
 
 @router.get("/hot", response_model=HotBugListView)
-async def hot_world(limit: int = Query(default=18, ge=1, le=64)) -> HotBugListView:
+async def hot_world(
+    limit: int = Query(default=18, ge=1, le=64),
+    offset: int = Query(default=0, ge=0, le=4096),
+) -> HotBugListView:
     settings = get_settings()
     redis = Redis.from_url(settings.redis_hot_cache_url)
     try:
         cache = RedisHotBugCache(redis)
         entries, resident_total = await asyncio.gather(
-            cache.list_ranked(limit=limit),
+            cache.list_ranked(limit=limit, offset=offset),
             cache.resident_count(),
         )
     except RedisError as exc:
@@ -232,6 +235,7 @@ async def hot_world(limit: int = Query(default=18, ge=1, le=64)) -> HotBugListVi
     names = world_source_names()
     return HotBugListView(
         resident_total=resident_total,
+        offset=offset,
         items=[_hot_view(entry, names.get(entry.record.source_id)) for entry in entries],
     )
 

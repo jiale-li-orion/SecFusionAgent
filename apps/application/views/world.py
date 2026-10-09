@@ -199,6 +199,7 @@ class HotBugView(BaseModel):
 
 class HotBugListView(BaseModel):
     resident_total: int = 0
+    offset: int = 0
     items: list[HotBugView] = Field(default_factory=list)
 
 

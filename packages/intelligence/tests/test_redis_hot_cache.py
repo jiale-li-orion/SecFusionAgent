@@ -85,6 +85,10 @@ async def test_redis_hot_cache_ranked_read_uses_existing_hot_signals() -> None:
     assert entries[0].pinned is True
     assert entries[1].active is True
     assert entries[2].access_count == 2.0
+    next_page = await cache.list_ranked(limit=1, offset=1)
+    assert [item.record.external_object_id for item in next_page] == [
+        "CVE-2026-10002"
+    ]
 
     await client.aclose()
 

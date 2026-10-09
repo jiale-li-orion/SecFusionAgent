@@ -1,5 +1,5 @@
 import { BrandMark, ProductGlyph } from '../instrument/ProductGlyph'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, ArrowRight, ArrowUpRight, Check, Link2, Search } from 'lucide-react'
 import type { WorldFormation, WorldStory } from '../../lib/api/world'
@@ -7,36 +7,33 @@ import { searchHotWorldCve } from '../../lib/api/world'
 import { useI18n } from '../../lib/i18n'
 import { projectHot } from '../../lib/worldHotPresentation'
 
-export function WorldHotField({ stories, focusedId, total, failed, onFocus, onRetry }: { stories: WorldStory[]; focusedId: string | undefined; total: number | undefined; failed: boolean; onFocus: (s: WorldStory) => void; onRetry: () => void }) {
+export function WorldHotField({ stories, focusedId, total, failed, pending, page, pageSize, onPage, onFocus, onRetry }: { stories: WorldStory[]; focusedId: string | undefined; total: number | undefined; failed: boolean; pending: boolean; page: number; pageSize: number; onPage: (page: number) => void; onFocus: (s: WorldStory) => void; onRetry: () => void }) {
   const { text } = useI18n()
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [page, setPage] = useState(0)
+  const resultsRef = useRef<HTMLDivElement>(null)
   useEffect(() => { const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 250); return () => window.clearTimeout(timer) }, [search])
   const fullCve = /^CVE-\d{4}-\d{4,}$/i.test(debouncedSearch) ? debouncedSearch.toUpperCase() : null
   const exactSearch = fullCve !== null && search.trim().toUpperCase() === fullCve
   const remote = useQuery({ queryKey: ['world-hot-cve', fullCve], queryFn: () => searchHotWorldCve(fullCve!), enabled: Boolean(fullCve), retry: false })
-  const localItems = stories.filter(s => s.kind === 'HotVulnerability' && `${s.headline} ${s.excerpt}`.toLowerCase().includes(search.toLowerCase()))
+  const localItems = stories.filter(s => `${s.facts.cve_id ?? ''} ${s.headline} ${s.excerpt} ${s.source_name}`.toLowerCase().includes(search.toLowerCase()))
   const items = exactSearch ? (remote.data?.items ?? []).map(projectHot) : localItems
-  const pages = Math.max(1, Math.ceil(items.length / 8))
-  const current = Math.min(page, pages - 1)
-  const visible = items.slice(current * 8, current * 8 + 8)
+  const pages = Math.max(1, Math.ceil((total ?? 0) / pageSize))
+  useEffect(() => { if (resultsRef.current) resultsRef.current.scrollTop = 0 }, [page, exactSearch, fullCve])
   return <div className="ew-hot-field">
     <p className="ew-field-intro">{total === undefined ? text('正在读取热区', 'Reading the working set') : text(`热区驻留 ${total.toLocaleString()} 条漏洞记录`, `${total.toLocaleString()} vulnerability records resident`)}</p>
-    <label className="ew-hot-search"><Search size={15} /><input aria-label={text('搜索热区漏洞', 'Search Hot vulnerabilities')} placeholder={text('完整 CVE 查整个热区；其他词筛选当前窗口', 'Full CVE searches all Hot; other terms filter this window')} value={search} onChange={e => { setSearch(e.target.value); setPage(0) }} /></label>
+    <label className="ew-hot-search"><Search size={15} /><input aria-label={text('搜索热区漏洞', 'Search Hot vulnerabilities')} placeholder={text('完整 CVE 查整个热区；其他词筛选当前页', 'Full CVE searches all Hot; other terms filter this page')} value={search} onChange={e => setSearch(e.target.value)} /></label>
     {exactSearch && remote.isFetching && <p className="ew-field-note" role="status">{text('正在整个热区查找该 CVE…', 'Searching the full working set for this CVE…')}</p>}
     {exactSearch && remote.isError && <p className="ew-field-note" role="alert">{text('热区检索失败。', 'Hot search failed.')} <button onClick={() => void remote.refetch()}>{text('重试', 'Retry')}</button></p>}
-    {exactSearch ? <div className="ew-hot-results">
-      <div className="ew-hot-results-head"><small>{text('全驻留池 · 精确匹配', 'FULL RESIDENT POOL · EXACT MATCH')}</small><strong>{fullCve}</strong><span>{items.length} {text('条来源记录', 'source records')}</span></div>
-      {items.map(s => <button key={s.story_id} className={s.story_id === focusedId ? 'selected' : ''} onClick={() => onFocus(s)}><ProductGlyph kind="vulnerability" size={25} /><span><small>{s.source_name}</small><strong>{s.headline}</strong><em>{s.excerpt || text('打开这条来源记录', 'Open this source record')}</em></span><ArrowUpRight size={15} /></button>)}
-    </div> : <div className="ew-hot-orbit">
-      <svg viewBox="0 0 500 500" aria-hidden="true"><ellipse cx="250" cy="250" rx="205" ry="178" /><ellipse cx="250" cy="250" rx="150" ry="205" transform="rotate(30 250 250)" /><circle cx="250" cy="250" r="72" /></svg>
-      <div className="ew-hot-core"><ProductGlyph kind="vulnerability" size={40} /><strong>{text('热区', 'Hot')}</strong><small>{text('点击漏洞查看原文', 'Select a vulnerability')}</small></div>
-      {visible.map((s, i) => { const a = (i * 45 - 90) * Math.PI / 180; return <button key={s.story_id} className={`ew-hot-node ${s.story_id === focusedId ? 'selected' : ''}`} style={{ left: `${50 + Math.cos(a) * 37}%`, top: `${50 + Math.sin(a) * 38}%` }} onClick={() => onFocus(s)} aria-label={text(`查看漏洞：${s.headline}`, `Read vulnerability: ${s.headline}`)}><i /><strong>{s.headline}</strong><span>{s.facts.pinned ? text('已固定缓存', 'Cache pinned') : s.facts.active ? text('工作流使用中', 'In workflow') : text('近期更新', 'Recently updated')}</span></button> })}
-    </div>}
-    {!exactSearch && <div className="ew-field-pagination"><button disabled={current === 0} onClick={() => setPage(current - 1)} aria-label={text('上一组漏洞', 'Previous vulnerabilities')}><ArrowLeft size={16} /></button><span>{current + 1} / {pages}</span><button disabled={current >= pages - 1} onClick={() => setPage(current + 1)} aria-label={text('下一组漏洞', 'Next vulnerabilities')}><ArrowRight size={16} /></button></div>}
-    <p className="ew-field-note">{exactSearch ? text('已按完整 CVE 编号查询整个驻留热区；结果仍是 Hot 缓存，不代表已写入持久知识。', 'Exact CVE lookup covers the resident Hot pool; results remain cache entries, not durable Knowledge.') : text(`本次载入排名靠前的 ${stories.filter(s => s.kind === 'HotVulnerability').length} 条；输入完整 CVE 编号可查整个热区。`, `Loaded ${stories.filter(s => s.kind === 'HotVulnerability').length} ranked records; enter a full CVE ID to search the entire Hot pool.`)}</p>
-    {((failed && !exactSearch) || (!items.length && !remote.isFetching && !remote.isError)) && <p role="status">{failed && !exactSearch ? <>{text('热区读取失败', 'Working set read failed')} <button onClick={onRetry}>{text('重新读取', 'Retry')}</button></> : exactSearch ? text('整个热区没有该 CVE 的驻留记录', 'This CVE is not resident in the Hot pool') : text('本次载入窗口没有匹配记录', 'No loaded records match')}</p>}
+    <div className="ew-hot-results" ref={resultsRef}>
+      <div className="ew-hot-results-head"><small>{exactSearch ? text('全驻留池 · 精确匹配', 'FULL RESIDENT POOL · EXACT MATCH') : text('热区索引 · 按活跃度排序', 'HOT INDEX · ACTIVITY RANKED')}</small><strong>{exactSearch ? fullCve : text(`第 ${page + 1} 页`, `Page ${page + 1}`)}</strong><span>{exactSearch ? `${items.length} ${text('条来源记录', 'source records')}` : `${Math.min(page * pageSize + 1, total ?? 0)}–${Math.min((page + 1) * pageSize, total ?? 0)} / ${total ?? '—'}`}</span></div>
+      <div className="ew-hot-card-grid">{items.map(s => <button key={s.story_id} className={`ew-hot-card ${s.story_id === focusedId ? 'selected' : ''}`} onClick={() => onFocus(s)}><span className="ew-hot-card-top"><ProductGlyph kind="vulnerability" size={22} /><small>{s.source_name}</small><ArrowUpRight size={14} /></span><strong>{typeof s.facts.cve_id === 'string' ? s.facts.cve_id : s.headline}</strong>{s.headline !== s.facts.cve_id && <span className="ew-hot-card-title">{s.headline}</span>}<em>{s.excerpt || text('打开记录，查看来源原文与当前热区状态。', 'Open the record for its source and Hot state.')}</em><span className="ew-hot-card-state">{s.facts.pinned ? text('已固定缓存', 'Pinned in cache') : s.facts.active ? text('调查使用中', 'In investigation') : text('热区驻留', 'Hot resident')}</span></button>)}</div>
+    </div>
+    {!exactSearch && <div className="ew-field-pagination"><button disabled={page === 0 || pending} onClick={() => onPage(page - 1)} aria-label={text('上一页漏洞', 'Previous vulnerability page')}><ArrowLeft size={16} /></button><span>{page + 1} / {pages}</span><button disabled={page >= pages - 1 || pending || pageSize * (page + 1) > 4096} onClick={() => onPage(page + 1)} aria-label={text('下一页漏洞', 'Next vulnerability page')}><ArrowRight size={16} /></button></div>}
+    <p className="ew-field-note">{exactSearch ? text('完整 CVE 查询覆盖整个驻留热区；结果仍是缓存记录。', 'Full CVE lookup covers the resident Hot pool; results remain cache records.') : text('逐页浏览当前驻留热区；普通关键词只筛选本页。Hot 记录不等于已写入的持久知识。', 'Browse resident Hot records page by page; ordinary words filter this page. Hot records are not durable Knowledge.')}{!exactSearch && (total ?? 0) > 4096 && pageSize * (page + 1) > 4096 && ` ${text('当前最多可浏览前 4096 条；完整 CVE 编号仍可查询整个热区。', 'Browsing currently reaches the first 4096 records; exact CVE lookup still covers all Hot.')}`}</p>
+    {failed && !exactSearch && <p role="alert">{text('热区读取失败', 'Working set read failed')} <button onClick={onRetry}>{text('重新读取', 'Retry')}</button></p>}
+    {pending && !exactSearch && <p role="status">{text('读取本页漏洞…', 'Loading this page…')}</p>}
+    {!items.length && (exactSearch ? !remote.isFetching && !remote.isError : !failed && !pending) && <p role="status">{exactSearch ? text('整个热区没有该 CVE 的驻留记录', 'This CVE is not resident in the Hot pool') : text('本页没有匹配记录', 'No records match on this page')}</p>}
   </div>
 }
 

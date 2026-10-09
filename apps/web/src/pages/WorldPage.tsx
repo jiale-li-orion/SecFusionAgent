@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { getWorldKnowledgeChanges, getWorldStories, getHotWorldItem, getHotWorld, getWorldOverview, getWorldFormation, getWorldIncidentCandidates, type WorldIncidentCandidate, type WorldStory } from '../lib/api/world'
 import { WorldScene } from '../components/world/WorldScene'
@@ -9,6 +10,8 @@ export function WorldPage() {
   const { text } = useI18n()
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
+  const [hotPage, setHotPage] = useState(0)
+  const hotPageSize = 24
   const query = useQuery({ queryKey: ['world-stories', 'facts-v2'], queryFn: () => getWorldStories(12), refetchInterval: 60_000 })
   const hotCoordinate = params.get('hot')?.split(':')
   const hot = useQuery({
@@ -16,14 +19,15 @@ export function WorldPage() {
     queryFn: () => getHotWorldItem(hotCoordinate![0], hotCoordinate!.slice(1).join(':')),
     enabled: Boolean(hotCoordinate?.length && hotCoordinate.length > 1), retry: false,
   })
-  const workingSet = useQuery({ queryKey: ['world-working-set', 64], queryFn: () => getHotWorld(64),
+  const workingSet = useQuery({ queryKey: ['world-working-set', hotPage], queryFn: () => getHotWorld(hotPageSize, hotPage * hotPageSize),
     refetchInterval: 30_000 })
   const candidateSet = useQuery({ queryKey: ['world-incident-candidates', 32], queryFn: () => getWorldIncidentCandidates(32), refetchInterval: 30_000 })
   const overview = useQuery({ queryKey: ['world-overview'], queryFn: getWorldOverview, refetchInterval: 30_000 })
   const formation = useQuery({ queryKey: ['world-formation'], queryFn: getWorldFormation, refetchInterval: 15_000 })
   const changes = useQuery({ queryKey: ['world-knowledge-changes'], queryFn: () => getWorldKnowledgeChanges(6), refetchInterval: 15_000 })
   const hotStory = hot.data ? projectHot(hot.data) : null
-  const stories = [ ...(query.data?.items ?? []), ...(workingSet.data?.items ?? []).map(projectHot), ...(candidateSet.data?.items ?? []).map(projectCandidate) ]
+  const hotStories = (workingSet.data?.items ?? []).map(projectHot)
+  const stories = [ ...(query.data?.items ?? []), ...hotStories, ...(candidateSet.data?.items ?? []).map(projectCandidate) ]
   if (hotStory && !stories.some(s => s.story_id === hotStory.story_id)) stories.push(hotStory)
 
   function focus(story: WorldStory) {
@@ -46,10 +50,11 @@ export function WorldPage() {
     if (story.kind === 'HotVulnerability' && typeof story.facts.cve_id === 'string') next.set('cve', story.facts.cve_id)
     navigate(`/start?${next}`)
   }
-  return <WorldScene stories={stories} focusedId={params.get('story') ?? hotStory?.story_id ?? null}
+  return <WorldScene stories={stories} hotStories={hotStories} focusedId={params.get('story') ?? hotStory?.story_id ?? null}
     region={params.get('source')} onRegion={source => { setParams(current => { const next = new URLSearchParams(current); if (source) next.set('source', source); else next.delete('source'); return next }, { replace: true }) }}
     onHotRetry={() => void workingSet.refetch()} view={params.get('view') ?? (hotCoordinate ? 'hot' : 'stories')} onView={view => { const next = new URLSearchParams(params); next.set('view', view); next.delete('story'); next.delete('hot'); next.delete('source'); setParams(next, { replace: true }) }}
-    changes={changes.data?.items ?? []} overview={overview.data} formation={formation.data} hotTotal={workingSet.data?.resident_total} hotFailed={workingSet.isError}
+    changes={changes.data?.items ?? []} overview={overview.data} formation={formation.data} hotTotal={workingSet.data?.resident_total} hotFailed={workingSet.isError} hotPending={workingSet.isPending} hotPage={hotPage} hotPageSize={hotPageSize}
+    onHotPage={page => { setHotPage(page); setParams(current => { const next = new URLSearchParams(current); next.delete('story'); next.delete('hot'); return next }, { replace: true }) }}
     pending={query.isPending} failed={query.isError} candidatePending={candidateSet.isPending} candidateFailed={candidateSet.isError}
     onFocus={focus} onOpen={open} onInvestigate={investigate} onRetry={() => void query.refetch()}
     onCandidateRetry={() => void candidateSet.refetch()} />

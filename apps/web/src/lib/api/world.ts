@@ -167,10 +167,10 @@ export type HotBug = {
   ttl_seconds: number | null
 }
 
-export async function getHotWorld(limit = 6): Promise<{ resident_total: number; items: HotBug[] }> {
-  const response = await fetch(`/api/v1/world/hot?limit=${limit}`)
+export async function getHotWorld(limit = 6, offset = 0): Promise<{ resident_total: number; offset: number; items: HotBug[] }> {
+  const response = await fetch(`/api/v1/world/hot?${new URLSearchParams({ limit: String(limit), offset: String(offset) })}`)
   if (!response.ok) throw new Error(`Hot world read failed (${response.status})`)
-  return response.json() as Promise<{ resident_total: number; items: HotBug[] }>
+  return response.json() as Promise<{ resident_total: number; offset: number; items: HotBug[] }>
 }
 
 export async function searchHotWorldCve(cveId: string): Promise<{ query: string; items: HotBug[] }> {

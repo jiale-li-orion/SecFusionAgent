@@ -189,11 +189,16 @@ async def test_world_hot_exposes_ranked_product_safe_hot_bug_view(monkeypatch) -
     app = create_app()
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as http:
         response = await http.get("/api/v1/world/hot?limit=5")
+        beyond = await http.get("/api/v1/world/hot?limit=5&offset=1")
         search = await http.get("/api/v1/world/hot/search?q=CVE-2026-42424")
         invalid_search = await http.get("/api/v1/world/hot/search?q=42424")
         detail = await http.get("/api/v1/world/hot/nvd-cves-2/CVE-2026-42424")
 
     assert response.status_code == 200
+    assert beyond.status_code == 200
+    assert beyond.json()["resident_total"] == 1
+    assert beyond.json()["offset"] == 1
+    assert beyond.json()["items"] == []
     item = response.json()["items"][0]
     assert item["cve_id"] == "CVE-2026-42424"
     assert item["cvss_score"] == 9.8

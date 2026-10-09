@@ -21,11 +21,11 @@ const categories = [
   { key: 'incidents', zh: '事件', en: 'Incidents', icon: Fingerprint, path: 'Incident Watch' },
 ]
 
-export function WorldScene({ stories, focusedId, pending, failed, candidatePending, candidateFailed, onFocus, onOpen, onInvestigate, onRetry, onCandidateRetry, view, onView, overview, formation, hotTotal, hotFailed, region, onRegion, onHotRetry, changes }: {
-  changes: WorldKnowledgeChange[]; stories: WorldStory[]; focusedId: string | null; pending: boolean; failed: boolean; candidatePending: boolean; candidateFailed: boolean
+export function WorldScene({ stories, hotStories, focusedId, pending, failed, candidatePending, candidateFailed, onFocus, onOpen, onInvestigate, onRetry, onCandidateRetry, view, onView, overview, formation, hotTotal, hotFailed, hotPending, hotPage, hotPageSize, onHotPage, region, onRegion, onHotRetry, changes }: {
+  changes: WorldKnowledgeChange[]; stories: WorldStory[]; hotStories: WorldStory[]; focusedId: string | null; pending: boolean; failed: boolean; candidatePending: boolean; candidateFailed: boolean
   onFocus: (story: WorldStory) => void; onOpen: (story: WorldStory) => void
   onInvestigate: (story: WorldStory) => void; onRetry: () => void; onCandidateRetry: () => void
-  view: string; onView: (view: string) => void; overview: WorldOverview | undefined; formation: WorldFormation | undefined; hotTotal: number | undefined; hotFailed: boolean; region: string | null; onRegion: (region: string | null) => void; onHotRetry: () => void
+  view: string; onView: (view: string) => void; overview: WorldOverview | undefined; formation: WorldFormation | undefined; hotTotal: number | undefined; hotFailed: boolean; hotPending: boolean; hotPage: number; hotPageSize: number; onHotPage: (page: number) => void; region: string | null; onRegion: (region: string | null) => void; onHotRetry: () => void
 }) {
   const { text, language } = useI18n()
   const reduced = useReducedMotion()
@@ -73,7 +73,7 @@ export function WorldScene({ stories, focusedId, pending, failed, candidatePendi
       </div>
       <div className="ew-space-region">
       <div className="ew-field-views" aria-label={text('观察世界', 'Observe the world')}>{[{ key: 'stories', zh: '世界动态', en: 'Signals' }, { key: 'sources', zh: '来源汇聚', en: 'Sources' }, { key: 'hot', zh: '浏览热区', en: 'Hot' }, { key: 'formation', zh: '富化与留存', en: 'Processing' }].map(v => <button key={v.key} aria-pressed={view === v.key} onClick={() => onView(v.key)}>{text(v.zh, v.en)}</button>)}</div>
-      {view === 'sources' ? <WorldSourcesField sources={overview?.sources} directions={categories} stories={stories} onSource={category => { setRegion(category); setInspect(false) }} /> : view === 'hot' ? <WorldHotField stories={stories} focusedId={focused?.story_id} total={hotTotal} failed={hotFailed} onFocus={onFocus} onRetry={onHotRetry} /> : view === 'formation' ? <WorldFormationField formation={formation} /> : <EvidenceAtlas onHot={() => onView('hot')} directions={categories} overview={overview} stories={region ? regionStories : stories} focusedId={focused?.story_id} onSource={key => { setRegion(key); setInspect(false) }} onFocus={story => { onFocus(story); setInspect(false) }} changes={changes} total={hotTotal} />}
+      {view === 'sources' ? <WorldSourcesField sources={overview?.sources} directions={categories} stories={stories} onSource={category => { setRegion(category); setInspect(false) }} /> : view === 'hot' ? <WorldHotField stories={hotStories} focusedId={focused?.story_id} total={hotTotal} failed={hotFailed} pending={hotPending} page={hotPage} pageSize={hotPageSize} onPage={onHotPage} onFocus={onFocus} onRetry={onHotRetry} /> : view === 'formation' ? <WorldFormationField formation={formation} /> : <EvidenceAtlas onHot={() => onView('hot')} directions={categories} overview={overview} stories={region ? regionStories : stories} focusedId={focused?.story_id} onSource={key => { setRegion(key); setInspect(false) }} onFocus={story => { onFocus(story); setInspect(false) }} changes={changes} total={hotTotal} />}
       </div>
       {region && direction && <WorldSourceInspector category={region} label={text(direction.zh, direction.en)} path={direction.path} materials={stories} onClose={() => setRegion(null)} />}
       {inspect && !region && focused && <aside className="ew-inspector" aria-label={text('当前对象的证据来源', 'Evidence for the focused object')}>

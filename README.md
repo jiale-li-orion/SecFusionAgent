@@ -82,6 +82,7 @@ QUESTIONS pages through older account conversations and turns. Completed Product
 The visual identity now uses a dedicated evidence-aperture mark, distinct source-category and publication seals, and three differentiated WebGL/SVG Agent sculptures. These are presentation identities; the states they accompany remain backed by Product read models.
 
 The INTELLIGENCE Vulnerabilities filter shows a bounded live Hot CVE window with its separate resident count. Opening one preserves the Hot coordinate and checks the durable dossier independently, so the catalog no longer implies that an empty recent-document selection means there are no vulnerabilities.
+WORLD's Hot index pages through resident source records, with exact CVE lookup across the entire resident pool. The index no longer caps discovery at its initially loaded ranking window.
 
 The Incidents filter reads a separate candidate watch projection. It displays source headlines and links for conservatively selected security-event signals, while keeping candidate status distinct from a durable Incident. Broad news feeds now screen general headlines before candidate correlation; the product watch read also excludes older unrelated entries still in the Redis working set. A candidate is never presented as independently corroborated or durable.
 
