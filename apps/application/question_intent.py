@@ -28,6 +28,16 @@ _COMPOUND_QUESTION = re.compile(
     re.IGNORECASE,
 )
 
+# Only clear requests to perform work take this fast path. Merely mentioning an
+# investigation/report, or asking without a resolved target, remains a read.
+_INVESTIGATION_REQUEST = re.compile(
+    r"^\s*(?:请|请你|帮我|请帮我|能否|可以|能不能|你能|麻烦)?\s*"
+    r"(?:(?:继续|深入|深度|详细|进一步|重新)\s*)*(?:调查|追查|调研)(?!报告|结果|记录|进展)"
+    r"|^\s*(?:(?:please|can you|could you|would you)\s+)?"
+    r"(?:(?:continue to|further|deeply)\s+)?(?:investigate|research|look into)\b",
+    re.IGNORECASE,
+)
+
 
 class QueryIntent(BaseModel):
     original_text: str
@@ -114,11 +124,12 @@ async def plan_semantic_query(
 
 def infer_question_route(
     question: str, *, cve_id: str | None, object_id: str | None,
+    has_session_target: bool = False,
 ) -> tuple[TaskKind, str | None]:
     """Bind a stable ID when present; search open language before deciding to investigate.
 
-    RETRIEVE deliberately remains the initial route for natural language. M6
-    can request a durable continuation after it has inspected current evidence.
+    An explicit investigation request with a resolved target enters M5. Open
+    language without a target stays RETRIEVE until evidence can bind a target.
     """
     mentioned = _CVE.findall(question)
     resolved_cve = cve_id or (
@@ -126,6 +137,9 @@ def infer_question_route(
         if len(set(map(str.upper, mentioned))) == 1 and not object_id
         else None
     )
+    scoped = bool(resolved_cve or object_id or has_session_target)
+    if scoped and _INVESTIGATION_REQUEST.search(question):
+        return TaskKind.INVESTIGATE_RELATION, resolved_cve
     if cve_id or object_id:
         return TaskKind.LOOKUP, resolved_cve
     return TaskKind.RETRIEVE, resolved_cve

@@ -156,3 +156,53 @@ async def test_sandbox_plan_uses_same_physical_observation_port() -> None:
         assert percept.cost["sandbox:0:sandbox_calls"] == 1
     finally:
         await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_trace_preserves_incoming_edge_and_fetches_its_real_evidence() -> None:
+    from packages.intelligence.retrieval.contracts import CandidateKind, RetrievedCandidate
+
+    class Graph:
+        async def neighbors(self, session, **arguments):
+            assert arguments == {
+                "object_id": "repo", "direction": "both", "relation_types": [], "limit": 1,
+            }
+            return [RetrievedCandidate(
+                candidate_id="relation:pr-repo", candidate_kind=CandidateKind.RELATION,
+                relation_id="pr-repo", score_channels={"graph": 1.0},
+                payload={"relation_type": "belongs-to-repo",
+                         "source": {"object_id": "pr"}, "target": {"object_id": "repo"}},
+            )]
+
+    class Evidence:
+        async def for_target(self, session, *, target_kind, target_id, limit=None):
+            assert (target_kind, target_id) == ("relation", "pr-repo")
+            assert limit == 2  # One candidate plus one bounded truncation probe.
+            return [RetrievedCandidate(
+                candidate_id="evidence:association", candidate_kind=CandidateKind.EVIDENCE,
+                evidence_ref="evidence:association", source_id="github-test", source_role="primary",
+                score_channels={"evidence": 1.0}, payload={"target_id": "pr-repo"},
+            )]
+
+    runtime = PerceptionRuntime()
+    runtime._graph, runtime._evidence = Graph(), Evidence()
+    request = PerceptionRequest(
+        request_id="trace-with-evidence", operation=PerceptionOperation.TRACE,
+        target=PerceptionTarget(object_id="repo"),
+        evidence_requirement=EvidenceRequirement(max_candidates=1, min_independent_sources=1),
+    )
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    try:
+        async with async_sessionmaker(engine)() as session:
+            result = await runtime.execute(
+                session, request=request, plan=PerceptionPlanner().plan(request),
+            )
+        assert result.evidence_handles == ["evidence:association"]
+        assert result.relations[0]["source"] == {"object_id": "pr"}
+        assert result.relations[0]["relation_id"] == "pr-repo"
+        assert result.unresolved == []
+        assert result.operator_counts == {"graph": 1, "evidence": 1}
+        assert result.cost["graph-evidence:0:read_queries"] == 1
+        assert result.observed_propositions == []  # No factual promotion during a read.
+    finally:
+        await engine.dispose()

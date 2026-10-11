@@ -1,3 +1,4 @@
+import logging
 from collections.abc import AsyncIterator, Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from datetime import UTC, datetime
@@ -64,10 +65,9 @@ class FinalizeInvestigationUseCase:
         decision_run_id = str(uuid5(NAMESPACE_URL, f"secfusion:case-decision:{parent_run_id}"))
         async with self._factory() as session, session.begin():
             parent = await get_task_run(session, parent_run_id)
-            insufficient = parent.status is TaskRunStatus.BLOCKED and parent.stop_reason in {
-                "no_progress",
-                "budget_exhausted",
-            }
+            # All controlled stops end this bounded episode. A planner's STOP
+            # reason must not decide whether the user receives a report.
+            insufficient = parent.status is TaskRunStatus.BLOCKED
             if (
                 (parent.status is not TaskRunStatus.COMPLETED and not insufficient)
                 or parent.case_id is None
@@ -132,13 +132,21 @@ class FinalizeInvestigationUseCase:
                         ),
                     },
                 )
-                if incomplete and isinstance(proposal, ContinuationRequest):
-                    proposal = _partial_evidence_report(state)
             async with self._factory() as session, session.begin():
                 current_run = await get_task_run(session, decision_run_id)
                 if current_run.status in TERMINAL_TASK_RUN_STATUSES:
                     return current_run.result_ref
                 try:
+                    if isinstance(proposal, ContinuationRequest):
+                        # The bounded episode is over. Preserve the newly discovered gap
+                        # through M4, but also give this chat turn a readable partial answer.
+                        gap = proposal.proposition_or_question
+                        await DecisionRuntime().commit_proposal(
+                            session, state=state, proposal=proposal, citation_sources=citations,
+                        )
+                        state = await service.get_state(session, state.case_id)
+                        proposal = _partial_evidence_report(state, gap=gap)
+                        incomplete = True
                     outcome = await DecisionRuntime().commit_proposal(
                         session,
                         state=state,
@@ -146,6 +154,11 @@ class FinalizeInvestigationUseCase:
                         citation_sources=citations,
                     )
                 except ValueError:
+                    logging.getLogger(__name__).warning(
+                        "Investigation decision proposal rejected by the evidence gate",
+                        extra={"case_id": state.case_id, "task_run_id": decision_run_id},
+                        exc_info=True,
+                    )
                     proposal = _insufficient_evidence_report(state)
                     incomplete = True
                     outcome = await DecisionRuntime().commit_proposal(
@@ -155,6 +168,7 @@ class FinalizeInvestigationUseCase:
                         citation_sources=citations,
                     )
                 if outcome.decision is not None:
+                    incomplete = incomplete or bool(outcome.decision.unknowns)
                     result_ref = outcome.decision.decision_id
                     stop_reason = outcome.decision.stop_reason
                     if isinstance(request_id, str):
@@ -226,7 +240,9 @@ def _insufficient_evidence_report(state: InvestigationState) -> DecisionDraft:
     )
 
 
-def _partial_evidence_report(state: InvestigationState) -> DecisionDraft:
+def _partial_evidence_report(
+    state: InvestigationState, *, gap: str | None = None,
+) -> DecisionDraft:
     """Bounded fallback if a model still requests continuation for a partial final."""
     confirmed = sorted(state.confirmed, key=lambda item: item.updated_revision, reverse=True)[:3]
     conclusions = [
@@ -238,36 +254,45 @@ def _partial_evidence_report(state: InvestigationState) -> DecisionDraft:
         for item in confirmed
     ]
     chinese = any("\u4e00" <= char <= "\u9fff" for char in state.goal)
+    unknowns = list(dict.fromkeys([
+        *[item.proposition for item in state.unknowns],
+        *([gap] if gap else []),
+    ])) or [state.goal]
     if chinese:
         known = "现有证据能够确认以下事实:\u0020" + "\uff1b".join(
             item.proposition.rstrip("\u3002\uff1b") for item in confirmed
         ) + "\u3002"
-        boundary = "其他应对细节仍缺少可核验材料\uff0c现阶段不能据此作出进一步结论\u3002"
+        boundary = (
+            "这次调查尚未完整回答你的问题。以下内容仍需核实："  # noqa: RUF001
+            + "；".join(item.rstrip("。；？") for item in unknowns)  # noqa: RUF001
+            + "。下面仅说明已有证据支持的部分，不能据此认定其他风险或冲突不存在。"  # noqa: RUF001
+        )
     else:
         known = "The available evidence confirms the following: " + "; ".join(
             item.proposition.rstrip(". ;") for item in confirmed
         ) + "."
         boundary = (
-            "Other response details remain unverified, "
-            "so no further conclusion is supported yet."
+            "This investigation has not yet fully answered your question. "
+            "The following remains unverified: " + "; ".join(unknowns) + ". "
+            "The available findings below do not establish the absence of other risks or conflicts."
         )
     return DecisionDraft(
         case_id=state.case_id,
         case_revision=state.case_revision,
         conclusions=conclusions,
-        unknowns=[item.proposition for item in state.unknowns] or [state.goal],
+        unknowns=unknowns,
         answer_payload={"status": "partial_evidence"},
         report_paragraphs=[
+            DecisionReportParagraph(text=boundary[:2399]),
             DecisionReportParagraph(
                 text=known[:2399],
                 evidence_refs=list(dict.fromkeys(
                     ref for item in confirmed for ref in item.evidence_refs
                 )),
             ),
-            DecisionReportParagraph(text=boundary),
         ],
         stop_reason="partial_evidence",
-        model_prompt_revision="decision-partial-fallback-v1",
+        model_prompt_revision="decision-partial-fallback-v2",
     )
 
 

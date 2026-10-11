@@ -10,7 +10,7 @@ from packages.investigation.perception.contracts import (
 
 
 class PerceptionPlanner:
-    PLANNER_REVISION = "perception-planner-v1"
+    PLANNER_REVISION = "perception-planner-v2"
 
     def plan(self, request: PerceptionRequest) -> PhysicalPerceptionPlan:
         target = request.target
@@ -67,6 +67,7 @@ class PerceptionPlanner:
             graph_payload: dict[str, object] = {
                 "direction": "both" if request.operation is PerceptionOperation.TRACE else "out",
                 "relation_types": target.relation_types,
+                "limit": min(request.evidence_requirement.max_candidates, 20),
             }
             if target.object_id is not None:
                 graph_payload["object_id"] = target.object_id
@@ -78,6 +79,15 @@ class PerceptionPlanner:
                         input=graph_payload,
                         dependency=None if target.object_id is not None else exact_step_id,
                         expected_output_type="relation",
+                    )
+                )
+                steps.append(
+                    PhysicalPerceptionStep(
+                        step_id="graph-evidence:0",
+                        operator=PhysicalOperator.EVIDENCE,
+                        input={"target_kind": "relation"},
+                        dependency="graph:0",
+                        expected_output_type="evidence",
                     )
                 )
 

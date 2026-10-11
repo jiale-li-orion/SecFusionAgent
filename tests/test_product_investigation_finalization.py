@@ -1,5 +1,6 @@
 import asyncio
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -13,15 +14,41 @@ from packages.investigation.cases.service import CaseService
 from packages.investigation.runtime.test_model_planner import (
     _attach_primary_evidence,
     _database,
-    _seed,
+)
+from packages.investigation.runtime.test_model_planner import (
+    _seed as _seed_planner,
 )
 from packages.investigation.state.contracts import ProposedState, StatePatch, StatePatchOperation
 from packages.investigation.state.service import InvestigationStateService
 from packages.investigation.storage.models import InvestigationCaseModel
 from packages.reasoning.model import DecisionPlannerResponse
+from packages.runtime.execution.service import ExecutionRunService
 from packages.shared.config import Settings
+from packages.task_runtime.contracts.execution import ExecutionEnvelope
 from packages.task_runtime.contracts.models import TaskRunStatus
 from packages.task_runtime.storage.service import transition_task_run
+
+
+async def _seed(factory):
+    seeded = await _seed_planner(factory)
+    run_id, _, contract, state, _, _ = seeded
+    async with factory() as session, session.begin():
+        await ExecutionRunService().create(session, ExecutionEnvelope(
+            execution_id=f"execution:{run_id}",
+            task_contract_id=contract.task_contract_id,
+            task_run_id=run_id,
+            case_id=state.case_id,
+            role_revision="InvestigationRole@1",
+            context_manifest_revision=1,
+            execution_profile="VERIFY",
+            deadline_at=datetime.now(UTC) + timedelta(minutes=5),
+            budget_ref=f"budget:{run_id}",
+            policy_revision="policy-v1",
+            network_policy="deny",
+            side_effect_policy="read-only",
+            sandbox_profile_revision="test-v1",
+        ))
+    return seeded
 
 
 @pytest.fixture
@@ -173,7 +200,7 @@ async def test_concurrent_redelivery_cannot_duplicate_or_fail_running_decision(l
 
 
 @pytest.mark.asyncio
-async def test_decision_evidence_gap_waits_with_a_durable_need(lease) -> None:
+async def test_decision_evidence_gap_waits_with_a_durable_need_and_readable_answer(lease) -> None:
 
     class GapProvider(DecisionProvider):
         async def generate_structured(self, request: Any, response_model: Any) -> Any:
@@ -192,24 +219,31 @@ async def test_decision_evidence_gap_waits_with_a_durable_need(lease) -> None:
     engine, factory = await _database()
     try:
         run_id, state = await _completed_case(factory)
-        result = await FinalizeInvestigationUseCase(
-            factory, Settings(), GapProvider(), lease=lease
-        ).execute(run_id)
-        assert result and result.startswith("evidence-need:")
+        finalizer = FinalizeInvestigationUseCase(factory, Settings(), GapProvider(), lease=lease)
+        result = await finalizer.execute(run_id)
+        assert await finalizer.execute(run_id) == result
+        assert result and result.startswith("decision:")
         async with factory() as session:
             case = await session.get(InvestigationCaseModel, state.case_id)
             assert case is not None
             assert case.status == "waiting"
+            current = await InvestigationStateService().get_state(session, state.case_id)
+            assert current.current_decision is not None
+            assert current.current_decision["unknowns"] == ["Confirm downstream applicability"]
+            paragraph = current.current_decision["report_paragraphs"][0]["text"]
+            assert "Confirm downstream applicability" in paragraph
+            assert current.current_decision["citations"]
             needs = await InvestigationStateService().list_evidence_needs(session, state.case_id)
-            assert any(
+            assert sum(
                 need.proposition_or_question == "Confirm downstream applicability" for need in needs
-            )
+            ) == 1
     finally:
         await engine.dispose()
 
 
 @pytest.mark.asyncio
-async def test_blocked_product_investigation_returns_honest_readable_answer(lease) -> None:
+@pytest.mark.parametrize("reason", ["no_progress", "planner_stop_unstructured_reason"])
+async def test_blocked_product_investigation_returns_honest_readable_answer(lease, reason) -> None:
     engine, factory = await _database()
     try:
         run_id, _object_id, _contract, state, _need, _manifest = await _seed(factory)
@@ -223,7 +257,7 @@ async def test_blocked_product_investigation_returns_honest_readable_answer(leas
                     idempotency_key=f"test:insufficient:{status}",
                     payload_ref="test",
                     stream_name="secfusion:test-finalize",
-                    stop_reason="no_progress" if status is TaskRunStatus.BLOCKED else None,
+                    stop_reason=reason if status is TaskRunStatus.BLOCKED else None,
                 )
         provider = DecisionProvider()
         result_ref = await FinalizeInvestigationUseCase(
@@ -274,5 +308,35 @@ async def test_invalid_final_report_is_replaced_with_evidence_boundary(lease) ->
             assert current.current_decision["citations"] == []
             case = await session.get(InvestigationCaseModel, state.case_id)
             assert case is not None and case.status == "waiting"
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_rejected_continuation_cannot_suppress_the_turn_report(lease) -> None:
+    class EscapedProvider(DecisionProvider):
+        async def generate_structured(self, request: Any, response_model: Any) -> Any:
+            return response_model.model_validate({"action": {
+                "kind": "continue", "proposition_or_question": "Inspect another tenant",
+                "purpose": "inspect_other", "reason": "Model requested a different target",
+                "target_objects": ["unbound-object"],
+            }})
+
+    engine, factory = await _database()
+    try:
+        run_id, state = await _completed_case(factory)
+        finalizer = FinalizeInvestigationUseCase(
+            factory, Settings(), EscapedProvider(), lease=lease,
+        )
+        result = await finalizer.execute(run_id)
+        assert result and result.startswith("decision:")
+        assert await finalizer.execute(run_id) == result
+        async with factory() as session:
+            current = await InvestigationStateService().get_state(session, state.case_id)
+            assert current.current_decision is not None
+            assert current.current_decision["stop_reason"] == "evidence_insufficient"
+            assert current.current_decision["conclusions"] == []
+            needs = await InvestigationStateService().list_evidence_needs(session, state.case_id)
+            assert all("unbound-object" not in need.target_objects for need in needs)
     finally:
         await engine.dispose()

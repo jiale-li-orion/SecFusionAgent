@@ -205,9 +205,15 @@ class AskQuestionUseCase:
             principal=command.principal,
         )
         auto_route = command.task_kind is None
+        explicit_target = command.cve_id is not None or command.object_id is not None
         if command.task_kind is None:
             task_kind, cve_id = infer_question_route(
                 command.question, cve_id=command.cve_id, object_id=command.object_id,
+                has_session_target=bool(
+                    session_context.latest_turn
+                    and (len(session_context.latest_turn.target_object_ids) == 1
+                         or session_context.latest_turn.investigation_ref)
+                ),
             )
             command = command.model_copy(update={"task_kind": task_kind, "cve_id": cve_id})
         assert command.task_kind is not None
@@ -224,6 +230,11 @@ class AskQuestionUseCase:
         )
         if command.task_kind not in {TaskKind.LOOKUP, TaskKind.RETRIEVE}:
             if active_case_id is not None:
+                if not explicit_target and command.cve_id is not None:
+                    mentioned_target = await get_vulnerability_by_cve(session, command.cve_id)
+                    case_state = await self._investigation_state.get_state(session, active_case_id)
+                    if mentioned_target and mentioned_target.object_id in case_state.targets:
+                        command = command.model_copy(update={"cve_id": None})
                 if command.cve_id is not None or command.object_id is not None:
                     raise LifecycleConflictError(
                         "active investigation follow-up cannot rebind the session target",

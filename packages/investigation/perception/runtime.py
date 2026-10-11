@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from collections import Counter
+from typing import cast
 
+from pydantic import JsonValue
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from packages.intelligence.retrieval.contracts import RetrievedCandidate
+from packages.intelligence.retrieval.contracts import CandidateKind, RetrievedCandidate
 from packages.intelligence.retrieval.operators import (
     DenseRetrievalOperator,
     DocumentRetrievalOperator,
@@ -101,6 +103,16 @@ class PerceptionRuntime:
             request_id=request.request_id,
             target_refs=target_refs,
             observed_propositions=observed_propositions,
+            # Keep discovered edges navigable even if citation candidates occupy
+            # the bounded evidence list. These are reads, not confirmed M4 facts.
+            relations=[
+                cast(
+                    dict[str, JsonValue],
+                    {"relation_id": candidate.relation_id, **candidate.payload},
+                )
+                for candidate in all_candidates
+                if candidate.candidate_kind is CandidateKind.RELATION
+            ][:request.evidence_requirement.max_candidates],
             candidate_evidence=assembled.candidates,
             evidence_handles=evidence_handles,
             observation_handles=sorted(set(observation_handles)),
@@ -156,22 +168,24 @@ class PerceptionRuntime:
                 )
             return PerceptionStepResult(candidates=results)
         if step.operator is PhysicalOperator.LEXICAL:
+            candidates = await self._lexical.search(
+                session,
+                query=str(payload["query"]),
+                limit=int(payload.get("limit", 20)),
+                source_ids=_string_list(payload.get("source_ids")),
+            )
             return PerceptionStepResult(
-                candidates=await self._lexical.search(
-                    session,
-                    query=str(payload["query"]),
-                    limit=int(payload.get("limit", 20)),
-                    source_ids=_string_list(payload.get("source_ids")),
-                )
+                candidates=await self._document.bind_evidence(session, candidates),
             )
         if step.operator is PhysicalOperator.DENSE:
+            candidates = await self._dense.search(
+                session,
+                query_vector=_float_list(payload.get("query_vector")),
+                limit=int(payload.get("limit", 20)),
+                source_ids=_string_list(payload.get("source_ids")),
+            )
             return PerceptionStepResult(
-                candidates=await self._dense.search(
-                    session,
-                    query_vector=_float_list(payload.get("query_vector")),
-                    limit=int(payload.get("limit", 20)),
-                    source_ids=_string_list(payload.get("source_ids")),
-                )
+                candidates=await self._document.bind_evidence(session, candidates),
             )
         if step.operator is PhysicalOperator.GRAPH:
             object_ids = _subject_ids(payload, dependency)
@@ -183,16 +197,32 @@ class PerceptionRuntime:
                         object_id=object_id,
                         direction=str(payload.get("direction", "out")),
                         relation_types=_string_list(payload.get("relation_types")),
+                        limit=int(payload.get("limit", 20)),
                     )
                 )
             return PerceptionStepResult(candidates=results)
         if step.operator is PhysicalOperator.EVIDENCE:
-            return PerceptionStepResult(
-                candidates=await self._evidence.for_target(
-                    session,
-                    target_kind=str(payload["target_kind"]),
-                    target_id=str(payload["target_id"]),
+            target_ids = (
+                [str(payload["target_id"])] if payload.get("target_id") else
+                list(dict.fromkeys(item.relation_id for item in dependency if item.relation_id))
+            )
+            results = []
+            warnings = []
+            budget = min(max(request.evidence_requirement.max_candidates, 1), 100)
+            target_ids = target_ids[:budget]
+            for index, target_id in enumerate(target_ids):
+                share, remainder = divmod(budget, len(target_ids))
+                limit = share + int(index < remainder)
+                candidates = await self._evidence.for_target(
+                    session, target_kind=str(payload["target_kind"]), target_id=target_id,
+                    limit=limit + 1,
                 )
+                if len(candidates) > limit:
+                    warnings.append(f"evidence_candidates_truncated:{target_id}")
+                results.extend(candidates[:limit])
+            return PerceptionStepResult(
+                candidates=results, unresolved=warnings,
+                cost={"read_queries": len(target_ids), "truncated_targets": len(warnings)},
             )
         if step.operator in {PhysicalOperator.EXTERNAL, PhysicalOperator.SANDBOX}:
             if self._physical_observation_port is None:

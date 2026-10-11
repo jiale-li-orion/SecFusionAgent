@@ -370,6 +370,7 @@ async def _complete_investigation_episode(factory, case_id: str) -> None:
             select(TaskRunModel).where(
                 TaskRunModel.case_id == case_id,
                 TaskRunModel.role_id == "InvestigationRole",
+                TaskRunModel.status == TaskRunStatus.QUEUED.value,
             )
         )
         assert run is not None and run.status == TaskRunStatus.QUEUED.value
@@ -486,7 +487,7 @@ async def test_lookup_question_runs_read_only_decision_without_durable_case() ->
         assert metadata["execution_id"]
         assert metadata["case_id"] is None
         assert metadata["product_request_id"] == "question-direct-1"
-        assert metadata["prompt_revision"] == "decision-model-v4"
+        assert metadata["prompt_revision"] == "decision-model-v5"
     finally:
         await engine.dispose()
 
@@ -1853,5 +1854,100 @@ async def test_question_timeout_returns_retryable_problem_after_terminating_runt
             assert run.status == 'failed'
             assert run.stop_reason == 'question_deadline_exceeded'
             assert execution.status == 'failed'
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.parametrize('question,scoped,expected', [
+    (
+        '调查 vllm-project/vllm 的关联证据、冲突、未知与外部上下文。',
+        True, TaskKind.INVESTIGATE_RELATION,
+    ),
+    ('请深入调查这个项目的安全风险和关联证据', True, TaskKind.INVESTIGATE_RELATION),
+    (
+        'Please investigate the repository and its security context.',
+        True, TaskKind.INVESTIGATE_RELATION,
+    ),
+    ('不要调查，只告诉我这个仓库的许可证', True, TaskKind.LOOKUP),  # noqa: RUF001
+    ('这份调查报告的发布日期是什么？', True, TaskKind.LOOKUP),  # noqa: RUF001
+    ('What does this investigation report say?', True, TaskKind.LOOKUP),
+    ('调查 Hugging Face 事件', False, TaskKind.RETRIEVE),
+])
+def test_scoped_investigation_intent_is_not_downgraded_to_metadata_lookup(
+    question: str, scoped: bool, expected: TaskKind,
+) -> None:
+    kind, _ = infer_question_route(
+        question, cve_id=None, object_id=DOCUMENT_ID if scoped else None,
+    )
+    assert kind is expected
+
+
+@pytest.mark.asyncio
+async def test_dossier_investigate_starts_real_case_with_the_full_question() -> None:
+    engine, factory = await _factory()
+    question = '调查 vllm-project/vllm 的关联证据、冲突、未知与外部上下文。'
+    provider = _Provider(DecisionPlannerResponse(action=FinalDecisionProposal(
+        answer_payload={'license': 'Apache-2.0'}, stop_reason='evidence_sufficient',
+    )))
+    try:
+        async with factory() as session:
+            result = await _use_case(provider).execute(session, AskQuestionCommand(
+                principal='user:test', request_id='repository-investigation-intent',
+                question=question, object_id=DOCUMENT_ID,
+            ))
+        assert result.mode == 'accepted'
+        assert result.execution_profile == 'INVESTIGATE'
+        assert result.decision is None
+        assert result.investigation is not None
+        assert result.investigation.goal == question
+        assert result.investigation.open_evidence_needs[0].question == question
+        assert provider.requests == []
+        async with factory() as session:
+            turn = await session.scalar(select(QuestionSessionTurnModel))
+            assert turn is not None and turn.task_kind == 'investigate_relation'
+            assert turn.investigation_ref == f'case:{result.investigation.case_id}'
+            run = await session.scalar(select(TaskRunModel))
+            assert run is not None and run.role_id == 'InvestigationRole'
+        await _complete_investigation_episode(factory, result.investigation.case_id)
+        async with factory() as session:
+            followup = await _use_case(provider).execute(session, AskQuestionCommand(
+                principal='user:test', request_id='repository-investigation-followup',
+                session_id=result.session_id, question='继续调查其外部安全上下文',
+            ))
+        assert followup.mode == 'accepted'
+        assert followup.investigation is not None
+        assert followup.investigation.case_id == result.investigation.case_id
+        assert followup.turn_index == 2
+        assert provider.requests == []
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_natural_followup_can_repeat_case_cve_but_cannot_change_it() -> None:
+    engine, factory = await _factory()
+    try:
+        async with factory() as session:
+            first = await _use_case(None).execute(session, AskQuestionCommand(
+                principal="user:test", request_id="cve-intent-first",
+                question=f"调查 {CVE} 的修复情况",
+            ))
+        assert first.investigation is not None
+        await _complete_investigation_episode(factory, first.investigation.case_id)
+        async with factory() as session:
+            second = await _use_case(None).execute(session, AskQuestionCommand(
+                principal="user:test", request_id="cve-intent-followup",
+                session_id=first.session_id, question=f"继续调查 {CVE} 的修复版本",
+            ))
+        assert second.investigation is not None
+        assert second.investigation.case_id == first.investigation.case_id
+        assert second.turn_index == 2
+        await _complete_investigation_episode(factory, first.investigation.case_id)
+        async with factory() as session:
+            with pytest.raises(LifecycleConflictError, match="cannot rebind"):
+                await _use_case(None).execute(session, AskQuestionCommand(
+                    principal="user:test", request_id="cve-intent-escape",
+                    session_id=first.session_id, question="继续调查 CVE-2026-99999 的修复版本",
+                ))
     finally:
         await engine.dispose()

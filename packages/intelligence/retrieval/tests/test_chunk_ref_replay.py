@@ -228,5 +228,20 @@ async def test_chunk_ref_replay_preserves_requested_order_and_exact_revision() -
             assert current[0].payload["text"] == "current source text"
             assert current[0].revision == "current-r2"
             assert current[0].evidence_ref == "current-evidence"
+            retrieved = await LexicalRetrievalOperator().by_chunk_refs(session, refs=[
+                "document-chunk:current-chunk@current-r2",
+                "document-chunk:retrieval-replay-chunk-1@retrieval-replay-r1",
+            ])
+            bound = await reader.bind_evidence(session, retrieved)
+            assert [item.evidence_ref for item in bound] == ["current-evidence", None]
+            assert [item.payload["text"] for item in bound] == [
+                "current source text", "first chunk",
+            ]
+            # Neither a stale version nor a different object inherits the current link.
+            mismatched = await reader.bind_evidence(session, [
+                retrieved[0].model_copy(update={"revision": "retrieval-replay-r1"}),
+                retrieved[0].model_copy(update={"object_id": "unrelated-object"}),
+            ])
+            assert all(item.evidence_ref is None for item in mismatched)
     finally:
         await engine.dispose()

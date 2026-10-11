@@ -55,11 +55,19 @@ class DecisionPlannerResponse(BaseModel):
 REPORT_INSTRUCTION = (
     "After deciding the structured answer_payload and conclusions, write "
     "report_paragraphs as a concise research report for a security analyst in "
-    "the language of the user's question. Write two to four coherent prose "
+    "the language of the user's question. Write one to four coherent prose "
     "paragraphs, each with complete subject-predicate sentences. Start with "
     "the direct answer and scope; explain why the cited source material "
     "supports the answer; then describe material uncertainty or a next step "
-    "only when justified. Interpret the facts for a reader instead of listing "
+    "only when justified. Scale the length to what the evidence actually answers; "
+    "do not pad a broad investigation with repository language, license or popularity "
+    "statistics when these do not address the requested security context. State "
+    "material coverage gaps in the opening paragraph, not only in a final caveat. "
+    "Empty conflict/unknown arrays mean no such items were recorded, not proof that "
+    "none exist. A public or non-archived repository does not establish maintenance, "
+    "safety, code quality or adoption. Counts of stars, forks or issues do not establish "
+    "those properties either. Never describe a metadata-only lookup as a completed "
+    "security investigation. Interpret the facts for a reader instead of listing "
     "fields, copying raw propositions, counting citations, or describing the "
     "system's internal validation. The prose must not mention "
     "InvestigationState, state items, propositions, answer_payload, conclusion "
@@ -78,8 +86,8 @@ REPORT_INSTRUCTION = (
 
 
 class ModelDecisionPlanner:
-    PROMPT_REVISION = "decision-model-v2"
-    REPORT_PROMPT_REVISION = "decision-model-v4"
+    PROMPT_REVISION = "decision-model-v5-core"
+    REPORT_PROMPT_REVISION = "decision-model-v5"
 
     def __init__(self, provider: ModelProvider) -> None:
         self._provider = provider
@@ -119,6 +127,13 @@ class ModelDecisionPlanner:
                 "facts the user did not ask for, and do not restate an already-supported fact as "
                 "a second inference merely to explain it. answer_payload should contain only the "
                 "fields needed for the requested answer. "
+                "Judge sufficiency against the entire stated goal. Repository metadata alone "
+                "does not answer a request to investigate relationships, conflicting evidence, "
+                "security risks or external context. If these requested dimensions have not "
+                "been checked, request continuation for that gap rather than declaring "
+                "evidence_sufficient. Empty state lists do not prove the absence of conflicts "
+                "or unknowns. When a partial final is required, record uncovered requested "
+                "dimensions in unknowns and clearly limit the answer to the observed scope. "
                 f"{REPORT_INSTRUCTION if include_report else ''}"
                 "If you request continuation for a targetless retrieval question, select the "
                 "relevant durable target_objects only from InvestigationState.targets; do not "

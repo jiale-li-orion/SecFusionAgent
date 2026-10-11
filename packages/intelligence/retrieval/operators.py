@@ -367,6 +367,43 @@ class LexicalRetrievalOperator:
 class DocumentRetrievalOperator:
     """Read source text at the current document revision, without inventing facts."""
 
+    async def bind_evidence(
+        self, session: AsyncSession, candidates: list[RetrievedCandidate],
+    ) -> list[RetrievedCandidate]:
+        """Bind retrieved passages to an existing link from their exact source revision."""
+        chunk_ids = [item.document_chunk_id for item in candidates if item.document_chunk_id]
+        if not chunk_ids:
+            return candidates
+        support = (
+            select(EvidenceLinkModel.evidence_link_id)
+            .where(
+                EvidenceLinkModel.target_kind == "object",
+                EvidenceLinkModel.target_id == DocumentModel.object_id,
+                EvidenceLinkModel.observation_id == DocumentRevisionModel.observation_id,
+            )
+            .order_by(EvidenceLinkModel.evidence_link_id)
+            .limit(1)
+            .correlate(DocumentModel, DocumentRevisionModel)
+            .scalar_subquery()
+        )
+        rows = (await session.execute(
+            select(
+                DocumentChunkModel.chunk_id, DocumentChunkModel.document_revision_id,
+                DocumentModel.object_id, support,
+            )
+            .join(DocumentRevisionModel, DocumentRevisionModel.document_revision_id
+                  == DocumentChunkModel.document_revision_id)
+            .join(DocumentModel, DocumentModel.document_id == DocumentRevisionModel.document_id)
+            .where(DocumentChunkModel.chunk_id.in_(chunk_ids))
+        )).all()
+        refs = {(row[0], row[1], row[2]): row[3] for row in rows}
+        return [
+            item.model_copy(update={
+                "evidence_ref": refs.get((item.document_chunk_id, item.revision, item.object_id)),
+            }) if item.document_chunk_id else item
+            for item in candidates
+        ]
+
     async def for_object(
         self, session: AsyncSession, *, object_id: str, limit: int = 20
     ) -> list[RetrievedCandidate]:
@@ -571,6 +608,7 @@ class EvidenceRetrievalOperator:
         *,
         target_kind: str,
         target_id: str,
+        limit: int | None = None,
     ) -> list[RetrievedCandidate]:
         rows = (
             await session.execute(
@@ -593,7 +631,12 @@ class EvidenceRetrievalOperator:
                     EvidenceLinkModel.target_kind == target_kind,
                     EvidenceLinkModel.target_id == target_id,
                 )
-                .order_by(ObservationModel.observed_at, EvidenceLinkModel.evidence_link_id)
+                .order_by(
+                    ObservationModel.observed_at.desc() if limit is not None
+                    else ObservationModel.observed_at,
+                    EvidenceLinkModel.evidence_link_id,
+                )
+                .limit(limit)
             )
         ).all()
         return [

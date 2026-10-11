@@ -105,20 +105,49 @@ class SourceInvestigationPlannerDecision(BaseModel):
 
 _SOURCE_EVIDENCE_GUIDANCE = MaterializedFragment.build(
     kind="source_investigation_guidance",
-    source_ref="runtime-guidance:source-investigation-v2",
-    source_revision="source-investigation-v2",
+    source_ref="runtime-guidance:source-investigation-v3",
+    source_revision="source-investigation-v3",
     trust_class=FragmentTrustClass.RUNTIME_CONTROL,
     cache_class=FragmentCacheClass.TASK_STABLE,
     content={
         "instruction": (
-            "For a source or document investigation, persist each clearly supported "
-            "subfinding with a StatePatch as soon as its citable passage is available. "
+            "Investigate the user's actual question, not every available object attribute. "
+            "For a repository/security/relationship investigation, language, license, stars "
+            "and timestamps alone do not answer the question. Start with TRACE on the "
+            "bound object: it follows both incoming and outgoing relations, whereas EXPAND "
+            "only follows outgoing relations. Inspect relevant linked advisories, pull "
+            "requests, releases or packages using the visible relation source/target object_id "
+            "(the linked object may be the source of an incoming edge). Perception relations "
+            "carry navigation coordinates; its evidence handles support the association. "
+            "Do not discard an edge merely because its relation candidate has no inline "
+            "evidence_ref; use the accompanying evidence candidates. Then SEARCH for a short "
+            "project name alone (for example the repository basename, not owner/name), or "
+            "incident name to find material beyond those edges. SEARCH reads indexed "
+            "documents using an AND query: adding many security keywords can hide relevant "
+            "passages. It does not read the live web; do not claim an external search occurred. "
+            "A pull request title is a lead, not proof of a vulnerability or a fix. "
+            "For source/document questions, prioritize the requested passages and comparison "
+            "dimensions. Persist question-relevant supported subfindings as soon as their "
+            "citable passages are available, batching related findings into one StatePatch "
+            "with multiple operations instead of spending one model call per metadata field. "
             "Do not wait until every target or comparison dimension is covered before "
             "recording a supported fact. Leave resolves_need_id empty until the whole "
-            "EvidenceNeed is satisfied. Use only evidence_refs visible in the Percepts "
-            "and bound target object IDs. A source's silence is not proof of a negative "
-            "fact. After a focused search returns no new evidence, report the remaining "
-            "gap with WAIT or STOP; do not repeat the same inspection."
+            "EvidenceNeed is satisfied, including requested relationships, conflicts and "
+            "external context. Recording object metadata does not resolve those dimensions. "
+            "Write findings as readable sentences with the actual object name; use stable "
+            "IDs in target_ref, not in the prose. Use the question's language. Use only "
+            "evidence_refs visible in the Percepts. For a retrieved document, use "
+            "target_ref='object:<candidate.object_id>' and attribute the finding to that "
+            "document (for example, the paper reports X); its evidence supports the source "
+            "document, not an independently verified assertion about the Case repository. "
+            "For relation evidence, use a supported endpoint object. If a relevant search "
+            "hit has no evidence_ref, INSPECT its object_id to check the source before "
+            "declaring it uncitable. A source's silence "
+            "is not proof of a negative "
+            "fact. If coverage remains incomplete after a focused search, record each "
+            "material gap as an unknown StatePatch without evidence_refs or resolves_need_id, "
+            "then WAIT or STOP. Do not repeat the same inspection or claim all questions "
+            "are resolved because no conflict has yet been recorded."
         )
     },
 )
@@ -240,7 +269,7 @@ class ModelInvestigationPlanner:
             )
 
         prompt_revision = (
-            "investigation-model-v2-source" if source_task else "investigation-model-v1"
+            "investigation-model-v3-source" if source_task else "investigation-model-v1"
         )
         request = assembly.to_model_request()
         request = request.model_copy(
