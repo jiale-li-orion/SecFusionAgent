@@ -1114,3 +1114,70 @@ async def test_security_landing_identity_is_not_a_feed_update(recommendation_cli
         )
     rows = (await client.get("/api/v1/intelligence/feed")).json()["items"]
     assert "security-homepage" not in {row["object_id"] for row in rows}
+
+
+@pytest.mark.asyncio
+async def test_semantic_concepts_and_generic_vulnerability_nodes_never_become_updates(
+    recommendation_client,
+):
+    client, factory = recommendation_client
+    examples = [
+        (
+            "concept-control",
+            "SecurityControl",
+            "simple application and API security",
+            "simple application and API security",
+        ),
+        (
+            "concept-attack",
+            "attack",
+            "indirect_prompt_injection",
+            "indirect prompt injection security attack",
+        ),
+        ("placeholder-vuln", "Vulnerability", "this vulnerability", None),
+        ("placeholder-vulns", "Vulnerability", "remaining_potential_vulnerabilities", None),
+        (
+            "nested-dashboard",
+            "Document",
+            "vendor-dashboard:SECURITY-DASHBOARD",
+            "Vendor Security Dashboard",
+        ),
+    ]
+    async with factory() as session, session.begin():
+        for object_id, object_type, key, title in examples:
+            properties = {"title": title} if title else {}
+            if object_id == "nested-dashboard":
+                properties["url"] = "https://vendor.example/report/dashboard"
+            session.add(
+                ObjectModel(
+                    object_id=object_id,
+                    object_type=object_type,
+                    canonical_key=key,
+                    properties=properties,
+                    created_revision=1,
+                )
+            )
+            session.add(
+                ClaimModel(
+                    claim_id=f"{object_id}-claim",
+                    subject_id=object_id,
+                    predicate="description",
+                    value="A security related concept mentioned by the source.",
+                    origin="source_asserted",
+                    lifecycle="accepted",
+                    created_revision=1,
+                )
+            )
+            session.add(
+                EvidenceLinkModel(
+                    evidence_link_id=f"{object_id}-link",
+                    target_kind="claim",
+                    target_id=f"{object_id}-claim",
+                    observation_id="recommendation-observation",
+                    locator={"field": "description"},
+                    locator_hash=object_id,
+                )
+            )
+    rows = (await client.get("/api/v1/intelligence/feed")).json()["items"]
+    assert not {example[0] for example in examples}.intersection(row["object_id"] for row in rows)
+    assert {"vulnerability-a", "vulnerability-c"} <= {row["object_id"] for row in rows}

@@ -2,6 +2,7 @@
 
 from .feedback import put_activity_feedback
 from .policy import (
+    ACTIVITY_TYPES,
     IDENTITY_TYPES,
     SECURITY_RELATIONS,
     TEXT_FIELDS,
@@ -13,6 +14,7 @@ from .policy import (
 )
 
 __all__ = [
+    "ACTIVITY_TYPES",
     "IDENTITY_TYPES",
     "SECURITY_RELATIONS",
     "TEXT_FIELDS",

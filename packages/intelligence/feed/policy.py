@@ -52,6 +52,90 @@ IDENTITY_TYPES = {
 }
 
 
+ACTIVITY_TYPES = {
+    "Vulnerability",
+    "SecurityIncident",
+    "Incident",
+    "ExploitArtifact",
+    "Document",
+    "ResearchWork",
+    "NormativeDocument",
+    "Release",
+    "SoftwareVersion",
+    "PullRequest",
+    "Commit",
+    "Issue",
+}
+VULNERABILITY_ID = re.compile(
+    r"\b(?:CVE-\d{4}-\d+|GHSA-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}|"
+    r"(?:CNVD|CNNVD|PYSEC|RUSTSEC|GO|GSD)-\d{4}-\d+)\b",
+    re.I,
+)
+_GENERIC_VULNERABILITY_WORDS = {
+    "this",
+    "that",
+    "the",
+    "these",
+    "those",
+    "a",
+    "an",
+    "remaining",
+    "potential",
+    "vulnerability",
+    "vulnerabilities",
+    "security",
+    "issue",
+    "issues",
+    "unknown",
+    "unidentified",
+    "unspecified",
+    "multiple",
+    "several",
+    "new",
+    "possible",
+    "current",
+    "remote",
+    "code",
+    "execution",
+    "prompt",
+    "indirect",
+    "injection",
+    "attack",
+    "attacks",
+    "other",
+    "any",
+    "some",
+    "related",
+    "critical",
+    "high",
+    "risk",
+    "risks",
+}
+
+
+def substantive_vulnerability(identity: str, title: str) -> bool:
+    if VULNERABILITY_ID.search(identity):
+        return True
+    identity_words = set(re.findall(r"[a-z]+", identity.casefold()))
+    if identity_words and identity_words <= _GENERIC_VULNERABILITY_WORDS:
+        return False
+    words = set(re.findall(r"[a-z]+", title.casefold()))
+    if VULNERABILITY_ID.search(title):
+        return True
+    return (
+        len(title.strip()) >= 20
+        and bool(words - _GENERIC_VULNERABILITY_WORDS)
+        and bool(
+            SECURITY.search(title)
+            or re.search(
+                r"overflow|bypass|execution|leak|escalation|injection|use.after.free|denial.of.service",
+                title,
+                re.I,
+            )
+        )
+    )
+
+
 def is_landing_document(source_urls: list[str]) -> bool:
     """Root and recognizable directory URLs do not establish an article update."""
     landing = []
@@ -71,6 +155,7 @@ def is_landing_document(source_urls: list[str]) -> bool:
             parts = parts[1:]
         landing.append(
             not parts
+            or (bool(parts) and parts[-1] == "dashboard")
             or (
                 len(parts) == 1
                 and parts[0]
@@ -101,8 +186,12 @@ def activity_kind(
     evidenced_relations: list[str],
     *,
     source_urls: list[str] | None = None,
+    identity: str = "",
+    title: str = "",
 ) -> str | None:
-    if object_type in IDENTITY_TYPES:
+    if object_type not in ACTIVITY_TYPES:
+        return None
+    if object_type == "Vulnerability" and not substantive_vulnerability(identity, title):
         return None
     if object_type == "Document" and is_landing_document(source_urls or []):
         return None

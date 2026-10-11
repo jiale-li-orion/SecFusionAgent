@@ -29,7 +29,7 @@ from apps.application.views.recommendations import (
     RecommendationReasonView,
 )
 from packages.intelligence.feed import (
-    IDENTITY_TYPES,
+    ACTIVITY_TYPES,
     SECURITY_RELATIONS,
     TEXT_FIELDS,
     activity_identity,
@@ -131,7 +131,7 @@ async def read_intelligence_feed(
     )
     object_types = {obj.object_id: obj.object_type for obj in objects}
     canonical_keys = {obj.object_id: obj.canonical_key for obj in objects}
-    objects = [obj for obj in objects if obj.object_type not in IDENTITY_TYPES]
+    objects = [obj for obj in objects if obj.object_type in ACTIVITY_TYPES]
     ids = [obj.object_id for obj in objects]
     if not ids:
         return response
@@ -314,6 +314,8 @@ async def read_intelligence_feed(
                 in {"Vulnerability", "SecurityIncident", "Incident", "ExploitArtifact"}
             ],
             source_urls=source_urls[obj.object_id],
+            identity=obj.canonical_key,
+            title=title.text or "",
         )
         if not kind:
             continue

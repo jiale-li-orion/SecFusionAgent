@@ -71,3 +71,47 @@ def test_generic_security_landing_and_index_urls_are_not_updates():
         )
         == "security"
     )
+
+
+def test_extracted_concepts_and_placeholder_vulnerabilities_are_not_activities():
+    assert activity_kind("SecurityControl", "simple application and API security", []) is None
+    assert activity_kind("attack", "indirect_prompt_injection security attack", []) is None
+    assert (
+        activity_kind(
+            "Vulnerability",
+            "this vulnerability",
+            [],
+            identity="this vulnerability",
+            title="this vulnerability",
+        )
+        is None
+    )
+    assert (
+        activity_kind(
+            "Vulnerability",
+            "remaining potential vulnerabilities",
+            [],
+            identity="remaining_potential_vulnerabilities",
+            title="remaining_potential_vulnerabilities",
+        )
+        is None
+    )
+    assert activity_kind("Vulnerability", "", [], identity="cve:CVE-2026-12345") == "security"
+    assert (
+        activity_kind(
+            "Vulnerability",
+            "Ray permits unauthenticated remote code execution",
+            [],
+            title="Ray permits unauthenticated remote code execution",
+        )
+        == "security"
+    )
+    assert (
+        activity_kind(
+            "Document",
+            "Security Dashboard",
+            [],
+            source_urls=["https://vendor.example/reports/dashboard"],
+        )
+        is None
+    )
