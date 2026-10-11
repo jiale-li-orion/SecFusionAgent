@@ -122,10 +122,14 @@ class _RoleModelProvider:
     name = "planner-role-test"
     version = "v1"
 
-    def __init__(self, *, object_id: str, evidence_id: str, need_id: str) -> None:
+    def __init__(
+        self, *, object_id: str, evidence_id: str, need_id: str,
+        reject_first_patch: bool = False,
+    ) -> None:
         self._object_id = object_id
         self._evidence_id = evidence_id
         self._need_id = need_id
+        self._reject_first_patch = reject_first_patch
         self.requests: list[StructuredModelRequest] = []
 
     async def generate_structured(self, request, response_model):
@@ -152,6 +156,15 @@ class _RoleModelProvider:
                     )
                 )
             )
+        if self._reject_first_patch and len(self.requests) == 3:
+            data = str(request.data)
+            assert "state_patch_rejected:" in data
+            assert self._evidence_id in data
+        target_ref = (
+            "relation:invalid-patch-target"
+            if self._reject_first_patch and len(self.requests) == 2
+            else self._object_id
+        )
         return InvestigationPlannerDecision(
             action=StatePatchAction(
                 patch=StatePatch(
@@ -162,7 +175,7 @@ class _RoleModelProvider:
                     operations=[
                         StatePatchOperation(
                             proposition="Primary advisory establishes the fixed release.",
-                            target_ref=self._object_id,
+                            target_ref=target_ref,
                             proposed_state=ProposedState.CONFIRMED,
                             evidence_refs=[self._evidence_id],
                             resolves_need_id=self._need_id,
@@ -450,7 +463,10 @@ async def test_model_planner_materializes_skill_capability_and_runtime_owned_act
 
 
 @pytest.mark.asyncio
-async def test_model_planner_runs_full_investigation_role_loop_through_state_gate() -> None:
+@pytest.mark.parametrize("reject_first_patch", [False, True])
+async def test_model_planner_runs_full_investigation_role_loop_through_state_gate(
+    reject_first_patch: bool,
+) -> None:
     engine, factory = await _database()
     try:
         run_id, object_id, _contract, _state, need, skill_ref = await _seed(factory)
@@ -459,6 +475,7 @@ async def test_model_planner_runs_full_investigation_role_loop_through_state_gat
             object_id=object_id,
             evidence_id=evidence_id,
             need_id=need.need_id,
+            reject_first_patch=reject_first_patch,
         )
         planner = ModelInvestigationPlanner(
             factory,
@@ -483,7 +500,7 @@ async def test_model_planner_runs_full_investigation_role_loop_through_state_gat
         assert outcome.run_status.value == "completed"
         assert outcome.result.resolved_need_ids == [need.need_id]
         assert outcome.result.final_case_revision == 4
-        assert len(provider.requests) == 2
+        assert len(provider.requests) == (3 if reject_first_patch else 2)
 
         async with factory() as session:
             state = await InvestigationStateService(now=lambda: NOW).get_state(
@@ -523,7 +540,7 @@ async def test_research_object_planner_excludes_cve_only_delegation() -> None:
 
         async def generate_structured(self, request, response_model):
             assert response_model is SourceInvestigationPlannerDecision
-            assert request.metadata["prompt_revision"] == "investigation-model-v3-source"
+            assert request.metadata["prompt_revision"] == "investigation-model-v4-source"
             assert "source_investigation_guidance" in request.system_instruction
             schema = response_model.model_json_schema()
             assert "DelegationAction" not in schema["$defs"]

@@ -51,7 +51,13 @@ class ReasoningRelation(BaseModel):
 
 class StatePatchOperation(BaseModel):
     proposition: str
-    target_ref: str | None = None
+    target_ref: str | None = Field(
+        default=None,
+        description=(
+            "Stable object:<id> or incident:<id> supported by the cited evidence; "
+            "for a relation finding use its supported endpoint object, not relation:<id>."
+        ),
+    )
     proposed_state: ProposedState
     disposition: PatchDisposition = PatchDisposition.SET
     evidence_refs: list[str] = Field(default_factory=list)

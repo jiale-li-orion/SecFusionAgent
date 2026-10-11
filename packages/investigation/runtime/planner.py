@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
 from hashlib import sha256
 from re import fullmatch
 from typing import Protocol, cast
@@ -105,8 +104,8 @@ class SourceInvestigationPlannerDecision(BaseModel):
 
 _SOURCE_EVIDENCE_GUIDANCE = MaterializedFragment.build(
     kind="source_investigation_guidance",
-    source_ref="runtime-guidance:source-investigation-v3",
-    source_revision="source-investigation-v3",
+    source_ref="runtime-guidance:source-investigation-v4",
+    source_revision="source-investigation-v4",
     trust_class=FragmentTrustClass.RUNTIME_CONTROL,
     cache_class=FragmentCacheClass.TASK_STABLE,
     content={
@@ -148,6 +147,9 @@ _SOURCE_EVIDENCE_GUIDANCE = MaterializedFragment.build(
             "material gap as an unknown StatePatch without evidence_refs or resolves_need_id, "
             "then WAIT or STOP. Do not repeat the same inspection or claim all questions "
             "are resolved because no conflict has yet been recorded."
+            " StatePatch target_ref accepts only object:<id> or incident:<id>, never "
+            "relation:<id>. When state_patch_rejected appears, correct the rejected "
+            "operation using the retained source evidence instead of repeating it."
         )
     },
 )
@@ -188,7 +190,6 @@ class ModelInvestigationPlanner:
                 session,
                 manifest,
             )
-            object_ref_aliases = _visible_object_ref_aliases(context_fragments)
             object_types = _object_types(context_fragments)
             source_task = "Vulnerability" not in object_types
             role = canonical_roles()["InvestigationRole"]
@@ -237,13 +238,20 @@ class ModelInvestigationPlanner:
                 disclosure_level=SkillDisclosureLevel.PROCEDURE,
                 store=self._skill_store,
             )
-            percepts: Sequence[Percept | None] = frame.recent_percepts or [frame.last_percept]
+            # A gate rejection is the latest feedback, but is not a source Percept in
+            # recent_percepts. Keep it alongside the evidence needed to correct the patch.
+            percepts = list(frame.recent_percepts)
+            if frame.last_percept is not None and all(
+                item.percept_id != frame.last_percept.percept_id for item in percepts
+            ):
+                percepts.append(frame.last_percept)
             ephemeral = [
                 fragment
                 for percept in percepts
                 if percept is not None
                 for fragment in _percept_fragments(percept)
             ]
+            object_ref_aliases = _visible_object_ref_aliases([*context_fragments, *ephemeral])
             assembly = await materialize_investigation_prompt(
                 session,
                 task_run_id=frame.task_run_id,
@@ -269,7 +277,7 @@ class ModelInvestigationPlanner:
             )
 
         prompt_revision = (
-            "investigation-model-v3-source" if source_task else "investigation-model-v1"
+            "investigation-model-v4-source" if source_task else "investigation-model-v1"
         )
         request = assembly.to_model_request()
         request = request.model_copy(
