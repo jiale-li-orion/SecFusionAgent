@@ -194,10 +194,17 @@ async def test_account_conversations_and_preferences_are_cookie_owned(authentica
     async with factory() as session, session.begin():
         for index in range(2):
             await QuestionSessionStore().append_turn(
-                session, session_id="alice-conversation", principal=f"user:{alice_id}",
-                request_id=f"alice-question-{index}", question=f"Alice private question {index}",
-                task_kind="lookup", target_object_ids=[], knowledge_revision=None,
-                context_id=None, decision_ref=f"decision-{index}", investigation_ref=None,
+                session,
+                session_id="alice-conversation",
+                principal=f"user:{alice_id}",
+                request_id=f"alice-question-{index}",
+                question=f"Alice private question {index}",
+                task_kind="lookup",
+                target_object_ids=[],
+                knowledge_revision=None,
+                context_id=None,
+                decision_ref=f"decision-{index}",
+                investigation_ref=None,
             )
     preferences = "/api/v1/intelligence/preferences"
     saved = await client.put(preferences, headers=AUTH_HEADERS, json={"keywords": ["vLLM"]})
@@ -208,7 +215,8 @@ async def test_account_conversations_and_preferences_are_cookie_owned(authentica
     assert len(page.json()["items"]) == 1
     assert page.json()["items"][0]["latest_turn"]["question"] == "Alice private question 1"
     bob = await client.post(
-        "/api/v1/auth/register", headers=AUTH_HEADERS,
+        "/api/v1/auth/register",
+        headers=AUTH_HEADERS,
         json={**REGISTRATION, "email": "bob@example.invalid", "display_name": "Bob"},
     )
     assert bob.status_code == 201
@@ -219,7 +227,8 @@ async def test_account_conversations_and_preferences_are_cookie_owned(authentica
     revoked = {"Cookie": f"{SESSION_COOKIE_NAME}={alice_token}"}
     assert (await client.get(path, headers=revoked)).status_code == 401
     restored = await client.post(
-        "/api/v1/auth/login", headers=AUTH_HEADERS,
+        "/api/v1/auth/login",
+        headers=AUTH_HEADERS,
         json={"email": REGISTRATION["email"], "password": REGISTRATION["password"]},
     )
     assert restored.status_code == 200
@@ -244,17 +253,24 @@ async def test_account_conversation_and_turn_pages_keep_owner_boundary(authentic
             store = QuestionSessionStore(now=fixed_clock(timestamp))
             for turn in range(5 if index == 2 else 1):
                 await store.append_turn(
-                    session, session_id=f"paged-session-{index}", principal=principal,
-                    request_id=f"paged-request-{index}-{turn}", question=f"Question {index}/{turn}",
-                    task_kind="lookup", target_object_ids=[], knowledge_revision=None,
-                    context_id=None, decision_ref=f"decision-{index}-{turn}",
+                    session,
+                    session_id=f"paged-session-{index}",
+                    principal=principal,
+                    request_id=f"paged-request-{index}-{turn}",
+                    question=f"Question {index}/{turn}",
+                    task_kind="lookup",
+                    target_object_ids=[],
+                    knowledge_revision=None,
+                    context_id=None,
+                    decision_ref=f"decision-{index}-{turn}",
                     investigation_ref=None,
                 )
 
     path = "/api/v1/questions/sessions"
     first = await client.get(path, params={"limit": 2})
     assert [item["session_id"] for item in first.json()["items"]] == [
-        "paged-session-2", "paged-session-1"
+        "paged-session-2",
+        "paged-session-1",
     ]
     assert first.json()["has_more"] is True
     second = await client.get(path, params={"limit": 2, "cursor": first.json()["next_cursor"]})
@@ -271,9 +287,43 @@ async def test_account_conversation_and_turn_pages_keep_owner_boundary(authentic
     assert oldest.json()["has_more"] is False
 
     bob = await client.post(
-        "/api/v1/auth/register", headers=AUTH_HEADERS,
+        "/api/v1/auth/register",
+        headers=AUTH_HEADERS,
         json={**REGISTRATION, "email": "bob-paging@example.invalid"},
     )
     assert bob.status_code == 201
     assert (await client.get(path, params={"cursor": "paged-session-1"})).status_code == 403
     assert (await client.get(history_path, params={"before_turn": 4})).status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_profile_updates_are_persistent_cookie_owned_and_csrf_guarded(authentication_client):
+    client, factory = authentication_client
+    path = "/api/v1/auth/profile"
+    assert (
+        await client.put(path, headers=AUTH_HEADERS, json={"display_name": "New"})
+    ).status_code == 401
+    registered = await client.post("/api/v1/auth/register", headers=AUTH_HEADERS, json=REGISTRATION)
+    alice_id = registered.json()["user"]["id"]
+    assert (await client.put(path, json={"display_name": "New"})).status_code == 403
+    invalid = await client.put(path, headers=AUTH_HEADERS, json={"display_name": "   "})
+    assert invalid.status_code == 422
+    saved = await client.put(
+        path, headers=AUTH_HEADERS, json={"display_name": "  Alice Research  "}
+    )
+    assert saved.status_code == 200, saved.text
+    assert saved.headers["cache-control"] == "no-store"
+    assert (await client.get("/api/v1/auth/me")).json()["user"]["display_name"] == "Alice Research"
+    await client.post(
+        "/api/v1/auth/register",
+        headers=AUTH_HEADERS,
+        json={**REGISTRATION, "email": "profile-bob@example.invalid", "display_name": "Bob"},
+    )
+    updated = await client.put(
+        path,
+        headers={**AUTH_HEADERS, "X-Principal": f"user:{alice_id}"},
+        json={"display_name": "Bob Updated"},
+    )
+    assert updated.json()["user"]["display_name"] == "Bob Updated"
+    async with factory() as session:
+        assert (await session.get(AccountUserModel, alice_id)).display_name == "Alice Research"

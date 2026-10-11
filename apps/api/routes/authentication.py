@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Request, Response
 
 from apps.api.authentication import verify_authentication_origin
-from apps.api.dependencies import SessionDep
+from apps.api.dependencies import RequestContextDep, SessionDep
 from apps.application.authentication import (
     SESSION_COOKIE_NAME,
     issue_account_session,
@@ -11,11 +11,13 @@ from apps.application.authentication import (
     register_account,
     resolve_authenticated_account,
     revoke_account_session,
+    update_account_profile,
 )
 from apps.application.views.authentication import (
     AccountSessionView,
     LoginAccountInput,
     RegisterAccountInput,
+    UpdateAccountProfileInput,
 )
 from packages.shared.config import get_settings
 
@@ -113,3 +115,17 @@ async def account_logout(
     )
     _private_response(response)
     return AccountSessionView(authenticated=False)
+
+
+@router.put("/profile", response_model=AccountSessionView)
+async def account_profile(
+    body: UpdateAccountProfileInput,
+    response: Response,
+    session: SessionDep,
+    context: RequestContextDep,
+) -> AccountSessionView:
+    # Identity and CSRF are resolved by RequestContextDep, never by a body ID.
+    user = await update_account_profile(session, context.principal.removeprefix("user:"), body)
+    await session.commit()
+    _private_response(response)
+    return AccountSessionView(authenticated=True, user=user)

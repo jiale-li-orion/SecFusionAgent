@@ -24,6 +24,8 @@ HTTP Product Route
 
 `views/` contains stable Product DTO/read-model types. These are application contracts, not ORM models and not domain authority.
 
+`authentication.update_account_profile` replaces the authenticated account’s display name, preserving user/session identity and the existing email. Input normalization is shared with the account contract; HTTP cannot choose another account by body or header.
+
 The current Product layer also owns account/session coordination (`authentication.py`), user interests and feedback (`intelligence_preferences.py`), evidence-based recommendations (`queries/recommendations.py`), idempotent selected-dimension enrichment admission (`commands/start_enrichment.py`), and source-driven WORLD formation/story reads (`queries/world_formation.py`, `queries/world_reader.py`). Recommendation ranking only uses explicit interests and accepted, cited Knowledge; it is not a trained personal model. The WORLD story reader has a bounded shared refresh so expensive reads do not fan out under concurrent requests. `queries/worker_probe.py` observes Celery replies and queues with timestamps; it does not infer uptime or own heartbeat persistence.
 
 `queries/world.py` curates the front-page story candidates without deleting source material: obvious publisher landing-page titles such as `Blog` and `Download Now` stay in Evidence/Document storage but do not displace an article or advisory in WORLD/INTELLIGENCE. Category interleaving, source revision text and Evidence coordinates remain unchanged. When WORLD focuses the vulnerability direction, the Product client may read a genuine Hot vulnerability in its story pane, with the replaceable Hot versus durable Evidence boundary still visible.

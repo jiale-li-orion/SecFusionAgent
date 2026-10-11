@@ -19,6 +19,7 @@ POST /api/v1/auth/register
 POST /api/v1/auth/login
 GET /api/v1/auth/me
 POST /api/v1/auth/logout
+PUT /api/v1/auth/profile
 GET /api/v1/world/overview, /formation, /stories, /hot, /hot/search, /incident-candidates
 GET /api/v1/intelligence/preferences, /recommendations
 PUT /api/v1/intelligence/preferences
@@ -62,6 +63,8 @@ Account conversation history uses bounded keyset pages: `GET /api/v1/questions/s
 `dependencies.py` owns the shared SQLAlchemy session dependency and `RequestContext`. `main.py` creates a request id at the HTTP edge and returns it as `X-Request-ID`; Product Application links that id into the created ExecutionEnvelope trace context. `errors.py` maps Application failures and Product validation errors to RFC 9457-style `ProblemDetail`. Runtime diagnostics that belong in the product are exposed through Product-safe read models.
 
 `GET /api/v1/observatory/system` is the Product-safe system health aggregate. It reports PostgreSQL and the three separated Redis roles, durable outbox / TaskEvent delivery backlog, Redis Stream pending work and a bounded Celery ping/active-queues control probe. The probe states its measurement time and cannot be interpreted as persistent worker heartbeat or uptime. Model-provider status is configuration state rather than a fabricated live provider probe; ArtifactStore integrity remains owned by the Data Plane operational snapshot.
+
+`PUT /api/v1/auth/profile` updates the current account’s trimmed display name (1–80 characters). Identity comes only from the session; the request uses the normal Origin/CSRF guard and returns an uncached account view. This is an idempotent value replacement.
 
 `routes/authentication.py` issues/revokes a server-owned session in a same-origin HttpOnly cookie. The request context resolves business identity from that cookie, not `X-Principal`; writes check Origin/CSRF. Product Questions, sessions, Cases, Decisions, Tasks, enrichment commands, recommendations, model activity and A2A task reads enforce account ownership. WORLD and shared Evidence/Knowledge remain public. See the Wiki [account contract](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Product-Accounts-and-Personalization) for public system-Case read constraints and the legacy `user:local` boundary.
 

@@ -16,6 +16,18 @@ class AccountSessionView(BaseModel):
     user: AccountUserView | None = None
 
 
+class UpdateAccountProfileInput(BaseModel):
+    display_name: str = Field(min_length=1, max_length=80)
+
+    @field_validator("display_name")
+    @classmethod
+    def normalize_name(cls, value: str) -> str:
+        value = value.strip()
+        if not value or any(ord(character) < 32 for character in value):
+            raise ValueError("display name required")
+        return value
+
+
 class LoginAccountInput(BaseModel):
     email: str = Field(min_length=3, max_length=254)
     password: SecretStr = Field(min_length=1, max_length=128)

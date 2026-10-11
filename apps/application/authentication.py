@@ -23,6 +23,7 @@ from apps.application.views.authentication import (
     AccountUserView,
     LoginAccountInput,
     RegisterAccountInput,
+    UpdateAccountProfileInput,
 )
 from packages.shared.config import get_settings
 from packages.shared.db import Base
@@ -200,6 +201,21 @@ async def issue_account_session(session: AsyncSession, user_id: str) -> str:
     )
     await session.flush()
     return token
+
+
+async def update_account_profile(
+    session: AsyncSession, user_id: str, body: UpdateAccountProfileInput
+) -> AccountUserView:
+    user = await session.scalar(
+        select(AccountUserModel).where(
+            AccountUserModel.user_id == user_id, AccountUserModel.active.is_(True)
+        )
+    )
+    if user is None:
+        raise InvalidCredentialsError("account is no longer active")
+    user.display_name = body.display_name
+    await session.flush()
+    return _user_view(user)
 
 
 async def revoke_account_session(session: AsyncSession, token: str | None) -> None:

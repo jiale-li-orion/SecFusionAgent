@@ -36,3 +36,13 @@ export function getAccountSession(signal?: AbortSignal) { return authRequest('me
 export function loginAccount(input: LoginInput) { return authRequest('login', input) }
 export function registerAccount(input: RegisterInput) { return authRequest('register', input) }
 export function logoutAccount() { return authRequest('logout', {}) }
+
+export async function updateAccountProfile(displayName: string): Promise<AuthSession> {
+  const response = await fetch('/api/v1/auth/profile', {
+    method: 'PUT', credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json', 'X-SecFusion-CSRF': '1' },
+    body: JSON.stringify({ display_name: displayName }),
+  })
+  if (!response.ok) throw new AccountRequestError('profile_update_failed', response.status)
+  return response.json() as Promise<AuthSession>
+}
