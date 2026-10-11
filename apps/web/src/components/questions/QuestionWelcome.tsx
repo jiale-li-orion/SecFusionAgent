@@ -48,11 +48,12 @@ export function QuestionWelcome({ onSelect }: { onSelect: (prompt: string) => vo
   ]
   return <div className="qa-conversation-welcome">
     <div className="qa-welcome-intro">
+    <img className="qa-welcome-sculpture" src={`${import.meta.env.BASE_URL}art/research-lens.webp`} width="176" height="176" alt="" aria-hidden="true" draggable={false}/>
     <h2>{text('今天想了解什么？', 'What would you like to understand?')}</h2>
     <p>{text('聊聊你关心的安全问题。我会帮你查资料、梳理来龙去脉，并保留每一个结论的来源。', 'Ask about a security question. I can find sources, connect the story, and keep the evidence behind each conclusion.')}</p>
     </div>
     <div className="qa-welcome-starters"><div className="qa-starters-heading flex items-center justify-between gap-3 text-xs text-muted-foreground"><span>{personalized ? text('从你的关注开始', 'From your interests') : text('试着问我', 'Try asking')}</span>{authenticated && <Button variant="ghost" size="sm" asChild><Link to="/workspace/profile">{text('调整兴趣', 'Your interests')}<ArrowUpRight size={14}/></Link></Button>}</div>
-    <div className="qa-starter-list divide-y divide-border">{prompts.map(({ title, prompt, label, icon: Icon }) => <Item asChild key={title} className="qa-starter-item w-full rounded-none border-0 px-0 py-4"><button onClick={() => onSelect(prompt)} className="text-left"><ItemMedia><Icon className="size-4 text-muted-foreground"/></ItemMedia><ItemContent className="qa-starter-copy"><ItemTitle className="font-normal">{title}</ItemTitle><ItemDescription className="text-xs">{label}</ItemDescription></ItemContent><ItemActions><ArrowRight size={16} className="text-muted-foreground"/></ItemActions></button></Item>)}</div></div>
+    <div className="qa-starter-list">{prompts.map(({ title, prompt, label, icon: Icon }) => <Item asChild key={title} className="qa-starter-item w-full border-0"><button onClick={() => onSelect(prompt)} className="text-left"><ItemMedia className="qa-starter-symbol"><Icon size={19} weight="duotone"/></ItemMedia><ItemContent className="qa-starter-copy"><ItemTitle className="font-normal">{title}</ItemTitle><ItemDescription className="text-xs">{label}</ItemDescription></ItemContent><ItemActions><ArrowRight size={16} className="text-muted-foreground"/></ItemActions></button></Item>)}</div></div>
   </div>
 }
 

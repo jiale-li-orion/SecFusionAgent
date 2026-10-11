@@ -63,7 +63,7 @@ function PersonalWorkspace() {
     </section>
 
     <nav className="personal-shortcuts" aria-label={text('常用功能', 'Quick access')}>
-      {shortcuts.map(({ to, icon: Icon, title }) => <Button variant="ghost" className="h-auto flex-col gap-2 py-4" asChild key={to}><Link to={to}><Icon className="size-5 text-primary" strokeWidth={1.8}/><span>{title}</span></Link></Button>)}
+      {shortcuts.map(({ to, icon: Icon, title }) => <Button variant="ghost" className="h-auto flex-col gap-2 py-4" asChild key={to}><Link to={to}><span className="personal-shortcut-symbol"><Icon className="size-6" weight="duotone"/></span><span>{title}</span></Link></Button>)}
     </nav>
 
     <div className="personal-records">
@@ -77,7 +77,7 @@ function PersonalWorkspace() {
       </div>
     </div>
 
-    <section className="personal-services" aria-labelledby="personal-services-title"><h2 id="personal-services-title">{text('工作台与服务', 'Workspace & services')}</h2><div className="personal-service-grid">{services.map(({ to, icon: Icon, title, description }) => <Item asChild key={to} className="rounded-none px-0"><Link to={to}><ItemMedia><Icon className="size-5 text-muted-foreground"/></ItemMedia><ItemContent><ItemTitle>{title}</ItemTitle><ItemDescription>{description}</ItemDescription></ItemContent><ItemActions><ChevronRight size={17}/></ItemActions></Link></Item>)}</div></section>
+    <section className="personal-services" aria-labelledby="personal-services-title"><div className="personal-services-heading"><h2 id="personal-services-title">{text('工作台与服务', 'Workspace & services')}</h2><img src={`${import.meta.env.BASE_URL}art/research-lens.webp`} width="80" height="80" alt="" aria-hidden="true" draggable={false}/></div><div className="personal-service-grid">{services.map(({ to, icon: Icon, title, description }) => <Item asChild key={to} className="rounded-none px-0"><Link to={to}><ItemMedia><Icon className="size-5 text-muted-foreground"/></ItemMedia><ItemContent><ItemTitle>{title}</ItemTitle><ItemDescription>{description}</ItemDescription></ItemContent><ItemActions><ChevronRight size={17}/></ItemActions></Link></Item>)}</div></section>
     <p className="personal-privacy"><ShieldCheck size={15}/>{text('会话和调查仅自己可见。', 'Your conversations and investigations are private.')}</p>
   </div>
 }
