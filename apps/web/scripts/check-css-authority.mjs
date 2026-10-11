@@ -17,7 +17,8 @@ for (const file of activeStyles) {
   const root = postcss.parse(fs.readFileSync(path.resolve('src', file), 'utf8'), { from: file })
   root.walkAtRules('import', rule => {
     const frameworkImport = file === 'ui.css' && /^"tailwindcss\/(theme|utilities)\.css" layer\((theme|utilities)\)$/.test(rule.params)
-    if (!frameworkImport) violations.push(`${file}:${rule.source.start.line} imports another CSS cascade`)
+    const animationImport = file === 'ui.css' && rule.params === '"tw-animate-css"'
+    if (!frameworkImport && !animationImport) violations.push(`${file}:${rule.source.start.line} imports another CSS cascade`)
   })
   root.walkDecls(decl => {
     if (!decl.important) return

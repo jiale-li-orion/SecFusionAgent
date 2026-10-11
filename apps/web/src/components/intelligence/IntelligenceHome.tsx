@@ -8,9 +8,10 @@ import { Badge } from '../ui/badge'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs'
 import { IntelligenceIndex, type IntelligenceIndexProps } from './IntelligenceIndex'
 import { PersonalizedIntelligence } from './PersonalizedIntelligence'
+import { HotIntelligenceFeed } from './HotIntelligenceFeed'
 import { dateLabel } from './feedPresentation'
 
-export type IntelligenceChannel = 'recommended' | 'following' | 'events' | 'library'
+export type IntelligenceChannel = 'recommended' | 'following' | 'hot' | 'events' | 'library'
 export function IntelligenceHome({ channel, onChannel, onOpen, incidents, incidentsLoading, incidentsError, onIncident, onRetryIncidents, ...indexProps }: IntelligenceIndexProps & {
   channel: IntelligenceChannel; onChannel: (channel: IntelligenceChannel) => void
   onOpen: (objectId: string, evidence?: string) => void
@@ -22,7 +23,7 @@ export function IntelligenceHome({ channel, onChannel, onOpen, incidents, incide
   const publicFeed = <IntelligenceIndex {...indexProps}/>
   return <Tabs value={channel} onValueChange={value => onChannel(value as IntelligenceChannel)} className="intel-channel-tabs">
     <nav className="intel-channel-nav" aria-label={text('情报频道', 'Intelligence channels')}>
-      <TabsList variant="line">{([{ key: 'recommended', zh: '推荐', en: 'For you' }, { key: 'following', zh: '关注', en: 'Following' }, { key: 'events', zh: '事件', en: 'Events' }, { key: 'library', zh: '资料库', en: 'Library' }] as const).map(item => <TabsTrigger key={item.key} value={item.key}>{text(item.zh, item.en)}</TabsTrigger>)}</TabsList>
+      <TabsList variant="line">{([{ key: 'recommended', zh: '推荐', en: 'For you' }, { key: 'following', zh: '关注', en: 'Following' }, { key: 'hot', zh: '热点', en: 'Hot' }, { key: 'events', zh: '事件', en: 'Events' }, { key: 'library', zh: '资料库', en: 'Library' }] as const).map(item => <TabsTrigger key={item.key} value={item.key}>{text(item.zh, item.en)}</TabsTrigger>)}</TabsList>
       <Link to="/workspace/profile"><Bookmark size={14}/>{text('管理关注', 'Manage interests')}</Link>
     </nav>
     <TabsContent value={channel}><div className={`intel-home-grid intel-channel-${channel} ${auth.authenticated ? '' : 'is-public'}`}>
@@ -30,6 +31,7 @@ export function IntelligenceHome({ channel, onChannel, onOpen, incidents, incide
         {(channel === 'recommended' || channel === 'following') && (auth.authenticated
           ? <PersonalizedIntelligence following={channel === 'following'} onOpen={onOpen} publicFeed={publicFeed}/>
           : <><IntelligenceSignIn/>{channel === 'recommended' ? publicFeed : <div className="intel-feed-empty"><Bookmark size={28}/><h2>{text('你的关注，在这里汇聚', 'Your interests come together here')}</h2><p>{text('登录后查看保存的关注对象，以及有证据关联的新内容。', 'Sign in to see saved interests and new material connected by evidence.')}</p><button onClick={() => onChannel('recommended')}>{text('先浏览公开情报', 'Explore public intelligence')}<ArrowRight size={15}/></button></div>}</>)}
+        {channel === 'hot' && <HotIntelligenceFeed onOpen={indexProps.onHotSelect}/>}
         {channel === 'library' && <IntelligenceIndex {...indexProps} library/>}
         {channel === 'events' && <section className="intel-event-feed">
           <div className="intel-stream-label"><span>{text('已建立的事件档案', 'Retained event dossiers')}</span><small>{incidents.length}</small></div>

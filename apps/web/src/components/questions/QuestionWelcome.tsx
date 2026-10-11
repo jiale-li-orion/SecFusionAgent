@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { ArrowUpRight, BookOpen, Compass, ShieldCheck } from 'lucide-react'
-import { SourceIdentity } from '../ui/source-identity'
+import { ArrowRight, ArrowUpRight, BookOpen, Compass, ShieldCheck } from 'lucide-react'
+import { Item, ItemMedia, ItemContent, ItemTitle, ItemDescription, ItemActions } from '../ui/item'
+import { Button } from '../ui/button'
 import { readableObjectTitle } from '../../lib/source-identity'
 import { BrandMark } from '../instrument/ProductGlyph'
 import { Link } from 'react-router-dom'
@@ -46,20 +47,12 @@ export function QuestionWelcome({ onSelect }: { onSelect: (prompt: string) => vo
       label: text('核验证据', 'Verify'), icon: ShieldCheck,
     },
   ]
-  const first = prompts[0]
-  const article = recommended ? prompts[1] : null
-  const alternatives = recommended ? [prompts[2]] : prompts.slice(1)
-  return <div className="qa-welcome">
-    <div className="qa-welcome-identity"><BrandMark size={34}/><span>SecFusion<span className="qa-assistant-description">{text('情报问答', 'Intelligence assistant')}</span></span></div>
-    <div className="qa-welcome-message"><span className="qa-welcome-eyebrow">ASK / EVIDENCE</span><h2>{text('从一个问题，走向可核对的答案。', 'Ask a question. Follow the evidence.')}</h2><p>{text('像平常聊天一样提问。需要时，我会检索材料、追踪事件，并把依据与你分享。', 'Ask naturally. I can search the material, follow a story, and show you the evidence behind an answer.')}</p></div>
-    <div className="qa-suggestions-heading"><span>{personalized ? text('从你的关注开始', 'Start with your interests') : text('从这里开始', 'Start here')}</span>{authenticated && <Link to="/workspace/profile">{text('调整兴趣', 'Your interests')}<ArrowUpRight size={14}/></Link>}</div>
-    <div className={`qa-welcome-actions ${article ? 'has-article' : ''}`}>
-      <div className="qa-welcome-prompt-list">
-        <button className="qa-starter-question" onClick={() => onSelect(first.prompt)}><span className="qa-prompt-icon"><Compass size={20}/></span><span className="qa-prompt-copy"><small>{first.label}</small><strong>{first.title}</strong></span><ArrowUpRight size={18}/></button>
-        {alternatives.map(({ title, prompt, label, icon: Icon }) => <button className="qa-prompt-option" key={title} onClick={() => onSelect(prompt)}><span className="qa-prompt-icon"><Icon size={18}/></span><span className="qa-prompt-copy"><small>{label}</small><strong>{title}</strong></span><ArrowUpRight size={16}/></button>)}
-      </div>
-      {article && <button className="qa-recommended-article" onClick={() => onSelect(article.prompt)}><span className="qa-recommended-kicker"><BookOpen size={16}/>{text('正在读的情报', 'From the intelligence feed')}</span><strong>{article.title}</strong><span className="qa-recommended-source"><SourceIdentity source={recommended?.evidence[0]?.source_id} url={recommended?.evidence[0]?.canonical_url}/></span><span className="qa-recommended-action">{text('围绕这条材料提问', 'Ask about this story')}<ArrowUpRight size={15}/></span></button>}
-    </div>
+  return <div className="qa-conversation-welcome">
+    <div className="flex items-center gap-3"><BrandMark size={32}/><span className="text-sm font-medium">SecFusion</span></div>
+    <h2>{text('今天想了解什么？', 'What would you like to understand?')}</h2>
+    <p>{text('聊聊你关心的安全问题。我会帮你查资料、梳理来龙去脉，并保留每一个结论的来源。', 'Ask about a security question. I can find sources, connect the story, and keep the evidence behind each conclusion.')}</p>
+    <div className="mt-8 flex items-center justify-between gap-3 text-xs text-muted-foreground"><span>{personalized ? text('从你的关注开始', 'From your interests') : text('试着问我', 'Try asking')}</span>{authenticated && <Button variant="ghost" size="sm" asChild><Link to="/workspace/profile">{text('调整兴趣', 'Your interests')}<ArrowUpRight size={14}/></Link></Button>}</div>
+    <div className="mt-2 divide-y divide-border">{prompts.map(({ title, prompt, label, icon: Icon }) => <Item asChild key={title} className="w-full rounded-none border-0 px-0 py-4"><button onClick={() => onSelect(prompt)} className="text-left"><ItemMedia><Icon className="size-4 text-muted-foreground"/></ItemMedia><ItemContent><ItemTitle className="font-normal">{title}</ItemTitle><ItemDescription className="text-xs">{label}</ItemDescription></ItemContent><ItemActions><ArrowRight size={16} className="text-muted-foreground"/></ItemActions></button></Item>)}</div>
   </div>
 }
 

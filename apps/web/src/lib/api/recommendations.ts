@@ -20,6 +20,18 @@ export type IntelligenceRecommendation = {
   object_type: string
   canonical_key: string
   label: string
+  title?: string | null
+  summary?: string | null
+  title_origin?: string | null
+  title_evidence_refs?: string[]
+  preview_origin?: string | null
+  preview_evidence_refs?: string[]
+  preview_chunk_ref?: string | null
+  evidence_count?: number
+  source_count?: number
+  published_at?: string | null
+  observed_at?: string | null
+  timestamp_evidence_ref?: string | null
   score: number
   feedback: 'interested' | null
   reasons: Array<{

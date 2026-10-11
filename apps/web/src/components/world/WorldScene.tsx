@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Activity, ArrowRight, BookOpen, Braces, Bug, Fingerprint, Globe2, Radio, Scale, Shield, X } from 'lucide-react'
 import type { WorldFormation, WorldOverview, WorldStory, WorldKnowledgeChange } from '../../lib/api/world'
 import { useI18n } from '../../lib/i18n'
@@ -6,6 +6,10 @@ import { EvidenceAtlas } from './EvidenceAtlas'
 import { WorldSourceInspector } from './WorldSourceInspector'
 import { WorldHotField, WorldFormationField } from './WorldActivityField'
 import { WorldStoryCard } from './WorldStoryCard'
+import { Button } from '../ui/button'
+import { Tabs, TabsList, TabsTrigger } from '../ui/tabs'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '../ui/sheet'
+import { useMediaQuery } from '../../lib/useMediaQuery'
 import './world.css'
 
 const categories = [
@@ -33,12 +37,17 @@ type Props = {
 export function WorldScene(props: Props) {
   const { stories, hotStories, focusedId, pending, failed, candidatePending, candidateFailed, onFocus, onHotFromAtlas, onOpen, onInvestigate, onRetry, onCandidateRetry, view, onView, overview, overviewFailed, onOverviewRetry, formation, formationFailed, onFormationRetry, hotTotal, hotFailed, hotPending, hotPage, hotPageSize, onHotPage, region, onRegion, onHotRetry, changes, changesPending, changesFailed, onChangesRetry } = props
   const { text, language } = useI18n()
+  const formationTrigger = useRef<HTMLButtonElement>(null)
+  const compact = useMediaQuery('(max-width: 850px)')
   const [showSource, setShowSource] = useState(Boolean(region))
   const direction = categories.find(c => c.key === region)
   const sourceView = view === 'stories' || view === 'sources' || !['hot', 'formation'].includes(view)
   const available = view === 'hot' ? stories.filter(s => s.kind === 'HotVulnerability') : stories.filter(s => s.kind !== 'HotVulnerability' || region === 'vulnerability')
   const visible = region && sourceView ? available.filter(s => s.category === region) : available
   const focused = visible.find(s => s.story_id === focusedId) ?? visible[0] ?? null
+  const latestResult = formation?.processing.find(run => run.commit_status === 'committed' && run.affected_objects?.length)
+  const recentResult = latestResult?.results_complete && latestResult.claim_count !== undefined && latestResult.relation_count !== undefined
+    ? text(`${latestResult.affected_objects![0].label} · ${latestResult.claim_count} 条事实、${latestResult.relation_count} 条关联已留存`, `${latestResult.affected_objects![0].label} · ${latestResult.claim_count} facts and ${latestResult.relation_count} relationships retained`) : null
   const metrics = overview?.windows['24h']
   const readFailed = view === 'hot' ? hotFailed : region === 'incidents' ? candidateFailed : failed
   const readPending = view === 'hot' ? hotPending : region === 'incidents' ? candidatePending : pending
@@ -55,29 +64,25 @@ export function WorldScene(props: Props) {
       <div className="world-sync"><span className={overview ? 'world-status-dot' : 'world-status-dot is-unavailable'} />{overview ? <span>{text('最近更新', 'Updated')}<time dateTime={overview.generated_at}>{new Date(overview.generated_at).toLocaleTimeString(language === 'zh' ? 'zh-CN' : 'en-US', { hour: '2-digit', minute: '2-digit' })}</time></span> : <span>{overviewFailed ? text('状态暂不可用', 'Status unavailable') : text('读取世界状态', 'Reading world state')}</span>}{overviewFailed && <button onClick={onOverviewRetry}>{text('重试', 'Retry')}</button>}</div>
     </header>
 
-    <div className="world-stage">
-      <div className="world-stage-top"><span className="world-map-label"><Globe2 size={16} />{text('世界全景', 'WORLD OVERVIEW')}</span><div className="world-view-switch" aria-label={text('世界视图', 'World view')}>
-        {[{ key: 'stories', zh: '来源与动态', en: 'Sources & signals' }, { key: 'hot', zh: '热点对象', en: 'Hot objects' }, { key: 'formation', zh: '知识形成', en: 'Knowledge formation' }].map(item => <button key={item.key} aria-pressed={item.key === 'stories' ? sourceView : view === item.key} onClick={() => { onView(item.key); setShowSource(false) }}>{text(item.zh, item.en)}</button>)}
-      </div></div>
+    <div className="world-stage ui-night dark">
+      <div className="world-stage-top"><span className="world-map-label"><Globe2 size={16} />{text('正在观察的世界', 'World in focus')}</span><Tabs value={view === 'hot' ? 'hot' : 'stories'} onValueChange={value => { onView(value); setShowSource(false) }}><TabsList><TabsTrigger value="stories">{text('浏览来源', 'Explore sources')}</TabsTrigger><TabsTrigger value="hot">{text('查看热点', 'Hot objects')}</TabsTrigger></TabsList></Tabs></div>
 
-      <div className="world-source-guide"><strong>{text('选择来源', 'Choose a source')}</strong><span>{text('查看这个方向的材料、更新与来源状态', 'Explore its material, changes, and source status')}</span></div>
-      <div className="world-source-anchors" aria-label={text('选择八类来源', 'Choose a source domain')}>
-        {categories.map(c => { const sources = overview?.sources.filter(s => s.measurement_category === c.key); const selected = region === c.key && sourceView; return <button key={c.key} aria-pressed={selected} className={`world-source-anchor ${selected ? 'is-selected' : ''}`} onClick={() => selectSource(c.key)}><span className="world-source-icon"><c.icon size={18} /></span><strong>{text(c.zh, c.en)}</strong><small>{sources ? c.key === 'assets' && !sources.length ? text('按需查询', 'On demand') : text(`${sources.length} 个来源`, `${sources.length} ${sources.length === 1 ? 'source' : 'sources'}`) : '—'}</small><ArrowRight className="world-anchor-arrow" size={13} /></button> })}
-      </div>
-
-      <div className={`world-content ${view === 'formation' ? 'world-content-formation' : ''} ${showSource && direction && sourceView ? 'world-content-inspecting' : ''}`}>
+      <div className={`world-content  ${showSource && direction && sourceView ? 'world-content-inspecting' : ''}`}>
         <div className="world-main">
-          {sourceView ? <EvidenceAtlas directions={categories} overview={overview} stories={visible} focusedId={focused?.story_id} region={region} onSource={selectSource} onFocus={selectStory} /> : view === 'hot' ? <WorldHotField stories={hotStories} focusedId={focused?.story_id} total={hotTotal} failed={hotFailed} pending={hotPending} page={hotPage} pageSize={hotPageSize} onPage={onHotPage} onFocus={selectStory} onRetry={onHotRetry} /> : <WorldFormationField formation={formation} failed={formationFailed} onRetry={onFormationRetry} />}
+          {view !== 'hot' ? <EvidenceAtlas directions={categories} overview={overview} stories={visible} focusedId={focused?.story_id} region={region} onSource={selectSource} onFocus={selectStory} /> : <WorldHotField stories={hotStories} focusedId={focused?.story_id} total={hotTotal} failed={hotFailed} pending={hotPending} page={hotPage} pageSize={hotPageSize} onPage={onHotPage} onFocus={selectStory} onRetry={onHotRetry} />}
         </div>
         <div className="world-focus-panel" aria-live="polite">
-          {showSource && direction && sourceView ? <WorldSourceInspector category={direction.key} label={text(direction.zh, direction.en)} path={direction.path} materials={stories} onClose={() => setShowSource(false)} onFocus={selectStory} />
-            : view === 'formation' ? <div className="world-knowledge-summary"><span className="world-panel-kicker"><Activity size={15} />{text('从变化到知识', 'FROM CHANGE TO KNOWLEDGE')}</span><h2>{text('每一次关联，都有来处。', 'Every connection has a source.')}</h2><p>{text('采集到的材料经过提取与关联，形成可追溯的知识。选择一条处理记录，查看它的真实提交。', 'Collected material is extracted and linked into traceable knowledge. Select a processing record to inspect its actual commit.')}</p><div className="world-commit-list">{changes.slice(0, 3).map(c => <div key={c.change_id}><span>{new Date(c.committed_at).toLocaleTimeString(language === 'zh' ? 'zh-CN' : 'en-US', { hour: '2-digit', minute: '2-digit' })}</span><strong>{text(`${c.object_ids.length} 个对象 · ${c.relation_ids.length} 条关联`, `${c.object_ids.length} objects · ${c.relation_ids.length} relations`)}</strong></div>)}</div>{!changes.length && <p>{changesFailed ? text('知识提交暂不可读', 'Knowledge commits unavailable') : changesPending ? text('正在读取知识提交', 'Reading knowledge commits') : text('近期没有知识提交', 'No recent knowledge commits')}</p>}{changesFailed && <button className="world-text-action" onClick={onChangesRetry}>{text('重新读取', 'Retry')}</button>}</div>
+          {showSource && direction && sourceView && !compact ? <WorldSourceInspector category={direction.key} label={text(direction.zh, direction.en)} path={direction.path} materials={stories} onClose={() => setShowSource(false)} onFocus={selectStory} />
             : focused ? <WorldStoryCard story={focused} onOpen={onOpen} onInvestigate={onInvestigate} />
             : <div className="world-empty" role={readFailed ? 'alert' : 'status'}><Radio size={24} /><h2>{readFailed ? text('暂时无法读取动态', 'Signals are unavailable') : readPending ? text('正在读取世界动态', 'Reading world signals') : text('等待新的变化', 'Awaiting new signals')}</h2><p>{text('来源状态与已留存的材料可以独立浏览。', 'Source status and retained material remain available to explore.')}</p>{readFailed && <button className="world-text-action" onClick={retry}>{text('重新读取', 'Retry')}</button>}</div>}
         </div>
       </div>
       <div className="world-scene-caption"><span>{direction && sourceView ? <><span className="world-caption-dot" />{text('已聚焦', 'Focused on')} {text(direction.zh, direction.en)}<button onClick={() => { onRegion(null); setShowSource(false) }} aria-label={text('清除来源筛选', 'Clear source filter')}><X size={13} /></button></> : text('选择来源或光点，展开它的故事', 'Select a source or a node to explore its story')}</span><small>{text('连线表示材料所属来源', 'Connections indicate source provenance')}</small></div>
     </div>
+
+    <Sheet open={compact && showSource && Boolean(direction) && sourceView} onOpenChange={open => setShowSource(open)}><SheetContent side="bottom" className="world-source-sheet ui-night dark" onCloseAutoFocus={event => { event.preventDefault(); document.querySelector<HTMLButtonElement>(`[data-source="${region}"]`)?.focus() }}><SheetHeader><SheetTitle>{direction ? text(direction.zh, direction.en) : text('来源', 'Sources')}</SheetTitle><SheetDescription>{text('浏览这个方向的来源和已收录材料。', 'Explore sources and retained material in this domain.')}</SheetDescription></SheetHeader>{direction && <WorldSourceInspector category={direction.key} label={text(direction.zh, direction.en)} path={direction.path} materials={stories} onClose={() => setShowSource(false)} onFocus={selectStory} embedded/>}</SheetContent></Sheet>
+    <section className="world-recent-knowledge"><div><Activity size={18}/><span><strong>{text('最近形成的知识', 'Recent knowledge')}</strong><small>{changesPending ? text('读取中…', 'Loading…') : changesFailed ? text('暂时无法读取提交', 'Commits unavailable') : recentResult ?? (changes.length ? text(`最近 ${changes.length} 次提交，查看对象与关联的变化`, `Explore objects and relationships across ${changes.length} recent commits`) : text('当前暂无新的知识提交', 'No recent knowledge commits'))}</small></span></div><Button ref={formationTrigger} variant="ghost" onClick={() => onView('formation')}>{text('查看变化', 'View changes')}<ArrowRight size={16}/></Button></section>
+    <Sheet open={view === 'formation'} onOpenChange={open => { if (!open) onView('stories') }}><SheetContent className="world-formation-sheet" onCloseAutoFocus={event => { event.preventDefault(); formationTrigger.current?.focus() }}><SheetHeader><SheetTitle>{text('最近形成的知识', 'Recent knowledge')}</SheetTitle><SheetDescription>{text('查看处理了哪些材料、形成了哪些对象和关联。', 'See which material was processed and which objects and relationships were retained.')}</SheetDescription></SheetHeader><WorldFormationField formation={formation} failed={formationFailed} onRetry={onFormationRetry}/>{changesFailed && <Button variant="ghost" onClick={onChangesRetry}>{text('重新读取知识提交', 'Retry knowledge commits')}</Button>}</SheetContent></Sheet>
 
     <div className="world-bottom-row">
       <section className="world-measurements" aria-label={text('过去二十四小时', 'Past 24 hours')}><div><small>{text('过去 24 小时', 'PAST 24 HOURS')}</small><strong>{text('变化正在被看见', 'Change, observed')}</strong></div><dl><div><dt>{text('新变化', 'Fresh changes')}</dt><dd>{metrics?.fresh_external_changes.toLocaleString() ?? '—'}</dd></div><div><dt>{text('知识写入', 'Knowledge writes')}</dt><dd>{metrics?.canonical_writes.toLocaleString() ?? '—'}</dd></div><div><dt>{text('热区驻留', 'Hot residents')}</dt><dd>{hotTotal?.toLocaleString() ?? '—'}</dd></div></dl></section>

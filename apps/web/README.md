@@ -6,14 +6,18 @@ The Product Web has four primary spaces: **World, Intelligence, Ask and Workspac
 
 | Entry | Opening experience | Deeper interaction |
 | --- | --- | --- |
-| World `/` | One labeled eight-source selector and a focused live material map | Source inspection, real Hot index/search, evidence formation and dossier handoff |
-| Intelligence `/intelligence` | Personalized reading feed; Following, Events and Library channels | Recommendation reasons/feedback, evidence-backed dossiers, enrichment and incident evolution |
+| World `/` | Eight directly selectable source nodes in a live material map | Source inspection, real Hot index/search, evidence formation and dossier handoff |
+| Intelligence `/intelligence` | Personalized reading feed; Following, Hot, Events and Library channels | Recommendation reasons/feedback, evidence-backed dossiers, enrichment and incident evolution |
 | Ask `/start` | Natural question, context-aware starters and bottom composer | Full conversation, history drawer, per-turn evidence/model/context/tool audit |
-| Workspace `/workspace` | Account cover, shortcuts, recent conversations and investigations | Interests, profile editor and Operations overview |
+| Workspace `/workspace` | Compact profile, shortcuts, recent conversations and investigations | Interests, profile editor and Operations overview |
 
 `/investigations` opens My investigations as a cursor-paged record list. Selecting a record opens a report-first reader with Findings and Activity tabs; Continue question retains its server-owned conversation. Search filters loaded records with a local draft and a debounced URL replacement, so rapid typing preserves focus and Back restores the correct query. `/agents` and `/observatory` remain directly addressable under Workspace → Operations, preserving task, Skill and source deep links. `/workspace/profile` edits the display name and explicit recommendation interests; `/workspace/operations` reads current task and service state.
 
-Intelligence uses `channel=recommended|following|events|library`. Recommendations retain server ranking; Following orders matching content by available evidence observation time. An anonymous reader gets a public discovery feed and a concise sign-in entry, never a false personalized ranking. Feedback persists through the existing API and supports undo. Dossier return links retain channel and category. Source stories request at most the API's 18-record projection limit.
+Intelligence uses `channel=recommended|following|hot|events|library`. Recommendations retain server ranking; Following orders matching content by available evidence observation time. An anonymous reader gets a public discovery feed and a concise sign-in entry, never a false personalized ranking. Feedback persists through the existing API and supports undo. Dossier return links retain channel and category. Source stories request at most the API's 18-record projection limit.
+
+Recommendation items lead with linked titles and available summaries, followed by one recommendation reason. A retained passage is explicitly marked as a source excerpt; identity-only objects remain compact. Source inspection and interest feedback are separate actions; Ignore lives in the standard menu with undo. Preview provenance stays attached to its actual EvidenceRef or canonical property origin. Evidence/source totals represent all unique links, not the bounded display list. Publication and observation timestamps use one identified source observation. Hot has its own 20-record paged channel, with the ranking-window limit stated separately from the resident total.
+
+World source controls are the labeled nodes in the scene, with Tooltip explanations and keyboard focus. A desktop inspector or mobile bottom Sheet shows source health and retained material. “Recent knowledge” opens a Sheet of expandable processing results: real object names, fact/relation counts and exact linked commits. Missing change records display pending detail rather than a measured zero. Direct object writes and affected objects have different counts. Closing either Sheet returns focus to its entry control. Source/category filtering uses the same URL contracts; asset acquisition remains on demand.
 
 Object dossiers open with a compact identity and a fact reader. Facts, Relationships, Sources and vulnerability Enrichment are separate Radix tabs, not anchors over one long dashboard. Facts group each claim once with exact evidence links and a contents rail. The relationship map pages six actual neighbors at a time, retains the complete loaded edge ledger and shows selected edge details in the reading flow; it remains a bounded one-hop view. Sources group actual EvidenceRefs by publisher and open the shared source inspector. The enrichment tab uses a coverage grid whose cells retain the authoritative status and accepted fact refs; it never treats missing or conflicting evidence as complete. Object coordinates remain collapsible. Evidence and view changes preserve the reader instance and citation focus.
 
@@ -25,7 +29,7 @@ World keeps source health, acquisition time, original source text and Hot/cache 
 
 Ask sends ordinary natural language. The API resolves intent and builds retrieval queries; the browser does not require a mode or CVE. Optional object scope and provider reasoning are under Answer options. Suggestions fill the editable composer and do not start a model call automatically.
 
-The opening screen has one reading hierarchy: a plain-language purpose, concrete questions drawn from followed interests or general security workflows, and a real recommended source only when its title concerns security. The three starters form a single row when no matching source is available. The composer stays visible below them on desktop and phone widths.
+The opening screen has one reading hierarchy: a plain-language purpose, concrete questions drawn from followed interests or general security workflows, and a real recommended source only when its title concerns security. Starters form one compact list of editable questions, without a promotional hero or parallel feature cards. The composer stays visible below them on desktop and phone widths.
 
 The conversation occupies one reading column. The composer has its own bottom layout row, so it cannot overlay the transcript. History and audit are Radix dialogs with focus containment, Escape and focus return. Citations in audit load the exact retained evidence version and display publisher identity, object and evidence type. The Evidence inspector opens above the audit drawer, preserving its reading position; dismissing it returns focus to the original citation.
 
@@ -49,13 +53,13 @@ Agent runtime shows recent topology alongside cursor-paged owner-scoped Task his
 
 ## Components and style ownership
 
-`src/components/ui/` contains adapted **shadcn/ui source**, with MIT attribution in [`THIRD_PARTY.md`](src/components/ui/THIRD_PARTY.md). Button, Card, Badge, Input, Avatar, Separator, DropdownMenu, Tabs and Item are editable project components. Radix owns dialogs, account menus and keyboard tab navigation; Lucide owns functional icons. There is no extra shadcn runtime package.
+`src/components/ui/` contains adapted **shadcn/ui source**, with MIT attribution in [`THIRD_PARTY.md`](src/components/ui/THIRD_PARTY.md). Button, Card, Badge, Input, Avatar, Separator, DropdownMenu, Tabs, Item, Tooltip, ToggleGroup, Sheet, Accordion, Skeleton and Empty are editable project components. Radix owns dialogs, account menus and keyboard tab navigation; Lucide owns functional icons. There is no extra shadcn runtime package.
 
 The visual system uses neutral white reading surfaces, navy source maps, cobalt interactions and restrained semantic colors. Manrope and locally hosted Noto Sans SC UI subsets provide consistent typography; publisher marks come from locally hosted Simple Icons assets (see asset READMEs for licenses). Publisher names match explicit registered source IDs and complete hostnames, keeping NVD, NIST, CNNVD and CNVD distinct. `BrandMark` owns the small product identity; decorative 3D icons no longer fill the World, Intelligence, Ask or Agent role openings.
 
 The global import order in `src/main.tsx` is:
 
-1. `ui.css`: Tailwind theme/utilities without a second reset.
+1. `ui.css`: shared light/night tokens, Tailwind utilities and `tw-animate-css`, without a second reset.
 2. `product-foundation.css`: tokens, base reset, typography, shared primitives and four-entry shell.
 3. `product-spaces.css`: remaining document, shared evidence and detailed runtime/observatory surfaces. Retired dossier hero, orbit, graph and case workspace styles/components are removed as their owners are replaced.
 4. `account-space.css`: account controls and authentication.

@@ -3,6 +3,7 @@ import { ArrowUpRight, BookOpen, Code2, FileText, Globe, Radar, ShieldAlert, Bui
 import type { HotBug, WorldIncidentCandidate, WorldStory } from '../../lib/api/world'
 import { useI18n } from '../../lib/i18n'
 import { dateLabel } from './feedPresentation'
+import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group'
 import { SourceIdentity } from '../ui/source-identity'
 
 const kinds = [
@@ -41,16 +42,13 @@ export function IntelligenceIndex({ stories, hot, hotTotal, candidates, candidat
   const failure = isHot ? hotError : isCandidate ? candidateError : error
   const count = isHot ? hot.length : isCandidate ? candidates.length : items.length
   return <section className="intel-collection" aria-label={text(library ? '情报资料库' : '公开发现', library ? 'Intelligence library' : 'Public discovery')}>
-    {library && <div className="intel-type-filters" aria-label={text('资料类型', 'Material type')}>
-      <button className={!category ? 'active' : ''} aria-pressed={!category} onClick={() => setCategory(null)}>{text('全部', 'All')}</button>
-      {kinds.map(item => <button key={item.key} className={category === item.key ? 'active' : ''} aria-pressed={category === item.key} onClick={() => setCategory(item.key)}><item.icon size={14} />{text(item.zh, item.en)}</button>)}
-    </div>}
+    {library && <div className="overflow-x-auto py-3"><ToggleGroup type="single" value={category ?? 'all'} onValueChange={value => { if (value) setCategory(value === 'all' ? null : value) }} spacing={1} aria-label={text('资料类型', 'Material type')}><ToggleGroupItem value="all">{text('全部', 'All')}</ToggleGroupItem>{kinds.map(item => <ToggleGroupItem value={item.key} key={item.key}><item.icon size={14}/>{text(item.zh, item.en)}</ToggleGroupItem>)}</ToggleGroup></div>}
     <div className="intel-stream-label"><span>{isHot ? text('漏洞观测', 'Vulnerability observations') : isCandidate ? text('待确认的事件线索', 'Incident signals awaiting confirmation') : library ? text('最近收录', 'Recently retained') : text('公开发现', 'Public discovery')}</span><small>{busy ? text('读取中…', 'Loading…') : text(`${count} 条内容`, `${count} items`)}{isHot && ` / ${hotTotal.toLocaleString()}`}{isCandidate && ` / ${candidateTotal}`}</small></div>
     {busy && !count && <div className="intel-feed-empty" role="status">{text('正在读取最新情报…', 'Loading intelligence…')}</div>}
     {failure && <p className="intel-feed-error" role="alert">{failure}</p>}
     {!busy && !failure && !count && <div className="intel-feed-empty"><FileText size={28}/><h3>{text('这里还没有收录内容', 'No material here yet')}</h3><p>{text('试试其他类型，或在上方搜索具体论文、项目与漏洞。', 'Try another type, or search for a paper, project or vulnerability above.')}</p></div>}
     <div className="intel-stream">
-      {isHot ? hot.slice(0, 24).map(item => <article className="intel-feed-card" key={`${item.source_id}:${item.external_object_id}`}>
+      {isHot ? hot.map(item => <article className="intel-feed-card" key={`${item.source_id}:${item.external_object_id}`}>
         <div className="intel-card-meta"><ShieldAlert size={16}/><span>{item.source_name ?? item.source_id}</span><span className="intel-state-label">{text('热区观测', 'Hot observation')}</span></div>
         <h2><button onClick={() => onHotSelect(item)}>{item.title || item.cve_id || item.external_object_id}</button></h2>
         {item.description && <p className="intel-card-excerpt">{item.description}</p>}

@@ -181,7 +181,11 @@ export async function searchHotWorldCve(cveId: string): Promise<{ query: string;
 
 export type WorldFormation = {
   generated_at: string
-  processing: Array<{ run_id: string; processor_name: string; status: string; started_at: string; finished_at: string | null; source_name: string | null; external_object_id: string | null; committed_at: string | null; revision: number | null }>
+  processing: Array<{ run_id: string; processor_name: string; status: string; started_at: string; finished_at: string | null; source_name: string | null; external_object_id: string | null; committed_at: string | null; revision: number | null
+    affected_objects?: Array<{ object_id: string; label: string; object_type: string }>
+    object_count?: number; claim_count?: number; relation_count?: number; commit_count?: number; change_count?: number
+    commit_status?: 'committed' | 'no_commit' | 'pending'; results_complete?: boolean
+  }>
 }
 export async function getWorldFormation(): Promise<WorldFormation> {
   const response = await fetch('/api/v1/world/formation')

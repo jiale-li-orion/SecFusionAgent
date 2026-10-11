@@ -1,6 +1,6 @@
 # Source-owned UI components
 
-Button, Card, Badge, Input, Avatar, Separator, DropdownMenu, Tabs and Item are adapted from [shadcn/ui](https://ui.shadcn.com), new-york-v4 registry, downloaded 2026-10-11. Import paths use this project’s utilities and individual Radix primitives. Their visual tokens are defined in `src/ui.css`.
+Button, Card, Badge, Input, Avatar, Separator, DropdownMenu, Tabs and Item are adapted from [shadcn/ui](https://ui.shadcn.com), new-york-v4 registry, downloaded 2026-10-11. Import paths use this project’s utilities and individual Radix primitives. Sheet, Tooltip, Toggle, ToggleGroup, Accordion, Skeleton and Empty were added from the same registry on 2026-10-12. Sheet and Tooltip use the product overlay stacking levels. Their visual tokens are defined in `src/ui.css`.
 
 MIT License
 

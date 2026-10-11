@@ -1,27 +1,29 @@
 @layer theme, base, components, utilities;
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities);
+@import "tw-animate-css";
+@custom-variant dark (&:is(.dark *));
 @source "./";
 
 @theme inline {
- --color-background: #ffffff;
- --color-foreground: #202127;
- --color-card: #ffffff;
- --color-card-foreground: #202127;
- --color-popover: #ffffff;
- --color-popover-foreground: #202127;
- --color-primary: #4263eb;
- --color-primary-foreground: #ffffff;
- --color-secondary: #f1f2f4;
- --color-secondary-foreground: #3f424a;
- --color-muted: #f4f6fa;
- --color-muted-foreground: #767982;
- --color-accent: #f3f4f6;
- --color-accent-foreground: #252730;
- --color-destructive: #c3465c;
- --color-border: #e5e7eb;
- --color-input: #dedfe4;
- --color-ring: #9cafef;
+ --color-background: var(--ui-background);
+ --color-foreground: var(--ui-foreground);
+ --color-card: var(--ui-card);
+ --color-card-foreground: var(--ui-card-foreground);
+ --color-popover: var(--ui-popover);
+ --color-popover-foreground: var(--ui-popover-foreground);
+ --color-primary: var(--ui-primary);
+ --color-primary-foreground: var(--ui-primary-foreground);
+ --color-secondary: var(--ui-secondary);
+ --color-secondary-foreground: var(--ui-secondary-foreground);
+ --color-muted: var(--ui-muted);
+ --color-muted-foreground: var(--ui-muted-foreground);
+ --color-accent: var(--ui-accent);
+ --color-accent-foreground: var(--ui-accent-foreground);
+ --color-destructive: var(--ui-destructive);
+ --color-border: var(--ui-border);
+ --color-input: var(--ui-input);
+ --color-ring: var(--ui-ring);
  --radius-sm: 6px;
  --radius-md: 8px;
  --radius-lg: 10px;
@@ -29,3 +31,27 @@
  --font-sans: Manrope,'Noto Sans SC UI','PingFang SC','Microsoft YaHei',sans-serif;
 }
 @layer base { * { border-color:var(--color-border); border-style:solid; border-width:0; } }
+
+@layer base {
+ :root {
+  --ui-background: #ffffff;
+  --ui-foreground: #202127;
+  --ui-card: #ffffff;
+  --ui-card-foreground: #202127;
+  --ui-popover: #ffffff;
+  --ui-popover-foreground: #202127;
+  --ui-primary: #4263eb;
+  --ui-primary-foreground: #ffffff;
+  --ui-secondary: #f1f2f4;
+  --ui-secondary-foreground: #3f424a;
+  --ui-muted: #f4f6fa;
+  --ui-muted-foreground: #767982;
+  --ui-accent: #f3f4f6;
+  --ui-accent-foreground: #252730;
+  --ui-destructive: #c3465c;
+  --ui-border: #e5e7eb;
+  --ui-input: #dedfe4;
+  --ui-ring: #9cafef;
+ }
+ .ui-night { --ui-background:#0b1020; --ui-foreground:#e9eef8; --ui-card:#121a2c; --ui-card-foreground:#e9eef8; --ui-muted:#1b263b; --ui-muted-foreground:#9caec9; --ui-accent:#22314b; --ui-accent-foreground:#f0f5ff; --ui-border:#2a3851; --ui-input:#344460; --ui-secondary:#1c2a43; --ui-secondary-foreground:#d1dcef; --ui-ring:#799cf9; }
+}
