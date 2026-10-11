@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -208,6 +209,12 @@ class HotBugSearchView(BaseModel):
     items: list[HotBugView] = Field(default_factory=list)
 
 
+class WorldAffectedObjectView(BaseModel):
+    object_id: str
+    label: str
+    object_type: str | None = None
+
+
 class WorldProcessingView(BaseModel):
     run_id: str
     processor_name: str
@@ -218,6 +225,14 @@ class WorldProcessingView(BaseModel):
     external_object_id: str | None = None
     committed_at: datetime | None = None
     revision: int | None = None
+    affected_objects: list[WorldAffectedObjectView] = Field(default_factory=list)
+    commit_count: int = 0
+    change_count: int = 0
+    object_count: int = 0
+    claim_count: int = 0
+    relation_count: int = 0
+    commit_status: Literal["committed", "no_commit", "pending"] = "pending"
+    results_complete: bool = False
 
 
 class WorldFormationView(BaseModel):

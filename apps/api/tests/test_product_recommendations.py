@@ -281,3 +281,307 @@ async def test_preference_and_feedback_validation_preserves_existing_profile(rec
             f"{path}/recommendations/vulnerability-a/feedback", json={"feedback": "anything"}
         )
     ).status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_recommendation_preview_and_totals_use_all_evidence(recommendation_client):
+    client, factory = recommendation_client
+    published = datetime(2025, 1, 1, tzinfo=UTC)
+    observed = datetime(2026, 1, 1, tzinfo=UTC)
+    async with factory() as session, session.begin():
+        observation = await session.get(ObservationModel, "recommendation-observation")
+        observation.published_at = published
+        observation.observed_at = observed
+        session.add(
+            SourceModel(
+                source_id="second-preview-source",
+                adapter_type="test",
+                source_class="vendor",
+                source_role="primary",
+                source_family="fixture",
+                access_mode="public",
+                update_semantics="snapshot",
+                retention_mode="durable_managed",
+                schema_version="1",
+                definition_hash="second",
+                updated_at=observed,
+            )
+        )
+        await session.flush()
+        session.add(
+            ObservationModel(
+                observation_id="second-preview-observation",
+                source_id="second-preview-source",
+                external_object_id="second",
+                acquisition_trigger="scheduled",
+                published_at=datetime(2026, 9, 1, tzinfo=UTC),
+                observed_at=datetime(2026, 9, 2, tzinfo=UTC),
+                content_hash="second",
+                idempotency_key="second",
+                created_at=observed,
+            )
+        )
+        await session.flush()
+        for index in range(8):
+            session.add(
+                EvidenceLinkModel(
+                    evidence_link_id=f"extra-{index}",
+                    target_kind="claim",
+                    target_id="claim-a",
+                    observation_id=(
+                        "second-preview-observation" if index == 7 else observation.observation_id
+                    ),
+                    locator={"index": index},
+                    locator_hash=f"extra-{index}",
+                )
+            )
+    await client.put("/api/v1/intelligence/preferences", json={"keywords": ["Ray"]})
+    items = (await client.get("/api/v1/intelligence/recommendations")).json()["items"]
+    item = next(row for row in items if row["object_id"] == "vulnerability-a")
+    assert item["title"] == "Ray issue A"
+    assert item["title_origin"] == "canonical_property"
+    assert item["summary"] == "Ray issue"
+    assert item["preview_origin"] == "accepted_claim"
+    assert item["evidence_count"] == 9
+    assert item["source_count"] == 2
+    assert len(item["evidence"]) == 6
+    assert len({row["source_id"] for row in item["evidence"]}) == 1
+    assert item["timestamp_evidence_ref"] == item["preview_evidence_refs"][0]
+    assert set(item["preview_evidence_refs"]) <= {e["evidence_ref"] for e in item["evidence"]}
+    assert item["published_at"].startswith("2025-01-01")
+    assert item["observed_at"].startswith("2026-01-01")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "retained_text, expected",
+    [
+        ("Retained source passage about Ray.", "Retained source passage about Ray."),
+        (
+            "CATEGORY Insights Sort by: Recent Author last name Our Authors Eyal Rafian "
+            "Read more from Eyal Rafian Unit 42 Read more from Unit 42",
+            None,
+        ),
+    ],
+)
+async def test_recommendation_retained_excerpt_respects_public_access(
+    recommendation_client,
+    retained_text,
+    expected,
+):
+    from packages.intelligence.storage.document_models import (
+        DocumentChunkModel,
+        DocumentModel,
+        DocumentRevisionModel,
+    )
+
+    client, factory = recommendation_client
+    now = datetime.now(UTC)
+    async with factory() as session, session.begin():
+        source = await session.get(SourceModel, "source:recommendation-fixture")
+        source.access_rights = {"classification": "public"}
+        claim = await session.get(ClaimModel, "claim-a")
+        claim.predicate = "severity"
+        claim.value = "high"
+        session.add(
+            DocumentModel(
+                document_id="preview-document",
+                object_id="vulnerability-a",
+                source_id=source.source_id,
+                external_object_id="fixture-advisory",
+                created_at=now,
+            )
+        )
+        await session.flush()
+        session.add(
+            DocumentRevisionModel(
+                document_revision_id="preview-revision",
+                document_id="preview-document",
+                observation_id="recommendation-observation",
+                title="Retained title",
+                content_hash="preview",
+                parser_name="fixture",
+                parser_version="1",
+                created_at=now,
+            )
+        )
+        await session.flush()
+        session.add(
+            DocumentChunkModel(
+                chunk_id="preview-chunk",
+                document_revision_id="preview-revision",
+                ordinal=0,
+                text=retained_text,
+                locator={"paragraph": 1},
+                content_hash="preview",
+                chunker_version="1",
+            )
+        )
+    await client.put("/api/v1/intelligence/preferences", json={"keywords": ["Ray"]})
+
+    async def read_item():
+        items = (await client.get("/api/v1/intelligence/recommendations")).json()["items"]
+        return next(row for row in items if row["object_id"] == "vulnerability-a")
+
+    item = await read_item()
+    assert item["summary"] == expected
+    assert item["preview_origin"] == ("retained_excerpt" if expected else None)
+    assert item["preview_evidence_refs"] == (["evidence:link-a"] if expected else [])
+    assert item["preview_chunk_ref"] == (
+        "document-chunk:preview-chunk@preview-revision" if expected else None
+    )
+    async with factory() as session, session.begin():
+        source = await session.get(SourceModel, "source:recommendation-fixture")
+        source.access_rights = {"classification": "restricted"}
+    item = await read_item()
+    assert item["summary"] is None
+    assert item["preview_origin"] is None
+
+
+@pytest.mark.asyncio
+async def test_formation_groups_exact_commits_and_reports_missing_results(recommendation_client):
+    from apps.application.queries.world_formation import read_world_formation
+    from packages.intelligence.storage.knowledge_models import KnowledgeChangeModel
+    from packages.intelligence.storage.models import ProcessingRunModel
+
+    _client, factory = recommendation_client
+    now = datetime.now(UTC)
+    async with factory() as session, session.begin():
+        for run_id, status in (
+            ("committed", "running"),
+            ("empty", "succeeded"),
+            ("pending", "running"),
+            ("missing", "succeeded"),
+        ):
+            session.add(
+                ProcessingRunModel(
+                    run_id=run_id,
+                    processor_type="enrichment",
+                    processor_name="fixture",
+                    processor_version="1",
+                    status=status,
+                    started_at=now,
+                )
+            )
+        for revision, run_id in (
+            (2, "committed"),
+            (3, "committed"),
+            (4, "missing"),
+            (5, "unrelated-run"),
+        ):
+            session.add(
+                KnowledgeRevisionModel(
+                    revision=revision, cause_processing_run_id=run_id, committed_at=now
+                )
+            )
+        await session.flush()
+        for revision in (2, 3, 5):
+            session.add(
+                KnowledgeChangeModel(
+                    change_id=f"change-{revision}",
+                    revision=revision,
+                    changed_ids={
+                        "objects": [],
+                        "claims": ["claim-a"],
+                        "relations": ["relation-affects"],
+                    },
+                    committed_at=now,
+                )
+            )
+    async with factory() as session:
+        result = await read_world_formation(session)
+    items = {item.run_id: item.model_dump() for item in result.processing}
+    item = items["committed"]
+    assert item["commit_count"] == 2
+    assert item["change_count"] == 2
+    assert item["revision"] == 3
+    assert item["commit_status"] == "committed"
+    assert item["claim_count"] == 1
+    assert item["relation_count"] == 1
+    assert item["object_count"] == 0
+    assert {obj["object_id"] for obj in item["affected_objects"]} == {
+        "vulnerability-a",
+        "product-ray",
+    }
+    assert item["results_complete"] is True
+    assert items["empty"]["commit_status"] == "no_commit"
+    assert items["empty"]["commit_count"] == 0
+    assert items["pending"]["commit_status"] == "pending"
+    assert items["pending"]["results_complete"] is False
+    assert items["missing"]["results_complete"] is False
+    assert items["missing"]["commit_count"] == 1
+
+
+@pytest.mark.parametrize(
+    ("properties", "title", "expected"),
+    [
+        (
+            {
+                "display_name": "One breach please and make no mistakes",
+                "title": "Intelligence Center",
+            },
+            True,
+            "One breach please and make no mistakes",
+        ),
+        ({"title": "Insights"}, True, None),
+        (
+            {
+                "description": "CATEGORY Insights Sort by: Recent Author last name Our Authors "
+                "Eyal Rafian Read more from Eyal Rafian Unit 42 Read more from Unit 42"
+            },
+            False,
+            None,
+        ),
+    ],
+)
+def test_preview_rejects_navigation_and_preserves_specific_label(properties, title, expected):
+    from apps.application.queries.recommendation_previews import canonical_preview
+
+    obj = ObjectModel(
+        object_id="preview",
+        object_type="Report",
+        canonical_key="report:preview",
+        properties=properties,
+        created_revision=1,
+    )
+    preview = canonical_preview(obj, [], {}, title=title)
+    assert preview.text == expected
+
+
+def test_preview_truncates_on_word_boundary():
+    from apps.application.queries.recommendation_previews import canonical_preview
+
+    description = "Security researchers documented " * 20
+    obj = ObjectModel(
+        object_id="preview",
+        object_type="Report",
+        canonical_key="report:preview",
+        properties={"description": description},
+        created_revision=1,
+    )
+    preview = canonical_preview(obj, [], {}, title=False)
+    assert preview.text is not None
+    assert len(preview.text) <= 320
+    assert preview.text.endswith("…")
+    assert description[len(preview.text.removesuffix("…"))] == " "
+
+
+def test_preview_removes_repeated_heading_and_publication_metadata():
+    from apps.application.queries.recommendation_previews import canonical_preview
+
+    headline = "Building on our commitment to American scientific discovery"
+    obj = ObjectModel(
+        object_id="preview",
+        object_type="Report",
+        canonical_key="report:preview",
+        properties={
+            "title": f"Oct 8, 2026 Announcements {headline}",
+            "summary": f"Announcements {headline} Oct 8, 2026 "
+            "Anthropic is deepening its scientific research partnerships.",
+        },
+        created_revision=1,
+    )
+    assert canonical_preview(obj, [], {}, title=True).text == headline
+    assert canonical_preview(obj, [], {}, title=False).text == (
+        "Anthropic is deepening its scientific research partnerships."
+    )

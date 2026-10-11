@@ -55,12 +55,27 @@ class RecommendationReasonView(BaseModel):
     evidence_refs: list[str] = Field(default_factory=list)
 
 
+PreviewOrigin = Literal["canonical_property", "accepted_claim", "retained_excerpt"]
+
+
 class IntelligenceRecommendationView(FollowedObjectView):
     score: int
     feedback: Literal["interested"] | None = None
     reasons: list[RecommendationReasonView]
     evidence: list[EvidenceRef]
     created_revision: int
+    title: str | None = None
+    summary: str | None = None
+    title_origin: PreviewOrigin | None = None
+    title_evidence_refs: list[str] = Field(default_factory=list)
+    preview_origin: PreviewOrigin | None = None
+    preview_evidence_refs: list[str] = Field(default_factory=list)
+    preview_chunk_ref: str | None = None
+    evidence_count: int = 0
+    source_count: int = 0
+    published_at: datetime | None = None
+    observed_at: datetime | None = None
+    timestamp_evidence_ref: str | None = None
 
 
 class IntelligenceRecommendationsView(BaseModel):

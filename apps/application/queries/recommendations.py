@@ -15,6 +15,7 @@ from apps.application.intelligence_preferences import (
     object_label,
     read_intelligence_preferences,
 )
+from apps.application.queries.recommendation_previews import canonical_preview, retained_previews
 from apps.application.views.recommendations import (
     IntelligenceRecommendationsView,
     IntelligenceRecommendationView,
@@ -202,6 +203,22 @@ async def read_intelligence_recommendations(
     ):
         identifiers[row.object_id].append(row.value)
     target_labels = {obj.object_id: obj.label for obj in preferences.target_objects}
+    previews = {
+        obj.object_id: (
+            canonical_preview(obj, claims_by_object[obj.object_id], evidence_by_fact, title=True),
+            canonical_preview(obj, claims_by_object[obj.object_id], evidence_by_fact, title=False),
+        )
+        for obj in objects
+    }
+    excerpts = await retained_previews(
+        session,
+        [
+            item
+            for obj in objects
+            if any(preview.text is None for preview in previews[obj.object_id])
+            for item in evidence_by_object[obj.object_id].values()
+        ],
+    )
 
     for obj in objects:
         evidence = evidence_by_object[obj.object_id]
@@ -276,9 +293,27 @@ async def read_intelligence_recommendations(
             )
         if not reasons:
             continue
-        # Every returned reason has its referenced Evidence included in the response.
+        title, summary = previews[obj.object_id]
+        for ref in sorted(evidence):
+            if ref in excerpts:
+                excerpt_title, excerpt_summary = excerpts[ref]
+                if not title.text and excerpt_title.text:
+                    title = excerpt_title
+                if not summary.text and excerpt_summary.text:
+                    summary = excerpt_summary
+        timestamp_ref = summary.evidence_ref or title.evidence_ref or sorted(evidence)[0]
+        timestamp_evidence = evidence[timestamp_ref]
+        # Every returned reason and preview has its referenced Evidence included.
         selected_refs = {ref for reason in reasons for ref in reason.evidence_refs}
-        selected_refs.update(sorted(evidence)[:6])
+        selected_refs.update(
+            ref
+            for ref in (title.evidence_ref, summary.evidence_ref, timestamp_ref)
+            if ref is not None
+        )
+        for ref in sorted(evidence):
+            if len(selected_refs) >= 6:
+                break
+            selected_refs.add(ref)
         response.items.append(
             IntelligenceRecommendationView(
                 object_id=obj.object_id,
@@ -290,6 +325,18 @@ async def read_intelligence_recommendations(
                 reasons=reasons,
                 evidence=[evidence[ref] for ref in sorted(selected_refs)],
                 created_revision=obj.created_revision,
+                title=title.text,
+                title_origin=title.origin,
+                title_evidence_refs=[title.evidence_ref] if title.evidence_ref else [],
+                summary=summary.text,
+                preview_origin=summary.origin,
+                preview_evidence_refs=[summary.evidence_ref] if summary.evidence_ref else [],
+                preview_chunk_ref=summary.chunk_ref,
+                evidence_count=len(evidence),
+                source_count=len({item.source_id for item in evidence.values()}),
+                published_at=timestamp_evidence.published_at,
+                observed_at=timestamp_evidence.observed_at,
+                timestamp_evidence_ref=timestamp_ref,
             )
         )
     response.items.sort(key=lambda item: (-item.score, -item.created_revision, item.object_id))
