@@ -1,0 +1,13 @@
+.source-identity { display:inline-flex; align-items:center; gap:10px; min-width:0; vertical-align:middle; }
+.source-avatar { display:inline-grid; place-items:center; width:30px; height:30px; flex:none; border:1px solid #e7e8ec; border-radius:9px; background:#fff; color:#333844; font-size:11px; font-weight:650; letter-spacing:-.025em; }
+.source-avatar img { width:18px; height:18px; object-fit:contain; }
+.source-identity-name { font-size:13px; font-weight:550; color:#454b57; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.source-anthropic { background:#f7f3ec; }
+.source-arxiv { background:#fff6f5; }
+.source-huggingface { background:#fff9e9; }
+.source-cisco { background:#f0f8fc; }
+.source-paloalto { background:#fff3ee; }
+.source-microsoft { color:#326fc5; background:#f1f6ff; }
+.source-nvd,.source-cisa { color:#3e597d; background:#f3f6fb; }
+.source-identity.is-compact .source-avatar { width:100%; height:100%; border-radius:inherit; }
+.source-identity.is-compact { width:100%; height:100%; border-radius:inherit; }

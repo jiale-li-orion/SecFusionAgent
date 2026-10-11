@@ -52,3 +52,17 @@ export function formatValue(value: unknown): string {
   if (Array.isArray(value)) return value.map(formatValue).join(' · ')
   try { return JSON.stringify(value) } catch { return String(value) }
 }
+
+const evidenceFields: Record<string, [string, string]> = {
+  known_exploited: ['已知利用情况', 'Known exploitation'], required_action: ['处置要求', 'Required action'],
+  date_added: ['收录时间', 'Date added'], ransomware_use: ['勒索软件利用情况', 'Ransomware use'],
+  kev_date_added: ['收录时间', 'Date added'], kev_due_date: ['处置截止时间', 'Remediation due date'],
+  kev_vulnerability_name: ['漏洞名称', 'Vulnerability name'], kev_ransomware_campaign_use: ['勒索软件利用情况', 'Ransomware use'],
+  kev_required_action: ['处置要求', 'Required action'], references: ['参考来源', 'References'],
+  severity: ['严重性', 'Severity'], cvss: ['CVSS 评分', 'CVSS score'], affected_versions: ['受影响版本', 'Affected versions'],
+  first_fixed_version: ['首个修复版本', 'First fixed version'], description: ['漏洞说明', 'Description'],
+}
+
+export function evidenceFieldLabel(label: string, text: (zh: string, en: string) => string) {
+  return evidenceFields[label] ? text(...evidenceFields[label]) : label.replaceAll('_', ' ')
+}

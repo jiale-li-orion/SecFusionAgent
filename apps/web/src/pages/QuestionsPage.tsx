@@ -1,21 +1,24 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useInfiniteQuery, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence } from 'motion/react'
-import { ArrowUpRight, ChevronRight, CornerDownLeft, Link2, Plus, Radio, Send, ShieldCheck } from 'lucide-react'
+import { ArrowUp, ArrowUpRight, ChevronRight, CircleHelp, History, Layers, MessageSquarePlus, ScanLine, SlidersHorizontal, Square, X } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { DecisionReport } from '../components/DecisionReport'
-import { ProductGlyph } from '../components/instrument/ProductGlyph'
+import { Button } from '../components/ui/button'
+import { Input } from '../components/ui/input'
+import { ConversationTurn } from '../components/questions/ConversationTurn'
+import { AuditRail } from '../components/questions/AuditRail'
+import { QuestionDrawer } from '../components/questions/QuestionDrawer'
+import { QuestionHistory } from '../components/questions/QuestionHistory'
+import { QuestionWelcome } from '../components/questions/QuestionWelcome'
 import { StreamedDecisionDraft } from '../components/questions/StreamedDecisionDraft'
 import { EvidenceOverlay } from '../components/investigations/CaseSurfaces'
-import { getAgentTask, type AgentTaskDetail } from '../lib/api/agents'
+import { getAgentTask } from '../lib/api/agents'
 import { getKnowledgeObject, searchIntelligence } from '../lib/api/intelligence'
 import {
-  getDecision, getInvestigation, getInvestigationActivity, getQuestionSession,
-  listAccountConversations, streamQuestion, type ProductRuntimeEvent,
-  type QuestionSessionTurn,
+  getInvestigation, getInvestigationActivity, getQuestionSession,
+  streamQuestion, type ProductRuntimeEvent,
 } from '../lib/api/investigations'
 import { useI18n } from '../lib/i18n'
-import { displayUnknowns, runtimeActorLabel, runtimeEventSummary } from '../lib/investigationPresentation'
 import './questions-space.css'
 
 const eventNames = [
@@ -23,12 +26,6 @@ const eventNames = [
   'conflict_changed', 'unknown_changed', 'evidence_need_changed', 'decision_ready',
   'waiting', 'completed', 'failed', 'canceled',
 ]
-
-function routeLabel(task: string, text: (zh: string, en: string) => string) {
-  if (task === 'lookup') return text('事实核对', 'Fact check')
-  if (task === 'retrieve') return text('证据检索', 'Evidence search')
-  return text('持续调查', 'Investigation')
-}
 
 function readableTarget(value: string) {
   const urlStart = value.indexOf('https://')
@@ -41,24 +38,8 @@ function readableTarget(value: string) {
   } catch { return value }
 }
 
-function caseStateCopy(status: string, text: (zh: string, en: string) => string) {
-  if (status === 'resolved') return { headline: text('调查已形成带引用的结论', 'Investigation resolved with cited findings'), label: text('已完成', 'Resolved') }
-  if (status === 'active') return { headline: text('调查正在收集与核验证据', 'Investigation is collecting and checking evidence'), label: text('运行中', 'Active') }
-  if (status === 'waiting') return { headline: text('调查正在等待证据或后续指令', 'Investigation is waiting for evidence or the next instruction'), label: text('等待中', 'Waiting') }
-  if (status === 'created') return { headline: text('调查已创建，等待执行', 'Investigation created and awaiting execution'), label: text('已创建', 'Created') }
-  if (status === 'closed') return { headline: text('调查已关闭', 'Investigation closed'), label: text('已关闭', 'Closed') }
-  if (status === 'cancelled') return { headline: text('调查已取消', 'Investigation cancelled'), label: text('已取消', 'Cancelled') }
-  return { headline: text('调查已停止，请查看执行轨迹', 'Investigation stopped; inspect the execution trace'), label: text('已停止', 'Stopped') }
-}
-
-function formatTime(value: string, language: string) {
-  return new Date(value).toLocaleString(language === 'zh' ? 'zh-CN' : 'en-US', {
-    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-  })
-}
-
 export function QuestionsPage() {
-  const { text, language } = useI18n()
+  const { text } = useI18n()
   const queryClient = useQueryClient()
   const [params, setParams] = useSearchParams()
   const sessionId = params.get('session')
@@ -96,10 +77,16 @@ export function QuestionsPage() {
   const [evidence, setEvidence] = useState<string | null>(null)
   const [liveEvents, setLiveEvents] = useState<ProductRuntimeEvent[]>([])
   const [connectedCaseId, setConnectedCaseId] = useState<string | null>(null)
-  const [auditOpen, setAuditOpen] = useState(Boolean(params.get('turn')))
+  const [auditOpen, setAuditOpen] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(params.get('history') === '1')
   const transcriptRef = useRef<HTMLDivElement>(null)
   const latestTurnRef = useRef<string | null>(null)
   const reasoningBuffer = useRef('')
+  const abortRef = useRef<AbortController | null>(null)
+  const composerRef = useRef<HTMLTextAreaElement>(null)
+  const followBottomRef = useRef(true)
+
+  useEffect(() => () => abortRef.current?.abort(), [])
 
   if (routeIdentity !== previousRouteIdentity) {
     setPreviousRouteIdentity(routeIdentity)
@@ -108,13 +95,6 @@ export function QuestionsPage() {
     setQuestion(routeQuestion)
   }
 
-  const conversations = useInfiniteQuery({
-    queryKey: ['account-conversations', 'pages'],
-    queryFn: ({ pageParam, signal }) => listAccountConversations(20, signal, pageParam),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: last => last.next_cursor ?? undefined,
-  })
-  const conversationItems = conversations.data?.pages.flatMap(page => page.items) ?? []
   const history = useInfiniteQuery({
     queryKey: ['question-session', sessionId, 'pages'],
     queryFn: ({ pageParam, signal }) => getQuestionSession(sessionId!, pageParam, signal),
@@ -229,6 +209,9 @@ export function QuestionsPage() {
       setError(text('请从搜索结果选择对象，或输入完整 CVE 编号。', 'Choose an object from the search results or enter a complete CVE ID.'))
       return
     }
+    const controller = new AbortController()
+    abortRef.current = controller
+    followBottomRef.current = true
     setBusy(true)
     setError('')
     setPendingQuestion(prompt)
@@ -247,6 +230,7 @@ export function QuestionsPage() {
         interactiveTimeoutSeconds: 90,
       }, {
         includeReasoning: showReasoning,
+        signal: controller.signal,
         onEvent: event => {
           if (event.event === 'status') setStreamPhase(event.phase)
           if (event.event === 'model_delta') {
@@ -279,16 +263,25 @@ export function QuestionsPage() {
       setPendingQuestion('')
       setStreamPhase('')
     } catch (exc) {
+      if (controller.signal.aborted) {
+        setError(text('已停止接收。后台任务可能仍在运行，稍后可在历史对话中查看。', 'Stopped receiving. The task may still be running; check your history for its result.'))
+        setPendingQuestion('')
+        setDraftRaw('')
+        setReasoningRaw('')
+        setStreamPhase('')
+        void queryClient.invalidateQueries({ queryKey: ['account-conversations'] })
+        return
+      }
       setError(exc instanceof Error ? exc.message : text('问答请求失败', 'Question failed'))
       setFailedRunId(exc && typeof exc === 'object' && 'runId' in exc && typeof exc.runId === 'string' ? exc.runId : null)
-      setPendingQuestion('')
-      setDraftRaw('')
-      setReasoningRaw('')
       setStreamPhase('failed')
-    } finally { setBusy(false) }
+    } finally { abortRef.current = null; setBusy(false) }
   }
 
   function newConversation() {
+    if (busy) return
+    setHistoryOpen(false)
+    setAuditOpen(false)
     setParams(new URLSearchParams(), { replace: false })
     setQuestion('')
     setTarget('')
@@ -299,125 +292,67 @@ export function QuestionsPage() {
     setReasoningRaw('')
     setCompletedReasoning({})
     setError('')
+    window.setTimeout(() => composerRef.current?.focus(), 0)
   }
 
+  useEffect(() => {
+    const viewport = transcriptRef.current
+    const content = viewport?.firstElementChild
+    if (!viewport || !content) return
+    const observer = new ResizeObserver(() => {
+      if (followBottomRef.current && pendingQuestion) viewport.scrollTop = viewport.scrollHeight
+    })
+    observer.observe(content)
+    return () => observer.disconnect()
+  }, [pendingQuestion])
+
   return <section className="qa-workspace">
-    <header className={`qa-heading ${!sessionId ? 'is-new' : ''}`}>
-      <div className="qa-heading-mark" aria-hidden="true"><span /><span /><span /></div>
-      <div><small>03 / QUESTION INTELLIGENCE · M6</small><h1>{text('证据问答', 'Evidence Dialogue')}</h1><p>{text('提出问题，沿着证据、上下文与执行轨迹走到结论。', 'Ask a question and follow its evidence, context, and execution to the conclusion.')}</p></div>
-      <span className="qa-heading-state"><Radio size={13} />{text('持续会话', 'CONTINUOUS SESSION')}</span>
+    <header className="qa-heading">
+      <Button variant="ghost" className="qa-icon-button" onClick={() => setHistoryOpen(true)} disabled={busy} aria-label={text('历史对话', 'Conversation history')}><History size={20} /></Button>
+      <div className="qa-heading-title"><h1>{text('问答', 'Ask SecFusion')}</h1><span>SecFusion</span></div>
+      <Button variant="ghost" className="qa-new-button" aria-label={text('新对话', 'New chat')} onClick={newConversation} disabled={busy}><MessageSquarePlus size={18} /><span>{text('新对话', 'New chat')}</span></Button>
     </header>
-
-    {originPath && <div className="qa-origin"><ProductGlyph kind={incidentOrigin ? 'incidents' : originSpace === 'world' ? 'world' : 'intelligence'} size={20} /><div><small>{incidentOrigin ? text('来自事件档案', 'FROM INCIDENT DOSSIER') : originSpace === 'world' ? text('来自证据世界', 'FROM EVIDENCE WORLD') : text('来自情报档案', 'FROM INTELLIGENCE DOSSIER')}</small><strong>{params.get('targetLabel') || incidentOrigin || origin}</strong><p>{incidentOrigin ? text('这里会在现有证据中检索，不会把事件档案自动当作已核验事实。', 'This searches existing evidence; the incident dossier is not automatically treated as verified fact.') : text('沿当前材料继续提问，结论以实际引用的证据为准。', 'Continue from this material; conclusions depend on cited evidence.')}</p></div><Link to={originPath}>{text('返回原位置', 'Back to source')}<ArrowUpRight size={13} /></Link></div>}
-
-    <div className={`qa-layout ${!sessionId && !pendingQuestion ? 'is-new' : ''} ${!conversationItems.length ? 'is-empty-history' : ''}`}>
-      <aside className="qa-sessions" aria-label={text('会话列表', 'Conversations')}>
-        <div className="qa-rail-head"><small>YOUR WORKSPACE</small><button onClick={newConversation} aria-label={text('新建会话', 'New conversation')}><Plus size={17} /></button></div>
-        <h2>{text('会话', 'Conversations')}</h2>
-        {conversations.isLoading && <p className="qa-muted">{text('读取会话…', 'Loading conversations…')}</p>}
-        {conversations.isError && <button className="qa-retry" onClick={() => void conversations.refetch()}>{text('重试读取', 'Retry')}</button>}
-        <nav className="qa-session-list">{conversationItems.map(item => {
-          const current = item.session_id === sessionId
-          const next = new URLSearchParams({ session: item.session_id, turn: String(item.latest_turn.turn_index) })
-          return <Link key={item.session_id} to={`/start?${next}`} className={current ? 'current' : ''}>
-            <span>{item.latest_turn.question}</span><small>{formatTime(item.updated_at, language)}</small><ChevronRight size={13} />
-          </Link>
-        })}</nav>
-        {conversations.hasNextPage && <button className="qa-load-more" onClick={() => void conversations.fetchNextPage()} disabled={conversations.isFetchingNextPage}>{conversations.isFetchingNextPage ? text('正在读取…', 'Loading…') : text('更早的会话', 'Older conversations')}</button>}
-        {conversations.isFetchNextPageError && <button className="qa-retry" onClick={() => void conversations.fetchNextPage()}>{text('重试读取更早会话', 'Retry older conversations')}</button>}
-        {!conversations.isLoading && !conversationItems.length && <p className="qa-muted">{text('你的第一段证据对话将在这里出现。', 'Your first evidence dialogue will appear here.')}</p>}
-        <div className="qa-rail-foot"><ShieldCheck size={15} /><span>{text('会话与调查仅你可见；证据与知识可共享。', 'Your sessions and cases are private; evidence and knowledge are shared.')}</span></div>
-      </aside>
-
-      <main className={`qa-dialogue ${!sessionId && !pendingQuestion ? 'is-new' : ''}`}>
-        <div className="qa-dialogue-head"><div><small>{text('证据会话', 'EVIDENCE SESSION')}</small><strong>{sessionId ? text('沿着已有证据继续追问', 'Continue from the evidence already found') : text('从一个有意义的问题开始', 'Begin with a meaningful question')}</strong></div><span>{turns.length ? `${turns.length} ${text('回合', 'turns')}` : 'NEW'}</span></div>
-        <div className="qa-transcript" aria-live="polite" ref={transcriptRef}>
+    <main className={`qa-dialogue ${!sessionId && !pendingQuestion ? 'is-new' : ''}`}>
+        <div className="qa-transcript" ref={transcriptRef} onScroll={event => { const node = event.currentTarget; followBottomRef.current = node.scrollHeight - node.scrollTop - node.clientHeight < 100 }}><div className="qa-transcript-content">
+          {originPath && <div className="qa-origin"><Layers size={18} /><div><small>{text('从情报继续探索', 'Continue from intelligence')}</small><strong>{params.get('targetLabel') || incidentOrigin || origin}</strong></div><Link to={originPath}>{text('查看来源', 'Source')}<ArrowUpRight size={13} /></Link></div>}
           {history.hasNextPage && <button className="qa-load-more qa-load-turns" onClick={() => void history.fetchNextPage()} disabled={history.isFetchingNextPage}>{history.isFetchingNextPage ? text('正在恢复更早回合…', 'Restoring earlier turns…') : text('查看更早回合', 'Load earlier turns')}</button>}
           {history.isFetchNextPageError && <button className="qa-retry" onClick={() => void history.fetchNextPage()}>{text('重试恢复更早回合', 'Retry earlier turns')}</button>}
           {history.isLoading && <p className="qa-muted">{text('恢复完整会话…', 'Restoring conversation…')}</p>}
           {history.isError && <div className="qa-error">{text('无法读取这段会话。', 'Could not load this conversation.')}<button onClick={() => void history.refetch()}>{text('重试', 'Retry')}</button></div>}
-          {!sessionId && !pendingQuestion && <div className="qa-empty"><small>QUESTION → EVIDENCE → DECISION</small><h2>{text('今天想弄清楚什么？', 'What would you like to investigate?')}</h2><p>{text('直接用自然语言提问。系统会查找相关材料、辨认证据边界，并在需要时继续调查。', 'Ask naturally. The system finds relevant material, checks its evidence, and continues investigating when needed.')}</p><div className="qa-example-questions"><button onClick={() => setQuestion(text('Hugging Face 最近发生了什么安全事件？', 'What happened in the recent Hugging Face security incident?'))}>{text('Hugging Face 最近发生了什么安全事件？', 'What happened in the recent Hugging Face security incident?')}</button><button onClick={() => setQuestion(text('最近有哪些值得关注的供应链攻击？', 'Which recent supply-chain attacks deserve attention?'))}>{text('最近有哪些值得关注的供应链攻击？', 'Which recent supply-chain attacks deserve attention?')}</button></div></div>}
-          {turns.map(turn => <ConversationTurn key={turn.turn_index} turn={turn} active={!failedRunId && focusTurn?.turn_index === turn.turn_index} sessionId={sessionId!} reasoning={completedReasoning[`${sessionId}:${turn.turn_index}`] ?? null} onSelect={() => { setFailedRunId(null); setAuditOpen(true); const next = new URLSearchParams(params); next.set('turn', String(turn.turn_index)); setParams(next, { replace: true }); window.setTimeout(() => document.getElementById('question-audit')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80) }} onEvidence={setEvidence} />)}
+          {!sessionId && !pendingQuestion && <QuestionWelcome onSelect={prompt => { setQuestion(prompt); composerRef.current?.focus() }} />}
+
+          {turns.map(turn => <ConversationTurn key={turn.turn_index} turn={turn} active={!failedRunId && focusTurn?.turn_index === turn.turn_index} sessionId={sessionId!} reasoning={completedReasoning[`${sessionId}:${turn.turn_index}`] ?? null} onSelect={() => { setFailedRunId(null); setAuditOpen(true); const next = new URLSearchParams(params); next.set('turn', String(turn.turn_index)); setParams(next, { replace: true }) }} onEvidence={setEvidence} />)}
           {pendingQuestion && <div className="qa-turn qa-turn-pending"><div className="qa-question"><small>{text('你 · 当前回合', 'YOU · CURRENT TURN')}</small><p>{pendingQuestion}</p></div><StreamedDecisionDraft draftRaw={draftRaw} reasoningRaw={reasoningRaw} reasoningOpen={reasoningOpen} onReasoningOpen={setReasoningOpen} phase={streamPhase} /></div>}
-        </div>
+        </div></div>
         <div className="qa-compose">
-          <div className="qa-compose-grid"><label className="qa-question-input"><small>{text('向 SecFusion 提问', 'ASK SECFUSION')}</small><textarea value={question} onChange={event => setQuestion(event.target.value)} disabled={busy} rows={3} placeholder={text('例如：你知道 Hugging Face 事件吗？', 'For example: What happened in the Hugging Face incident?')} onKeyDown={event => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !event.nativeEvent.isComposing) { event.preventDefault(); void submit() } }} /></label><button className="qa-send" onClick={() => void submit()} disabled={busy || !question.trim()} aria-label={text('发送问题', 'Send question')}><Send size={18} /><span>{busy ? text('运行中', 'RUNNING') : text('发送', 'SEND')}</span></button></div>
-          {(visibleTarget || !sessionId) && <details className="qa-scope" open={Boolean(routeTarget)}><summary>{visibleTarget ? `${text('已限定对象', 'Scoped to')} · ${visibleTarget}` : text('限定对象或 CVE（可选）', 'Limit to an object or CVE (optional)')}</summary>{!sessionId && <label className="qa-target"><input value={visibleTarget} onChange={event => { setTarget(event.target.value); setTargetLabel('') }} disabled={busy} placeholder={text('搜索对象或输入 CVE', 'Search an object or enter a CVE')} aria-label={text('查找调查对象', 'Find a question target')} /></label>}</details>}
-          {targetSearch.isFetching && <p className="qa-target-search-state" role="status">{text('正在查找情报对象…', 'Finding intelligence objects…')}</p>}
-          {targetSearch.isError && <button className="qa-retry" onClick={() => void targetSearch.refetch()}>{text('重试对象检索', 'Retry target search')}</button>}
-          {targetSearch.data && !targetLabel && searchTarget === target.trim() && <div className="qa-target-results" aria-label={text('匹配的情报对象', 'Matching intelligence objects')}>{targetSearch.data.items.map(item => <button key={item.object_id} onClick={() => { setTarget(`object:${item.object_id}`); setTargetLabel(item.label) }}><ProductGlyph kind={item.object_type} size={19} /><span><strong>{item.label}</strong><small>{item.object_type}</small></span><ArrowUpRight size={13} /></button>)}{!targetSearch.data.items.length && <span>{text('没有匹配对象；可直接输入 CVE 编号。', 'No matching object. You can enter a CVE ID directly.')}</span>}</div>}
-          <div className="qa-compose-foot"><label><input type="checkbox" checked={showReasoning} onChange={event => setShowReasoning(event.target.checked)} disabled={busy} />{text('显示提供方推理流（如有）', 'Show provider reasoning stream, if available')}</label><span><CornerDownLeft size={12} />{busy ? text('正在提交并保存', 'SUBMITTING & SAVING') : sessionId ? text('会话已保存', 'SESSION SAVED') : text('发送后创建会话', 'SESSION CREATED ON SEND')}</span></div>
-          {error && <div className="qa-error" role="alert">{error}</div>}
+          <div className="qa-composer-card">
+            {visibleTarget && <div className="qa-target-chip"><Layers size={13} /><span>{visibleTarget}</span>{!sessionId && <button type="button" onClick={() => { setTarget(''); setTargetLabel('') }} aria-label={text('取消对象限定', 'Remove target scope')}><X size={13} /></button>}</div>}
+            <label className="qa-question-input"><span className="qa-sr-only">{text('向 SecFusion 提问', 'Ask SecFusion')}</span><textarea ref={composerRef} value={question} onChange={event => setQuestion(event.target.value)} disabled={busy} rows={2} placeholder={text('问一个安全问题，或继续你的探索…', 'Ask a security question, or follow your curiosity…')} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void submit() } }} /></label>
+            <div className="qa-composer-toolbar">
+              <details className="qa-options"><summary><SlidersHorizontal size={15} />{text('自动', 'Auto')}<ChevronRight size={12} /></summary>
+                <div className="qa-options-panel"><h3>{text('回答选项', 'Answer options')}</h3><p>{text('根据你的问题，自动检索、核验或展开调查。', 'Your question guides retrieval, verification, or a deeper investigation.')}</p>
+                  <label className="qa-reasoning-choice"><input type="checkbox" checked={showReasoning} onChange={event => setShowReasoning(event.target.checked)} disabled={busy} />{text('显示模型推理（如有）', 'Show model reasoning, if available')}</label>
+                  {!sessionId && <label className="qa-target"><span>{text('限定对象（可选）', 'Focus on an object (optional)')}</span><Input value={visibleTarget} onChange={event => { setTarget(event.target.value); setTargetLabel('') }} disabled={busy} placeholder={text('搜索对象或输入 CVE', 'Search an object or enter a CVE')} aria-label={text('查找调查对象', 'Find a question target')} /></label>}
+                  {targetSearch.isFetching && <p role="status">{text('正在查找情报对象…', 'Finding objects…')}</p>}
+                  {targetSearch.isError && <button className="qa-retry" onClick={() => void targetSearch.refetch()}>{text('重试对象检索', 'Retry target search')}</button>}
+                  {targetSearch.data && !targetLabel && searchTarget === target.trim() && <div className="qa-target-results">{targetSearch.data.items.map(item => <button key={item.object_id} onClick={() => { setTarget(`object:${item.object_id}`); setTargetLabel(item.label) }}><Layers size={16} /><span>{item.label}</span><ArrowUpRight size={13} /></button>)}{!targetSearch.data.items.length && <p>{text('未找到匹配对象。', 'No matching objects.')}</p>}</div>}
+                </div>
+              </details>
+              <span className="qa-composer-hint">{busy ? text('正在探索证据', 'Exploring the evidence') : text('Enter 发送 · Shift + Enter 换行', 'Enter to send · Shift + Enter for a new line')}</span>
+              {busy ? <Button variant="ghost" className="qa-send qa-stop" onClick={() => abortRef.current?.abort()} aria-label={text('停止接收回答', 'Stop receiving answer')} title={text('停止接收回答', 'Stop receiving answer')}><Square size={15} fill="currentColor" /></Button> : <Button variant="ghost" className="qa-send" onClick={() => void submit()} disabled={!question.trim()} aria-label={text('发送问题', 'Send question')}><ArrowUp size={22} /></Button>}
+            </div>
+          </div>
+          {error && <div className="qa-error" role="alert"><CircleHelp size={15} /><span>{error}</span>{failedRunId && <button onClick={() => setAuditOpen(true)}>{text('查看过程', 'View process')}</button>}</div>}
+          <p className="qa-compose-note"><ScanLine size={12} />{text('让每个结论，都有据可查。', 'Every conclusion starts with evidence.')}</p>
         </div>
       </main>
+      <QuestionDrawer open={historyOpen} onOpenChange={setHistoryOpen} title={text('历史对话', 'Conversation history')} description={text('从之前的问题继续探索。', 'Pick up where you left off.')} side="left">
+        <QuestionHistory sessionId={sessionId} onSelect={() => setHistoryOpen(false)} onNew={newConversation} />
+      </QuestionDrawer>
+      <QuestionDrawer open={auditOpen} onOpenChange={setAuditOpen} title={text('运行过程', 'Behind the answer')} description={text('查看这个回合的证据、任务和上下文。', 'Evidence, tasks, and context for this turn.')} side="right">
 
-      {auditOpen && <AuditRail turn={failedRunId ? null : focusTurn} failedRunId={failedRunId} tasks={auditTasks} taskLoading={taskQueries.some(query => query.isLoading)} taskReadFailed={taskQueries.some(query => query.isError)} onRetryTasks={() => taskQueries.forEach(query => { if (query.isError) void query.refetch() })} caseId={failedRunId ? null : caseId} caseStatus={caseDetail.data?.status} caseEvents={failedRunId ? [] : turnAuditEvents} caseActivityLoading={caseActivity.isLoading} caseActivityFailed={caseActivity.isError} onRetryActivity={() => void caseActivity.refetch()} streamConnected={streamConnected} onEvidence={setEvidence} onClose={() => setAuditOpen(false)} />}
-    </div>
+      {auditOpen && <AuditRail turn={failedRunId ? null : focusTurn} failedRunId={failedRunId} tasks={auditTasks} taskLoading={taskQueries.some(query => query.isLoading)} taskReadFailed={taskQueries.some(query => query.isError)} onRetryTasks={() => taskQueries.forEach(query => { if (query.isError) void query.refetch() })} caseId={failedRunId ? null : caseId} caseStatus={caseDetail.data?.status} caseEvents={failedRunId ? [] : turnAuditEvents} caseActivityLoading={caseActivity.isLoading} caseActivityFailed={caseActivity.isError} onRetryActivity={() => void caseActivity.refetch()} streamConnected={streamConnected} onEvidence={setEvidence} /> }
+      </QuestionDrawer>
     <AnimatePresence>{evidence && <EvidenceOverlay key={evidence} evidenceRef={evidence} onClose={() => setEvidence(null)} />}</AnimatePresence>
   </section>
-}
-
-function ConversationTurn({ turn, active, sessionId, reasoning, onSelect, onEvidence }: { turn: QuestionSessionTurn; active: boolean; sessionId: string; reasoning: string | null; onSelect: () => void; onEvidence: (ref: string) => void }) {
-  const { text, language } = useI18n()
-  const decision = useQuery({ queryKey: ['question-turn-decision', turn.decision_ref], queryFn: () => getDecision(turn.decision_ref!), enabled: Boolean(turn.decision_ref), retry: false })
-  const caseId = turn.investigation_ref?.replace(/^case:/, '')
-  const investigation = useQuery({ queryKey: ['question-turn-case', caseId], queryFn: () => getInvestigation(caseId!), enabled: Boolean(caseId), retry: false, refetchInterval: query => ['active', 'waiting'].includes(query.state.data?.status ?? '') ? 5000 : false })
-  const caseState = caseStateCopy(investigation.data?.status ?? 'created', text)
-  const unknownCount = investigation.data ? displayUnknowns(investigation.data).length : 0
-  return <article className={`qa-turn ${active ? 'active' : ''}`}>
-    <button className="qa-turn-index" onClick={onSelect} aria-label={text(`查看第 ${turn.turn_index} 回合轨迹`, `Inspect turn ${turn.turn_index}`)}>{String(turn.turn_index).padStart(2, '0')}</button>
-    <div className="qa-question"><small>{text('你', 'YOU')} / {formatTime(turn.created_at, language)}</small><p>{turn.question}</p></div>
-    <div className="qa-answer"><div className="qa-answer-meta"><span>{routeLabel(turn.task_kind, text)}</span><button onClick={onSelect}>{text('查看运行轨迹', 'INSPECT TRACE')}<ArrowUpRight size={12} /></button></div>
-      {decision.isLoading && turn.decision_ref && <p className="qa-muted">{text('正在恢复研判…', 'Restoring decision…')}</p>}
-      {decision.isError && <button className="qa-retry" onClick={() => void decision.refetch()}>{text('研判读取失败 · 重试', 'Decision failed · Retry')}</button>}
-      {decision.data && <DecisionReport decision={decision.data} onEvidence={onEvidence} dialogue />}
-      {reasoning && <details className="qa-reasoning"><summary>{text('本次模型推理流 · 仅当前页面保留', 'Provider reasoning · available until reload')}</summary><pre>{reasoning}</pre></details>}
-      {caseId && investigation.isLoading && <p className="qa-muted">{text('正在恢复调查状态…', 'Restoring investigation state…')}</p>}
-      {caseId && investigation.isError && <button className="qa-retry" onClick={() => void investigation.refetch()}>{text('调查状态读取失败 · 重试', 'Investigation status failed · Retry')}</button>}
-      {investigation.data && <div className={`qa-case-result state-${investigation.data.status}`}>
-        <strong>{caseState.headline}</strong>
-        {!turn.decision_ref && <p>{investigation.data.latest_decision ? text('本回合没有单独归档的报告。打开调查现场可查看当前进展。', 'This turn has no separately archived report. Open the case for current progress.') : investigation.data.goal}</p>}
-        <div>
-          <span>{caseState.label}</span>
-          <span>{investigation.data.confirmed_findings.length} {text('已确认', 'confirmed')}</span>
-          {unknownCount > 0 && <span>{unknownCount} {text('尚未确认', 'unknown')}</span>}
-          {investigation.data.open_evidence_needs.length > 0 && <span>{investigation.data.open_evidence_needs.length} {text('待补证据', 'open needs')}</span>}
-        </div>
-        <Link to={`/investigations?case=${caseId}&session=${sessionId}`}>{text('打开完整调查现场', 'Open full investigation')}<ArrowUpRight size={13} /></Link>
-      </div>}
-      {!turn.decision_ref && !turn.investigation_ref && <p className="qa-muted">{text('本回合没有持久研判或调查引用。', 'No durable decision or case reference for this turn.')}</p>}
-    </div>
-  </article>
-}
-
-function AuditRail({ turn, failedRunId, tasks, taskLoading, taskReadFailed, onRetryTasks, caseId, caseStatus, caseEvents, caseActivityLoading, caseActivityFailed, onRetryActivity, streamConnected, onEvidence, onClose }: { turn: QuestionSessionTurn | null; failedRunId: string | null; tasks: AgentTaskDetail[]; taskLoading: boolean; taskReadFailed: boolean; onRetryTasks: () => void; caseId: string | null; caseStatus?: string; caseEvents: ProductRuntimeEvent[]; caseActivityLoading: boolean; caseActivityFailed: boolean; onRetryActivity: () => void; streamConnected: boolean; onEvidence: (ref: string) => void; onClose: () => void }) {
-  const { text } = useI18n()
-  const decision = useQuery({ queryKey: ['question-audit-decision', turn?.decision_ref], queryFn: () => getDecision(turn!.decision_ref!), enabled: Boolean(turn?.decision_ref), retry: false })
-  const finalDecision = decision.data
-  const refs = useMemo(() => finalDecision ? [...new Set([...finalDecision.citations.map(item => item.evidence_ref), ...finalDecision.conclusions.flatMap(item => item.evidence_refs)])] : [], [finalDecision])
-  const modelAttempts = tasks.flatMap(task => task.model_attempts.map(item => ({ ...item, role: task.task.role_id })))
-  const failedTask = tasks.find(task => task.task.run_id === failedRunId)
-  const contextCount = tasks.filter(task => task.context).length
-  const runtimeCount = tasks.reduce((count, task) => count + task.capabilities.length + task.events.length, caseEvents.length)
-  return <aside id="question-audit" className="qa-audit" aria-label={text('可审计轨迹', 'Auditable trace')}>
-    <header><div><small>TRACE / CONTEXT / SOURCES</small><h2>{text('证据轨迹', 'Evidence trace')}</h2></div><button type="button" className="qa-audit-close" onClick={onClose}>{text('收起轨迹', 'Close trace')}</button><span className={failedRunId ? 'failed' : turn ? 'active' : ''}>{failedRunId ? text('失败运行', 'FAILED RUN') : turn ? `TURN ${String(turn.turn_index).padStart(2, '0')}` : 'IDLE'}</span></header>
-    {!turn && !failedRunId && <div className="qa-audit-empty"><div className="qa-audit-diagram"><span>01</span><i /><span>02</span><i /><span>03</span></div><p>{text('选中一个会话回合后，这里展示证据引用、模型调用、上下文装配和工具执行记录。', 'Select a turn to inspect its citations, model calls, assembled context, and tool activity.')}</p></div>}
-    {(turn || failedRunId) && <>
-      <div className="qa-audit-coordinate"><small>{failedRunId ? 'TASK RUN' : 'WORLD REVISION'}</small><strong>{failedRunId ? text('未形成决策', 'NO DECISION') : turn?.knowledge_revision ?? '—'}</strong><span>{failedRunId ? `task-run:${failedRunId}` : turn?.context_id ?? (caseId ? `case:${caseId}` : turn?.request_id)}</span></div>
-      {failedRunId && <div className="qa-audit-failure"><small>{text('停止原因', 'STOP REASON')}</small><strong>{failedTask?.task.stop_reason ?? (taskLoading ? text('读取运行记录…', 'Loading run…') : text('运行记录不可用', 'Run record unavailable'))}</strong></div>}
-      <section className="qa-audit-section"><h3>{text('结论引用', 'Citations')} <b>{refs.length}</b></h3>{refs.length ? refs.map((ref, index) => <button className="qa-evidence-ref" key={ref} onClick={() => onEvidence(ref)}><span>{String(index + 1).padStart(2, '0')}</span><span>{ref}</span><Link2 size={13} /></button>) : <p>{text('本回合尚无可引用的最终结论。', 'No final citation yet for this turn.')}</p>}</section>
-      <section className="qa-audit-section"><h3>{text('执行任务', 'Task runs')} <b>{tasks.length}</b></h3>
-        {tasks.map(task => <Link className="qa-task-link" key={task.task.run_id} to={`/agents?run=${encodeURIComponent(task.task.run_id)}&from=questions`}>
-          <span><small>{task.task.role_id} · {task.task.status}</small><strong>{task.task.task_kind}</strong><em>{task.task.stop_reason ?? `task-run:${task.task.run_id}`}</em></span><ArrowUpRight size={14} />
-        </Link>)}
-        {taskLoading && <p>{text('读取关联任务…', 'Reading linked task runs…')}</p>}
-        {taskReadFailed && <p role="alert">{text('部分关联任务读取失败，当前轨迹可能不完整。', 'Some linked task reads failed; this trace may be incomplete.')} <button className="qa-retry" onClick={onRetryTasks}>{text('重试任务读取', 'Retry task reads')}</button></p>}
-        {!taskLoading && !taskReadFailed && !tasks.length && <p>{text('本回合尚无可读取的任务档案。', 'No task dossier is available for this turn.')}</p>}
-      </section>
-      <section className="qa-audit-section"><h3>{text('模型调用', 'Model execution')} <b>{modelAttempts.length}</b></h3>{taskLoading && <p>{text('读取模型轨迹…', 'Loading model trace…')}</p>}{modelAttempts.map(item => <div className="qa-audit-row" key={item.model_attempt_id}><small>{item.role} · {item.purpose} · {item.status}</small><strong>{item.actual_model}</strong><span>{item.latency_ms === null ? '—' : `${item.latency_ms} ms`} · {item.input_tokens ?? '—'} in / {item.output_tokens ?? '—'} out {item.reasoning_tokens ? `· ${item.reasoning_tokens} reasoning` : ''}</span><span className="qa-audit-measurement"><b>{item.usage_source === 'provider_exact' ? text('提供方精确用量', 'Provider-reported usage') : text('用量未返回', 'Usage unavailable')}</b>{item.total_tokens != null && ` · ${item.total_tokens.toLocaleString()} tokens`}{item.budget_settlement === 'upper_bound' && item.budget_committed_model_tokens != null && ` · ${text('预算按上界结算', 'Budgeted at upper bound')} ${item.budget_committed_model_tokens.toLocaleString()}`}{item.budget_settlement === 'provider_exact_overrun' && ` · ${text('超过预留估算', 'Exceeded reservation estimate')}`}</span></div>)}{!taskLoading && !modelAttempts.length && <p>{text('当前回合没有模型调用记录。', 'No model call recorded for this turn.')}</p>}</section>
-      {tasks.filter(task => task.context?.query_intent).map(task => <section className="qa-audit-section" key={`plan:${task.task.run_id}`}><h3>{text('查询规划', 'Query plan')}</h3><div className="qa-audit-row"><small>{task.context!.query_intent!.query_revision}</small><strong>{task.context!.query_intent!.targets.join(' · ') || text('跨对象查询', 'Cross-object query')}</strong><span>{task.context!.query_intent!.comparison_dimensions.join(' · ')}</span>{task.context!.query_intent_model_ref && <span>{task.context!.query_intent_model_ref}</span>}</div><details><summary>{text('实际执行的查询', 'Executed queries')}<ChevronRight size={13} /></summary><div className="qa-fragments">{(task.context!.query_intent!.compiled_queries ?? []).map(phrase => <div key={phrase}><strong>{phrase}</strong></div>)}</div></details><details><summary>{text('模型建议的短语', 'Model-proposed phrases')}<ChevronRight size={13} /></summary><div className="qa-fragments">{task.context!.query_intent!.search_phrases.map(phrase => <div key={phrase}><strong>{phrase}</strong></div>)}</div></details></section>)}
-      <section className="qa-audit-section"><h3>{text('上下文清单', 'Context manifest')} <b>{contextCount}</b></h3>{tasks.map(task => task.context && <div key={task.task.run_id}><div className="qa-audit-row"><small>{task.context!.role_ref} · REV {task.context!.context_revision}</small><strong>{task.context!.context_id}</strong><span>{task.context!.parent_context_id ? `${text('继承', 'Parent')}: ${task.context!.parent_context_id}` : text('新会话上下文', 'New session context')}</span></div><div className="qa-context-counts"><span>{task.context!.object_refs.length} objects</span><span>{task.context!.relation_refs.length} relations</span><span>{task.context!.evidence_refs.length} evidence</span><span>{task.context!.retrieval_invocation_refs.length} retrievals</span></div>{task.context!.evidence_refs.length > 0 && <details><summary>{text('输入证据引用', 'Input evidence references')}<ChevronRight size={13} /></summary><div className="qa-fragments">{task.context!.evidence_refs.map(ref => <button className="qa-context-ref" key={ref} onClick={() => onEvidence(ref)}>{ref}<ArrowUpRight size={11} /></button>)}</div></details>}{task.context!.retrieval_invocation_refs.length > 0 && <details><summary>{text('检索调用', 'Retrieval invocations')}<ChevronRight size={13} /></summary><div className="qa-fragments">{task.context!.retrieval_invocation_refs.map(ref => <div key={ref}><strong>{ref}</strong></div>)}</div></details>}</div>)}{tasks.flatMap(task => task.prompt_assemblies).map(assembly => <details key={assembly.assembly_id}><summary>{text('Prompt 片段', 'Prompt fragments')} · {assembly.role_revision}<ChevronRight size={13} /></summary><div className="qa-fragments">{assembly.fragments.map((fragment, index) => <div key={index}><small>{fragment.kind ?? 'fragment'} · {fragment.trust_class ?? 'unknown'}</small><strong>{fragment.source_ref ?? 'source unknown'}</strong><span>{fragment.selection_reason ?? ''}</span></div>)}</div></details>)}{!contextCount && !taskLoading && <p>{text('尚无可读取的上下文清单。', 'No context manifest available yet.')}</p>}</section>
-      <section className="qa-audit-section"><h3>{text('工具与执行事件', 'Tools & runtime')} <b>{runtimeCount}</b></h3>{tasks.flatMap(task => task.capabilities).map(item => <div className="qa-audit-row" key={item.invocation_id}><small>TOOL · {item.status}</small><strong>{item.capability_id}</strong><span>{item.tool_impl_id}</span></div>)}{tasks.flatMap(task => task.events.map(item => ({ ...item, role: task.task.role_id }))).map(item => <div className="qa-audit-row" key={item.event_id}><small>{item.role} · TASK {item.seq}</small><strong>{item.event_type}</strong><span>{item.producer}</span></div>)}{caseId && <p className="qa-case-stream"><i className={streamConnected ? 'connected' : ''} />{text('调查事件流', 'Investigation event stream')} · {caseStatus ?? text('状态待读取', 'status pending')} · {streamConnected ? text('实时连接', 'live') : text('实时连接中断；仍可读取已保存事件', 'live connection unavailable; saved events remain readable')}</p>}{caseId && caseActivityLoading && <p>{text('读取已保存的调查事件…', 'Reading saved investigation events…')}</p>}{caseId && caseActivityFailed && <p role="alert">{text('调查事件读取失败，当前轨迹可能不完整。', 'Investigation events failed to load; this trace may be incomplete.')} <button className="qa-retry" onClick={onRetryActivity}>{text('重试事件读取', 'Retry event read')}</button></p>}{caseEvents.map(item => <div className="qa-audit-row" key={item.event_id}><small>{item.event_type} · {item.role_id ? runtimeActorLabel(item.role_id, text) : item.actor ?? item.source_kind}</small><strong>{runtimeEventSummary(item, text)}</strong>{item.evidence_refs.map(ref => <button key={ref} onClick={() => onEvidence(ref)}>{ref}<ArrowUpRight size={11} /></button>)}</div>)}</section>
-    </>}
-  </aside>
 }

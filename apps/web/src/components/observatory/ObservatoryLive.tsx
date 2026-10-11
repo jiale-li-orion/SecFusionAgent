@@ -7,7 +7,7 @@ import { getAgentRuntime, type SystemOverview, type WorldOverview } from '../../
 import { useI18n } from '../../lib/i18n'
 import { useAuth } from '../../lib/auth'
 import { AccountLoginPrompt } from '../auth/RequireAccount'
-import { bytes, compactNumber, linePath, observatoryWindows, pct, seconds, snapshotAge, type ObservatoryWindow } from '../../lib/observatoryPresentation'
+import { bytes, compactNumber, linePath, pct, seconds, snapshotAge, type ObservatoryWindow } from '../../lib/observatoryPresentation'
 import { dominantRuntimeName, rankRuntimeCounts, runtimeToken } from '../../lib/runtimePresentation'
 import { PanelHead } from './ObservatoryPrimitives'
 import { WorkerHealth } from './WorkerHealth'
@@ -48,7 +48,7 @@ function AgentLiveInstrument({ runtime }: { runtime: Awaited<ReturnType<typeof g
   )
 }
 
-export function LiveObservatory({ world, agents, system, failures, windowKey, setWindowKey }: { world: WorldOverview | null; agents: Awaited<ReturnType<typeof getAgentRuntime>> | null; system: SystemOverview | null; failures: { world: boolean; agents: boolean; system: boolean }; windowKey: ObservatoryWindow; setWindowKey: (value: ObservatoryWindow) => void }) {
+export function LiveObservatory({ world, agents, system, failures, windowKey }: { world: WorldOverview | null; agents: Awaited<ReturnType<typeof getAgentRuntime>> | null; system: SystemOverview | null; failures: { world: boolean; agents: boolean; system: boolean }; windowKey: ObservatoryWindow }) {
   const { text } = useI18n()
   const navigate = useNavigate()
   const { authenticated } = useAuth()
@@ -77,7 +77,6 @@ export function LiveObservatory({ world, agents, system, failures, windowKey, se
 
       <div className="live-window-row">
         <div className="live-now"><span className="scan-dot" /><strong>{text('运行快照', 'OPERATIONAL SNAPSHOT')}</strong><span>{world ? snapshotAge(world.generated_at) : failures.world ? text('读数不可用', 'read unavailable') : text('加载中', 'loading')}</span></div>
-        <div className="window-switch">{observatoryWindows.map((item) => <button key={item} className={windowKey === item ? 'active' : ''} onClick={() => setWindowKey(item)}>{item === '168h' ? '7d' : item}</button>)}</div>
       </div>
 
       <div className={`observatory-live-grid ${focus ? `has-observatory-focus focus-${focus}` : ''}`}>

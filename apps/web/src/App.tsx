@@ -2,6 +2,7 @@ import { Component, Suspense, lazy, type ErrorInfo, type ReactNode } from 'react
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { Shell } from './components/Shell'
+import { useI18n } from './lib/i18n'
 import { RequireAccount } from './components/auth/RequireAccount'
 
 const WorldPage = lazy(() => import('./pages/WorldPage').then((module) => ({ default: module.WorldPage })))
@@ -10,6 +11,7 @@ const IntelligencePage = lazy(() => import('./pages/IntelligencePage').then((mod
 const InvestigationsPage = lazy(() => import('./pages/InvestigationsPage').then((module) => ({ default: module.InvestigationsPage })))
 const AgentsPage = lazy(() => import('./pages/AgentsPage').then((module) => ({ default: module.AgentsPage })))
 const ObservatoryPage = lazy(() => import('./pages/ObservatoryPage').then((module) => ({ default: module.ObservatoryPage })))
+const WorkspacePage = lazy(() => import('./pages/WorkspacePage').then((module) => ({ default: module.WorkspacePage })))
 const AuthPage = lazy(() => import('./pages/AuthPage').then((module) => ({ default: module.AuthPage })))
 
 export default function App() {
@@ -34,6 +36,7 @@ export default function App() {
               <Routes location={location}>
                 <Route path="/" element={<WorldPage />} />
                 <Route path="/auth" element={<AuthPage />} />
+                <Route path="/workspace/*" element={<RequireAccount><WorkspacePage /></RequireAccount>} />
                 <Route path="/start" element={<RequireAccount><QuestionsPage /></RequireAccount>} />
                 <Route path="/intelligence" element={<IntelligencePage key={`intelligence:${location.search}`} />} />
                 <Route path="/investigations" element={<RequireAccount><InvestigationsPage key={`investigations:${location.search}`} /></RequireAccount>} />
@@ -72,13 +75,13 @@ class ProductErrorBoundary extends Component<{ children: ReactNode }, ProductErr
       <main className="product-render-fault" role="alert">
         <div className="product-render-fault-mark" aria-hidden="true">!</div>
         <div>
-          <small>PRODUCT RENDER BOUNDARY</small>
+          <small>SECFUSION</small>
           <strong>当前空间未能完成渲染</strong>
-          <p>Runtime 与持久数据没有因此被修改。可以重新装载当前空间，或返回 Evidence World。</p>
+          <p>可以重新打开当前页面，或返回世界继续浏览。</p>
         </div>
         <div className="product-render-fault-actions">
           <button onClick={() => window.location.reload()}>重新装载</button>
-          <button onClick={() => window.location.assign(import.meta.env.BASE_URL)}>返回 WORLD</button>
+          <button onClick={() => window.location.assign(import.meta.env.BASE_URL)}>返回世界</button>
         </div>
       </main>
     )
@@ -86,6 +89,7 @@ class ProductErrorBoundary extends Component<{ children: ReactNode }, ProductErr
 }
 
 function routeSpaceName(pathname: string) {
+  if (pathname.startsWith('/workspace')) return 'workspace'
   if (pathname.startsWith('/auth')) return 'auth'
   if (pathname.startsWith('/start')) return 'start'
   if (pathname.startsWith('/intelligence')) return 'intelligence'
@@ -105,14 +109,16 @@ function routeTransition(pathname: string, reduceMotion = false) {
 }
 
 function ProductSpaceLoader({ space }: { space: ReturnType<typeof routeSpaceName> }) {
+  const { text } = useI18n()
   const label = {
-    auth: 'PREPARING YOUR ACCOUNT',
-    world: 'RESOLVING EVIDENCE WORLD',
-    start: 'OPENING EVIDENCE DIALOGUE',
-    intelligence: 'OPENING CANONICAL DOSSIER',
-    investigations: 'RESOLVING DURABLE CASE',
-    agents: 'RESOLVING AGENT RUNTIME',
-    observatory: 'RESOLVING MEASUREMENT SPACE',
+    auth: text('正在打开账户…', 'Opening your account…'),
+    workspace: text('正在打开工作空间…', 'Opening your workspace…'),
+    world: text('正在读取世界动态…', 'Loading world activity…'),
+    start: text('正在打开问答…', 'Opening your conversation…'),
+    intelligence: text('正在读取情报…', 'Loading intelligence…'),
+    investigations: text('正在读取调查…', 'Loading your investigations…'),
+    agents: text('正在读取任务…', 'Loading tasks…'),
+    observatory: text('正在读取运行状态…', 'Loading service state…'),
   }[space]
 
   return (
@@ -125,7 +131,7 @@ function ProductSpaceLoader({ space }: { space: ReturnType<typeof routeSpaceName
       {space === 'observatory' && <div className="loader-observatory"><svg viewBox="0 0 100 32" preserveAspectRatio="none"><path d="M0 22 L13 22 L18 11 L24 28 L32 16 L39 20 L47 8 L56 24 L64 18 L75 18 L82 12 L89 23 L100 19" /></svg></div>}
       <div className="loader-core">
         <strong>{label}</strong>
-        <small>SECFUSION / PRODUCT READ</small>
+        <small>SECFUSION</small>
       </div>
     </div>
   )

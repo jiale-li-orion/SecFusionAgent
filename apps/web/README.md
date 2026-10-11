@@ -1,120 +1,86 @@
 # `apps.web` — SecFusion Product Web
 
-`apps.web` is the six-space user product. [`SPEC.md`](SPEC.md) defines behavior; the project Wiki and the 2026-10-08 UI design cache define the evidence-led visual direction. Product facts come from Application/API read models, never presentation fixtures or benchmark snapshots. Evaluation remains an engineering capability outside user navigation.
+The Product Web has four primary spaces: **World, Intelligence, Ask and Workspace**. The [October experience contract](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Product-Web-Experience-2026-10) follows the user's latest reference images and feedback and supersedes earlier UI-cache directions. [`SPEC.md`](SPEC.md) retains the underlying behavior contracts. Product facts come from Application/API reads, never presentation fixtures or benchmark snapshots.
 
-## Spaces and user flow
+## Navigation and content
 
-| Space | Product question | Live contract |
+| Entry | Opening experience | Deeper interaction |
 | --- | --- | --- |
-| WORLD | What is entering and changing now? | Source material, Evidence/Knowledge formation, incidents, Hot resident count and bounded ranking window |
-| INTELLIGENCE | What is known about this object? | Dossier, relations, source excerpt, twelve enrichment dimensions, selected-dimension EnrichmentRole task, personal recommendations with reason-level evidence links and progressive browsing |
-| QUESTIONS | What can the system answer, and why? | Complete account-owned conversation, real model SSE, optional provider reasoning, Decision/citation/Evidence view and context/model/tool/task audit |
-| INVESTIGATIONS | What is being followed? | Durable Case, state, activity, citations and continuation |
-| AGENTS | What did the system do? | Recent Role/Task topology, cursor-browsable Task history, context/model/capability audit and Skill/Experience memory |
-| OBSERVATORY | Is the service operating? | Measured source/runtime health, queues, Celery worker control probe and explicit unavailable states |
+| World `/` | Eight labeled source controls and a focused live material map | Source inspection, real Hot index/search, evidence formation and dossier handoff |
+| Intelligence `/intelligence` | Recommendation feed; Following, Events and Library channels | Recommendation reasons/feedback, evidence-backed dossiers, enrichment and incident evolution |
+| Ask `/start` | Natural question, suggested prompts and bottom composer | Full conversation, history drawer, per-turn evidence/model/context/tool audit |
+| Workspace `/workspace` | Account, conversations, interests and investigations | Profile editor and Operations overview |
 
-WORLD's Hot resident total is distinct from the displayed ranking page. A source story retains the original headline/excerpt and has an evidence/source path. The INTELLIGENCE catalog keeps its retained-document selection separate from the live Hot vulnerability window: the Vulnerabilities filter displays up to 16 real Hot CVEs and the resident total, and its action opens the CVE view with the original Hot coordinate. This does not promote a cache item into durable Evidence. Missing, unknown and conflicting enrichment dimensions remain explicit. QUESTIONS at `/start` renders the entire session turn by turn. DIRECT/RETRIEVE use `POST /api/v1/questions/stream` for actual provider deltas; the draft is visibly unvalidated until the durable Decision arrives. In dialogue, structured answer fields and conclusions lead, while raw supporting facts remain expandable with their citations; narrow screens wrap long source fields instead of clipping the answer. Provider reasoning is opt-in and appears only when emitted by the provider; the current page keeps each emitted stream beside its completed turn through URL updates and turn selection until reload, while the durable audit stores usage/counts and context metadata rather than raw reasoning. VERIFY/INVESTIGATE/WATCH retain the accepted Case and follow its existing investigation SSE. A resolved Case contributes its final citations to the audit rail, which loads every owner-checked TaskRun linked by the Case activity feed: InvestigationRole and DecisionRole model calls, contexts, prompt-fragment metadata and runtime events remain separately inspectable. Clicking citations opens the Evidence record. A session URL restores the same Decision or Case after refresh and resolves the target object's human-readable identifier. New conversation clears the prior target and result.
-WORLD's source directions show actual source and healthy counts instead of naming an arbitrary first source. The source inspector separates health, latest successful acquisition, next due time and current error; it participates in the layout as a side column on wide screens and a full-width section below the canvas on narrower screens, without covering the source artwork.
-On phone-width QUESTIONS, the investigation status and research report use the full dialogue width, and the report reduces its own internal gutters so cited prose remains readable.
-On narrow WORLD layouts, the focused source headline appears above the 3D scene and leads to the full material below it, so the current subject remains clear before scrolling.
-Investigation activity keeps its persisted technical event type for audit, while the Case conversation, event rail and QUESTIONS trace present known task events and roles in the selected language; the follow-up composer names the next task rather than the previous actor.
-OBSERVATORY distinguishes a failed source, Agent, or system read from an in-progress read in its pulse, chart, spectrum and dependency panels. The top refresh control retries the affected reads; previously measured data retains its timestamp if still cached. An empty hourly series shows an unavailable peak rather than a measured zero.
-WORLD's four view-specific empty and failure states distinguish source health, Hot residency, processing records and source signals. The processing field can expand all records returned by the current API projection rather than stopping at its first five rows.
-The INTELLIGENCE vulnerability selection offers a direct route to WORLD's paged Hot index, so the 16-item editorial shelf is not the end of Hot discovery.
+`/investigations` remains the complete Case workspace under My investigations. `/agents` and `/observatory` remain directly addressable under Workspace → Operations, preserving task, Skill and source deep links. `/workspace/profile` edits the display name and explicit recommendation interests; `/workspace/operations` reads current task and service state.
 
-Long account conversations and sessions load older entries on demand through owner-checked cursor pages. During genuine provider SSE, the unvalidated draft previews arriving report paragraphs as they stream; machine-readable conclusion fields are not flashed as prose. Completed Question turns and final Cases lead with generated natural paragraphs and paragraph-level Evidence links; the complete structured Decision remains expandable for audit and QA. Older Question turns without retained paragraphs lead with validated conclusions, with raw answer fields in a disclosure. Cases without retained paragraphs say so and keep validated conclusions available in the audit section.
+Intelligence uses `channel=recommended|following|events|library`. Recommendations retain server ranking; Following orders matching content by available evidence observation time. An anonymous reader gets a public discovery feed and a concise sign-in entry, never a false personalized ranking. Feedback persists through the existing API and supports undo. Dossier return links retain channel and category. Source stories request at most the API's 18-record projection limit.
 
-The dialogue reveals received SSE content and optional provider reasoning a character at a time in React, with a small catch-up allowance when a network chunk is large. Reduced-motion users see received text immediately. The final durable Decision replaces the draft immediately on completion. A terminal stream error retains any partial text as an explicitly incomplete, unvalidated draft; the same question can be retried with a fresh idempotency key. When the server has a failed TaskRun coordinate, the audit rail loads its owner-checked model/context/runtime trace even though no completed conversation turn was saved. The full dialogue asks for a 90-second interactive budget so a still-streaming report is not cut off at the previous 30-second limit.
-The streaming report preview reads only the `report_paragraphs` array, so later JSON fields cannot appear as report prose before the final Decision replaces the draft.
-The Question audit rail links each owner-checked TaskRun to its complete AGENTS dossier and explicitly flags partial Task read failures. Investigation turns display their actual active/waiting/resolved/stopped state instead of treating every unfinished Case as an evidence gap. The composer only labels a session saved after it exists.
-AGENTS task activity exposes every materialized Skill link. Learning records show all governance references and evaluation fields returned by the read, including those beyond earlier compact previews.
-Task dossiers enumerate every persisted PromptAssemblyRecord, including each materialized Skill and capability view, percept count, digest, and inspectable prompt-fragment provenance metadata.
-Evidence groups in INTELLIGENCE and INVESTIGATIONS can reveal every linked citation beyond the initial compact set. Both evidence inspectors offer a read retry, and the Case evidence lens shows the source-bound claim value when the Evidence target is a Claim.
-INTELLIGENCE keeps the graph canvas to a readable ten-node preview while its relation ledger exposes every relation in the loaded window with Evidence and target actions. The graph read can expand from 24 to the API's 64-relation limit when more edges exist; the loaded/total count remains visible.
-The full Case workspace can expand all confirmed findings, conflicts, unknowns and open evidence needs returned by the Case read. Expanding execution-event history shows every event returned by the activity read instead of stopping after 32.
-Case activity events now open their linked Evidence records directly and link to their TaskRun dossier when the event carries a task run ID.
-The Case continuation composer accepts multiline questions. A failed submission keeps the draft intact and shows a retryable inline error without adding a false conversation turn. Case targets can expand beyond the first six linked objects.
-The audit rail can retry failed TaskRun and saved Case activity reads. Live Case SSE events expose newly linked TaskRuns immediately while the saved activity feed refreshes; a dropped live connection is labeled without hiding already saved events.
+Incident evolution uses retained events and their evidence references. Observation time and reported event time remain separate. The graph reveals up to 16 records at stable positions while the timeline retains the full returned history; the range control is available only for real timestamps. This is an incident-record/evidence view, not a fabricated complete Knowledge graph or historical Case replay. Missing history has an explicit empty state.
 
-The new-conversation workspace starts with one natural-language question field. The browser does not ask the user to choose an execution path; the API resolves the initial task and constructs retrieval queries. An optional object/CVE scope remains under the composer for dossier handoffs or precise questions; unrecognized scope text is rejected rather than silently dropped. An empty account does not reserve a blank conversation rail or idle audit rail. Once a turn exists, the complete conversation and source/model/context/task audit become available. Transcript autoscroll follows only a new latest turn, and loading older turns does not move the page. The model audit distinguishes provider-reported usage from conservative budget settlement.
-The active conversation now owns the full reading column with wide question bubbles and unboxed report prose. The evidence and execution audit opens below the conversation only when a turn's trace action is selected, rather than narrowing report paragraphs into a third column. The composer follows the transcript in normal page flow so it cannot cover a question or answer. Evidence-boundary Decisions use report copy that distinguishes a waiting investigation from a confirmed answer. Case status chips and the Investigation workspace include unknowns recorded by the final Decision alongside M4 unknowns, while open EvidenceNeeds remain a separate count; a report can therefore show an unresolved attack entry without falsely displaying “0 unknowns.”
+World keeps source health, acquisition time, original source text and Hot/cache identity separate from durable Knowledge. The Hot index pages 24 ranked source records at a time, up to the API offset cap of 4096, and shows the independent resident total. Exact CVE lookup searches the resident pool; free text filters the loaded page. Sources and materials can be focused without a camera-control vocabulary. Motion follows selection and respects reduced motion. COBE supplies the ambient globe without invented geographic markers; the overlaid source links remain actual material provenance. Animation stops offscreen or in a hidden tab, and unavailable WebGL does not remove the evidence controls.
 
-The Evidence inspector opens from a report citation and shows source, Observation, locator, canonical URL and bound object. Public managed documents also show bounded passages from the cited fixed source version, so readers can inspect source language in the product before opening the publisher page. The inspector labels these as source excerpts because an object-level EvidenceLink does not itself pinpoint the exact sentence for each report claim.
-Complex automatic questions also expose their structured query plan and compiled search phrases in the audit rail. The planning model request is linked through the saved ContextManifest and appears with the decision model's attempts in the owner-checked Task dossier.
+## Conversation and evidence
 
-The INTELLIGENCE Incidents filter shows a separate candidate watch from live incident signals. Its count screens out obvious general news from the broader raw signal pool, and every card remains visibly a candidate until durable Incident promotion. Selecting a candidate opens its WORLD signal/source path and original link rather than an empty Incident dossier. WORLD uses the same projection in its Incidents direction, including source-filtered neighboring materials.
+Ask sends ordinary natural language. The API resolves intent and builds retrieval queries; the browser does not require a mode or CVE. Optional object scope and provider reasoning are under Answer options. Suggestions fill the editable composer and do not start a model call automatically.
 
-WORLD only offers the multi-step investigation action when the focused material has a canonical object or CVE target. A candidate without one opens its signal/provenance detail and original source instead of sending the user to an unlaunchable investigation form. The SPA router keeps the configured base URL's trailing slash, so returning to WORLD at `/product/` survives a browser refresh in development.
-Durable Incident material without a canonical object now opens a targetless RETRIEVE question from WORLD or its INTELLIGENCE dossier. The dossier uses the current incident summary as its visible headline and prefilled question context, falling back to incident type only when no summary exists. QUESTIONS keeps a link to the originating material and states that this route searches existing evidence rather than binding the Incident as a verified investigation target. Object- and CVE-backed material still launches target-bound investigation.
+The conversation occupies one reading column. The composer has its own bottom layout row, so it cannot overlay the transcript. History and audit are Radix dialogs with focus containment, Escape and focus return. Citations in audit load the exact retained evidence version and display publisher identity, object and evidence type. The Evidence inspector opens above the audit drawer, preserving its reading position; dismissing it returns focus to the original citation.
 
-The WORLD material atlas uses orbit placement on wide screens and a separate focus-then-neighbours composition below 600px. On narrow screens the source cards follow the central artifact in a grid, keeping their labels and actions clear of the 3D object and its category caption.
+`POST /api/v1/questions/stream` supplies actual provider SSE. React paces received answer and optional reasoning text; reduced motion displays it immediately. Only `report_paragraphs` are previewed as prose, and the arriving JSON remains an unvalidated draft. The validated durable Decision replaces it immediately. Failed streams retain a clearly incomplete draft and allow retry. Stop receiving aborts the browser stream; its copy explicitly states that the server task may continue. The full dialogue requests a 90-second interactive budget.
 
-The INVESTIGATIONS empty state provides a direct verification action and a readable preview of the Case contents. It uses the active space stylesheet at desktop and mobile widths; no legacy blueprint CSS is required for an account with no Cases.
-The Case index loads older account-owned investigations through the existing API cursor. Expanding the current batch and fetching older batches are separate actions; a directly linked older Case is inserted into the visible index after its owner-checked detail loads.
-The AGENTS Task dossier now reads its persisted ContextManifest and every ModelAttempt. Evidence and object references open their corresponding INTELLIGENCE views; relation, retrieval, policy, capability, and budget coordinates remain inspectable. Each model card separates provider-reported tokens from budget settlement, including upper-bound fallback, overrun, and release before dispatch.
-The topology remains a recent-execution view; the history column reads owner-checked Task pages with a stable cursor so older runs can still be found and opened. A directly linked older Task appears beside the recent topology even before its history page is loaded, and an inaccessible Task reports a clear read error. An Incident dossier shows its own content without appending the INTELLIGENCE catalog and personal recommendation desk underneath it. The Incident archive rail stays visible when its index read fails and offers a retry; direct Incident links show a loading state before the dossier arrives. A failed Knowledge read no longer leaves an "opening object" skeleton beside its error.
+Account conversations and turns use owner-checked cursor pages. Loading older turns does not autoscroll away from the reader; a selected older turn can load its preceding pages. Each turn reads its immutable `decision_ref`, never the latest mutable Case report. Accepted investigations keep their live Case/SSE state and distinguish active, waiting, resolved and stopped outcomes. A new conversation clears old outcome and scope coordinates.
 
-The user flow is register/sign in → save interests → inspect evidence-based recommendations and feedback → ask/investigate → resume a recent conversation → sign out/sign in again. `/auth?mode=login|register&returnTo=...` uses a same-origin account session. Protected actions and private reads require the server session; the browser does not send a user-selected principal. Account changes clear query state and close old streams.
+Completed answers lead with natural report paragraphs and citations. Older Decisions without paragraphs retain their validated conclusions. Structured answer fields stay expandable for audit and QA. The per-turn audit exposes query plans, evidence, linked TaskRuns, model attempts, usage versus budget settlement, ContextManifest, prompt-fragment provenance and tool/runtime events. Raw provider reasoning stays transient rather than pretending to be durable audit data.
 
-Submitting a free-text INTELLIGENCE search issues a request for the exact current input before opening an object. The deferred suggestion list is only a preview; pressing Enter while it is updating cannot open a result from an earlier query.
+Evidence inspection leads with readable source content, the cited version and the original link. Provenance details retain source/Observation identity, locator, trust class and content hash. Public managed documents also expose bounded excerpts from the cited source version. These are source previews; object-level evidence does not imply a sentence-level claim locator. Unavailable reads provide retry actions.
 
-WORLD's Hot ranking presents 24 source cards per page, limited by the API's offset cap of 4096, with a separate resident total. Its page count shows the browsable ranking window rather than implying every resident record is paged. An exact CVE searches the entire resident Hot pool through `/api/v1/world/hot/search`; title or mechanism text filters only the loaded page. Both result types keep their Hot-cache identity separate from durable Knowledge.
-The WORLD atlas also previews four current Hot records beside its source materials and links directly to their selected position in the paged Hot index. The preview count is editorial; the resident total and full-CVE search remain the scope indicators.
-The atlas' latest knowledge-commit label distinguishes a real empty change window from loading and read failure; a failed read can be retried in place.
+## Accounts and integration
 
-## Visual ownership
+The user flow is register/sign in → edit interests → browse recommendations and evidence → ask/investigate → resume the saved conversation. Server-owned HttpOnly cookies resolve account identity; the browser never sends a chosen principal or stores credentials in localStorage. Account changes clear query state, close old streams and notify other tabs. Questions, Cases and private runtime reads remain owner-scoped.
 
-`src/main.tsx` imports the active CSS in order:
+`PUT /api/v1/auth/profile` updates the display name using the existing session and Origin/CSRF checks. Interests retain the backend limit of 20 keywords and 20 followed objects. Saving preferences invalidates recommendation reads. Email verification, password recovery and OAuth remain separate account-lifecycle work.
 
-1. `product-foundation.css`: tokens, typography, interaction primitives, shell and shared responsive rules.
-2. `product-spaces.css`: the distinct WORLD, INTELLIGENCE, INVESTIGATIONS, AGENTS and OBSERVATORY compositions.
-3. `account-space.css`: the account realm and auth control surfaces.
+Question and Case commands carry `Idempotency-Key`; retries cannot silently create duplicate work. Cancellation sends the displayed Case revision through `If-Match`. A completed SSE replay returns its persisted result without inventing token replay. An unavailable model provider yields an explicit error; source and Knowledge reads remain available.
 
-`src/pages/questions-space.css` owns the QUESTIONS workspace and is imported only by its page component.
+Agent runtime shows recent topology alongside cursor-paged owner-scoped Task history. Task-node spacing uses the visible row count, and phones scroll inside the graph instead of shrinking its labels. Observatory leads with compact hourly trends and source health, followed by source/data/agent/service detail tabs. Dossiers preserve ContextManifest, model attempts, delegation, Skill and Experience links. Observatory distinguishes unavailable reads from measured zeros; refresh retries the live reads without retimestamping cached data. No evaluation scoreboard, frozen-proof screen or guided demonstration belongs in these flows.
 
-The retired `styles.css`, `cinematic.css`, `cinematic-seams.css`, `surface-authority.css` and `layout-authority.css` remain out of the import graph. Do not restart an override cascade. `npm run lint:css-authority` enforces active ownership. Main identity objects use shared WebGL materials with SVG fallback and reduced-motion behavior; small cards reuse the same visual identities without opening extra GL contexts. Every animated live fact must resolve to a real source, state or measurement.
+## Components and style ownership
 
-Identity assets live under `src/components/instrument/`: `BrandMark` is the evidence-aperture product mark; `ProductGlyph` gives the six spaces and eight source categories distinct machined seals; `SourceSeal` combines a category seal with a source-name monogram in WORLD source inspection, without claiming to reproduce a publisher's official logo. `HeroArtifact` has separate WebGL geometry for the three roles and all eight source categories, with `RoleSigil` / `SourceArtwork` as material-matched static fallbacks. The role accents are identity cues only; active counts and source health continue to come from live reads. Selecting the vulnerability source direction can focus a real Hot vulnerability, while the Hot-only versus durable Evidence boundary remains explicit in the provenance path.
+`src/components/ui/` contains adapted **shadcn/ui source**, with MIT attribution in [`THIRD_PARTY.md`](src/components/ui/THIRD_PARTY.md). Button, Card, Badge, Input, Avatar, Separator, DropdownMenu, Tabs and Item are editable project components. Radix owns dialogs, account menus and keyboard tab navigation; Lucide owns functional icons. There is no extra shadcn runtime package.
 
-## Local integration
+The visual system uses neutral white reading surfaces, navy source maps, cobalt interactions and restrained semantic colors. Manrope and locally hosted Noto Sans SC UI subsets provide consistent typography; publisher marks come from locally hosted Simple Icons assets (see asset READMEs for licenses). Publisher names match explicit registered source IDs and complete hostnames, keeping NVD, NIST, CNNVD and CNVD distinct. `BrandMark` owns the small product identity; decorative 3D icons no longer fill the World, Intelligence, Ask or Agent role openings.
 
-Question (including SSE) and Case cancellation submissions keep a client `Idempotency-Key` for the same unfinished request and clear it after a successful response. A failed Question submission clears its unsaved streaming draft and keeps the editable question for retry. Investigation reports in the transcript load through the turn's immutable `decision_ref`; the latest mutable Case report is not painted onto older turns. Case events refresh the saved turn after finalization. The audit rail scopes TaskRuns and runtime events to the selected turn's request ID and linked child/predecessor runs while the Case page retains the whole timeline. Cancellation sends the displayed Case revision in `If-Match`, so a stale tab receives a conflict instead of cancelling an updated investigation. A completed SSE replay returns its persisted final result without pretending to reproduce earlier model token deltas.
+The global import order in `src/main.tsx` is:
 
-`make dev-runtime-up` starts the API as a health-checked Compose service on
-`127.0.0.1:8001` alongside the durable workers. For API-only development after
-infrastructure/migrations are available:
+1. `ui.css`: Tailwind theme/utilities without a second reset.
+2. `product-foundation.css`: tokens, base reset, typography, shared primitives and four-entry shell.
+3. `product-spaces.css`: retained dossier, investigation and detailed runtime/observatory surfaces.
+4. `account-space.css`: account controls and authentication.
+
+Page-local owners are `components/world/world.css`, `components/intelligence/intelligence.css`, `pages/questions-space.css`, `pages/workspace.css`, `pages/personal-space.css`, `components/agents/role-cards.css` and `components/observatory/observatory-overview.css`. Change their actual rules rather than appending competing overrides. The retired legacy stylesheets stay outside the import graph. `lint:css-authority` checks ownership; the source-size guard keeps pages and components bounded.
+
+## Local development
+
+`make dev-runtime-up` starts the Compose API on `127.0.0.1:8001` and its durable workers. With the infrastructure already running, an alternative API process is:
 
 ```bash
 .venv/bin/uvicorn apps.api.main:app --host 127.0.0.1 --port 8001
 ```
 
-Then start the Web process:
+Start the web process:
 
 ```bash
 cd apps/web
 npm ci
-npm run dev
+npm run dev -- --strictPort
 ```
 
-Open `http://localhost:5173/product/`. Vite proxies `/api` and `/health` to the
-Compose API on `127.0.0.1:8001` by default; set `SECFUSION_API_PROXY` when the API
-uses another address. Production Nginx serves the same-origin paths. Configure
-`SECFUSION_AUTH_ALLOWED_ORIGINS` for the exact external HTTPS origin when the
-reverse proxy changes the browser origin. The development Compose API already
-allows the default local Vite origins on ports 5173 and 4173, so account writes
-work through Vite without weakening the Origin/CSRF guard. An absent model provider yields an
-explicit dependency error for model-backed QA; source/Knowledge reads remain
-available.
+Open **http://127.0.0.1:5173/product/**. Vite proxies `/api` and `/health` to `127.0.0.1:8001`; `SECFUSION_API_PROXY` changes that target. Production uses same-origin Nginx. Configure `SECFUSION_AUTH_ALLOWED_ORIGINS` for the actual external HTTPS origin; the development API allows local ports 5173 and 4173.
 
-The API routes are documented in [`../api/README.md`](../api/README.md); account/session and personalization behavior is specified in the [Wiki](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Product-Accounts-and-Personalization). The site has no guided competition demo, frozen-proof screen or manufactured delay.
-
-## Focused checks
+## Focused verification
 
 ```bash
 npm run build
 npm run lint
-make product-visual-check
-make product-interaction-check
 ```
 
-The browser gates read the live app at the configured local Product URL and inspect desktop/mobile geometry and controls. `uv run python scripts/check_product_decision_flow.py` covers persisted Decision → citation → Evidence → refresh without model calls. Run the relevant gate when changing shell/layout or a cross-page interaction; screenshots and runtime data stay outside Git.
+For layout work, inspect loaded desktop and phone pages plus the changed user path against real local data. The existing `make product-visual-check`, `make product-interaction-check` and `scripts/check_product_decision_flow.py` can cover broader geometry and persisted Decision → citation → Evidence → refresh paths without model calls. Run relevant checks rather than automatically rerunning model evaluation for presentation changes. Runtime screenshots, account state and provider output stay outside Git.

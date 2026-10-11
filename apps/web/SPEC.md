@@ -1,13 +1,19 @@
 # SecFusion Product Frontend Spec v2
 
-> Status: **Production product contract, updated 2026-10-08**
+> Status: **Production behavior contract; presentation superseded 2026-10-11**
 > Date: 2026-10-04
 > Owner: Product App (`apps/web`)
 > Supersedes: 2026-10-04 narrow Ask/Investigation/Intelligence draft
 
+## Current experience authority (2026-10-11)
+
+The [Product Web experience contract](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Product-Web-Experience-2026-10) and current user feedback supersede **all historical navigation, palette, artwork and opening-layout directions below**. Primary navigation is World / Intelligence / Ask / Workspace. Investigations live in object detail and Workspace; Agent runtime and observability live in Workspace → Operations. Ask accepts natural language with automatic backend intent resolution, a bottom composer and optional history/audit drawers. Intelligence opens a content feed. The current implementation and CSS ownership are documented in [README.md](README.md).
+
+The older numbered sections retain API, evidence, ownership and runtime contracts; their six-space navigation, forced mode selection and decorative material-studio proposals are historical, not implementation instructions. No frozen-proof, guided-demo or artificial-delay surface belongs in the Product.
+
 ## 2026-10-08 product direction
 
-The user requires a real operating product. This supersedes earlier competition presentation requirements: no demo routes/guided paths, no frozen proof view, no manufactured waiting sequence. Evaluation remains backend-owned and outside Product navigation. OBSERVATORY is live operations; all animations must support actual focus, state changes or traceable runtime events. The UI-design-cache remains the art-direction authority for the distinct six spaces.
+The user requires a real operating product. This supersedes earlier competition presentation requirements: no demo routes/guided paths, no frozen proof view, no manufactured waiting sequence. Evaluation remains backend-owned and outside Product navigation. OBSERVATORY is live operations; all animations must support actual focus, state changes or traceable runtime events. The earlier UI-design-cache authority is superseded by the current experience contract above.
 
 ## 0. Product contract
 

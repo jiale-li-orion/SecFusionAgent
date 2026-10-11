@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Button } from '../ui/button'
 import { Link, useLocation } from 'react-router-dom'
 import { ArrowRight, LockKeyhole } from 'lucide-react'
 import { safeAccountReturnTo, useAuth } from '../../lib/auth'
@@ -14,7 +15,7 @@ export function AccountLoginPrompt({ title, description }: { title: string; desc
   return <section className="account-required">
     <LockKeyhole size={21} aria-hidden="true" />
     <div><h3>{title}</h3><p>{description}</p></div>
-    <Link className="ew-primary" to={`/auth?${new URLSearchParams({ returnTo }).toString()}`}>{text('登录并继续', 'Sign in to continue')}<ArrowRight size={15} /></Link>
+    <Button asChild><Link to={`/auth?${new URLSearchParams({ returnTo }).toString()}`}>{text('登录并继续', 'Sign in to continue')}<ArrowRight size={15} /></Link></Button>
   </section>
 }
 

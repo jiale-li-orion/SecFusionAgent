@@ -1,15 +1,17 @@
-import { RoleSigil } from '../instrument/RoleSigil'
+import { Button } from '../ui/button'
+import { SourceIdentity } from '../ui/source-identity'
 import { ProductGlyph } from '../instrument/ProductGlyph'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import * as Dialog from '@radix-ui/react-dialog'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion, useReducedMotion } from 'motion/react'
-import { Activity, BadgeCheck, BrainCircuit, CircleAlert, CircleDot, FileWarning, Link2, MessageSquareText, OctagonX, Orbit, SearchCheck, Sparkles, TerminalSquare } from 'lucide-react'
+import { Activity, BadgeCheck, BrainCircuit, CircleAlert, CircleDot, FileWarning, Link2, MessageSquareText, OctagonX, Orbit, SearchCheck, Sparkles, TerminalSquare, X } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { askQuestion, cancelInvestigation, evidenceBoundObjectIds, getEvidence, type EvidenceDetail, type InvestigationFinding, type InvestigationView, type ProductRuntimeEvent, type QuestionResult, type TaskKind } from '../../lib/api'
 import { displayUnknowns, eventState, investigationStopMessage, runtimeActorLabel, runtimeEventSummary, runtimeTaskLabel, type CaseStateFocus, type EventCue } from '../../lib/investigationPresentation'
-import { formatValue } from '../../lib/intelligencePresentation'
+import { evidenceFieldLabel, formatValue } from '../../lib/intelligencePresentation'
 import { useI18n } from '../../lib/i18n'
 import { DecisionReport } from '../DecisionReport'
 import { InvestigationReport } from './InvestigationReport'
@@ -269,7 +271,7 @@ function DecisionPanel({ investigation, onEvidence }: { investigation: Investiga
   const decision = investigation.latest_decision
   return (
     <section className={`decision-panel ${decision ? 'ready' : ''}`}>
-      <div className="decision-oracle"><RoleSigil role="DecisionRole" live={false}/><div><small>ORACLE / DECISION</small><strong>{decision ? text('研判已生成', 'DECISION READY') : liveStatuses.has(investigation.status) ? text('研判尚未生成', 'Decision pending') : text('本次调查未生成研判', 'No decision from this investigation')}</strong></div></div>
+      <div className="decision-oracle"><BrainCircuit size={24} /><div><small>ORACLE / DECISION</small><strong>{decision ? text('研判已生成', 'DECISION READY') : liveStatuses.has(investigation.status) ? text('研判尚未生成', 'Decision pending') : text('本次调查未生成研判', 'No decision from this investigation')}</strong></div></div>
       {decision ? (
         <div className="decision-content">
           <InvestigationReport investigation={investigation} onEvidence={onEvidence} />
@@ -294,40 +296,38 @@ function EvidenceButtons({ refs, onEvidence }: { refs: string[]; onEvidence: (re
 
 export function EvidenceOverlay({ evidenceRef, onClose }: { evidenceRef: string; onClose: () => void }) {
   const { text } = useI18n()
+  const previousFocus = useRef<HTMLElement | null>(null)
   const reduceMotion = Boolean(useReducedMotion())
-  const closeRef = useRef<HTMLButtonElement>(null)
-  const onCloseRef = useRef(onClose)
-  useEffect(() => { onCloseRef.current = onClose }, [onClose])
-  useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null
-    closeRef.current?.focus()
-    const handleKey = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onCloseRef.current() } }
-    document.addEventListener('keydown', handleKey)
-    return () => { document.removeEventListener('keydown', handleKey); previous?.focus() }
-  }, [])
   const query = useQuery({ queryKey: ['evidence-overlay', evidenceRef], queryFn: () => getEvidence(evidenceRef) })
   const item = query.data
-  return createPortal(
-    <motion.aside
+  return <Dialog.Root open onOpenChange={open => { if (!open) onClose() }}><Dialog.Portal>
+    <Dialog.Overlay className="evidence-dialog-overlay"/>
+    <Dialog.Content asChild onOpenAutoFocus={() => {
+      previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    }} onCloseAutoFocus={event => {
+      event.preventDefault()
+      const target = previousFocus.current?.isConnected ? previousFocus.current : document.getElementById('product-main')
+      target?.focus({ preventScroll: true })
+    }}><motion.aside
       className="investigation-evidence-lens"
-      role="dialog"
-      aria-label={text('证据查看', 'Evidence inspector')}
       initial={reduceMotion ? false : { opacity: 0, x: 36, clipPath: 'inset(0 0 0 18%)' }}
       animate={{ opacity: 1, x: 0, clipPath: 'inset(0 0 0 0%)' }}
       exit={reduceMotion ? undefined : { opacity: 0, x: 28, clipPath: 'inset(0 0 0 14%)' }}
       transition={{ type: 'spring', stiffness: 250, damping: 28 }}
     >
+      <Dialog.Title className="sr-only">{text('证据查看', 'Evidence inspector')}</Dialog.Title>
+      <Dialog.Description className="sr-only">{text('核对原始来源、证据内容及其定位。', 'Inspect the original source, evidence and locator.')}</Dialog.Description>
       <div className="overlay-head">
-        <div><small>EVIDENCE TRACE</small><strong>{item?.source.source_id ?? text('解析中…', 'Resolving…')}</strong><span className="mono">{evidenceRef}</span></div>
-        <button ref={closeRef} onClick={onClose}>{text('关闭', 'CLOSE')}</button>
+        <div><small>{text('来源证据', 'Source evidence')}</small>{item ? <SourceIdentity source={item.source.source_id} url={item.observation.canonical_url}/> : <strong>{text('读取中…', 'Loading…')}</strong>}</div>
+        <Dialog.Close asChild><Button variant="ghost" size="icon" aria-label={text('关闭证据', 'Close evidence')}><X/></Button></Dialog.Close>
       </div>
       {item ? <EvidenceTrace item={item} /> : <div className="inspector-empty"><Orbit size={30} />{query.isError ? <><strong>{text('证据读取失败', 'Evidence read failed')}</strong><p>{String(query.error.message)}</p><button className="evidence-read-retry" onClick={() => void query.refetch()}>{text('重新读取', 'Retry')}</button></> : text('解析 Evidence…', 'resolving evidence…')}</div>}
-    </motion.aside>, document.body
-  )
+    </motion.aside></Dialog.Content>
+  </Dialog.Portal></Dialog.Root>
 }
 
 function EvidenceTrace({ item }: { item: EvidenceDetail }) {
-  const { text } = useI18n()
+  const { text, language } = useI18n()
   const navigate = useNavigate()
   const locator = Object.entries(item.locator).map(([key, value]) => key + '=' + String(value)).join(' · ') || 'root'
   const objectIds = evidenceBoundObjectIds(item)
@@ -335,21 +335,21 @@ function EvidenceTrace({ item }: { item: EvidenceDetail }) {
     <div className="trace-hero">
       <BadgeCheck size={22} />
       <div>
-        <small>{item.source.source_role} / {item.source.source_class}</small>
-        <strong>{item.target.target_kind} · {item.target.label}</strong>
+        <small>{text('这条证据说明了什么', 'What this evidence supports')}</small>
+        <strong>{evidenceFieldLabel(item.target.label, text)}</strong>
         <span className="mono" title={item.observation.external_object_id}>{compactEvidenceObjectRef(item.observation.external_object_id)}</span>
       </div>
     </div>
     {item.target.target_kind === 'claim' && item.target.detail.value !== undefined &&
       <div className="trace-statement">
         <small>{text('来源支持的断言', 'SOURCE-BOUND CLAIM')}</small>
-        <p>{formatValue(item.target.detail.value)}</p>
+        <p>{item.target.label === 'known_exploited' && typeof item.target.detail.value === 'boolean' ? item.target.detail.value ? text('该漏洞已有已知利用记录。', 'This vulnerability has a known exploitation record.') : text('该来源未将此漏洞标记为已知被利用。', 'This source does not mark this vulnerability as known to be exploited.') : typeof item.target.detail.value === 'boolean' ? item.target.detail.value ? text('是', 'Yes') : text('否', 'No') : formatValue(item.target.detail.value)}</p>
       </div>}
     {item.document_passages?.length > 0 &&
       <section className="evidence-document-passages">
         <header>
-          <small>{text('固定版本原文节选', 'SOURCE PASSAGES')}</small>
-          <p>{text('这些是固定来源的解析片段；具体断言仍按引用与定位核对。', 'Passages from the fixed source; verify each claim against its citation and locator.')}</p>
+          <small>{text('原文节选', 'Source passages')}</small>
+          <p>{text('摘自此证据引用的来源版本。', 'Excerpts from the source version cited by this evidence.')}</p>
         </header>
         {item.document_passages.map((passage, index) =>
           <article key={passage.chunk_ref} title={passage.chunk_ref}>
@@ -357,24 +357,31 @@ function EvidenceTrace({ item }: { item: EvidenceDetail }) {
             <p>{passage.text}</p>
           </article>)}
       </section>}
-    <TraceRow label="SOURCE REVISION" value={item.observation.external_revision ?? 'content-addressed'} />
-    <TraceRow label="LOCATOR" value={locator} />
-    <TraceRow label="OBSERVED" value={new Date(item.observation.observed_at).toLocaleString()} />
-    <TraceRow label="TRUST" value={item.artifact?.trust_class ?? 'observation-bound'} />
+    {item.observation.canonical_url && <Button asChild variant="outline" className="investigation-evidence-source"><a href={item.observation.canonical_url} target="_blank" rel="noreferrer"><Link2 size={15}/>{text('阅读原始来源', 'Read original source')}</a></Button>}
+    <TraceRow label={text('来源版本', 'Source version')} value={item.observation.external_revision ?? text('按内容哈希归档', 'Content-addressed version')} />
+    <TraceRow label={text('系统发现时间', 'Observed by system')} value={new Date(item.observation.observed_at).toLocaleString(language === 'zh' ? 'zh-CN' : 'en-US')} />
     {objectIds.length > 0 && <div className="evidence-object-links">
-      <small>{text('绑定对象', 'BOUND OBJECTS')}</small>
+      <small>{text('相关档案', 'Related records')}</small>
       <div>{objectIds.map((objectId, index) =>
         <button key={objectId} onClick={() => navigate(`/intelligence?object=${encodeURIComponent(objectId)}&from=case`)}>
           <BrainCircuit size={11} />
           {index === 0 ? text('打开主体档案', 'OPEN SUBJECT DOSSIER') : text('打开关系对象', 'OPEN RELATED OBJECT')}
-          <span className="mono">{compactEvidenceObjectRef(objectId)}</span>
+          <span className="mono" title={objectId}>{index === 0 ? compactEvidenceObjectRef(item.observation.external_object_id) : compactEvidenceObjectRef(objectId)}</span>
         </button>)}</div>
     </div>}
-    {item.observation.canonical_url &&
-      <a className="investigation-evidence-source" href={item.observation.canonical_url} target="_blank" rel="noreferrer">
-        <Link2 size={11} /> {text('打开规范来源', 'OPEN CANONICAL SOURCE')}
-      </a>}
-    <div className="mono overlay-ref">{item.evidence_ref}</div>
+    <details className="evidence-technical-details">
+      <summary>{text('溯源详情', 'Provenance details')}</summary>
+      <TraceRow label={text('证据标识', 'Evidence reference')} value={item.evidence_ref}/>
+      <TraceRow label={text('来源标识', 'Source ID')} value={item.source.source_id}/>
+      <TraceRow label={text('来源角色与类型', 'Source role and class')} value={`${item.source.source_role} / ${item.source.source_class}`}/>
+      <TraceRow label={text('观测记录', 'Observation ID')} value={item.observation.observation_id}/>
+      <TraceRow label={text('来源对象', 'External object ID')} value={item.observation.external_object_id}/>
+      <TraceRow label={text('引用目标', 'Evidence target')} value={`${item.target.target_kind}: ${item.target.target_id}`}/>
+      <TraceRow label={text('原始字段', 'Original field')} value={item.target.label}/>
+      <TraceRow label={text('原文定位', 'Source locator')} value={locator}/>
+      <TraceRow label={text('内容信任类型', 'Content trust class')} value={item.artifact?.trust_class ?? 'observation-bound'}/>
+      <TraceRow label={text('内容哈希', 'Content hash')} value={item.observation.content_hash}/>
+    </details>
   </div>
 }
 

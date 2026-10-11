@@ -1,11 +1,11 @@
 import { ObservatoryPulse } from '../components/observatory/ObservatoryPulse'
-import { SpaceHeading } from '../components/instrument/SpaceHeading'
+import { Button } from '../components/ui/button'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Activity, RefreshCw, TriangleAlert } from 'lucide-react'
+import { RefreshCw, TriangleAlert } from 'lucide-react'
 import { getAgentRuntime, getSystemOverview, getWorldOverview } from '../lib/api'
 import { LiveObservatory } from '../components/observatory/ObservatoryLive'
-import type { ObservatoryWindow } from '../lib/observatoryPresentation'
+import { observatoryWindows, type ObservatoryWindow } from '../lib/observatoryPresentation'
 import { useI18n } from '../lib/i18n'
 import { useAuth } from '../lib/auth'
 
@@ -20,9 +20,9 @@ export function ObservatoryPage() {
   const fetching = worldQuery.isFetching || agentsQuery.isFetching || systemQuery.isFetching
   return (
     <section className="observatory-space studio-observatory observatory-page observatory-live">
-      <SpaceHeading index="05" eyebrow="OBSERVATORY / TELEMETRY" title={text('运行观测', 'Observatory')} description={text('来源健康、世界变化与执行状态，都在真实读数中。', 'Source health, world changes and execution state, measured as they happen.')}>
-        <button className="observatory-refresh" disabled={fetching} onClick={refresh}><RefreshCw size={15} /><span>{fetching ? text('更新中', 'UPDATING') : text('刷新状态', 'REFRESH')}</span><Activity size={14} /></button>
-      </SpaceHeading>
+      <header className="observatory-page-header"><div><h1>{text('数据与服务', 'Data & services')}</h1><p>{text('来源健康、数据变化与服务运行状态。', 'Source health, data activity, and service status.')}</p></div>
+        <div className="observatory-page-actions"><div className="window-switch" aria-label={text('观测时间范围', 'Observation window')}>{observatoryWindows.map(item => <button key={item} className={windowKey === item ? 'active' : ''} aria-pressed={windowKey === item} onClick={() => setWindowKey(item)}>{item === '168h' ? '7d' : item}</button>)}</div><Button variant="outline" disabled={fetching} onClick={refresh}><RefreshCw size={15}/>{fetching ? text('更新中', 'Updating') : text('刷新', 'Refresh')}</Button></div>
+      </header>
       <div className="observatory-live observatory-live-stage">
         {(worldQuery.isError || agentsQuery.isError || systemQuery.isError) && (
           <div className="observatory-live-fault" role="alert">
@@ -32,7 +32,7 @@ export function ObservatoryPage() {
           </div>
         )}
         <ObservatoryPulse world={worldQuery.data ?? null} windowKey={windowKey} failed={worldQuery.isError} />
-        <LiveObservatory world={worldQuery.data ?? null} agents={agentsQuery.data ?? null} system={systemQuery.data ?? null} failures={{ world: worldQuery.isError, agents: agentsQuery.isError, system: systemQuery.isError }} windowKey={windowKey} setWindowKey={setWindowKey} />
+        <LiveObservatory world={worldQuery.data ?? null} agents={agentsQuery.data ?? null} system={systemQuery.data ?? null} failures={{ world: worldQuery.isError, agents: agentsQuery.isError, system: systemQuery.isError }} windowKey={windowKey} />
       </div>
     </section>
   )

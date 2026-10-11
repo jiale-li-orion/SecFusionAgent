@@ -209,7 +209,7 @@ export function AgentsPage() {
       <RoleConstellation runtime={runtime?.roles} selected={selectedTaskRole} focused={focusedRole} onFocus={focusRole} />
 
       {runtime && <details className="agent-model-details"><summary>{text("模型与运行统计", "Model and runtime statistics")}</summary><ModelRuntimeRibbon runtime={runtime} /></details>}
-      {detailQuery.data && <RuntimeActivityView detail={detailQuery.data} onSkillSelect={inspectSkillRef} onTaskSelect={selectTask} />}
+      {detailQuery.data && <details className="agent-model-details"><summary>{text("所选任务的执行链", "Selected task execution chain")}</summary><RuntimeActivityView detail={detailQuery.data} onSkillSelect={inspectSkillRef} onTaskSelect={selectTask} /></details>}
 
       <div id="agent-runtime-field" className={`agent-runtime-grid ${focusedRole ? `runtime-focus-${focusedRole.toLowerCase()}` : ''}`}>
         <section className={`task-field ${focusedRole ? 'role-owned-field' : ''}`}>

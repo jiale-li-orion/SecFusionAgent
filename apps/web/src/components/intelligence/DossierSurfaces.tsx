@@ -1,89 +1,18 @@
-import { BadgeCheck, BookOpenText, Boxes, ExternalLink, FileSearch, GitBranch, GitPullRequest, Package, Radar, Server } from 'lucide-react'
+import { BookOpenText, Boxes, ExternalLink, FileSearch, GitBranch, GitPullRequest, Package, Radar, Server } from 'lucide-react'
 
 import { getDocumentByObject, getKnowledgeObject, listIncidents, type HotBug, type IncidentDetail, type KnowledgeClaim } from '../../lib/api'
 import { formatDate, formatValue, humanize } from '../../lib/intelligencePresentation'
 import { useI18n } from '../../lib/i18n'
 import { EvidenceCapsules } from './KnowledgeSurfaces'
+import { IncidentEvolution } from './IncidentEvolution'
 
 export function IncidentDossier({ incident, onEvidence }: { incident: IncidentDetail; onEvidence: (ref: string) => void }) {
   const { text } = useI18n()
-  const watchEntries = Object.entries(incident.incident.watch_state)
-  return (
-    <section className="incident-dossier">
-      <div className="incident-state">
-        <div className="incident-state-copy">
-          <small>DURABLE INCIDENT / REV {incident.incident.current_revision}</small>
-          <strong>{incident.incident.current_summary ?? text('当前 Incident 尚无摘要。', 'No current Incident summary.')}</strong>
-          <p>{text(
-            `该 Incident 由 ${humanize(incident.incident.promotion_reason)} 提升进入 durable world；生命周期为 ${incident.incident.lifecycle}。`,
-            `Promoted into the durable world by ${humanize(incident.incident.promotion_reason)}; lifecycle is ${incident.incident.lifecycle}.`,
-          )}</p>
-        </div>
-        <div className="incident-state-facts">
-          <div><small>LIFECYCLE</small><strong>{incident.incident.lifecycle}</strong></div>
-          <div><small>PROMOTION</small><strong>{humanize(incident.incident.promotion_reason)}</strong></div>
-          <div><small>CANDIDATE</small><strong className="mono">{incident.incident.candidate_id}</strong></div>
-          <div><small>UPDATED</small><strong>{formatDate(incident.incident.updated_at)}</strong></div>
-        </div>
-        {watchEntries.length > 0 && (
-          <div className="incident-watch">
-            <small>WATCH STATE</small>
-            <div>{watchEntries.map(([key, value]) => <span key={key}><b>{humanize(key)}</b>{formatValue(value)}</span>)}</div>
-          </div>
-        )}
-      </div>
-
-      <div className="incident-reading">
-        <section className="incident-timeline">
-          <div className="incident-section-head">
-            <div><small>INCIDENT TIMELINE</small><strong>{text('事件演进', 'EVENT EVOLUTION')}</strong></div>
-            <span>{incident.timeline.length} durable events</span>
-          </div>
-          <div className="incident-timeline-track">
-            {incident.timeline.map((event, index) => (
-              <article key={event.event_id} className="incident-event">
-                <div className="incident-event-coordinate"><span>{String(index + 1).padStart(2, '0')}</span><i /></div>
-                <div className="incident-event-body">
-                  <div><small>{event.source_role} · REV {event.created_revision}</small><strong>{humanize(event.event_type)}</strong><time>{formatDate(event.event_time)}</time></div>
-                  <p>{event.summary}</p>
-                  <div className="incident-event-refs">
-                    {event.evidence_refs.map((ref) => ref.startsWith('evidence:')
-                      ? <button key={ref} onClick={() => onEvidence(ref)}><BadgeCheck size={11} /> EVIDENCE</button>
-                      : <span key={ref} title={ref}>{typedRefLabel(ref)}</span>)}
-                    {event.claim_refs.map((ref) => <span key={ref} title={ref}>CLAIM</span>)}
-                    {event.supersedes_event_id && <span title={event.supersedes_event_id}>SUPERSEDES</span>}
-                  </div>
-                </div>
-              </article>
-            ))}
-            {incident.timeline.length === 0 && <div className="incident-empty">{text('durable timeline 当前为空。', 'Durable timeline is empty.')}</div>}
-          </div>
-        </section>
-
-        <aside className="incident-sources">
-          <div className="incident-section-head">
-            <div><small>SOURCE CORROBORATION</small><strong>{text('来源独立性', 'SOURCE DIVERSITY')}</strong></div>
-            <span>{incident.incident.source_diversity_count} independent keys</span>
-          </div>
-          <div className="incident-source-list">
-            {incident.sources.map((source) => (
-              <article key={source.source_link_id}>
-                <span className={`incident-source-role role-${source.source_role}`} />
-                <div><small>{source.source_role} · {source.source_family}</small><strong>{source.source_id}</strong><em>{source.upstream_source ?? text('直接来源', 'direct source')}</em></div>
-                <div><small>INDEPENDENCE KEY</small><strong className="mono">{source.independence_key}</strong><span>rev {source.created_revision}</span></div>
-              </article>
-            ))}
-            {incident.sources.length === 0 && <div className="incident-empty">{text('当前没有 durable source link。', 'No durable source links.')}</div>}
-          </div>
-        </aside>
-      </div>
-    </section>
-  )
-}
-
-function typedRefLabel(ref: string) {
-  const prefix = ref.split(':', 1)[0] || 'ref'
-  return prefix.replaceAll('-', ' ').toUpperCase()
+  return <section className="incident-dossier">
+    <IncidentEvolution key={incident.incident.incident_id} incident={incident} onEvidence={onEvidence}/>
+    <section className="intel-retained-sources"><header><h2>{text('已保留的来源', 'Retained sources')}</h2><span>{text(`${incident.incident.source_diversity_count} 个独立来源`, `${incident.incident.source_diversity_count} independent sources`)}</span></header><p>{text('来源链接没有独立的发现时间，不参与时间回放。', 'Source links do not have individual discovery timestamps and are not placed on the playback timeline.')}</p><div>{incident.sources.map(source => <article key={source.source_link_id}><span><FileSearch size={17}/></span><div><strong>{source.source_id}</strong><small>{source.source_family} · {source.source_role}</small><p>{source.upstream_source ?? text('直接来源', 'Direct source')}</p></div></article>)}</div>{!incident.sources.length && <p>{text('当前档案没有保留的来源链接。', 'There are no retained source links in this dossier.')}</p>}</section>
+    <details className="intel-incident-details"><summary>{text('事件状态与技术详情', 'Event status and technical details')}</summary><dl><div><dt>{text('状态', 'State')}</dt><dd>{incident.incident.lifecycle}</dd></div><div><dt>{text('建立原因', 'Promotion reason')}</dt><dd>{humanize(incident.incident.promotion_reason)}</dd></div><div><dt>{text('档案建立于', 'Dossier created')}</dt><dd>{formatDate(incident.incident.created_at)}</dd></div><div><dt>{text('更新于', 'Updated')}</dt><dd>{formatDate(incident.incident.updated_at)}</dd></div></dl><p className="mono">{incident.incident.incident_id} · REV {incident.incident.current_revision}</p>{Object.entries(incident.incident.watch_state).map(([key, value]) => <p key={key}>{humanize(key)} · {formatValue(value)}</p>)}</details>
+  </section>
 }
 
 export function IncidentArchiveRail({

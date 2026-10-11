@@ -31,7 +31,9 @@ export function WorldPage() {
   if (hotStory && !stories.some(s => s.story_id === hotStory.story_id)) stories.push(hotStory)
 
   function focus(story: WorldStory) {
-    const next = new URLSearchParams({ story: story.story_id })
+    const next = new URLSearchParams(params)
+    next.set('story', story.story_id)
+    next.delete('hot')
     if (story.kind === 'HotVulnerability') next.set('hot', story.story_id.slice(4))
     if (params.get('view')) next.set('view', params.get('view')!)
     setParams(next, { replace: true })
@@ -57,7 +59,7 @@ export function WorldPage() {
     navigate(`/start?${next}`)
   }
   return <WorldScene stories={stories} hotStories={hotStories} focusedId={params.get('story') ?? hotStory?.story_id ?? null}
-    region={params.get('source')} onRegion={source => { setParams(current => { const next = new URLSearchParams(current); if (source) next.set('source', source); else next.delete('source'); return next }, { replace: true }) }}
+    region={params.get('source')} onRegion={source => { setParams(current => { const next = new URLSearchParams(current); if (source) { next.set('source', source); next.set('view', 'stories'); next.delete('story'); next.delete('hot') } else next.delete('source'); return next }, { replace: true }) }}
     onHotRetry={() => void workingSet.refetch()} view={params.get('view') ?? (hotCoordinate ? 'hot' : 'stories')} onView={view => { const next = new URLSearchParams(params); next.set('view', view); next.delete('story'); next.delete('hot'); next.delete('source'); setParams(next, { replace: true }) }}
     changes={changes.data?.items ?? []} changesPending={changes.isPending} changesFailed={changes.isError} onChangesRetry={() => void changes.refetch()} overview={overview.data} overviewFailed={overview.isError} onOverviewRetry={() => void overview.refetch()} formation={formation.data} formationFailed={formation.isError} onFormationRetry={() => void formation.refetch()} hotTotal={workingSet.data?.resident_total} hotFailed={workingSet.isError} hotPending={workingSet.isPending} hotPage={hotPage} hotPageSize={hotPageSize}
     onHotPage={page => { setHotPage(page); setParams(current => { const next = new URLSearchParams(current); next.delete('story'); next.delete('hot'); return next }, { replace: true }) }}

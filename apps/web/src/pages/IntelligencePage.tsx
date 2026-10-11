@@ -1,10 +1,10 @@
-import { IntelligenceIndex } from '../components/intelligence/IntelligenceIndex'
-import { ProductGlyph } from '../components/instrument/ProductGlyph'
-import { SpaceHeading } from '../components/instrument/SpaceHeading'
-import { useCallback, useDeferredValue, useMemo, useState } from 'react'
+import { IntelligenceHome, type IntelligenceChannel } from '../components/intelligence/IntelligenceHome'
+import '../components/intelligence/intelligence.css'
+import { useDeferredValue, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import {
+  ArrowLeft,
   FileSearch,
   GitBranch,
   Link2,
@@ -29,13 +29,14 @@ import {
 } from '../lib/api'
 import { EnrichmentConstellation } from '../components/intelligence/EnrichmentConstellation'
 import { ProductEnrichmentActions } from '../components/intelligence/ProductEnrichmentActions'
-import { PersonalizedIntelligence } from '../components/intelligence/PersonalizedIntelligence'
-import { ClaimGroup, DocumentIndexDossier, HotWorkingSetPanel, IncidentArchiveRail, IncidentDossier, IntelligenceArchiveBlueprint, ObjectFacetField } from '../components/intelligence/DossierSurfaces'
+import { ClaimGroup, DocumentIndexDossier, HotWorkingSetPanel, IncidentDossier, IntelligenceArchiveBlueprint, ObjectFacetField } from '../components/intelligence/DossierSurfaces'
 import { EvidenceInspector, FocusedKnowledgeGraph } from '../components/intelligence/KnowledgeSurfaces'
 import { countEvidence, groupClaims, humanize } from '../lib/intelligencePresentation'
 import { useI18n } from '../lib/i18n'
 import { useAuth } from '../lib/auth'
 import { AccountLoginPrompt } from '../components/auth/RequireAccount'
+import { Button } from '../components/ui/button'
+import { Input } from '../components/ui/input'
 
 export function IntelligencePage() {
   const auth = useAuth()
@@ -52,6 +53,9 @@ export function IntelligencePage() {
   const paramEvidence = params.get('evidence')
   const paramIncident = params.get('incident') ?? ''
   const paramView = params.get('view')
+  const channel: IntelligenceChannel = ['following', 'events', 'library'].includes(params.get('channel') ?? '') ? params.get('channel') as IntelligenceChannel : 'recommended'
+  const hasSelection = Boolean(paramObject || paramIncident || paramCve || paramEvidence)
+  function destination(values: Record<string, string>) { return { channel, ...(params.get('category') ? { category: params.get('category')! } : {}), ...values } }
   const [inputOverride, setInputOverride] = useState<string | null>(null)
   const [searchError, setSearchError] = useState('')
   const [searchBusy, setSearchBusy] = useState(false)
@@ -81,7 +85,7 @@ export function IntelligencePage() {
   })
 
   const selectedCve = paramObject || paramIncident || paramQuery ? '' : paramCve
-  const entryQuery = useQuery({ queryKey: ['intelligence-recent-sources'], queryFn: () => getWorldStories(18), enabled: !selectedCve && !paramObject && !paramIncident, staleTime: 30_000 })
+  const entryQuery = useQuery({ queryKey: ['intelligence-recent-sources', 18], queryFn: () => getWorldStories(18), enabled: !selectedCve && !paramObject && !paramIncident, staleTime: 30_000 })
   const selectedObjectId = paramIncident ? '' : paramObject
   const hotCoordinate = params.get('hot')?.split(':')
   const hotDetail = useQuery({ queryKey: ['intelligence-hot-detail', ...(hotCoordinate ?? [])], queryFn: () => getHotWorldItem(hotCoordinate![0], hotCoordinate!.slice(1).join(':')), enabled: Boolean(hotCoordinate && hotCoordinate.length > 1), retry: false })
@@ -93,14 +97,14 @@ export function IntelligencePage() {
     enabled: !paramIncident && Boolean(selectedObjectId || selectedCve),
   })
   const obj = knowledgeQuery.data
-  const refreshDossier = useCallback(async () => {
+  async function refreshDossier() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['knowledge-object', selectedObjectId || selectedCve] }),
       queryClient.invalidateQueries({ queryKey: ['intelligence-enrichment', obj?.object_id] }),
       queryClient.invalidateQueries({ queryKey: ['intelligence-graph', obj?.object_id] }),
       queryClient.invalidateQueries({ queryKey: ['world-hot-intelligence'] }),
     ])
-  }, [queryClient, selectedObjectId, selectedCve, obj?.object_id])
+  }
   const graphQuery = useQuery({
     queryKey: ['intelligence-graph', obj?.object_id, graphLimit],
     queryFn: () => getIntelligenceGraph(obj!.object_id, graphLimit),
@@ -135,15 +139,15 @@ export function IntelligencePage() {
     const objectMatch = raw.match(/^object:(.+)$/i)
     setSearchError('')
     setInputOverride(/^CVE-\d{4}-\d+$/i.test(raw) ? value : raw)
-    if (/^CVE-\d{4}-\d+$/.test(value)) setParams({ cve: value })
-    else if (incidentMatch?.[1]?.trim()) setParams({ incident: incidentMatch[1].trim() })
-    else if (objectMatch?.[1]?.trim()) setParams({ object: objectMatch[1].trim() })
+    if (/^CVE-\d{4}-\d+$/.test(value)) setParams(destination({ cve: value }))
+    else if (incidentMatch?.[1]?.trim()) setParams(destination({ incident: incidentMatch[1].trim() }))
+    else if (objectMatch?.[1]?.trim()) setParams(destination({ object: objectMatch[1].trim() }))
     else {
       setSearchBusy(true)
       try {
         const result = await searchIntelligence(raw, 12)
         if (result.items[0]) openSearchResult(result.items[0].object_id)
-        else setSearchError(text('当前 Knowledge World 没有匹配对象。', 'No matching object exists in the current Knowledge World.'))
+        else setSearchError(text('没有找到匹配内容，试试其他关键词。', 'No matching material. Try another keyword.'))
       } catch (error) {
         setSearchError(error instanceof Error ? error.message : text('情报检索暂不可用。', 'Intelligence search is unavailable.'))
       } finally {
@@ -155,7 +159,7 @@ export function IntelligencePage() {
   function openSearchResult(objectId: string) {
     setSearchError('')
     setInputOverride(null)
-    setParams({ object: objectId })
+    setParams(destination({ object: objectId }))
   }
 
   const groupedClaims = useMemo(() => groupClaims(obj?.claims ?? []), [obj?.claims])
@@ -203,12 +207,12 @@ export function IntelligencePage() {
   }
 
   return (
-    <section className={`intelligence-space studio-intelligence intelligence-page ${obj || incident ? 'has-dossier' : 'archive-empty'}`}>
-      <SpaceHeading index="02" eyebrow="INTELLIGENCE / KNOWLEDGE" title={text('情报档案', 'Intelligence, in context.')} description={text('从原文进入对象，从关系回到证据。', 'Read the source. Explore the relations. Return to the evidence.')}>
-        <form className="intel-search" onSubmit={submitSearch}>
+    <section className={`intel-experience ${hasSelection ? 'intelligence-space studio-intelligence intelligence-page has-dossier' : 'intel-home'}`}>
+      <header className="intel-page-heading"><div>{hasSelection && <button className="intel-back" onClick={() => { setInputOverride(null); setParams(destination({})) }}><ArrowLeft size={15}/>{text('返回情报', 'Back to intelligence')}</button>}<h1>{text('情报', 'Intelligence')}</h1></div>
+        <form className="intel-search intel-discovery-search" onSubmit={submitSearch}>
           <Search size={15} />
-          <input value={input} onChange={(event) => setInputOverride(event.target.value)} aria-label={text("查找情报对象", "Find an intelligence object")} placeholder={text("论文、项目、漏洞编号或资产名称", "Paper, project, vulnerability or asset")} />
-          <button type="submit" disabled={searchBusy}>{searchBusy ? text('检索中…', 'SEARCHING…') : text('打开档案', 'OPEN DOSSIER')}</button>
+          <Input value={input} onChange={(event) => setInputOverride(event.target.value)} aria-label={text("查找情报对象", "Find an intelligence object")} placeholder={text("论文、项目、漏洞编号或资产名称", "Paper, project, vulnerability or asset")} />
+          <Button size="sm" type="submit" disabled={searchBusy}>{searchBusy ? text('检索中…', 'SEARCHING…') : text('搜索', 'Search')}</Button>
           <AnimatePresence>
             {shouldSearchKnowledge(input.trim()) && (
               <motion.div
@@ -218,7 +222,7 @@ export function IntelligencePage() {
                 exit={{ opacity: 0, y: -4 }}
               >
                 <div className="intel-object-search-head">
-                  <small>{text('KNOWLEDGE OBJECT SEARCH', 'KNOWLEDGE OBJECT SEARCH')}</small>
+                  <small>{text('搜索结果', 'Search results')}</small>
                   <span>{objectSearchQuery.isLoading ? text('检索中…', 'SEARCHING…') : text(`${objectSearchQuery.data?.items.length ?? 0} 个对象`, `${objectSearchQuery.data?.items.length ?? 0} objects`)}</span>
                 </div>
                 <div>
@@ -230,7 +234,7 @@ export function IntelligencePage() {
                     </button>
                   ))}
                   {!objectSearchQuery.isLoading && !objectSearchQuery.isError && (objectSearchQuery.data?.items.length ?? 0) === 0 && (
-                    <p>{text('当前 durable Knowledge 没有匹配对象。', 'No matching object in current durable Knowledge.')}</p>
+                    <p>{text('没有找到匹配内容，试试其他关键词。', 'No matching material. Try another keyword.')}</p>
                   )}
                   {objectSearchQuery.isError && <p className="error-block">{String(objectSearchQuery.error.message)}</p>}
                 </div>
@@ -239,7 +243,7 @@ export function IntelligencePage() {
           </AnimatePresence>
           {searchError && <span className="intel-search-error">{searchError}</span>}
         </form>
-      </SpaceHeading>
+      </header>
 
       {originSpace === 'world' && worldRef && (
         <div className="dossier-origin">
@@ -248,7 +252,13 @@ export function IntelligencePage() {
         </div>
       )}
 
-      <div className={`intel-layout reading-${readingMode}`}>
+      {!hasSelection && <IntelligenceHome channel={channel} onChannel={next => { setInputOverride(null); setParams({ channel: next }) }} onOpen={(objectId, evidence) => { setInputOverride(null); setParams(destination({ object: objectId, ...(evidence ? { evidence } : {}) })) }}
+        stories={entryQuery.data?.items ?? []} hot={hotQuery.data?.items ?? []} hotTotal={hotQuery.data?.resident_total ?? 0} candidates={candidateQuery.data?.items ?? []} candidateTotal={candidateQuery.data?.total ?? 0}
+        loading={entryQuery.isPending} hotLoading={hotQuery.isPending} candidateLoading={candidateQuery.isPending} error={entryQuery.isError ? String(entryQuery.error.message) : null} hotError={hotQuery.isError ? String(hotQuery.error.message) : null} candidateError={candidateQuery.isError ? String(candidateQuery.error.message) : null}
+        onSelect={item => { if (item.object_id) openSearchResult(item.object_id); else if (item.incident_id) setParams(destination({ incident: item.incident_id })) }} onHotSelect={item => setParams(destination({ cve: item.cve_id ?? item.external_object_id, hot: `${item.source_id}:${item.external_object_id}` }))} onCandidateSelect={item => navigate(`/?${new URLSearchParams({ view: 'stories', source: 'incidents', story: `candidate:${item.candidate_id}` })}`)}
+        incidents={incidentListQuery.data?.items ?? []} incidentsLoading={incidentListQuery.isPending} incidentsError={incidentListQuery.isError} onRetryIncidents={() => void incidentListQuery.refetch()} onIncident={id => setParams(destination({ incident: id }))}/>}
+
+      {hasSelection && <div className={`intel-layout reading-${readingMode}`} >
         <motion.div
           key={incident?.incident.incident_id ?? obj?.object_id ?? selectedObjectId ?? selectedCve ?? 'archive'}
           className="intel-main"
@@ -258,31 +268,31 @@ export function IntelligencePage() {
         >
           {(obj || incident || selectedCve || selectedObjectId) && <article className="dossier-hero">
             <div className="dossier-id">
-              <span className={`dossier-sigil ${incident ? 'incident' : ''}`}><ProductGlyph kind={incident ? 'incidents' : obj?.object_type === 'Vulnerability' ? 'vulnerability' : obj?.object_type === 'ResearchWork' || obj?.object_type === 'Document' ? 'academic' : obj?.object_type === 'Repo' ? 'development' : 'assets'} size={30}/></span>
+              <span className={`dossier-sigil ${incident ? 'incident' : ''}`}><FileSearch size={25}/></span>
               <div>
-                <small>{incident ? 'SECURITY INCIDENT / DURABLE WORLD' : `${obj?.object_type?.toUpperCase() ?? (selectedCve ? 'VULNERABILITY' : 'CANONICAL OBJECT')} / CANONICAL OBJECT`}</small>
+                <small>{incident ? text('事件档案', 'EVENT DOSSIER') : obj?.object_type === 'Vulnerability' ? text('漏洞档案', 'VULNERABILITY DOSSIER') : text('情报档案', 'INTELLIGENCE DOSSIER')}</small>
                 <strong>{headline}</strong>
-                <span className="mono">{incident?.incident.incident_id ?? obj?.object_id ?? (hotMatch ? `${hotMatch.source_id} · HOT WORKING SET` : (incidentQuery.isLoading || knowledgeQuery.isLoading) ? text('解析中…', 'resolving…') : text('未加载对象', 'no object loaded'))}</span>
+                <details className="intel-object-coordinates"><summary>{text('档案标识', 'Dossier identifier')}</summary><span className="mono">{incident?.incident.incident_id ?? obj?.object_id ?? (hotMatch ? `${hotMatch.source_id} · HOT WORKING SET` : (incidentQuery.isLoading || knowledgeQuery.isLoading) ? text('解析中…', 'resolving…') : text('未加载对象', 'no object loaded'))}</span></details>
               </div>
             </div>
             <div className="dossier-stats">
               {incident ? (
                 <>
-                  <DossierStat label="TIMELINE" value={String(incident.incident.timeline_event_count)} tone="amber" />
-                  <DossierStat label="SOURCES" value={String(incident.incident.source_link_count)} tone="cyan" />
-                  <DossierStat label="DIVERSITY" value={String(incident.incident.source_diversity_count)} tone="lime" />
+                  <DossierStat label={text('记录', 'Records')} value={String(incident.incident.timeline_event_count)} tone="amber" />
+                  <DossierStat label={text('来源', 'Sources')} value={String(incident.incident.source_link_count)} tone="cyan" />
+                  <DossierStat label={text('独立来源', 'Independent sources')} value={String(incident.incident.source_diversity_count)} tone="lime" />
                 </>
               ) : (
                 <>
-                  <DossierStat label={obj ? 'CLAIMS' : hotMatch ? 'LAYER' : 'CLAIMS'} value={obj ? String(obj.claims.length) : hotMatch ? 'HOT' : '—'} tone="cyan" />
-                  <DossierStat label={obj ? 'RELATIONS' : hotMatch ? 'CHANGED' : 'RELATIONS'} value={obj ? String(obj.relations.length) : hotMatch ? String(hotMatch.changed_fields.length) : '—'} tone="violet" />
-                  <DossierStat label={obj ? 'EVIDENCE' : hotMatch ? 'ACCESS' : 'EVIDENCE'} value={obj ? String(countEvidence(obj.claims, obj.relations)) : hotMatch ? String(Math.round(hotMatch.access_count)) : '—'} tone="lime" />
+                  <DossierStat label={obj ? text('事实', 'Facts') : hotMatch ? text('观测', 'Observation') : text('事实', 'Facts')} value={obj ? String(obj.claims.length) : hotMatch ? 'HOT' : '—'} tone="cyan" />
+                  <DossierStat label={obj ? text('关系', 'Relations') : hotMatch ? text('变化', 'Changes') : text('关系', 'Relations')} value={obj ? String(obj.relations.length) : hotMatch ? String(hotMatch.changed_fields.length) : '—'} tone="violet" />
+                  <DossierStat label={obj ? text('证据', 'Evidence') : hotMatch ? text('读取', 'Reads') : text('证据', 'Evidence')} value={obj ? String(countEvidence(obj.claims, obj.relations)) : hotMatch ? String(Math.round(hotMatch.access_count)) : '—'} tone="lime" />
                 </>
               )}
             </div>
             {(obj || hotMatch?.cve_id || incident) && (
               <div className="dossier-mission-actions">
-                {incident ? <button onClick={() => openMission('RETRIEVE')}><FileSearch size={13} /><span>{text('围绕事件检索证据', 'Search evidence for this incident')}</span><em>ORACLE · RETRIEVE</em></button> : <><button onClick={() => openMission('VERIFY')}><ShieldCheck size={13} /><span>{text(hotMatch && !obj ? '核验这个 Hot CVE' : '核验这个对象', hotMatch && !obj ? 'VERIFY THIS HOT CVE' : 'VERIFY OBJECT')}</span><em>ARGUS · VERIFY</em></button><button onClick={() => openMission('INVESTIGATE')}><Telescope size={13} /><span>{text('展开调查', 'INVESTIGATE')}</span><em>ARGUS · INVESTIGATE</em></button></>}
+                {incident ? <button onClick={() => openMission('RETRIEVE')}><FileSearch size={13} /><span>{text('围绕事件检索证据', 'Search evidence for this incident')}</span></button> : <><button onClick={() => openMission('VERIFY')}><ShieldCheck size={13} /><span>{text(hotMatch && !obj ? '核验这个 Hot CVE' : '核验这个对象', hotMatch && !obj ? 'VERIFY THIS HOT CVE' : 'VERIFY OBJECT')}</span></button><button onClick={() => openMission('INVESTIGATE')}><Telescope size={13} /><span>{text('展开调查', 'INVESTIGATE')}</span></button></>}
               </div>
             )}
             {incident && <p className="incident-mission-boundary">{text('事件档案为检索提供问题上下文；回答只依据实际检索到的证据，不会自动将事件绑定为核验目标。', 'The incident frames the search question. The answer relies on retrieved evidence; this is not a target-bound verification.')}</p>}
@@ -326,7 +336,7 @@ export function IntelligencePage() {
               )}
 
               {knowledgeQuery.isError && !hotMatch && <div className="intel-state error-block"><span>{String(knowledgeQuery.error.message)}</span><button className="recovery-action" onClick={() => void knowledgeQuery.refetch()}>{text('重试 Knowledge read', 'RETRY KNOWLEDGE READ')}</button></div>}
-              {!selectedCve && !selectedObjectId && !paramIncident && <><IntelligenceIndex stories={entryQuery.data?.items ?? []} hot={hotQuery.data?.items ?? []} hotTotal={hotQuery.data?.resident_total ?? 0} candidates={candidateQuery.data?.items ?? []} candidateTotal={candidateQuery.data?.total ?? 0} loading={entryQuery.isPending} hotLoading={hotQuery.isPending} candidateLoading={candidateQuery.isPending} error={entryQuery.isError ? String(entryQuery.error.message) : null} hotError={hotQuery.isError ? String(hotQuery.error.message) : null} candidateError={candidateQuery.isError ? String(candidateQuery.error.message) : null} onSelect={item => { if (item.object_id) openSearchResult(item.object_id); else if (item.incident_id) setParams({ incident: item.incident_id }) }} onHotSelect={item => { const cve = item.cve_id ?? item.external_object_id; setParams({ cve, hot: `${item.source_id}:${item.external_object_id}` }) }} onCandidateSelect={item => navigate(`/?${new URLSearchParams({ view: 'stories', source: 'incidents', story: `candidate:${item.candidate_id}` })}`)} />{auth.authenticated ? <PersonalizedIntelligence /> : <AccountLoginPrompt title={text('找到与你有关的情报', 'Find intelligence relevant to you')} description={text('登录后保存关注的技术与对象，查看带有来源的推荐。', 'Sign in to save technologies and objects you follow, and see recommendations with their sources.')} />}</>}
+
               {!obj && hotMatch && <HotWorkingSetPanel item={hotMatch} />}
               {!obj && (selectedCve || selectedObjectId) && !hotMatch && !knowledgeQuery.isError && <IntelligenceArchiveBlueprint target={selectedCve || selectedObjectId} />}
 
@@ -350,7 +360,7 @@ export function IntelligencePage() {
                     onLoadMore={graphLimit < 64 ? () => setGraphLimit(64) : undefined}
                     onOpenTarget={(objectId) => {
                       setInputOverride(null)
-                      setParams({ object: objectId })
+                      setParams(destination({ object: objectId }))
                     }}
                   />}
                 </div>
@@ -361,21 +371,8 @@ export function IntelligencePage() {
           {incidentQuery.isError && <div className="intel-state error-block" role="alert"><span>{String(incidentQuery.error.message)}</span><button className="recovery-action" onClick={() => void incidentQuery.refetch()}>{text('重试 Incident read', 'RETRY INCIDENT READ')}</button></div>}
         </motion.div>
 
-        {(readingMode === 'evidence' || Boolean(paramIncident) || incidentListQuery.isError || (incidentListQuery.data?.items.length ?? 0) > 0) && <aside className="intel-side">
-          <IncidentArchiveRail
-            items={incidentListQuery.data?.items ?? []}
-            loading={incidentListQuery.isLoading}
-            error={incidentListQuery.isError}
-            onRetry={() => void incidentListQuery.refetch()}
-            activeId={paramIncident}
-            onSelect={(incidentId) => {
-              setInputOverride(null)
-              setParams({ incident: incidentId })
-            }}
-          />
-          {readingMode === 'evidence' && <EvidenceInspector evidenceRef={evidenceRef} onClose={closeEvidence} />}
-        </aside>}
-      </div>
+        {readingMode === 'evidence' && <aside className="intel-side"><EvidenceInspector evidenceRef={evidenceRef} onClose={closeEvidence}/></aside>}
+      </div>}
     </section>
   )
 }

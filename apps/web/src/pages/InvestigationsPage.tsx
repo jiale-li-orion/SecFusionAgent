@@ -195,7 +195,7 @@ export function InvestigationsPage() {
               >
                 <CaseWorkspace investigation={selected} events={events} eventCue={eventCue} initialFocus={normalizeCaseFocus(focusParam)} onEvidence={setSelectedEvidence} sessionId={sessionId} reduceMotion={reduceMotion} onFollowUpComplete={() => { void queryClient.invalidateQueries({ queryKey: ['investigation', selectedCase] }); void queryClient.invalidateQueries({ queryKey: ['investigations'] }) }} />
               </motion.div>
-            ) : <InvestigationFieldBlueprint loading={listQuery.isLoading} />}
+            ) : <InvestigationFieldBlueprint loading={listQuery.isLoading || Boolean(selectedCase && detailQuery.isPending)} />}
           </AnimatePresence>
         </main>
 
@@ -223,7 +223,7 @@ function normalizeCaseFocus(value: string | null): CaseStateFocus | null {
 function CaseRailBlueprint() {
   const { text } = useI18n()
   const navigate = useNavigate()
-  return <div className="case-list-empty"><strong>{text('暂无调查记录', 'No investigations yet')}</strong><p>{text('针对漏洞、修复版本或关联事件发起调查。', 'Investigate a vulnerability, fix version, or related incident.')}</p><button className="recovery-action" onClick={() => navigate('/start?profile=VERIFY')}>{text('发起调查', 'START INVESTIGATION')}</button></div>
+  return <div className="case-list-empty"><strong>{text('暂无调查记录', 'No investigations yet')}</strong><p>{text('针对漏洞、修复版本或关联事件发起调查。', 'Investigate a vulnerability, fix version, or related incident.')}</p><button className="recovery-action" onClick={() => navigate('/start')}>{text('发起调查', 'START INVESTIGATION')}</button></div>
 }
 
 function InvestigationFieldBlueprint({ loading }: { loading: boolean }) {
@@ -242,7 +242,7 @@ function InvestigationFieldBlueprint({ loading }: { loading: boolean }) {
         <small>{text('调查工作台', 'INVESTIGATION WORKSPACE')}</small>
         <h2>{loading ? text('正在读取调查记录', 'Reading your investigations') : text('从一个待核验的问题开始', 'Start with a question worth verifying.')}</h2>
         <p>{text('每次调查都会把证据、已确认事实、冲突与未解问题留在同一个 Case 中。之后的追问可以沿着这条线索继续。', 'An investigation keeps evidence, confirmed findings, conflicts and open questions in one Case. Follow-up questions can continue along the same trail.')}</p>
-        {!loading && <button type="button" onClick={() => navigate('/start?profile=VERIFY')}><SearchCheck size={16} />{text('发起核验', 'Start verification')}</button>}
+        {!loading && <button type="button" onClick={() => navigate('/start')}><SearchCheck size={16} />{text('提出调查问题', 'Ask an investigation question')}</button>}
       </div>
       <div className="case-empty-preview">
         <div className="case-empty-preview-head"><small>{text('一个 Case 会持续整理', 'WHAT A CASE KEEPS TOGETHER')}</small><span>ARGUS → ORACLE</span></div>

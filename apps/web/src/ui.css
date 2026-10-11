@@ -1,0 +1,31 @@
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@source "./";
+
+@theme inline {
+ --color-background: #ffffff;
+ --color-foreground: #202127;
+ --color-card: #ffffff;
+ --color-card-foreground: #202127;
+ --color-popover: #ffffff;
+ --color-popover-foreground: #202127;
+ --color-primary: #4263eb;
+ --color-primary-foreground: #ffffff;
+ --color-secondary: #f1f2f4;
+ --color-secondary-foreground: #3f424a;
+ --color-muted: #f4f6fa;
+ --color-muted-foreground: #767982;
+ --color-accent: #f3f4f6;
+ --color-accent-foreground: #252730;
+ --color-destructive: #c3465c;
+ --color-border: #e5e7eb;
+ --color-input: #dedfe4;
+ --color-ring: #9cafef;
+ --radius-sm: 6px;
+ --radius-md: 8px;
+ --radius-lg: 10px;
+ --radius-xl: 12px;
+ --font-sans: Manrope,'Noto Sans SC UI','PingFang SC','Microsoft YaHei',sans-serif;
+}
+@layer base { * { border-color:var(--color-border); border-style:solid; border-width:0; } }

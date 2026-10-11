@@ -1,17 +1,49 @@
 import { useNavigate } from 'react-router-dom'
-import { motion, useReducedMotion } from 'motion/react'
+import { Activity, Database, RadioTower } from 'lucide-react'
 import type { WorldOverview } from '../../lib/api/world'
 import { useI18n } from '../../lib/i18n'
 import { linePath, type ObservatoryWindow } from '../../lib/observatoryPresentation'
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
+import './observatory-overview.css'
 
 export function ObservatoryPulse({ world, windowKey, failed }: { world: WorldOverview | null; windowKey: ObservatoryWindow; failed: boolean }) {
-  const {text}=useI18n();const navigate=useNavigate();const reduced=useReducedMotion()
-  const hours=windowKey==='168h'?168:Number.parseInt(windowKey);const series=(world?.hourly_series??[]).slice(-hours)
-  const fresh=series.map(p=>typeof p.fresh_external_changes==='number'?p.fresh_external_changes:null)
-  const writes=series.map(p=>typeof p.canonical_writes==='number'?p.canonical_writes:null)
-  const health=world?.source_health
-  const count=health?health.healthy+health.degraded+health.blocked:null
-  return <section className="pulse-observatory"><div className="pulse-wave"><header><span>WORLD TELEMETRY / {windowKey==='168h'?'7D':windowKey.toUpperCase()}</span><small>{world?text('测量于','Measured at')+' '+new Date(world.generated_at).toLocaleTimeString():failed?text('读数不可用','Read unavailable'):text('等待运行读数','Awaiting measurements')}</small></header><div className="pulse-readout"><div><small>{text('外部新变化','FRESH CHANGES')}</small><strong>{world?.windows[windowKey]?.fresh_external_changes.toLocaleString()??'—'}</strong></div><div><small>{text('知识写入','KNOWLEDGE WRITES')}</small><strong>{world?.windows[windowKey]?.canonical_writes.toLocaleString()??'—'}</strong></div></div><div className="pulse-trends">{[{key:'fresh',values:fresh,label:text('外部新变化','Fresh changes')},{key:'writes',values:writes,label:text('知识写入','Knowledge writes')}].map(trend=>{const peak=Math.max(0,...trend.values.map(v=>v??0));return <div key={trend.key} className={`pulse-trend trend-${trend.key}`}><div><span>{trend.label}</span><small>{text('小时峰值','HOURLY PEAK')} {trend.values.some(value => value !== null) ? peak.toLocaleString() : '—'}</small></div><svg viewBox="0 0 800 100" preserveAspectRatio="none" aria-label={trend.label}><defs><linearGradient id={`pulse-fill-${trend.key}`} x2="0" y2="1"><stop stopColor="currentColor" stopOpacity=".18"/><stop offset="1" stopColor="currentColor" stopOpacity="0"/></linearGradient></defs><g className="pulse-grid">{[10,45,95].map(y=><path key={y} d={`M0 ${y}H800`}/>)}</g>{trend.values.length>1&&trend.values.every(v=>v!==null)&&<path className="pulse-area" fill={`url(#pulse-fill-${trend.key})`} d={`${linePath(trend.values,800,100,Math.max(1,peak))} L800 100 L0 100Z`}/>}<motion.path className={`pulse-${trend.key}`} d={linePath(trend.values,800,100,Math.max(1,peak))} initial={reduced?false:{pathLength:0}} animate={{pathLength:1}} transition={{duration:.7}}/>{trend.values.length===1&&trend.values[0]!==null&&<circle cx="400" cy={100-Math.min(trend.values[0]/Math.max(1,peak),1)*90-5} r="3" fill="currentColor"/>}</svg></div>})}</div><footer><span><i/>{text('外部新变化','Fresh changes')}</span><span><i/>{text('知识写入','Knowledge writes')}</span><small>{series.length} {text('小时样本','hourly samples')}</small></footer></div>
-    <div className="pulse-health"><header><span>SOURCE SPECTRUM</span><strong>{health?.healthy??'—'} <small>/ {count??'—'}</small></strong></header><p>{text('健康来源','healthy sources')}</p><div className="pulse-source-spectrum">{world?.sources.map(s=><button key={s.source_id} className={`spectrum-source health-${s.health}`} title={`${s.source_name??s.source_id} · ${s.health}`} aria-label={`${s.source_name??s.source_id} · ${s.health}`} onClick={()=>navigate(`/?source=${encodeURIComponent(s.measurement_category)}`)}><span/></button>)}</div><footer><span className="health-healthy">{text('健康','Healthy')} {health?.healthy??'—'}</span><span className="health-degraded">{text('降级','Degraded')} {health?.degraded??'—'}</span><span className="health-blocked">{text('阻塞','Blocked')} {health?.blocked??'—'}</span></footer></div>
+  const { text, language } = useI18n()
+  const navigate = useNavigate()
+  const hours = windowKey === '168h' ? 168 : Number.parseInt(windowKey)
+  const series = (world?.hourly_series ?? []).slice(-hours)
+  const health = world?.source_health
+  const count = health ? health.healthy + health.degraded + health.blocked : null
+  const trends = [
+    { key: 'fresh', icon: Activity, value: world?.windows[windowKey]?.fresh_external_changes, values: series.map(point => typeof point.fresh_external_changes === 'number' ? point.fresh_external_changes : null), label: text('外部新变化', 'Fresh changes') },
+    { key: 'writes', icon: Database, value: world?.windows[windowKey]?.canonical_writes, values: series.map(point => typeof point.canonical_writes === 'number' ? point.canonical_writes : null), label: text('知识写入', 'Knowledge writes') },
+  ]
+  const time = (value: string) => new Date(value).toLocaleTimeString(language === 'zh' ? 'zh-CN' : 'en-US', { hour: '2-digit', minute: '2-digit' })
+  return <section className="observatory-overview" aria-label={text('数据运行概览', 'Data overview')}>
+    <div className="observatory-summary-grid">
+      {trends.map(({ key, icon: Icon, value, values, label }) => {
+        const peak = Math.max(1, ...values.map(value => value ?? 0))
+        return <Card className={`observatory-summary-card summary-${key}`} key={key}>
+          <CardHeader><CardTitle><Icon size={16}/>{label}</CardTitle></CardHeader>
+          <CardContent><strong className="observatory-summary-value">{value?.toLocaleString() ?? '—'}</strong>
+            <div className="observatory-sparkline">
+              {values.length ? <svg viewBox="0 0 320 72" preserveAspectRatio="none" role="img" aria-label={text(`${label}，${series.length} 个小时样本`, `${label}, ${series.length} hourly samples`)}>
+                <path className="observatory-chart-baseline" d="M0 67H320"/>
+                <path className="observatory-chart-line" d={linePath(values, 320, 72, peak)}/>
+                {values.length === 1 && values[0] !== null && <circle cx="160" cy={72 - Math.min(values[0] / peak, 1) * 62 - 5} r="3" fill="currentColor"/>}
+              </svg> : <span>{failed ? text('读数暂不可用', 'Readings unavailable') : text('等待小时样本', 'Awaiting hourly samples')}</span>}
+            </div>
+            <div className="observatory-chart-foot"><span>{text('按小时记录', 'Hourly observations')}</span><span>{series.length} {text('个样本', 'samples')}</span></div>
+          </CardContent>
+        </Card>
+      })}
+      <Card className="observatory-summary-card summary-health">
+        <CardHeader><CardTitle><RadioTower size={16}/>{text('来源健康', 'Source health')}</CardTitle></CardHeader>
+        <CardContent><strong className="observatory-summary-value">{health?.healthy ?? '—'}<small>/ {count ?? '—'}</small></strong>
+          <div className="observatory-source-grid">{world?.sources.map(source => <button key={source.source_id} className={`health-${source.health}`} aria-label={`${source.source_name ?? source.source_id} · ${source.health}`} title={`${source.source_name ?? source.source_id} · ${source.health}`} onClick={() => navigate(`/?source=${encodeURIComponent(source.measurement_category)}`)}/>)}</div>
+          <div className="observatory-health-legend"><span><i className="health-healthy"/>{text('健康', 'Healthy')} {health?.healthy ?? '—'}</span><span><i className="health-degraded"/>{text('降级', 'Degraded')} {health?.degraded ?? '—'}</span><span><i className="health-blocked"/>{text('阻塞', 'Blocked')} {health?.blocked ?? '—'}</span></div>
+        </CardContent>
+      </Card>
+    </div>
+    <p className="observatory-measured-at">{world ? text(`读数更新于 ${time(world.generated_at)}`, `Measured at ${time(world.generated_at)}`) : failed ? text('读数暂不可用，可通过上方按钮重试。', 'Readings are unavailable. Retry using Refresh above.') : text('正在读取运行状态…', 'Loading operational state…')}</p>
   </section>
 }

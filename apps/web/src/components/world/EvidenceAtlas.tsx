@@ -1,28 +1,33 @@
-import { HeroArtifact } from '../instrument/HeroArtifact'
-import { ProductGlyph } from '../instrument/ProductGlyph'
-import { SourceArtwork } from '../instrument/SourceArtwork'
-import { motion, useReducedMotion } from 'motion/react'
-import { ArrowRight, ArrowUpRight, type LucideIcon } from 'lucide-react'
-import type { WorldOverview, WorldStory, WorldKnowledgeChange } from '../../lib/api/world'
+import type { CSSProperties } from 'react'
+import { ArrowUpRight, type LucideIcon } from 'lucide-react'
+import type { WorldOverview, WorldStory } from '../../lib/api/world'
 import { useI18n } from '../../lib/i18n'
+import { WorldGlobe } from './WorldGlobe'
+import { SourceIdentity } from '../ui/source-identity'
 
 type Direction = { key: string; zh: string; en: string; icon: LucideIcon; path: string }
+const sourcePoints = [[125, 105], [310, 58], [505, 70], [653, 160], [630, 344], [430, 408], [218, 389], [79, 269]]
+const materialPoints = [[367, 226], [221, 143], [520, 152], [521, 328], [211, 316]]
 
-/** Material placement is spatial composition, not a depiction of runtime traffic. */
-export function EvidenceAtlas({ directions, stories, hotStories, focusedId, onSource, onFocus, onHot, onHotSelect, changes, changesPending, changesFailed, onChangesRetry, total }: { directions: Direction[]; overview?: WorldOverview; stories: WorldStory[]; hotStories: WorldStory[]; focusedId?: string | null; onSource: (key: string) => void; onFocus: (story: WorldStory) => void; onHot: () => void; onHotSelect: (story: WorldStory) => void; changes: WorldKnowledgeChange[]; changesPending: boolean; changesFailed: boolean; onChangesRetry: () => void; total?: number }) {
+/** Connections are provenance edges from actual story categories, never inferred object relationships. */
+export function EvidenceAtlas({ directions, stories, focusedId, region, onSource, onFocus }: { directions: Direction[]; overview?: WorldOverview; stories: WorldStory[]; focusedId?: string | null; region: string | null; onSource: (key: string) => void; onFocus: (story: WorldStory) => void }) {
   const { text } = useI18n()
-  const reduced = useReducedMotion()
-  const materials = stories.filter(s => s.kind !== 'HotVulnerability')
-  const focused = materials.find(s => s.story_id === focusedId) ?? materials[0]
-  const neighbours = materials.filter(s => s.story_id !== focused?.story_id).slice(0, 4)
-  const direction = directions.find(d => d.key === focused?.category)
-  return <div className="vision-atlas">
-    <div className="vision-atlas-space">
-      <svg className="vision-orbits" viewBox="0 0 600 520" aria-hidden="true"><defs><radialGradient id="world-material-light"><stop stopColor="#93b4bc" stopOpacity=".18"/><stop offset="1" stopColor="#93b4bc" stopOpacity="0"/></radialGradient></defs><ellipse cx="310" cy="275" rx="275" ry="210" fill="url(#world-material-light)"/><g fill="none" stroke="#9db4bc" strokeOpacity=".12"><ellipse cx="310" cy="275" rx="235" ry="135" transform="rotate(-18 310 275)"/><ellipse cx="310" cy="275" rx="285" ry="180" transform="rotate(-18 310 275)"/><path d="M35 410 565 160M120 70 465 485"/></g></svg>
-      {focused && <motion.button key={focused.story_id} className={`vision-material-focus category-${focused.category}`} initial={reduced ? false : {opacity:0,y:14}} animate={{opacity:1,y:0}} transition={{duration:.35}} onClick={() => onSource(focused.category)} aria-label={text('查看这份材料的来源', 'Inspect the source of this material')}><HeroArtifact kind={focused.category}/><span><ProductGlyph kind={focused.category} size={18}/>{direction ? text(direction.zh,direction.en) : focused.category}<ArrowUpRight size={14}/></span><small>{direction?.path}</small></motion.button>}
-      <div className="vision-material-satellites">{neighbours.map((s,i) => <button key={s.story_id} className={`vision-material-neighbour material-position-${i}`} onClick={() => onFocus(s)}><span className="vision-neighbour-art"><SourceArtwork category={s.category} index={i+1}/></span><span className="vision-neighbour-copy"><small>{s.source_name?.split(' · ')[0] ?? s.category}</small><strong>{s.headline}</strong></span><ArrowUpRight size={13}/></button>)}</div>
-    </div>
-    <div className="vision-world-measures"><button onClick={onHot}><span>{text('热区驻留', 'Hot residency')}</span><strong>{total === undefined ? '—' : total.toLocaleString()}</strong></button><div className="vision-change-measure"><span>{changes[0] ? `${text('最近知识留存', 'Latest knowledge commit')} · ${new Date(changes[0].committed_at).toLocaleTimeString()}${changesFailed ? ` · ${text('刷新失败', 'refresh failed')}` : ''}` : changesFailed ? text('知识变化读取失败', 'Knowledge changes unavailable') : changesPending ? text('读取知识留存记录', 'Reading knowledge commits') : text('近期没有知识写入', 'No recent knowledge writes')}</span>{changesFailed && <button onClick={onChangesRetry}>{text('重试', 'Retry')}</button>}</div></div>
-    {hotStories.length > 0 && <div className="vision-hot-preview"><div className="vision-hot-preview-head"><div><small>LIVE / HOT WORKING SET</small><strong>{text('此刻变热的漏洞', 'Vulnerabilities gaining attention')}</strong><span>{text('当前排名预览，缓存记录不等于持久知识', 'Current ranking preview; cache records are not durable knowledge')}</span></div><button onClick={onHot}>{text('浏览热区', 'Browse Hot')}<ArrowRight size={14} /></button></div><div className="vision-hot-preview-list">{hotStories.slice(0, 4).map((story, index) => <button key={story.story_id} onClick={() => onHotSelect(story)}><small>{String(index + 1).padStart(2, '0')} / {story.source_name ?? story.source_id}</small><strong>{typeof story.facts.cve_id === 'string' ? story.facts.cve_id : story.headline}</strong><span>{story.headline}</span><ArrowUpRight size={14} /></button>)}</div></div>}
+  const selected = stories.find(s => s.story_id === focusedId) ?? stories[0]
+  const unique = stories.filter((story, i, all) => all.findIndex(s => s.story_id === story.story_id) === i)
+  const materials = selected ? [selected, ...unique.filter(s => s.story_id !== selected.story_id)].slice(0, 5) : []
+  return <div className={`world-atlas ${region ? 'has-source-focus' : ''}`}>
+    <WorldGlobe/>
+    <div className="world-atlas-coordinate" aria-hidden="true"><span>SOURCE CONSTELLATION</span><span>01 — 08</span></div>
+    <svg className="world-graph" viewBox="0 0 740 460" preserveAspectRatio="none" aria-hidden="true">
+      <defs><radialGradient id="world-field-glow"><stop stopColor="#4263eb" stopOpacity=".16" /><stop offset="1" stopColor="#4263eb" stopOpacity="0" /></radialGradient><linearGradient id="world-provenance-light" x1="0" x2="1"><stop stopColor="#7395ff" stopOpacity=".12" /><stop offset="1" stopColor="#84dcf5" stopOpacity=".7" /></linearGradient></defs>
+      <ellipse cx="370" cy="250" rx="320" ry="200" fill="url(#world-field-glow)" />
+      <g className="world-orbit-lines"><ellipse cx="365" cy="236" rx="290" ry="167" transform="rotate(-13 365 236)" /><ellipse cx="365" cy="236" rx="231" ry="133" transform="rotate(-13 365 236)" /><ellipse cx="365" cy="236" rx="164" ry="96" transform="rotate(-13 365 236)" /><path d="M58 306 662 166M150 40 575 430" /></g>
+      {materials.map((story, i) => { const sourceIndex = directions.findIndex(d => d.key === story.category); if (sourceIndex < 0) return null; const [sx, sy] = sourcePoints[sourceIndex]; const [x, y] = materialPoints[i]; return <g key={story.story_id} className={i === 0 ? 'world-edge is-focused' : 'world-edge'}><path d={`M${sx} ${sy} Q${(sx + x) / 2} ${sy - 26} ${x} ${y}`} /><circle cx={sx} cy={sy} r="3" /><circle cx={x} cy={y} r={i === 0 ? 7 : 4} /></g> })}
+      {directions.map((d, i) => { const [x, y] = sourcePoints[i]; const active = !region || region === d.key; return <g key={d.key} className={`world-graph-domain ${active ? 'is-active' : ''}`}><circle cx={x} cy={y} r="15" /><circle cx={x} cy={y} r="3" /><text x={x} y={y + 31} textAnchor="middle">{text(d.zh, d.en)}</text></g> })}
+    </svg>
+    <div className="world-graph-nodes">{materials.map((story, i) => { const [x, y] = materialPoints[i]; const direction = directions.find(d => d.key === story.category); return <button key={story.story_id} className={`world-material-node ${i === 0 ? 'is-focused' : ''}`} style={{ '--node-x': `${x / 740 * 100}%`, '--node-y': `${y / 460 * 100}%` } as CSSProperties} aria-pressed={story.story_id === focusedId} onClick={() => onFocus(story)}><span className="world-node-mark"><SourceIdentity source={story.source_name ?? story.source_id} url={story.external_ref} compact/></span><span className="world-node-label"><small>{story.source_name?.split(' · ')[0] ?? direction?.en}</small><strong>{story.headline}</strong></span><ArrowUpRight size={12} className="world-node-arrow" /></button> })}</div>
+    {!materials.length && <div className="world-map-empty"><span>{text('来源已就位', 'Sources in view')}</span><p>{text('此方向暂无可展示的动态', 'No signals to display in this direction')}</p></div>}
+    {region && <button className="world-map-reset" onClick={() => onSource(region)}>{text('回到全景', 'Return to overview')}<ArrowUpRight size={13} /></button>}
+    <div className="world-map-legend"><span><i />{text('来源', 'Source')}</span><span><i />{text('已收录材料', 'Observed material')}</span><span><i />{text('当前焦点', 'Current focus')}</span></div>
   </div>
 }

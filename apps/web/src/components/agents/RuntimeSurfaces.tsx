@@ -5,6 +5,7 @@ import { Activity, ArrowDownRight, BrainCircuit, CircleDot, GitFork, TerminalSqu
 
 import { getAgentTask, type AgentTaskSummary } from '../../lib/api'
 import { activeStatuses, rolePresentation } from '../../lib/agentRuntimePresentation'
+import { runtimeTaskLabel } from '../../lib/investigationPresentation'
 import { useI18n } from '../../lib/i18n'
 import { TaskContextLedger, TaskModelLedger } from './TaskAuditSurfaces'
 
@@ -133,7 +134,7 @@ export function TaskTopology({ tasks, selectedTask, onSelect, focusedRole }: { t
       </div>
       <div><small>{text('委派与执行步骤', 'DELEGATION + EXECUTION STEPS')}</small><strong>{text(`${topology.nodes.length} 个可见节点 · ${topology.edges.length} 条执行关联`, `${topology.nodes.length} visible nodes · ${topology.edges.length} execution links`)}</strong></div>
     </div>
-    <div className={`task-topology-canvas ${focusedRole ? 'single-role-topology' : ''}`}>
+    <div className="task-topology-scroll"><div className={`task-topology-canvas ${focusedRole ? 'single-role-topology' : ''}`} style={{ height: topology.height }}>
       {focusedRole
         ? <div className={`task-role-column role-focus-column focus-${focusedRole.toLowerCase()}`} />
         : <><div className="task-role-column role-decision" /><div className="task-role-column role-investigation" /><div className="task-role-column role-enrichment" /></>}
@@ -147,30 +148,28 @@ export function TaskTopology({ tasks, selectedTask, onSelect, focusedRole }: { t
       {topology.nodes.map((node) => {
         const task = node.task
         const related = !selectedTask || task.run_id === selectedTask || Boolean(selectedCase && task.case_id === selectedCase)
-        return <motion.button
+        return <button
           key={task.run_id}
           className={`task-crystal state-${task.status} ${task.run_id === selectedTask ? 'selected' : ''} ${selectedCase && task.case_id === selectedCase ? 'case-related' : ''} ${related ? '' : 'dimmed'}`}
           style={{ left: `${node.x}%`, top: `${node.y}%` }}
           onClick={() => onSelect(task.run_id)}
-          initial={{ opacity: 0, scale: .75 }}
-          animate={{ opacity: related ? 1 : .68, scale: task.run_id === selectedTask ? 1.1 : 1 }}
-          transition={{ type: 'spring', stiffness: 230, damping: 25 }}
+          aria-pressed={task.run_id === selectedTask}
           title={`${task.role_id} · ${task.task_kind} · ${task.status}`}
         >
           <span className="task-crystal-core" />
-          <span className="task-crystal-copy"><small>{rolePresentation[task.role_id]?.alias ?? task.role_id}</small><strong>{shortTaskKind(task.task_kind)}</strong><em>{task.status}</em></span>
+          <span className="task-crystal-copy"><small>{rolePresentation[task.role_id]?.alias ?? task.role_id}</small><strong>{runtimeTaskLabel(task.task_kind, text)}</strong><em>{task.status}</em></span>
           {(task.parent_run_id || task.predecessor_run_id) && <GitFork size={10} className="task-child-mark" />}
-        </motion.button>
+        </button>
       })}
       {topology.nodes.length === 0 && <div className="task-topology-empty">{text('当前读取窗口没有 durable TaskRun。', 'No durable TaskRun in current read window.')}</div>}
-    </div>
+    </div></div>
   </div>
 }
 
 type TaskTopologyNode = { task: AgentTaskSummary; x: number; y: number; run_id: string }
 type TaskTopologyEdge = { parent: TaskTopologyNode; child: TaskTopologyNode }
 
-function buildTaskTopology(tasks: AgentTaskSummary[], selectedTask: string | null): { nodes: TaskTopologyNode[]; edges: TaskTopologyEdge[] } {
+function buildTaskTopology(tasks: AgentTaskSummary[], selectedTask: string | null): { nodes: TaskTopologyNode[]; edges: TaskTopologyEdge[]; height: number } {
   const allById = new Map(tasks.map((task) => [task.run_id, task]))
   const chosen = new Map<string, AgentTaskSummary>()
   const selected = selectedTask ? allById.get(selectedTask) ?? null : null
@@ -201,30 +200,15 @@ function buildTaskTopology(tasks: AgentTaskSummary[], selectedTask: string | nul
   const roleX: Record<string, number> = singleRole
     ? { DecisionRole: 50, InvestigationRole: 50, EnrichmentRole: 50 }
     : { DecisionRole: 17, InvestigationRole: 50, EnrichmentRole: 83 }
+  const rows = singleRole ? Math.ceil(Math.min(chosen.size, 6) / 2) : Math.max(1, ...[...byRole.values()].map(items => Math.min(items.length, 6)))
+  const height = Math.max(240, rows * 98 + 32)
   const nodes: TaskTopologyNode[] = []
   for (const [role, roleTasks] of byRole) {
     const sorted = [...roleTasks].sort((a, b) => Number(activeStatuses.has(b.status)) - Number(activeStatuses.has(a.status)) || new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
     sorted.slice(0, 6).forEach((task, index) => {
-      if (!singleRole) {
-        nodes.push({ task, run_id: task.run_id, x: roleX[role] ?? 50, y: 17 + index * 14 })
-        return
-      }
-      const singleRoleLayouts: Record<string, Array<{ x: number; y: number }>> = {
-        DecisionRole: [
-          { x: 30, y: 18 }, { x: 70, y: 18 }, { x: 38, y: 39 },
-          { x: 62, y: 39 }, { x: 44, y: 62 }, { x: 56, y: 76 },
-        ],
-        InvestigationRole: [
-          { x: 37, y: 16 }, { x: 63, y: 28 }, { x: 34, y: 42 },
-          { x: 66, y: 56 }, { x: 40, y: 70 }, { x: 60, y: 82 },
-        ],
-        EnrichmentRole: [
-          { x: 39, y: 18 }, { x: 61, y: 18 }, { x: 39, y: 43 },
-          { x: 61, y: 43 }, { x: 39, y: 68 }, { x: 61, y: 68 },
-        ],
-      }
-      const point = singleRoleLayouts[role]?.[index] ?? { x: 50, y: 17 + index * 14 }
-      nodes.push({ task, run_id: task.run_id, x: point.x, y: point.y })
+      const row = singleRole ? Math.floor(index / 2) : index
+      const x = singleRole ? (index % 2 === 0 ? 30 : 70) : roleX[role] ?? 50
+      nodes.push({ task, run_id: task.run_id, x, y: (57 + row * 98) / height * 100 })
     })
   }
   const nodeById = new Map(nodes.map((node) => [node.run_id, node]))
@@ -235,7 +219,7 @@ function buildTaskTopology(tasks: AgentTaskSummary[], selectedTask: string | nul
     const parent = nodeById.get(preceding)
     if (parent) edges.push({ parent, child: node })
   }
-  return { nodes, edges }
+  return { nodes, edges, height }
 }
 
 function shortTaskKind(value: string) {

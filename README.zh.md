@@ -75,14 +75,14 @@ pytest      领域、重放、状态迁移与契约测试
 
 ## Product Web 与账户
 
-`/product/` 提供相互联通的六个空间：WORLD 追踪实时来源材料和 Hot CVE；INTELLIGENCE 打开证据档案并按所选维度提交富化；INVESTIGATIONS 跟进持久 Case；AGENTS 呈现真实 Role/Task；OBSERVATORY 展示有测量时间的服务和 worker 状态；START 创建或恢复真实问答会话。产品界面不设置比赛演示、冻结证明或人为延时路径。视觉与联调契约见 [`apps/web/README.md`](apps/web/README.md)。
+Product Web 的一级导航收敛为 **世界 / 情报 / 问答 / 我的**。世界提供八类来源、材料聚焦、Hot 索引与知识形成；情报默认进入推荐流，并提供关注、事件与资料库；问答采用宽松对话、底部输入、历史抽屉与按需审计；我的汇集资料、兴趣、会话和调查，其运行工作台承接智能体与系统观测。既有调查、任务和观测深链接继续有效。详见 [`apps/web/README.md`](apps/web/README.md) 与 [本轮体验规范](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Product-Web-Experience-2026-10)。
 
 问答页可继续加载更早的账户会话和回合。调查完成后，页面展示由同一份已验证 Decision 生成、带证据引用的自然段落研究报告；结构化回答与结论仍用于审计和评测。
 调查页按游标继续加载更早的账户 Case；从链接直接打开旧 Case 时，当前 Case 也会出现在调查列表中。
 AGENTS 的 Task 详情展示持久化 ContextManifest 与每次模型调用；输入证据和对象可进入情报档案，提供方真实用量与预算结算分开标记。
 情报页的漏洞精选架直接通往 WORLD 的分页热区索引，方便继续发现更多驻留记录。
 
-视觉标识现采用独立的“证据汇聚孔径”品牌符号、八类来源与实际来源徽记，以及三位 Agent 各自的 WebGL/SVG 雕塑。它们只表达视觉身份，旁边的运行状态仍由真实 Product read model 提供。
+视觉基础改为冷白阅读面、墨蓝场景与钴蓝交互；功能图标统一 Lucide，基础控件、账户菜单和频道切换采用源码归项目所有的 shadcn/ui 与 Radix，并使用本地来源品牌标识与中文字体，具体页面由就近样式文件维护。界面不制造虚假的来源活动或执行状态。
 
 情报页的“漏洞”筛选现读取真实 Hot CVE 窗口，并分别显示载入条数和驻留总量。打开漏洞时保留 Hot 坐标，持久档案独立核验；不会再把近期原文精选窗口为空误呈现为系统没有漏洞。
 WORLD 热区索引按页浏览驻留来源记录，完整 CVE 编号可跨当前页面检索整个驻留池，不再受首次载入窗口限制。
@@ -93,7 +93,7 @@ WORLD 热区索引按页浏览驻留来源记录，完整 CVE 编号可跨当前
 
 情报自由文本检索在提交时按当前输入直接请求 API；快速输入后回车不会误用上一轮延迟建议，打开错误对象。
 
-用户在 `/product/auth` 注册或登录。服务端会话使用 HttpOnly Cookie 中的随机令牌，数据库仅存令牌哈希；业务写操作校验 Origin 与 CSRF。提问、会话、Case、Decision、Task、推荐和反馈按账户隔离，共享 Evidence/Knowledge 保持可读。用户可保存关注范围、查看有证据的推荐和理由、反馈、发起调查，再次登录后继续原会话。邮箱验证、密码找回与 OAuth 尚未实现，属于独立账户生命周期工作。
+用户在 `/product/auth` 注册或登录。服务端会话使用 HttpOnly Cookie 中的随机令牌，数据库仅存令牌哈希；业务写操作校验 Origin 与 CSRF。提问、会话、Case、Decision、Task、推荐和反馈按账户隔离，共享 Evidence/Knowledge 保持可读。用户可编辑显示名称、保存关注范围、查看有证据的推荐和理由、反馈、发起调查，再次登录后继续原会话。邮箱验证、密码找回与 OAuth 尚未实现，属于独立账户生命周期工作。
 
 上方正式评测数字只适用于记录的部署和样本，不代表当前版本整体准确率或覆盖率。[决赛标准复查](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Finals-Readiness-Review-2026-10-08)按赛题保留持续监测广度、开放维度富化、当前版本 QA 质量和运维验收的剩余边界。
 
@@ -219,7 +219,7 @@ package 归属与依赖方向属于仓库契约，而不是目录约定。`packa
 - [`packages/reasoning/README.md`](packages/reasoning/README.md)：typed M6 Decision/Continuation contract 与 evidence/citation validation；
 - [`packages/evaluation/README.md`](packages/evaluation/README.md)：M1–M7/TD3 denominator、frozen world、runtime metric、replay 与 report provenance；
 - [`packages/shared/README.md`](packages/shared/README.md)：共享基础设施、配置、outbox、model protocol；
-- [`apps/web/README.md`](apps/web/README.md)：六空间 Product Web、账户入口、视觉归属与本地 API 联调；
+- [`apps/web/README.md`](apps/web/README.md)：四入口 Product Web、账户入口、视觉归属与本地 API 联调；
 - [`apps/application/README.md`](apps/application/README.md)：Product use-case composition 与稳定 application boundary；
 - [`apps/api/README.md`](apps/api/README.md)：HTTP bootstrap 与 transport boundary；
 - [`apps/worker/README.md`](apps/worker/README.md)：后台进程、outbox topic 与 Celery task composition。
