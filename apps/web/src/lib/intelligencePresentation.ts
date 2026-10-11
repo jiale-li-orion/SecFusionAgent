@@ -33,7 +33,7 @@ export function groupClaims(claims: KnowledgeClaim[]) {
   ]
   const assigned = new Set<string>()
   const result = groups.map((group) => {
-    const items = claims.filter((claim) => group.test.test(claim.predicate))
+    const items = claims.filter((claim) => !assigned.has(claim.claim_id) && group.test.test(claim.predicate))
     items.forEach((claim) => assigned.add(claim.claim_id))
     return { title: group.title, claims: items }
   }).filter((group) => group.claims.length)
@@ -54,6 +54,11 @@ export function formatValue(value: unknown): string {
 }
 
 const evidenceFields: Record<string, [string, string]> = {
+  description_en: ['漏洞说明（英文）', 'Description (English)'], cvss_vector: ['CVSS 攻击向量', 'CVSS vector'], cvss_severity: ['严重等级', 'Severity'], cvss_version: ['CVSS 版本', 'CVSS version'], cvss_score: ['CVSS 评分', 'CVSS score'],
+  cwes: ['漏洞类型', 'Weaknesses'], exploit_references: ['利用相关参考', 'Exploitation references'], last_modified: ['最近修改', 'Last modified'], status: ['发布状态', 'Publication status'], published: ['发布时间', 'Published'],
+  github_cwes: ['GitHub 漏洞类型', 'GitHub weaknesses'], github_summary: ['GitHub 公告摘要', 'GitHub advisory summary'], github_references: ['GitHub 参考资料', 'GitHub references'], github_description: ['GitHub 公告说明', 'GitHub advisory description'], github_severity: ['GitHub 严重等级', 'GitHub severity'], github_published_at: ['GitHub 发布时间', 'GitHub published'], github_updated_at: ['GitHub 更新时间', 'GitHub updated'],
+  epss_percentile: ['EPSS 百分位', 'EPSS percentile'], epss_probability: ['EPSS 利用概率', 'EPSS probability'], kev_vendor_project: ['CISA 厂商或项目', 'CISA vendor or project'], kev_product: ['CISA 产品', 'CISA product'],
+  'has-poc': ['利用相关材料', 'Exploitation material'], 'has-weakness': ['漏洞类型关联', 'Weakness association'], 'described-by': ['相关说明文档', 'Supporting document'], 'applicability-status': ['产品适用性', 'Product applicability'],
   known_exploited: ['已知利用情况', 'Known exploitation'], required_action: ['处置要求', 'Required action'],
   date_added: ['收录时间', 'Date added'], ransomware_use: ['勒索软件利用情况', 'Ransomware use'],
   kev_date_added: ['收录时间', 'Date added'], kev_due_date: ['处置截止时间', 'Remediation due date'],

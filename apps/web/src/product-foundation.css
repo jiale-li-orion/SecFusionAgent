@@ -9,7 +9,7 @@ body { margin:0; min-width:320px; -webkit-font-smoothing:antialiased; -moz-osx-f
 ::selection { background:#dce4ff; color:#202127; }
 button,input,textarea,select { font:inherit; }
 button,a,input,textarea { -webkit-tap-highlight-color:transparent; }
-button { cursor:pointer; color:inherit; background:transparent; border:0; padding:0; }
+button { cursor:pointer; color:inherit; background:transparent; border:0 solid var(--line); padding:0; }
 button:disabled { opacity:.45; cursor:default; }
 button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible { outline:2px solid var(--accent); outline-offset:4px; }
 a { color:inherit; text-decoration:none; }

@@ -1,16 +1,12 @@
 import { IntelligenceHome, type IntelligenceChannel } from '../components/intelligence/IntelligenceHome'
 import '../components/intelligence/intelligence.css'
-import { useDeferredValue, useMemo, useState } from 'react'
+import { useDeferredValue, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import {
   ArrowLeft,
   FileSearch,
-  GitBranch,
-  Link2,
   Search,
-  ShieldCheck,
-  Telescope,
 } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
@@ -27,19 +23,15 @@ import {
   listIncidents,
   searchIntelligence,
 } from '../lib/api'
-import { EnrichmentConstellation } from '../components/intelligence/EnrichmentConstellation'
-import { ProductEnrichmentActions } from '../components/intelligence/ProductEnrichmentActions'
-import { ClaimGroup, DocumentIndexDossier, HotWorkingSetPanel, IncidentDossier, IntelligenceArchiveBlueprint, ObjectFacetField } from '../components/intelligence/DossierSurfaces'
-import { EvidenceInspector, FocusedKnowledgeGraph } from '../components/intelligence/KnowledgeSurfaces'
-import { countEvidence, groupClaims, humanize } from '../lib/intelligencePresentation'
+import { HotWorkingSetPanel, IncidentDossier, IntelligenceArchiveBlueprint } from '../components/intelligence/DossierSurfaces'
+import { DossierHeading, DossierReader, type DossierView } from '../components/intelligence/DossierReader'
+import { EvidenceOverlay } from '../components/investigations/CaseSurfaces'
+import { humanize } from '../lib/intelligencePresentation'
 import { useI18n } from '../lib/i18n'
-import { useAuth } from '../lib/auth'
-import { AccountLoginPrompt } from '../components/auth/RequireAccount'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 
 export function IntelligencePage() {
-  const auth = useAuth()
   const { text } = useI18n()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -63,12 +55,7 @@ export function IntelligencePage() {
   const input = inputOverride ?? (paramIncident ? `incident:${paramIncident}` : paramObject ? `object:${paramObject}` : paramCve || paramQuery)
   const deferredInput = useDeferredValue(input.trim())
   const evidenceRef = paramEvidence
-  const readingMode: 'dossier' | 'graph' | 'evidence' = paramEvidence || paramView === 'evidence'
-    ? 'evidence'
-    : paramView === 'graph'
-      ? 'graph'
-      : 'dossier'
-  const [returnReadingMode, setReturnReadingMode] = useState<'dossier' | 'graph'>('dossier')
+  const readingMode: DossierView = ['graph', 'evidence', 'enrichment'].includes(paramView ?? '') ? paramView as DossierView : 'dossier'
   const hotQuery = useQuery({ queryKey: ['world-hot-intelligence'], queryFn: () => getHotWorld(64), refetchInterval: 20_000 })
   const incidentListQuery = useQuery({ queryKey: ['incident-index'], queryFn: () => listIncidents(16), staleTime: 20_000 })
   const candidateQuery = useQuery({ queryKey: ['world-incident-candidates', 32], queryFn: () => getWorldIncidentCandidates(32), staleTime: 20_000 })
@@ -162,30 +149,26 @@ export function IntelligencePage() {
     setParams(destination({ object: objectId }))
   }
 
-  const groupedClaims = useMemo(() => groupClaims(obj?.claims ?? []), [obj?.claims])
-
-  function selectReadingMode(nextMode: 'dossier' | 'graph' | 'evidence', evidence?: string) {
-    setParams((current) => {
+  function selectReadingMode(nextMode: DossierView) {
+    setParams(current => {
       const next = new URLSearchParams(current)
       if (nextMode === 'dossier') next.delete('view')
       else next.set('view', nextMode)
-      if (nextMode !== 'evidence') next.delete('evidence')
-      else if (evidence) next.set('evidence', evidence)
+      next.delete('evidence')
       return next
     }, { replace: true })
   }
 
   function openEvidence(ref: string) {
-    if (readingMode !== 'evidence') setReturnReadingMode(readingMode)
-    selectReadingMode('evidence', ref)
+    setParams(current => { const next = new URLSearchParams(current); next.set('evidence', ref); return next }, { replace: true })
   }
 
   function closeEvidence() {
-    selectReadingMode(returnReadingMode)
+    setParams(current => { const next = new URLSearchParams(current); next.delete('evidence'); return next }, { replace: true })
   }
 
   function openMission(profile: 'VERIFY' | 'INVESTIGATE' | 'RETRIEVE') {
-    const mission = new URLSearchParams({ profile })
+    const mission = new URLSearchParams()
     if (selectedCve) mission.set('cve', selectedCve)
     else if (obj?.object_id) mission.set('object', obj.object_id)
     mission.set('from', 'intelligence')
@@ -201,14 +184,18 @@ export function IntelligencePage() {
       ? text(`围绕事件「${headline}」检索现有证据：已确认什么、来源是什么、还有哪些未知或相互冲突的信息？`, `Search existing evidence about “${headline}”: what is confirmed, which sources support it, and what remains unknown or conflicting?`)
       : profile === 'VERIFY'
       ? text(`核验 ${headline} 的关键事实，列出来源和仍待确认的问题。`, `Verify the key Claims, Relations, and Evidence boundaries for ${headline}.`)
-      : text(`调查 ${headline} 的关联证据、冲突、未知与外部上下文。`, `Investigate the related evidence, conflicts, unknowns, and external context for ${headline}.`)
+      : obj?.object_type === 'Repo'
+      ? text(`调查 ${headline} 的安全风险。请结合已知公告、问题记录和代码变更分析，并说明已确认的发现、来源分歧及仍待核实的问题，附上证据来源。`, `Investigate security risks in ${headline} using available advisories, issues and code changes. Explain confirmed findings, source disagreements and open questions, with citations.`)
+      : obj?.object_type === 'Vulnerability'
+        ? text(`调查 ${headline} 的影响范围、利用情况和修复措施，结合来源解释结论，并明确哪些问题仍缺少证据。`, `Investigate the affected scope, exploitation and remediation of ${headline}. Explain the findings with sources and identify unresolved evidence gaps.`)
+        : text(`调查 ${headline} 的主要事实及关联背景。请分析来源证据、相互冲突的信息和仍待核实的问题，给出带引用的分析。`, `Investigate the key facts and context of ${headline}. Analyze supporting evidence, source conflicts and open questions in a cited report.`)
     mission.set('question', prompt)
     navigate(`/start?${mission.toString()}`)
   }
 
   return (
-    <section className={`intel-experience ${hasSelection ? 'intelligence-space studio-intelligence intelligence-page has-dossier' : 'intel-home'}`}>
-      <header className="intel-page-heading"><div>{hasSelection && <button className="intel-back" onClick={() => { setInputOverride(null); setParams(destination({})) }}><ArrowLeft size={15}/>{text('返回情报', 'Back to intelligence')}</button>}<h1>{text('情报', 'Intelligence')}</h1></div>
+    <section className={`intel-experience ${hasSelection ? 'has-dossier' : 'intel-home'}`}>
+      <header className="intel-page-heading"><div>{hasSelection && <button className="intel-back" onClick={() => { setInputOverride(null); setParams(destination({})) }}><ArrowLeft size={15}/>{text('返回情报', 'Back to intelligence')}</button>}{!hasSelection && <h1>{text('情报', 'Intelligence')}</h1>}</div>
         <form className="intel-search intel-discovery-search" onSubmit={submitSearch}>
           <Search size={15} />
           <Input value={input} onChange={(event) => setInputOverride(event.target.value)} aria-label={text("查找情报对象", "Find an intelligence object")} placeholder={text("论文、项目、漏洞编号或资产名称", "Paper, project, vulnerability or asset")} />
@@ -245,12 +232,7 @@ export function IntelligencePage() {
         </form>
       </header>
 
-      {originSpace === 'world' && worldRef && (
-        <div className="dossier-origin">
-          <div><small>WORLD → INTELLIGENCE</small><strong>{text('来自 Evidence World 的对象坐标', 'OBJECT COORDINATE FROM EVIDENCE WORLD')}</strong><span className="mono">{worldRef}</span></div>
-          <button onClick={() => navigate('/')}>{text('返回 Evidence World', 'BACK TO EVIDENCE WORLD')}</button>
-        </div>
-      )}
+      {originSpace === 'world' && worldRef && <div className="dossier-return-link"><Button variant="ghost" size="sm" onClick={() => navigate('/')}><ArrowLeft size={14}/>{text('返回世界', 'Back to world')}</Button></div>}
 
       {!hasSelection && <IntelligenceHome channel={channel} onChannel={next => { setInputOverride(null); setParams({ channel: next }) }} onOpen={(objectId, evidence) => { setInputOverride(null); setParams(destination({ object: objectId, ...(evidence ? { evidence } : {}) })) }}
         stories={entryQuery.data?.items ?? []} hot={hotQuery.data?.items ?? []} hotTotal={hotQuery.data?.resident_total ?? 0} candidates={candidateQuery.data?.items ?? []} candidateTotal={candidateQuery.data?.total ?? 0}
@@ -258,121 +240,21 @@ export function IntelligencePage() {
         onSelect={item => { if (item.object_id) openSearchResult(item.object_id); else if (item.incident_id) setParams(destination({ incident: item.incident_id })) }} onHotSelect={item => setParams(destination({ cve: item.cve_id ?? item.external_object_id, hot: `${item.source_id}:${item.external_object_id}` }))} onCandidateSelect={item => navigate(`/?${new URLSearchParams({ view: 'stories', source: 'incidents', story: `candidate:${item.candidate_id}` })}`)}
         incidents={incidentListQuery.data?.items ?? []} incidentsLoading={incidentListQuery.isPending} incidentsError={incidentListQuery.isError} onRetryIncidents={() => void incidentListQuery.refetch()} onIncident={id => setParams(destination({ incident: id }))}/>}
 
-      {hasSelection && <div className={`intel-layout reading-${readingMode}`} >
-        <motion.div
-          key={incident?.incident.incident_id ?? obj?.object_id ?? selectedObjectId ?? selectedCve ?? 'archive'}
-          className="intel-main"
-          initial={reduceMotion ? false : { opacity: 0, x: 22, rotateY: -1.8, transformOrigin: 'left center' }}
-          animate={{ opacity: 1, x: 0, rotateY: 0 }}
-          transition={{ duration: reduceMotion ? 0 : .34, ease: [0.22, 1, 0.36, 1] }}
-        >
-          {(obj || incident || selectedCve || selectedObjectId) && <article className="dossier-hero">
-            <div className="dossier-id">
-              <span className={`dossier-sigil ${incident ? 'incident' : ''}`}><FileSearch size={25}/></span>
-              <div>
-                <small>{incident ? text('事件档案', 'EVENT DOSSIER') : obj?.object_type === 'Vulnerability' ? text('漏洞档案', 'VULNERABILITY DOSSIER') : text('情报档案', 'INTELLIGENCE DOSSIER')}</small>
-                <strong>{headline}</strong>
-                <details className="intel-object-coordinates"><summary>{text('档案标识', 'Dossier identifier')}</summary><span className="mono">{incident?.incident.incident_id ?? obj?.object_id ?? (hotMatch ? `${hotMatch.source_id} · HOT WORKING SET` : (incidentQuery.isLoading || knowledgeQuery.isLoading) ? text('解析中…', 'resolving…') : text('未加载对象', 'no object loaded'))}</span></details>
-              </div>
-            </div>
-            <div className="dossier-stats">
-              {incident ? (
-                <>
-                  <DossierStat label={text('记录', 'Records')} value={String(incident.incident.timeline_event_count)} tone="amber" />
-                  <DossierStat label={text('来源', 'Sources')} value={String(incident.incident.source_link_count)} tone="cyan" />
-                  <DossierStat label={text('独立来源', 'Independent sources')} value={String(incident.incident.source_diversity_count)} tone="lime" />
-                </>
-              ) : (
-                <>
-                  <DossierStat label={obj ? text('事实', 'Facts') : hotMatch ? text('观测', 'Observation') : text('事实', 'Facts')} value={obj ? String(obj.claims.length) : hotMatch ? 'HOT' : '—'} tone="cyan" />
-                  <DossierStat label={obj ? text('关系', 'Relations') : hotMatch ? text('变化', 'Changes') : text('关系', 'Relations')} value={obj ? String(obj.relations.length) : hotMatch ? String(hotMatch.changed_fields.length) : '—'} tone="violet" />
-                  <DossierStat label={obj ? text('证据', 'Evidence') : hotMatch ? text('读取', 'Reads') : text('证据', 'Evidence')} value={obj ? String(countEvidence(obj.claims, obj.relations)) : hotMatch ? String(Math.round(hotMatch.access_count)) : '—'} tone="lime" />
-                </>
-              )}
-            </div>
-            {(obj || hotMatch?.cve_id || incident) && (
-              <div className="dossier-mission-actions">
-                {incident ? <button onClick={() => openMission('RETRIEVE')}><FileSearch size={13} /><span>{text('围绕事件检索证据', 'Search evidence for this incident')}</span></button> : <><button onClick={() => openMission('VERIFY')}><ShieldCheck size={13} /><span>{text(hotMatch && !obj ? '核验这个 Hot CVE' : '核验这个对象', hotMatch && !obj ? 'VERIFY THIS HOT CVE' : 'VERIFY OBJECT')}</span></button><button onClick={() => openMission('INVESTIGATE')}><Telescope size={13} /><span>{text('展开调查', 'INVESTIGATE')}</span></button></>}
-              </div>
-            )}
-            {incident && <p className="incident-mission-boundary">{text('事件档案为检索提供问题上下文；回答只依据实际检索到的证据，不会自动将事件绑定为核验目标。', 'The incident frames the search question. The answer relies on retrieved evidence; this is not a target-bound verification.')}</p>}
-            {obj && (
-              <div className="intel-reading-switch" role="tablist" aria-label={text('情报阅读视角', 'Intelligence reading view')}>
-                <button role="tab" aria-selected={readingMode === 'dossier'} className={readingMode === 'dossier' ? 'active' : ''} onClick={() => { selectReadingMode('dossier'); setReturnReadingMode('dossier') }}><FileSearch size={12} /> {text('档案', 'DOSSIER')}</button>
-                <button role="tab" aria-selected={readingMode === 'graph'} className={readingMode === 'graph' ? 'active' : ''} onClick={() => { selectReadingMode('graph'); setReturnReadingMode('graph') }}><GitBranch size={12} /> {text('关系图谱', 'GRAPH')}</button>
-                <button role="tab" aria-selected={readingMode === 'evidence'} className={readingMode === 'evidence' ? 'active' : ''} onClick={() => selectReadingMode('evidence', evidenceRef ?? undefined)}><Link2 size={12} /> {text('证据', 'EVIDENCE')}</button>
-                <motion.i layoutId="intel-reading-cursor" transition={{ type: 'spring', stiffness: 320, damping: 28 }} className={`cursor-${readingMode}`} />
-              </div>
-            )}
-          </article>}
-
-          {incident ? (
-            <IncidentDossier incident={incident} onEvidence={openEvidence} />
-          ) : (
-            <>
-              {readingMode === 'dossier' && (
-                <>
-                  {obj && (obj.object_type === 'Document' || obj.object_type === 'ResearchWork') && (
-                    <DocumentIndexDossier
-                      document={documentQuery.data ?? null}
-                      loading={documentQuery.isLoading}
-                      error={documentQuery.isError ? String(documentQuery.error.message) : null}
-                    />
-                  )}
-                  {obj?.object_type === 'Vulnerability'
-                    ? <><EnrichmentConstellation
-                        claims={obj?.claims ?? []}
-                        relations={obj.relations}
-                        onEvidence={openEvidence}
-                        cveId={selectedCve || headline}
-                        state={enrichmentQuery.data ?? null}
-                        stateLoading={Boolean(obj && enrichmentQuery.isLoading)}
-                        stateError={Boolean(obj && enrichmentQuery.isError)}
-                      />{auth.authenticated
-                        ? <ProductEnrichmentActions objectId={obj.object_id} cveId={obj.external_identifiers.cve?.[0] || selectedCve || headline} state={enrichmentQuery.data ?? null} onChanged={refreshDossier} />
-                        : <AccountLoginPrompt title={text('继续补全这份漏洞档案', 'Continue enriching this vulnerability')} description={text('登录后可选择缺失维度，跟踪补全结果。', 'Sign in to select missing dimensions and track enrichment results.')} />}</>
-                    : obj ? <ObjectFacetField obj={obj} /> : null}
-                </>
-              )}
-
-              {knowledgeQuery.isError && !hotMatch && <div className="intel-state error-block"><span>{String(knowledgeQuery.error.message)}</span><button className="recovery-action" onClick={() => void knowledgeQuery.refetch()}>{text('重试 Knowledge read', 'RETRY KNOWLEDGE READ')}</button></div>}
-
-              {!obj && hotMatch && <HotWorkingSetPanel item={hotMatch} />}
-              {!obj && (selectedCve || selectedObjectId) && !hotMatch && !knowledgeQuery.isError && <IntelligenceArchiveBlueprint target={selectedCve || selectedObjectId} />}
-
-              {obj && (
-                <div className="intel-reading-deck">
-                  <div className="intel-section-grid">
-                    {groupedClaims.map((group) => (
-                      <ClaimGroup key={group.title} title={group.title} claims={group.claims} onEvidence={openEvidence} />
-                    ))}
-                  </div>
-
-                  {readingMode === 'graph' && <FocusedKnowledgeGraph
-                    relations={graphQuery.data?.relations ?? []}
-                    totalRelationCount={graphQuery.data?.total_relation_count ?? obj.relations.length}
-                    neighborhood={graphQuery.data?.neighborhood ?? 'canonical_outbound_one_hop'}
-                    loading={graphQuery.isLoading}
-                    error={graphQuery.isError ? String(graphQuery.error.message) : null}
-                    selectedLabel={headline}
-                    objectType={obj.object_type}
-                    onEvidence={openEvidence}
-                    onLoadMore={graphLimit < 64 ? () => setGraphLimit(64) : undefined}
-                    onOpenTarget={(objectId) => {
-                      setInputOverride(null)
-                      setParams(destination({ object: objectId }))
-                    }}
-                  />}
-                </div>
-              )}
-            </>
-          )}
-          {paramIncident && incidentQuery.isPending && <div className="intel-state" role="status">{text('正在读取事件档案与来源时间线…', 'Reading incident dossier and source timeline…')}</div>}
-          {incidentQuery.isError && <div className="intel-state error-block" role="alert"><span>{String(incidentQuery.error.message)}</span><button className="recovery-action" onClick={() => void incidentQuery.refetch()}>{text('重试 Incident read', 'RETRY INCIDENT READ')}</button></div>}
-        </motion.div>
-
-        {readingMode === 'evidence' && <aside className="intel-side"><EvidenceInspector evidenceRef={evidenceRef} onClose={closeEvidence}/></aside>}
-      </div>}
+      {hasSelection && <motion.div className="dossier-reading-content" initial={reduceMotion ? false : { opacity:0, y:6 }} animate={{ opacity:1,y:0 }} transition={{duration:.18}}>
+        {obj && <DossierReader obj={obj} headline={headline} cveId={obj.external_identifiers.cve?.[0] || selectedCve || headline} view={readingMode} onView={selectReadingMode} onEvidence={openEvidence} onMission={openMission}
+          graph={graphQuery.data} graphLoading={graphQuery.isLoading} graphError={graphQuery.isError ? String(graphQuery.error.message) : null} onLoadMore={graphLimit < 64 ? () => setGraphLimit(64) : undefined} onOpenTarget={openSearchResult}
+          enrichment={enrichmentQuery.data ?? null} enrichmentLoading={enrichmentQuery.isLoading} enrichmentError={enrichmentQuery.isError} retryEnrichment={() => void enrichmentQuery.refetch()} refresh={refreshDossier}
+          document={documentQuery.data ?? null} documentLoading={documentQuery.isLoading} documentError={documentQuery.isError ? String(documentQuery.error.message) : null}/>}
+        {incident && <><DossierHeading title={headline} kind={text('事件档案', 'Event dossier')} coordinate={incident.incident.incident_id} stats={[
+          {label:text('条记录', 'records'),value:incident.incident.timeline_event_count}, {label:text('个来源', 'sources'),value:incident.incident.source_link_count}, {label:text('个独立来源', 'independent sources'),value:incident.incident.source_diversity_count},
+        ]}><Button onClick={() => openMission('RETRIEVE')}><FileSearch size={15}/>{text('检索事件证据', 'Search incident evidence')}</Button></DossierHeading><IncidentDossier incident={incident} onEvidence={openEvidence}/></>}
+        {knowledgeQuery.isError && !hotMatch && <div className="intel-state error-block" role="alert"><span>{text('这份档案暂时无法读取。', 'This dossier could not be loaded.')}</span><Button variant="outline" onClick={() => void knowledgeQuery.refetch()}>{text('重新读取', 'Retry')}</Button></div>}
+        {!obj && hotMatch && <><HotWorkingSetPanel item={hotMatch}/><Button onClick={() => openMission('VERIFY')}>{text('核验并建立档案', 'Verify and build a dossier')}</Button></>}
+        {!obj && (selectedCve || selectedObjectId) && !hotMatch && !knowledgeQuery.isError && <IntelligenceArchiveBlueprint target={selectedCve || selectedObjectId}/>}
+        {paramIncident && incidentQuery.isPending && <div className="intel-state" role="status">{text('正在读取事件档案…', 'Reading incident dossier…')}</div>}
+        {incidentQuery.isError && <div className="intel-state error-block" role="alert"><span>{text('事件档案暂时无法读取。', 'The event dossier could not be loaded.')}</span><Button variant="outline" onClick={() => void incidentQuery.refetch()}>{text('重新读取', 'Retry')}</Button></div>}
+      </motion.div>}
+      <AnimatePresence>{evidenceRef && <EvidenceOverlay key={evidenceRef} evidenceRef={evidenceRef} onClose={closeEvidence}/>}</AnimatePresence>
     </section>
   )
 }
@@ -382,8 +264,4 @@ function shouldSearchKnowledge(value: string) {
   if (/^object:/i.test(value) || /^incident:/i.test(value)) return false
   if (/^CVE-\d{4}-\d+$/i.test(value)) return false
   return true
-}
-
-function DossierStat({ label, value, tone }: { label: string; value: string; tone: string }) {
-  return <div className={`dossier-stat tone-${tone}`}><small>{label}</small><strong>{value}</strong></div>
 }

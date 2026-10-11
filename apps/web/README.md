@@ -11,9 +11,11 @@ The Product Web has four primary spaces: **World, Intelligence, Ask and Workspac
 | Ask `/start` | Natural question, suggested prompts and bottom composer | Full conversation, history drawer, per-turn evidence/model/context/tool audit |
 | Workspace `/workspace` | Account, conversations, interests and investigations | Profile editor and Operations overview |
 
-`/investigations` remains the complete Case workspace under My investigations. `/agents` and `/observatory` remain directly addressable under Workspace → Operations, preserving task, Skill and source deep links. `/workspace/profile` edits the display name and explicit recommendation interests; `/workspace/operations` reads current task and service state.
+`/investigations` opens My investigations as a cursor-paged record list. Selecting a record opens a report-first reader with Findings and Activity tabs; Continue question retains its server-owned conversation. Search filters loaded records with a local draft and a debounced URL replacement, so rapid typing preserves focus and Back restores the correct query. `/agents` and `/observatory` remain directly addressable under Workspace → Operations, preserving task, Skill and source deep links. `/workspace/profile` edits the display name and explicit recommendation interests; `/workspace/operations` reads current task and service state.
 
 Intelligence uses `channel=recommended|following|events|library`. Recommendations retain server ranking; Following orders matching content by available evidence observation time. An anonymous reader gets a public discovery feed and a concise sign-in entry, never a false personalized ranking. Feedback persists through the existing API and supports undo. Dossier return links retain channel and category. Source stories request at most the API's 18-record projection limit.
+
+Object dossiers open with a compact identity and a fact reader. Facts, Relationships, Sources and vulnerability Enrichment are separate Radix tabs, not anchors over one long dashboard. Facts group each claim once with exact evidence links and a contents rail. The relationship map pages six actual neighbors at a time, retains the complete loaded edge ledger and shows selected edge details in the reading flow; it remains a bounded one-hop view. Sources group actual EvidenceRefs by publisher and open the shared source inspector. The enrichment tab uses a coverage grid whose cells retain the authoritative status and accepted fact refs; it never treats missing or conflicting evidence as complete. Object coordinates remain collapsible. Evidence and view changes preserve the reader instance and citation focus.
 
 Incident evolution uses retained events and their evidence references. Observation time and reported event time remain separate. The graph reveals up to 16 records at stable positions while the timeline retains the full returned history; the range control is available only for real timestamps. This is an incident-record/evidence view, not a fabricated complete Knowledge graph or historical Case replay. Missing history has an explicit empty state.
 
@@ -53,10 +55,10 @@ The global import order in `src/main.tsx` is:
 
 1. `ui.css`: Tailwind theme/utilities without a second reset.
 2. `product-foundation.css`: tokens, base reset, typography, shared primitives and four-entry shell.
-3. `product-spaces.css`: retained dossier, investigation and detailed runtime/observatory surfaces.
+3. `product-spaces.css`: remaining document, shared evidence and detailed runtime/observatory surfaces. Retired dossier hero, orbit, graph and case workspace styles/components are removed as their owners are replaced.
 4. `account-space.css`: account controls and authentication.
 
-Page-local owners are `components/world/world.css`, `components/intelligence/intelligence.css`, `pages/questions-space.css`, `pages/workspace.css`, `pages/personal-space.css`, `components/agents/role-cards.css` and `components/observatory/observatory-overview.css`. Change their actual rules rather than appending competing overrides. The retired legacy stylesheets stay outside the import graph. `lint:css-authority` checks ownership; the source-size guard keeps pages and components bounded.
+Detail owners are `components/intelligence/dossier-reader.css`, `relation-map.css`, `components/investigations/research-workspace.css` and `investigation-report.css`. Page-local owners are `components/world/world.css`, `components/intelligence/intelligence.css`, `pages/questions-space.css`, `pages/workspace.css`, `pages/personal-space.css`, `components/agents/role-cards.css` and `components/observatory/observatory-overview.css`. Change their actual rules rather than appending competing overrides. The retired legacy stylesheets stay outside the import graph. `lint:css-authority` checks ownership; the source-size guard keeps pages and components bounded.
 
 ## Local development
 

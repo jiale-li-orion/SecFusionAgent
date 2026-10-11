@@ -52,6 +52,8 @@ export function QuestionsPage() {
       ? `/intelligence?object=${encodeURIComponent(origin.slice('object:'.length))}`
       : origin?.startsWith('cve:')
         ? `/intelligence?cve=${encodeURIComponent(origin.slice('cve:'.length))}`
+    : origin?.startsWith('case:')
+      ? `/investigations?case=${encodeURIComponent(origin.slice('case:'.length))}`
     : originSpace === 'world' && origin
       ? `/?story=${encodeURIComponent(origin)}`
       : null
@@ -314,7 +316,7 @@ export function QuestionsPage() {
     </header>
     <main className={`qa-dialogue ${!sessionId && !pendingQuestion ? 'is-new' : ''}`}>
         <div className="qa-transcript" ref={transcriptRef} onScroll={event => { const node = event.currentTarget; followBottomRef.current = node.scrollHeight - node.scrollTop - node.clientHeight < 100 }}><div className="qa-transcript-content">
-          {originPath && <div className="qa-origin"><Layers size={18} /><div><small>{text('从情报继续探索', 'Continue from intelligence')}</small><strong>{params.get('targetLabel') || incidentOrigin || origin}</strong></div><Link to={originPath}>{text('查看来源', 'Source')}<ArrowUpRight size={13} /></Link></div>}
+          {originPath && <div className="qa-origin"><Layers size={18} /><div><small>{originSpace === 'case' ? text('沿着这次调查继续', 'Continue this investigation') : text('从情报继续探索', 'Continue from intelligence')}</small><strong>{params.get('originTitle') || params.get('targetLabel') || incidentOrigin || origin}</strong></div><Link to={originPath}>{originSpace === 'case' ? text('返回调查', 'Back to investigation') : text('查看来源', 'Source')}<ArrowUpRight size={13} /></Link></div>}
           {history.hasNextPage && <button className="qa-load-more qa-load-turns" onClick={() => void history.fetchNextPage()} disabled={history.isFetchingNextPage}>{history.isFetchingNextPage ? text('正在恢复更早回合…', 'Restoring earlier turns…') : text('查看更早回合', 'Load earlier turns')}</button>}
           {history.isFetchNextPageError && <button className="qa-retry" onClick={() => void history.fetchNextPage()}>{text('重试恢复更早回合', 'Retry earlier turns')}</button>}
           {history.isLoading && <p className="qa-muted">{text('恢复完整会话…', 'Restoring conversation…')}</p>}

@@ -1,41 +1,143 @@
-import { BadgeCheck, Link2 } from 'lucide-react'
+import { useState } from 'react'
+import { BadgeCheck, FileText, Link2 } from 'lucide-react'
 import { DecisionReport } from '../DecisionReport'
+import { EvidenceCitation } from '../questions/EvidenceCitation'
+import { Button } from '../ui/button'
 import type { InvestigationView } from '../../lib/api/investigations'
 import { useI18n } from '../../lib/i18n'
 import './investigation-report.css'
 
-export function InvestigationReport({ investigation, onEvidence }: { investigation: InvestigationView; onEvidence: (ref: string) => void }) {
+export function InvestigationReport({
+  investigation,
+  onEvidence,
+}: {
+  investigation: InvestigationView
+  onEvidence: (ref: string) => void
+}) {
   const { text, language } = useI18n()
+  const [sourcesOpen, setSourcesOpen] = useState(false)
   const decision = investigation.latest_decision
   if (!decision) return null
-
   const paragraphs = decision.report_paragraphs ?? []
-  const insufficient = decision.stop_reason === 'evidence_insufficient'
-  const citedRefs = [...new Set(decision.citations.map(item => item.evidence_ref))]
+  const insufficient = ['evidence_insufficient', 'evidence_validation_failed', 'no_bound_investigation_target'].includes(
+    decision.stop_reason,
+  )
+  const refs = [
+    ...new Set([
+      ...decision.citations.map((item) => item.evidence_ref),
+      ...decision.conclusions.flatMap((item) => item.evidence_refs),
+      ...paragraphs.flatMap((item) => item.evidence_refs),
+    ]),
+  ]
   const cveId = investigation.goal.match(/\bCVE-\d{4}-\d{4,}\b/i)?.[0]
-  const reportTitle = insufficient
-    ? text('当前证据还不足以回答', 'The evidence is not enough yet')
-    : cveId
-    ? `${cveId} · ${text('修复与证据研判', 'Fix and evidence analysis')}`
-    : text('调查研究报告', 'Investigation research report')
-
-  return <article className="investigation-report">
-    <header className="report-masthead">
-      <div><small>{text('调查报告', 'INVESTIGATION REPORT')} / ORACLE</small><h2>{reportTitle}</h2></div>
-      <span><BadgeCheck size={14} />{insufficient ? text('等待更多证据', 'MORE EVIDENCE NEEDED') : text('已形成研判', 'DECISION READY')}</span>
-    </header>
-    <div className="report-byline">
-      <span>{insufficient ? text('已明确标出当前证据边界', 'Current evidence boundary is explicit') : text('基于已验证的决策与证据', 'Grounded in validated decisions and evidence')}</span>
-      <span>{new Date(decision.created_at).toLocaleString(language === 'zh' ? 'zh-CN' : 'en-US')} · {citedRefs.length} {text('条可追溯证据', 'traceable references')}</span>
-    </div>
-    <div className="report-body">
-      {paragraphs.length > 0
-        ? paragraphs.map((paragraph, index) => <div className="report-paragraph" key={`${index}:${paragraph.text}`}>
-          <p>{paragraph.text}</p>
-          {paragraph.evidence_refs.length > 0 && <div className="report-evidence"><small>{text('参考证据', 'SOURCES')}</small>{[...new Set(paragraph.evidence_refs)].map(ref => <button type="button" key={ref} onClick={() => onEvidence(ref)} title={ref}><Link2 size={11} />{String(citedRefs.indexOf(ref) + 1).padStart(2, '0')}</button>)}</div>}
-        </div>)
-        : <p className="report-empty">{text('这份决策没有留存研究报告正文。下方仍可查看经过验证的结论、字段与原始证据。', 'This decision has no retained research report. Its validated conclusions, fields, and source evidence remain available below.')}</p>}
-    </div>
-    <details className="report-audit"><summary>{text('查看完整决策字段与引用', 'Inspect complete decision fields and citations')} <span>REV {investigation.revision}</span></summary><DecisionReport decision={decision} onEvidence={onEvidence} /></details>
-  </article>
+  const labels: Record<string, [string, string]> = {
+    fact: ['已证实的事实', 'Verified fact'],
+    inference: ['基于证据的推断', 'Evidence-based inference'],
+    recommendation: ['建议', 'Recommendation'],
+  }
+  const sections = paragraphs.length
+    ? paragraphs.map((item) => ({ ...item, label: null }))
+    : decision.conclusions.map((item) => ({
+        text: item.statement,
+        evidence_refs: item.evidence_refs,
+        label: labels[item.type] ? text(...labels[item.type]) : item.type,
+      }))
+  const boundaries = [
+    { title: text('仍有待确认', 'What remains uncertain'), items: decision.unknowns },
+    { title: text('来源之间的分歧', 'Where sources disagree'), items: decision.conflicts },
+    { title: text('研判所依据的前提', 'Assumptions'), items: decision.assumptions },
+  ].filter((item) => item.items.length)
+  return (
+    <article className="investigation-report">
+      <header className="report-masthead">
+        <div>
+          <small>
+            <FileText size={15} />
+            {text('调查报告', 'Research report')}
+          </small>
+          <h2>
+            {insufficient
+              ? text('现有证据与未解问题', 'Evidence and open questions')
+              : cveId
+                ? `${cveId} · ${text('调查结论', 'Investigation findings')}`
+                : text('调查结论', 'Investigation findings')}
+          </h2>
+        </div>
+        <span>
+          <BadgeCheck size={15} />
+          {insufficient ? text('证据仍不充分', 'More evidence needed') : text('引用可追溯', 'Traceable sources')}
+        </span>
+      </header>
+      <div className="report-byline">
+        <span>{new Date(decision.created_at).toLocaleString(language === 'zh' ? 'zh-CN' : 'en-US')}</span>
+        <span>
+          {refs.length} {text('条引用', 'references')} · {text('研判版本', 'Decision revision')} {decision.case_revision}
+        </span>
+      </div>
+      <div className="report-body">
+        {!paragraphs.length && sections.length > 0 && (
+          <p className="report-archive-note">
+            {text(
+              '这份历史记录未保存独立报告正文，以下呈现当时已验证的结论与引用。',
+              'This historical record has no separate report prose. Its validated findings and citations are shown below.',
+            )}
+          </p>
+        )}
+        {sections.map((paragraph, index) => (
+          <section className="report-paragraph" key={index}>
+            {paragraph.label && <small className="report-finding-label">{paragraph.label}</small>}
+            <p>{paragraph.text}</p>
+            {paragraph.evidence_refs.length > 0 && (
+              <div className="report-evidence">
+                {[...new Set(paragraph.evidence_refs)].map((ref) => (
+                  <Button variant="outline" size="sm" key={ref} onClick={() => onEvidence(ref)} title={ref}>
+                    <Link2 size={12} />
+                    {text('证据', 'Source')} {refs.indexOf(ref) + 1}
+                  </Button>
+                ))}
+              </div>
+            )}
+          </section>
+        ))}
+        {!sections.length && (
+          <p className="report-empty">
+            {text(
+              '这份决策没有留存可阅读的正文或结论。下方仍可核对原始决策字段。',
+              'This decision has no retained prose or findings. Its original decision fields remain available below.',
+            )}
+          </p>
+        )}
+        {boundaries.map((boundary) => (
+          <section className="report-boundary" key={boundary.title}>
+            <h3>{boundary.title}</h3>
+            {boundary.items.map((value, index) => (
+              <p key={index}>{value}</p>
+            ))}
+          </section>
+        ))}
+      </div>
+      {refs.length > 0 && (
+        <details className="report-sources" onToggle={(event) => setSourcesOpen(event.currentTarget.open)}>
+          <summary>
+            {text('引用来源', 'Sources')}
+            <span>{refs.length}</span>
+          </summary>
+          {sourcesOpen && (
+            <div>
+              {refs.map((ref, index) => (
+                <EvidenceCitation key={ref} evidenceRef={ref} index={index} onOpen={onEvidence} />
+              ))}
+            </div>
+          )}
+        </details>
+      )}
+      <details className="report-audit">
+        <summary>
+          {text('决策字段与审计信息', 'Decision fields & audit details')}
+          <span>REV {decision.case_revision}</span>
+        </summary>
+        <DecisionReport decision={decision} onEvidence={onEvidence} />
+      </details>
+    </article>
+  )
 }

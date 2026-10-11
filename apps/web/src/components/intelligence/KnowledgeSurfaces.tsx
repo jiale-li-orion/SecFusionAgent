@@ -1,12 +1,12 @@
-import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { AnimatePresence, motion } from 'motion/react'
-import { BadgeCheck, Binary, BrainCircuit, Braces, ExternalLink, FileSearch, Fingerprint, GitBranch, Link2, Radar, ShieldCheck, X, ZoomIn, ZoomOut } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
-
-import { evidenceBoundObjectIds, getEvidence, type EvidenceRef, type KnowledgeRelation } from '../../lib/api'
-import { compactEvidenceObjectRef, evidenceProvenanceClass, evidenceProvenanceLabel, formatDate, formatLocator, formatValue, humanize } from '../../lib/intelligencePresentation'
+import { useState } from 'react'
+import { ArrowUpRight, ChevronLeft, ChevronRight, GitBranch, X } from 'lucide-react'
+import type { EvidenceRef, KnowledgeRelation } from '../../lib/api'
+import { evidenceFieldLabel, formatValue } from '../../lib/intelligencePresentation'
 import { useI18n } from '../../lib/i18n'
+import { SourceIdentity } from '../ui/source-identity'
+import { sourceIdentity } from '../../lib/source-identity'
+import { Button } from '../ui/button'
+import './relation-map.css'
 
 export function FocusedKnowledgeGraph({
   relations,
@@ -29,188 +29,303 @@ export function FocusedKnowledgeGraph({
   objectType: string
   onEvidence: (ref: string) => void
   onLoadMore?: () => void
-  onOpenTarget: (objectId: string) => void
+  onOpenTarget: (id: string) => void
 }) {
   const { text } = useI18n()
-  const layers = useMemo(() => ['ALL', ...Array.from(new Set(relations.map((item) => item.target.object_type))).sort()], [relations])
-  const [layer, setLayer] = useState('ALL')
+  const [layer, setLayer] = useState('all')
+  const [page, setPage] = useState(0)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [zoom, setZoom] = useState(1)
-  const [evidenceOnly, setEvidenceOnly] = useState(false)
-  const semanticRelations = relations.filter((item) => (layer === 'ALL' || item.target.object_type === layer) && (!evidenceOnly || item.evidence.length > 0))
-  const visible = semanticRelations.slice(0, 10)
-  const selectedCandidate = relations.find((item) => item.relation_id === selectedId) ?? null
-  const selected = selectedCandidate && semanticRelations.some((item) => item.relation_id === selectedCandidate.relation_id) ? selectedCandidate : null
-
+  const layers = [...new Set(relations.map((relation) => relation.target.object_type))].sort()
+  const filtered = relations.filter((relation) => layer === 'all' || relation.target.object_type === layer)
+  const currentPage = Math.min(page, Math.max(0, Math.ceil(filtered.length / 6) - 1))
+  const visible = filtered.slice(currentPage * 6, currentPage * 6 + 6)
+  const selected = filtered.find((relation) => relation.relation_id === selectedId)
+  function changeLayer(next: string) {
+    setLayer(next)
+    setPage(0)
+    setSelectedId(null)
+  }
   return (
-    <section className={`relation-section graph-mode ${selected ? 'graph-focused' : ''}`}>
-      <div className="section-title-row">
-        <div><small>FOCUSED KNOWLEDGE GRAPH</small><strong>RELATION NEIGHBORHOOD</strong></div>
-        <span>{text(`${totalRelationCount} 条 canonical edges · 图中预览 ${visible.length} 条`, `${totalRelationCount} canonical edges · ${visible.length} in graph preview`)}</span>
-      </div>
-      <div className="graph-read-boundary"><span>{neighborhood.replaceAll('_', ' ')}</span>{totalRelationCount > relations.length && <b>{text(`已读取 ${relations.length}/${totalRelationCount}`, `read ${relations.length}/${totalRelationCount}`)}</b>}{totalRelationCount > relations.length && onLoadMore && <button type="button" onClick={onLoadMore}>{text('读取更多关系', 'Read more relations')}</button>}</div>
-      <div className="graph-toolbar">
-        <div className="graph-layers">
-          {layers.map((item) => <button key={item} className={layer === item ? 'active' : ''} onClick={() => setLayer(item)}>{item}</button>)}
+    <section className="relation-map">
+      <header className="relation-map-heading">
+        <div>
+          <h2>{text('从对象到关联证据', 'Connections backed by evidence')}</h2>
+          <p>
+            {text(
+              `${totalRelationCount} 条已保留的关系。选择一个节点，查看关联与来源。`,
+              `${totalRelationCount} retained relations. Select a node to explore its connection and sources.`,
+            )}
+          </p>
         </div>
-        <div className="graph-camera">
-          <button className={evidenceOnly ? 'active' : ''} onClick={() => setEvidenceOnly((value) => !value)}><BadgeCheck size={11} /> {text('证据', 'EVIDENCE')}</button>
-          <button onClick={() => setZoom((value) => Math.max(.78, Number((value - .1).toFixed(2))))} aria-label={text('缩小图谱', 'Zoom out')}><ZoomOut size={12} /></button>
-          <span>{Math.round(zoom * 100)}%</span>
-          <button onClick={() => setZoom((value) => Math.min(1.32, Number((value + .1).toFixed(2))))} aria-label={text('放大图谱', 'Zoom in')}><ZoomIn size={12} /></button>
-          {(selected || zoom !== 1 || evidenceOnly) && <button className="graph-reset" onClick={() => { setSelectedId(null); setZoom(1); setEvidenceOnly(false) }}>{text('重置', 'RESET')}</button>}
-        </div>
+      </header>
+      <div className="relation-map-filters">
+        <Button
+          variant={layer === 'all' ? 'secondary' : 'ghost'}
+          size="sm"
+          aria-pressed={layer === 'all'}
+          onClick={() => changeLayer('all')}
+        >
+          {text('全部关系', 'All relations')}
+        </Button>
+        {layers.map((kind) => (
+          <Button
+            key={kind}
+            variant={layer === kind ? 'secondary' : 'ghost'}
+            size="sm"
+            aria-pressed={layer === kind}
+            onClick={() => changeLayer(kind)}
+          >
+            {objectTypeLabel(kind, text)}
+          </Button>
+        ))}
       </div>
-      <div className="focused-graph-stage" onWheel={(event) => { if (!event.ctrlKey && !event.metaKey) return; event.preventDefault(); setZoom((value) => Math.max(.78, Math.min(1.32, Number((value + (event.deltaY < 0 ? .06 : -.06)).toFixed(2))))) }}>
-        <motion.div className="graph-world" animate={{ scale: zoom }} transition={{ type: 'spring', stiffness: 180, damping: 24 }}>
-          <svg className="graph-edges" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-            {visible.map((relation, index) => {
-              const point = graphPoint(index, visible.length)
-              const active = relation.relation_id === selectedId
-              return <path key={relation.relation_id} className={selected ? active ? 'active' : 'dimmed' : ''} d={`M 50 50 Q ${(50 + point.x) / 2} ${(50 + point.y) / 2 - 4} ${point.x} ${point.y}`} />
-            })}
-          </svg>
-          <div className="graph-core-node"><ShieldCheck size={23} /><strong>{selectedLabel}</strong><small>{objectType}</small></div>
-          {visible.map((relation, index) => {
-            const point = graphPoint(index, visible.length)
-            const active = relation.relation_id === selectedId
-            const dimmed = Boolean(selected && !active)
-            return <GraphRelationNode key={relation.relation_id} relation={relation} point={point} active={active} dimmed={dimmed} onSelect={() => setSelectedId(active ? null : relation.relation_id)} />
-          })}
-          {loading && <div className="graph-empty">{text('解析 bounded canonical neighborhood…', 'RESOLVING BOUNDED CANONICAL NEIGHBORHOOD…')}</div>}
-          {!loading && error && <div className="graph-empty error-block">{error}</div>}
-          {!loading && !error && visible.length === 0 && <div className="graph-empty">{text('当前语义层没有 canonical Relation。', 'No canonical relation in this semantic layer.')}</div>}
-        </motion.div>
-        <span className="graph-zoom-hint">{text('CTRL / ⌘ + 滚轮 · 缩放', 'CTRL / ⌘ + WHEEL · ZOOM')}</span>
-
-        <AnimatePresence>
-          {selected && <motion.aside className="graph-relation-dossier" initial={{ opacity: 0, x: 28 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 18 }} transition={{ type: 'spring', stiffness: 230, damping: 27 }}>
-            <button onClick={() => setSelectedId(null)} className="graph-dossier-close" aria-label={text('关闭关系聚焦', 'Close relation focus')}><X size={15} /></button>
-            <small>CANONICAL RELATION</small>
-            <strong>{humanize(selected.relation_type)}</strong>
-            <RelationTargetIdentity relation={selected} />
-            <div className="graph-relation-facts">
-              <div><small>ORIGIN</small><strong>{selected.origin}</strong></div>
-              <div><small>REVISION</small><strong>{selected.created_revision}</strong></div>
-              <div><small>TARGET TYPE</small><strong>{selected.target.object_type}</strong></div>
+      {loading ? (
+        <div className="relation-map-empty" role="status">
+          {text('正在读取关系…', 'Reading relations…')}
+        </div>
+      ) : error ? (
+        <div className="relation-map-empty" role="alert">
+          {text('关系暂时无法读取。', 'Relations could not be loaded.')}
+          <span>{error}</span>
+        </div>
+      ) : visible.length ? (
+        <>
+          <div className="relation-map-scroll">
+            <div className="relation-map-canvas">
+              <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                {visible.map((relation, index) => {
+                  const point = relationPoint(index)
+                  return (
+                    <path
+                      key={relation.relation_id}
+                      className={selectedId === relation.relation_id ? 'is-active' : ''}
+                      d={`M 50 50 C ${point.x === 16 ? 29 : 71} 50, ${point.x === 16 ? 37 : 63} ${point.y}, ${point.x} ${point.y}`}
+                    />
+                  )
+                })}
+              </svg>
+              <div className="relation-map-center">
+                <span>
+                  <GitBranch size={18} />
+                  {objectTypeLabel(objectType, text)}
+                </span>
+                <strong title={selectedLabel}>{selectedLabel}</strong>
+              </div>
+              {visible.map((relation, index) => {
+                const point = relationPoint(index)
+                return (
+                  <button
+                    key={relation.relation_id}
+                    className={`relation-map-node ${selectedId === relation.relation_id ? 'is-selected' : ''}`}
+                    style={{ left: `${point.x}%`, top: `${point.y}%` }}
+                    onClick={() => setSelectedId((current) => (current === relation.relation_id ? null : relation.relation_id))}
+                    aria-pressed={selectedId === relation.relation_id}
+                  >
+                    <small>{evidenceFieldLabel(relation.relation_type, text)}</small>
+                    <strong title={relationTitle(relation)}>{relationTitle(relation)}</strong>
+                    <span>
+                      {objectTypeLabel(relation.target.object_type, text)}
+                      <b>
+                        {relation.evidence.length} {text('证据', 'refs')}
+                      </b>
+                    </span>
+                  </button>
+                )
+              })}
             </div>
-            <div className="graph-evidence-block"><small>EVIDENCE</small><EvidenceCapsules evidence={selected.evidence} onEvidence={onEvidence} /></div>
-            <button className="graph-open-target" onClick={() => onOpenTarget(selected.target.object_id)}>{text('打开目标档案', 'OPEN TARGET DOSSIER')} <ExternalLink size={12} /></button>
-            <div className="graph-coordinate mono">{selected.relation_id}</div>
-          </motion.aside>}
-        </AnimatePresence>
-      </div>
-      {semanticRelations.length > 0 && <details className="graph-relation-ledger" open>
-        <summary>{text('关系清单', 'Relation ledger')} · {semanticRelations.length} {text('条已读取', 'loaded')}</summary>
-        <div>{semanticRelations.map((relation, index) => <article key={relation.relation_id} className="graph-ledger-row">
-          <span className="mono">{String(index + 1).padStart(2, '0')}</span>
-          <div><small>{humanize(relation.relation_type)} · {relation.target.object_type}</small><strong>{typeof relation.target.properties.display_name === 'string' ? relation.target.properties.display_name : relation.target.external_identifiers.cve?.[0] ?? relation.target.canonical_key}</strong><EvidenceCapsules evidence={relation.evidence} onEvidence={onEvidence} compact /></div>
-          <button type="button" onClick={() => onOpenTarget(relation.target.object_id)} aria-label={text('打开目标档案', 'Open target dossier')}><ExternalLink size={14} /></button>
-        </article>)}</div>
-      </details>}
+          </div>
+          <div className="relation-map-pagination">
+            <span>
+              {text(
+                `第 ${currentPage * 6 + 1}–${currentPage * 6 + visible.length} 条 · 已读取 ${relations.length}/${totalRelationCount}`,
+                `${currentPage * 6 + 1}–${currentPage * 6 + visible.length} · ${relations.length}/${totalRelationCount} loaded`,
+              )}
+            </span>
+            <div>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                disabled={currentPage === 0}
+                onClick={() => {
+                  setPage(currentPage - 1)
+                  setSelectedId(null)
+                }}
+                aria-label={text('上一组关系', 'Previous relations')}
+              >
+                <ChevronLeft size={15} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                disabled={(currentPage + 1) * 6 >= filtered.length}
+                onClick={() => {
+                  setPage(currentPage + 1)
+                  setSelectedId(null)
+                }}
+                aria-label={text('下一组关系', 'Next relations')}
+              >
+                <ChevronRight size={15} />
+              </Button>
+              {totalRelationCount > relations.length && onLoadMore && (
+                <Button variant="outline" size="sm" onClick={onLoadMore}>
+                  {text('读取更多', 'Read more')}
+                </Button>
+              )}
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="relation-map-empty">
+          <GitBranch size={24} />
+          <p>{text('这个分类下还没有已保留的关系。', 'No retained relations in this category.')}</p>
+        </div>
+      )}
+      {selected && (
+        <section className="relation-map-detail">
+          <header>
+            <div>
+              <small>{evidenceFieldLabel(selected.relation_type, text)}</small>
+              <h3>{relationTitle(selected)}</h3>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setSelectedId(null)}
+              aria-label={text('收起关系详情', 'Close relation details')}
+            >
+              <X size={16} />
+            </Button>
+          </header>
+          {Object.keys(selected.qualifier).length > 0 && (
+            <dl>
+              {Object.entries(selected.qualifier).map(([key, value]) => (
+                <div key={key}>
+                  <dt>{evidenceFieldLabel(key, text)}</dt>
+                  <dd>{formatValue(value)}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
+          <div className="relation-map-detail-actions">
+            <EvidenceCapsules evidence={selected.evidence} onEvidence={onEvidence} />
+            <Button variant="outline" size="sm" onClick={() => onOpenTarget(selected.target.object_id)}>
+              {text('打开关联档案', 'Open related dossier')}
+              <ArrowUpRight size={14} />
+            </Button>
+          </div>
+          <details>
+            <summary>{text('关系记录详情', 'Relation record')}</summary>
+            <p>
+              {selected.origin} · {text('修订', 'Revision')} {selected.created_revision}
+            </p>
+            <code>{selected.relation_id}</code>
+            <code>{selected.target.canonical_key}</code>
+          </details>
+        </section>
+      )}
+      <details className="relation-map-ledger">
+        <summary>{text('完整关系清单与读取范围', 'All loaded relations and reading scope')}</summary>
+        <p>
+          {text(
+            '仅包含当前对象向外的一跳关系，不代表全量图谱。',
+            'Shows outbound, one-hop relations from this object, not the entire graph.',
+          )}
+          <code>{neighborhood}</code>
+        </p>
+        {filtered.map((relation) => (
+          <article key={relation.relation_id}>
+            <div>
+              <small>{evidenceFieldLabel(relation.relation_type, text)}</small>
+              <strong>{relationTitle(relation)}</strong>
+              <EvidenceCapsules evidence={relation.evidence} onEvidence={onEvidence} compact />
+            </div>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => onOpenTarget(relation.target.object_id)}
+              aria-label={text('打开关联档案', 'Open related dossier')}
+            >
+              <ArrowUpRight size={15} />
+            </Button>
+          </article>
+        ))}
+      </details>
     </section>
   )
 }
 
-function GraphRelationNode({ relation, point, active, dimmed, onSelect }: { relation: KnowledgeRelation; point: { x: number; y: number }; active: boolean; dimmed: boolean; onSelect: () => void }) {
-  const displayName = relation.target.properties.display_name
-  const label = typeof displayName === 'string' ? displayName : relation.target.external_identifiers.cve?.[0] ?? relation.target.canonical_key
-  return <motion.button
-    className={`graph-relation-node ${active ? 'active' : ''} ${dimmed ? 'dimmed' : ''}`}
-    style={{ left: `${point.x}%`, top: `${point.y}%` }}
-    onClick={onSelect}
-    initial={{ opacity: 0, scale: .85 }}
-    animate={{ opacity: dimmed ? .68 : 1, scale: active ? 1.08 : dimmed ? .92 : 1 }}
-    transition={{ type: 'spring', stiffness: 220, damping: 24 }}
-  >
-    <span className="graph-node-glyph"><GitBranch size={13} /></span>
-    <span><small>{humanize(relation.relation_type)}</small><strong>{label}</strong><em>{relation.target.object_type}</em></span>
-    {relation.evidence.length > 0 && <b>{relation.evidence.length}E</b>}
-  </motion.button>
+function relationPoint(index: number) {
+  return { x: index < 3 ? 16 : 84, y: 20 + (index % 3) * 30 }
+}
+function relationTitle(relation: KnowledgeRelation) {
+  const props = relation.target.properties
+  for (const key of ['display_name', 'title', 'full_name', 'name', 'ghsa_id', 'cwe_id', 'ip']) {
+    const value = props[key]
+    if (typeof value === 'string' && value.trim()) return value
+  }
+  if (typeof props.product === 'string') return [props.vendor, props.product].filter(Boolean).join(' · ').replaceAll('_', ' ')
+  const identifier = Object.values(relation.target.external_identifiers).flat()[0]
+  if (identifier) return identifier
+  if (typeof props.url === 'string') {
+    try {
+      const url = new URL(props.url)
+      return `${url.hostname}${decodeURIComponent(url.pathname).replaceAll('-', ' ')}`
+    } catch {
+      /* Fall back to the canonical key. */
+    }
+  }
+  return relation.target.canonical_key
+}
+function objectTypeLabel(kind: string, text: (zh: string, en: string) => string) {
+  const labels: Record<string, [string, string]> = {
+    Vulnerability: ['漏洞', 'Vulnerability'],
+    Product: ['产品', 'Product'],
+    Weakness: ['漏洞类型', 'Weakness'],
+    Document: ['文档', 'Document'],
+    ExploitArtifact: ['利用材料', 'Exploitation material'],
+    Repo: ['代码仓库', 'Repository'],
+    ResearchWork: ['研究', 'Research'],
+    InternetAsset: ['互联网资产', 'Internet asset'],
+    Package: ['软件包', 'Package'],
+    SoftwareVersion: ['软件版本', 'Software version'],
+  }
+  return labels[kind] ? text(...labels[kind]) : kind
 }
 
-function RelationTargetIdentity({ relation }: { relation: KnowledgeRelation }) {
-  const displayName = relation.target.properties.display_name
-  const label = typeof displayName === 'string' ? displayName : relation.target.external_identifiers.cve?.[0] ?? relation.target.canonical_key
-  return <div className="graph-target-identity"><span className="relation-icon"><GitBranch size={15} /></span><div><small>TARGET</small><strong>{label}</strong><span>{relation.target.object_type}</span></div></div>
-}
-
-function graphPoint(index: number, count: number) {
-  const angle = -Math.PI / 2 + (index / Math.max(count, 1)) * Math.PI * 2
-  const radiusX = count <= 6 ? 33 : 38
-  const radiusY = count <= 6 ? 34 : 39
-  return { x: 50 + Math.cos(angle) * radiusX, y: 50 + Math.sin(angle) * radiusY }
-}
-
-export function EvidenceCapsules({ evidence, onEvidence, compact = false }: { evidence: EvidenceRef[]; onEvidence: (ref: string) => void; compact?: boolean }) {
+export function EvidenceCapsules({
+  evidence,
+  onEvidence,
+  compact = false,
+}: {
+  evidence: EvidenceRef[]
+  onEvidence: (ref: string) => void
+  compact?: boolean
+}) {
   const { text } = useI18n()
   const [expanded, setExpanded] = useState(false)
-  if (evidence.length === 0) return <span className="no-evidence">{text('无 Evidence', 'NO EVIDENCE')}</span>
+  if (evidence.length === 0) return <span className="no-evidence">{text('尚无关联证据', 'No linked evidence')}</span>
   const limit = compact ? 2 : 4
   return (
     <div className={`evidence-capsules ${compact ? 'compact' : ''}`}>
       {(expanded ? evidence : evidence.slice(0, limit)).map((item) => (
-        <button key={item.evidence_ref} onClick={() => onEvidence(item.evidence_ref)} title={item.source_id}>
-          <BadgeCheck size={12} /> {compact ? item.source_id.slice(0, 10) : item.source_id}
-        </button>
+        <Button
+          variant="outline"
+          size="sm"
+          key={item.evidence_ref}
+          onClick={() => onEvidence(item.evidence_ref)}
+          title={text(
+            `查看 ${sourceIdentity(item.source_id, item.canonical_url).name} 的证据`,
+            `Read evidence from ${sourceIdentity(item.source_id, item.canonical_url).name}`,
+          )}
+        >
+          <SourceIdentity source={item.source_id} url={item.canonical_url} />
+        </Button>
       ))}
-      {evidence.length > limit && <button type="button" className="evidence-expand" onClick={() => setExpanded(value => !value)} aria-expanded={expanded}>{expanded ? text('收起', 'Show less') : text(`查看其余 ${evidence.length - limit} 条`, `View ${evidence.length - limit} more`)}</button>}
+      {evidence.length > limit && (
+        <button type="button" className="evidence-expand" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded}>
+          {expanded ? text('收起', 'Show less') : text(`查看其余 ${evidence.length - limit} 条`, `View ${evidence.length - limit} more`)}
+        </button>
+      )}
     </div>
   )
-}
-
-export function EvidenceInspector({ evidenceRef, onClose }: { evidenceRef: string | null; onClose: () => void }) {
-  const { text } = useI18n()
-  const navigate = useNavigate()
-  const query = useQuery({ queryKey: ['evidence', evidenceRef], queryFn: () => getEvidence(evidenceRef!), enabled: Boolean(evidenceRef) })
-  const item = query.data
-  const objectIds = item ? evidenceBoundObjectIds(item) : []
-  return (
-    <div className={`evidence-inspector ${evidenceRef ? 'active' : ''}`}>
-      <div className="inspector-head">
-        <div><small>EVIDENCE INSPECTOR</small><strong>{item?.source.source_id ?? text('选择 Evidence', 'Select evidence')}</strong></div>
-        {evidenceRef && <button onClick={onClose} aria-label={text('关闭证据镜片', 'Close evidence inspector')}><X size={16} /></button>}
-      </div>
-      <AnimatePresence mode="wait">
-        {!evidenceRef ? (
-          <motion.div key="empty" className="inspector-empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <FileSearch size={36} strokeWidth={1.3} />
-            <strong>{text('证据站在事实旁边', 'EVIDENCE STAYS BESIDE THE CLAIM')}</strong>
-            <p>{text('点击 dossier 或 relation 上的 Evidence capsule，展开来源、版本、时间与 locator。', 'Open an Evidence capsule beside a dossier fact or Relation to inspect source, revision, time, and locator.')}</p>
-          </motion.div>
-        ) : query.isLoading ? (
-          <motion.div key="loading" className="inspector-empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}><Radar size={30} /> {text('解析 Evidence…', 'resolving evidence…')}</motion.div>
-        ) : query.isError ? (
-          <motion.div key="error" className="inspector-empty error-block" initial={{ opacity: 0 }} animate={{ opacity: 1 }}><strong>{text('证据读取失败', 'Evidence read failed')}</strong><p>{String(query.error.message)}</p><button className="evidence-read-retry" onClick={() => void query.refetch()}>{text('重新读取', 'Retry')}</button></motion.div>
-        ) : item ? (
-          <motion.div key={item.evidence_ref} className={'inspector-body evidence-manuscript ' + evidenceProvenanceClass(item.source.source_role, item.source.source_class)} initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }}>
-            <div className="evidence-provenance-stamp">
-              <small>PROVENANCE</small>
-              <strong>{evidenceProvenanceLabel(item.source.source_role, item.source.source_class)}</strong>
-              <span>{item.source.source_role} · {item.source.source_class}</span>
-            </div>
-            <div className="evidence-authority">
-              <span className="signal-icon lime"><ShieldCheck size={17} /></span>
-              <div><small>{item.source.source_role} / {item.source.source_class}</small><strong>{item.source.source_id}</strong><span>{item.source.source_family}</span></div>
-            </div>
-            <InspectorBlock icon={Link2} label="BOUND TO" value={`${item.target.target_kind} · ${item.target.label}`} detail={formatValue(item.target.detail.value ?? item.target.detail)} />
-            <InspectorBlock icon={Binary} label="SOURCE REVISION" value={item.observation.external_revision ?? 'content-addressed'} detail={item.observation.external_object_id} mono />
-            <InspectorBlock icon={Braces} label="LOCATOR" value={formatLocator(item.locator)} detail={`observed ${formatDate(item.observation.observed_at)}`} mono />
-            {item.artifact && <InspectorBlock icon={Fingerprint} label="IMMUTABLE ARTIFACT" value={item.artifact.media_type} detail={`${item.artifact.trust_class} · ${item.artifact.content_hash.slice(0, 14)}…`} mono />}
-            <div className="authority-scope">
-              <small>AUTHORITY SCOPE</small>
-              <div>{item.source.authority_scope.length ? item.source.authority_scope.map((scope) => <span key={scope}>{scope}</span>) : <span>{text('未指定', 'unspecified')}</span>}</div>
-            </div>
-            {objectIds.length > 0 && <div className="evidence-object-links"><small>{text('绑定对象', 'BOUND OBJECTS')}</small><div>{objectIds.map((objectId, index) => <button key={objectId} onClick={() => navigate(`/intelligence?object=${encodeURIComponent(objectId)}&from=evidence`)}><BrainCircuit size={11} /> {index === 0 ? text('打开主体档案', 'OPEN SUBJECT DOSSIER') : text('打开关系对象', 'OPEN RELATED OBJECT')}<span className="mono">{compactEvidenceObjectRef(objectId)}</span></button>)}</div></div>}
-            {item.observation.canonical_url && <a className="source-link" href={item.observation.canonical_url} target="_blank" rel="noreferrer">{text('打开规范来源', 'OPEN CANONICAL SOURCE')} <ExternalLink size={13} /></a>}
-            <div className="evidence-ref mono">{item.evidence_ref}</div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
-    </div>
-  )
-}
-
-function InspectorBlock({ icon: Icon, label, value, detail, mono = false }: { icon: typeof Link2; label: string; value: string; detail: string; mono?: boolean }) {
-  return <div className="inspector-block"><Icon size={15} /><div><small>{label}</small><strong className={mono ? 'mono' : ''}>{value}</strong><span className={mono ? 'mono' : ''}>{detail}</span></div></div>
 }

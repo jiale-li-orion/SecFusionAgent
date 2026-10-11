@@ -74,11 +74,15 @@ export function displayUnknowns(investigation: InvestigationView): Investigation
 
 export function investigationStopMessage(reason: string, text: (zh: string, en: string) => string) {
   const messages: Record<string, [string, string]> = {
+    question_reasoning_failed: ['本轮回答未能形成有效结论，执行记录已保留。', 'This answer did not produce a valid conclusion. Execution records are retained.'],
+    no_eligible_enrichment_operator: ['当前没有可用的补全操作，已有材料已保留。', 'No eligible enrichment operation is available. Retrieved material is retained.'],
+    enrichment_round_budget_exhausted: ['本轮补全已达到执行额度，部分维度仍待补充。', 'This enrichment run reached its budget; some dimensions remain incomplete.'],
     no_progress: ['重复读取未带来新进展，本轮已停止。可补充线索后继续调查。', 'Repeated reads yielded no progress. Add a lead to continue the investigation.'],
     budget_exhausted: ['本轮执行额度已用完，尚未完成调查。', 'This episode exhausted its execution budget before completing the investigation.'],
     deadline_reached: ['本轮运行已达到时间上限，调查尚未完成。', 'This episode reached its time limit before completing the investigation.'],
     waiting_not_allowed: ['本轮需要等待额外信息，当前执行设置不允许继续等待。', 'This episode needs additional information, but its execution settings do not allow waiting.'],
   }
+  if (reason.endsWith(':ModelProviderTransientError')) return text('模型服务本次请求失败，执行记录已保留。', 'The model request failed. Execution records are retained.')
   const message = messages[reason]
   return message ? text(...message) : text('本轮运行已停止，请查看执行记录了解原因。', 'This episode stopped. Open the execution record for details.')
 }
@@ -98,4 +102,13 @@ export function mergeRuntimeEvents(initial: ProductRuntimeEvent[], streamed: Pro
   for (const event of initial) byId.set(event.event_id, event)
   for (const event of streamed) byId.set(event.event_id, event)
   return [...byId.values()].sort((a, b) => a.occurred_at.localeCompare(b.occurred_at))
+}
+
+export function investigationStatusLabel(status: string, text: Translate) {
+  const labels: Record<string, [string, string]> = {
+    created: ['待开始', 'Queued'], active: ['进行中', 'In progress'], waiting: ['等待中', 'Waiting'],
+    resolved: ['已完成', 'Completed'], failed: ['已停止', 'Stopped'], cancelled: ['已取消', 'Cancelled'],
+    canceled: ['已取消', 'Cancelled'], closed: ['已关闭', 'Closed'],
+  }
+  return labels[status] ? text(...labels[status]) : status
 }

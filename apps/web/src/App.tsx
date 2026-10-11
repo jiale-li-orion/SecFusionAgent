@@ -19,9 +19,11 @@ export default function App() {
   const reduceMotion = Boolean(useReducedMotion())
   const transition = routeTransition(location.pathname, reduceMotion)
   const routeSpace = routeSpaceName(location.pathname)
+  const selection = new URLSearchParams(location.search)
+  const intelligenceIdentity = ['object', 'incident', 'cve', 'q', 'hot'].map(key => selection.get(key) ?? '').join('|')
 
   return (
-    <ProductErrorBoundary key={location.pathname === '/start' ? location.pathname : `${location.pathname}:${location.pathname === '/' ? '' : location.search}`}>
+    <ProductErrorBoundary key={location.pathname}>
       <Shell>
         <Suspense fallback={<ProductSpaceLoader space={routeSpace} />}>
           <AnimatePresence mode="wait" initial={false}>
@@ -38,8 +40,8 @@ export default function App() {
                 <Route path="/auth" element={<AuthPage />} />
                 <Route path="/workspace/*" element={<RequireAccount><WorkspacePage /></RequireAccount>} />
                 <Route path="/start" element={<RequireAccount><QuestionsPage /></RequireAccount>} />
-                <Route path="/intelligence" element={<IntelligencePage key={`intelligence:${location.search}`} />} />
-                <Route path="/investigations" element={<RequireAccount><InvestigationsPage key={`investigations:${location.search}`} /></RequireAccount>} />
+                <Route path="/intelligence" element={<IntelligencePage key={`intelligence:${intelligenceIdentity}`} />} />
+                <Route path="/investigations" element={<RequireAccount><InvestigationsPage /></RequireAccount>} />
                 <Route path="/agents" element={<RequireAccount><AgentsPage /></RequireAccount>} />
                 <Route path="/observatory" element={<ObservatoryPage key={`observatory:${location.search}`} />} />
                 <Route path="*" element={<Navigate to="/" replace />} />

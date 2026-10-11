@@ -6,6 +6,7 @@ import { getAgentTask } from '../../lib/api/agents'
 import { listProductEnrichmentRuns, startProductEnrichment } from '../../lib/api/enrichment'
 import type { IntelligenceEnrichmentState } from '../../lib/api/intelligence'
 import { useI18n } from '../../lib/i18n'
+import { Button } from '../ui/button'
 
 const dimensionLabels: Record<string, [string, string]> = {
   identity: ['漏洞身份', 'Identity'], severity: ['严重性', 'Severity'],
@@ -95,7 +96,7 @@ function EnrichmentActions({ objectId, cveId, state, onChanged }: Props) {
   return (
     <section className="product-enrichment-actions" aria-label={text('补全漏洞情报', 'Enrich vulnerability intelligence')}>
       <header>
-        <div><small>EnrichmentRole</small><h3>{text('补全漏洞情报', 'Enrich vulnerability intelligence')}</h3></div>
+        <div><h3>{text('补全漏洞情报', 'Enrich vulnerability intelligence')}</h3></div>
         <p>{text(`为 ${cveId} 选择待补全维度。新增事实保留来源证据，未知与冲突会继续显示。`, `Choose dimensions for ${cveId}. New facts retain their sources; unknowns and conflicts remain visible.`)}</p>
       </header>
       {!state ? <p>{text('等待维度状态加载后可提交。', 'Load the dimension state before submitting.')}</p> : candidates.length === 0
@@ -115,10 +116,10 @@ function EnrichmentActions({ objectId, cveId, state, onChanged }: Props) {
           })}
         </fieldset>}
       <p>{text('现有来源与算子只能补充可获得的材料；缺少前置证据或可用来源时，任务会明确报告受阻。', 'Available sources and operators determine what can be retrieved. Missing prerequisites or sources are reported as blocked.')}</p>
-      <button type="button" className="instrument-button" disabled={!state || selected.length === 0 || submit.isPending || active || runs.isPending || runs.isError}
+      <Button type="button" disabled={!state || selected.length === 0 || submit.isPending || active || runs.isPending || runs.isError}
         onClick={requestEnrichment}>
         {submit.isPending ? text('正在提交…', 'Submitting…') : active ? text('补全任务正在执行', 'Enrichment task in progress') : text(`补全所选 ${selected.length} 个维度`, `Enrich ${selected.length} selected dimensions`)}
-      </button>
+      </Button>
       {submit.isError && <p role="alert">{submit.error.message === 'REVISION_CHANGED'
         ? text('情报已更新，请刷新状态后重新选择。', 'Intelligence changed. Refresh the state and select again.')
         : submit.error.message}<button type="button" onClick={() => void onChanged()}>{text('刷新档案', 'Refresh dossier')}</button></p>}
