@@ -21,7 +21,7 @@ from packages.investigation.runtime.test_model_planner import (
 from packages.investigation.state.contracts import ProposedState, StatePatch, StatePatchOperation
 from packages.investigation.state.service import InvestigationStateService
 from packages.investigation.storage.models import InvestigationCaseModel
-from packages.reasoning.model import DecisionPlannerResponse
+from packages.reasoning.model import DecisionPlannerResponse, InvestigationReportResponse
 from packages.runtime.execution.service import ExecutionRunService
 from packages.shared.config import Settings
 from packages.task_runtime.contracts.execution import ExecutionEnvelope
@@ -82,7 +82,7 @@ class DecisionProvider:
         assert 0 < request.metadata["model_wall_seconds"] <= 60
         state = request.data["investigation_state"]
         finding = state["confirmed"][0]
-        assert response_model is DecisionPlannerResponse
+        assert response_model is InvestigationReportResponse
         return response_model.model_validate(
             {
                 "action": {
@@ -123,6 +123,38 @@ async def test_completed_product_investigation_commits_cited_decision_once(lease
             assert decision_task.predecessor_run_id == run_id
             detail = await get_agent_task_detail(session, decision_task.run_id)
             assert detail and detail.predecessor and detail.predecessor.run_id == run_id
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_report_preserves_new_coverage_gap_after_m5_resolves_original_need(lease) -> None:
+    class PartialProvider(DecisionProvider):
+        async def generate_structured(self, request: Any, response_model: Any) -> Any:
+            response = await super().generate_structured(request, response_model)
+            return response.model_copy(update={"action": response.action.model_copy(update={
+                "unknowns": ["Downstream applicability has not been verified."],
+                "stop_reason": "partial_evidence",
+            })})
+
+    engine, factory = await _database()
+    try:
+        run_id, state = await _completed_case(factory)
+        provider = PartialProvider()
+        result = await FinalizeInvestigationUseCase(
+            factory, Settings(), provider, lease=lease,
+        ).execute(run_id)
+        assert result and result.startswith("decision:")
+        assert provider.calls == 1
+        async with factory() as session:
+            case = await session.get(InvestigationCaseModel, state.case_id)
+            current = await InvestigationStateService().get_state(session, state.case_id)
+            assert case is not None and case.status == "waiting"
+            assert current.current_decision is not None
+            assert current.current_decision["unknowns"] == [
+                "Downstream applicability has not been verified.",
+            ]
+            assert current.current_decision["citations"]
     finally:
         await engine.dispose()
 
@@ -204,7 +236,8 @@ async def test_decision_evidence_gap_waits_with_a_durable_need_and_readable_answ
 
     class GapProvider(DecisionProvider):
         async def generate_structured(self, request: Any, response_model: Any) -> Any:
-            return response_model.model_validate(
+            # Defensive compatibility for providers returning the old action union.
+            return DecisionPlannerResponse.model_validate(
                 {
                     "action": {
                         "kind": "continue",
@@ -316,7 +349,7 @@ async def test_invalid_final_report_is_replaced_with_evidence_boundary(lease) ->
 async def test_rejected_continuation_cannot_suppress_the_turn_report(lease) -> None:
     class EscapedProvider(DecisionProvider):
         async def generate_structured(self, request: Any, response_model: Any) -> Any:
-            return response_model.model_validate({"action": {
+            return DecisionPlannerResponse.model_validate({"action": {
                 "kind": "continue", "proposition_or_question": "Inspect another tenant",
                 "purpose": "inspect_other", "reason": "Model requested a different target",
                 "target_objects": ["unbound-object"],

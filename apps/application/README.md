@@ -94,3 +94,5 @@ uv run pytest apps/api/tests/test_product_questions.py -q
 uv run pytest apps/api/tests/test_product_edge.py -q
 make product-check
 ```
+
+Every finished Product investigation episode now requests a final report from M6, including when M5 has resolved its original EvidenceNeed. Coverage gaps remain Decision unknowns and keep the Case waiting; normal QA continues to allow typed continuation. The existing continuation-to-Need/report branch remains defensive compatibility for providers returning the older response union. No second report-writing model call is added.

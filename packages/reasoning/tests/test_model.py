@@ -17,6 +17,7 @@ from packages.reasoning.model import (
     ContinuationProposal,
     DecisionPlannerResponse,
     FinalDecisionProposal,
+    InvestigationReportResponse,
     ModelDecisionPlanner,
 )
 from packages.shared.model_provider import StructuredModelRequest
@@ -33,9 +34,12 @@ class _Provider:
         self.requests: list[StructuredModelRequest] = []
 
     async def generate_structured(self, request, response_model):
-        assert response_model is DecisionPlannerResponse
+        assert response_model is (
+            InvestigationReportResponse
+            if request.data["prefer_partial_final"] else DecisionPlannerResponse
+        )
         self.requests.append(request)
-        return self.response
+        return response_model.model_validate(self.response.model_dump())
 
 
 def _state() -> InvestigationState:
@@ -64,7 +68,7 @@ async def test_model_decision_planner_forces_case_identity_from_state() -> None:
     assert isinstance(result, DecisionDraft)
     assert result.case_id == "case-1"
     assert result.case_revision == 7
-    assert result.model_prompt_revision == "decision-model-v5-core"
+    assert result.model_prompt_revision == "decision-model-v6-core"
     assert provider.requests[0].metadata["case_revision"] == 7
     assert "minimal sufficient answer" in provider.requests[0].system_instruction
     assert "research report for a security analyst" not in provider.requests[0].system_instruction
@@ -86,7 +90,7 @@ async def test_model_decision_planner_enables_report_only_for_durable_investigat
         _state(), citation_sources=[], include_report=True
     )
     assert isinstance(result, DecisionDraft)
-    assert result.model_prompt_revision == "decision-model-v5"
+    assert result.model_prompt_revision == "decision-model-v6"
     assert result.report_paragraphs[0].text == "The release contains the confirmed fix."
     assert "research report for a security analyst" in provider.requests[0].system_instruction
 
@@ -100,6 +104,14 @@ async def test_exhausted_investigation_requests_a_partial_final_report() -> None
         _state(), citation_sources=[], include_report=True, prefer_partial_final=True
     )
     assert provider.requests[0].data["prefer_partial_final"] is True
+
+
+def test_episode_report_schema_requires_delivery_instead_of_another_continuation() -> None:
+    with pytest.raises(ValueError):
+        InvestigationReportResponse.model_validate({"action": {
+            "kind": "continue", "proposition_or_question": "Check applicability",
+            "purpose": "verify_applicability", "reason": "Missing evidence",
+        }})
 
 
 @pytest.mark.asyncio

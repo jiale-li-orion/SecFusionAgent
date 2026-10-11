@@ -121,7 +121,10 @@ class FinalizeInvestigationUseCase:
                     state,
                     citation_sources=citations,
                     include_report=True,
-                    prefer_partial_final=incomplete,
+                    # Every finished episode owes its chat turn a report. Coverage gaps
+                    # belong in that report and keep the Case open, even if M5 stopped
+                    # with all of its original EvidenceNeeds marked resolved.
+                    prefer_partial_final=True,
                     runtime_metadata={
                         "execution_id": coordinate.execution_id,
                         "task_run_id": coordinate.task_run_id,

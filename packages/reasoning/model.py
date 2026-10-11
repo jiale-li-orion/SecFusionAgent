@@ -52,6 +52,12 @@ class DecisionPlannerResponse(BaseModel):
     action: DecisionModelAction
 
 
+class InvestigationReportResponse(DecisionPlannerResponse):
+    """A finished investigation episode must deliver a report, including its gaps."""
+
+    action: FinalDecisionProposal
+
+
 REPORT_INSTRUCTION = (
     "After deciding the structured answer_payload and conclusions, write "
     "report_paragraphs as a concise research report for a security analyst in "
@@ -86,8 +92,8 @@ REPORT_INSTRUCTION = (
 
 
 class ModelDecisionPlanner:
-    PROMPT_REVISION = "decision-model-v5-core"
-    REPORT_PROMPT_REVISION = "decision-model-v5"
+    PROMPT_REVISION = "decision-model-v6-core"
+    REPORT_PROMPT_REVISION = "decision-model-v6"
 
     def __init__(self, provider: ModelProvider) -> None:
         self._provider = provider
@@ -145,10 +151,13 @@ class ModelDecisionPlanner:
                 "Inferences must preserve "
                 "their support. If the current state cannot support a defensible answer, return a "
                 "continuation proposal describing the evidence gap instead of guessing. "
-                "If prefer_partial_final is true, the investigation has already exhausted its "
-                "current evidence budget. Return a final answer with only the confirmed facts "
+                "If prefer_partial_final is true, the current investigation episode has ended. "
+                "Return a final report with only the confirmed facts "
                 "that answer the question and state the remaining uncertainty in natural prose; "
-                "do not request another continuation. "
+                "record uncovered parts of the goal in unknowns instead of requesting another "
+                "continuation. A final report does not mean the investigation is complete: "
+                "use partial_evidence when material gaps remain. Prioritize findings relevant "
+                "to the goal across the full supplied state, not just the most recent entries. "
                 "For a final answer, stop_reason is a short machine-readable lifecycle code, "
                 "prefer snake_case such as evidence_sufficient; do not put explanation text there. "
                 "For continuation, purpose is likewise a short machine-readable purpose code, "
@@ -165,7 +174,10 @@ class ModelDecisionPlanner:
             },
             metadata=metadata,
         )
-        response = await self._provider.generate_structured(request, DecisionPlannerResponse)
+        response_model = (
+            InvestigationReportResponse if prefer_partial_final else DecisionPlannerResponse
+        )
+        response = await self._provider.generate_structured(request, response_model)
         action = response.action
         if isinstance(action, FinalDecisionProposal):
             return DecisionDraft(
