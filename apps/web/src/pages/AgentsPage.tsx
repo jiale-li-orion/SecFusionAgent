@@ -1,268 +1,95 @@
-import { RoleConstellation } from '../components/agents/RoleConstellation'
-import { SpaceHeading } from '../components/instrument/SpaceHeading'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
-import { useReducedMotion } from 'motion/react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
-import {
-  BookOpenCheck,
-  BrainCircuit,
-  ChevronRight,
-  CircleDot,
-  TerminalSquare,
-  TimerReset,
-  Waypoints,
-} from '../components/ui/icons'
+import { useSearchParams, Link } from 'react-router-dom'
+import { ArrowLeft } from "@phosphor-icons/react/dist/csr/ArrowLeft"
+import { ArrowClockwise } from "@phosphor-icons/react/dist/csr/ArrowClockwise"
+import { BookOpen } from "@phosphor-icons/react/dist/csr/BookOpen"
+import { CaretRight } from "@phosphor-icons/react/dist/csr/CaretRight"
 import { getAgentExperiences, getAgentLearning, getAgentRuntime, getAgentSkill, getAgentSkills, getAgentTask, listAgentTasks } from '../lib/api'
 import { ExperienceMemory, SkillFamilyDetail } from '../components/agents/LearningSurfaces'
-import { RuntimeActivityView, TaskCard, TaskDossier, TaskTopology } from '../components/agents/RuntimeSurfaces'
+import { TaskCard, TaskDossier } from '../components/agents/RuntimeSurfaces'
 import { groupSkillFamilies, skillFamilyKeyFromRef } from '../lib/agentLearning'
 import { activeStatuses, rolePresentation } from '../lib/agentRuntimePresentation'
+import { taskOutcome, taskTitle } from '../lib/taskPresentation'
 import { useI18n } from '../lib/i18n'
-import { dominantRuntimeName, rankRuntimeCounts, runtimeToken } from '../lib/runtimePresentation'
+import { Button } from '../components/ui/button'
+import { Input } from '../components/ui/input'
+import { Tabs, TabsList, TabsTrigger } from '../components/ui/tabs'
+import '../components/agents/operations-tasks.css'
 
-function ModelRuntimeRibbon({ runtime }: { runtime: Awaited<ReturnType<typeof getAgentRuntime>> }) {
-  const { text } = useI18n()
-  const model = runtime.model_runtime
-  const control = runtime.control_runtime
-  const provider = dominantRuntimeName(model.provider_counts)
-  const actualModel = dominantRuntimeName(model.model_counts)
-  const stopReasons = rankRuntimeCounts(control.stop_reason_counts, 3)
-  return (
-    <section className="agent-model-runtime-ribbon">
-      <div className="agent-model-runtime-title">
-        <BrainCircuit size={14} />
-        <div><small>{text('最近持久 MODEL 执行', 'RECENT PERSISTED MODEL EXECUTION')}</small><strong>{model.scope.replaceAll('_', ' ')}</strong></div>
-        <span>{text(`最近 ${model.request_limit} 个请求上限`, `latest ${model.request_limit} request limit`)}</span>
-      </div>
-      <div className="agent-model-runtime-flow">
-        <div><small>REQUESTS</small><strong>{model.request_count}</strong><span>{model.attempt_count} attempts</span></div>
-        <i />
-        <div><small>RETRY ATTEMPTS</small><strong>{model.retry_attempt_count}</strong><span>{model.retry_scheduled_count} scheduled</span></div>
-        <i />
-        <div><small>FAILED / UNKNOWN</small><strong>{model.failed_attempt_count} / {model.unknown_after_dispatch_count}</strong><span>{model.p95_latency_ms == null ? 'p95 not measured' : `p95 ${model.p95_latency_ms} ms`}</span></div>
-        <i />
-        <div><small>PROVIDER / MODEL</small><strong>{provider ?? '—'}</strong><span>{actualModel ?? '—'}</span></div>
-      </div>
-      <div className="agent-control-runtime-line">
-        <span><b>{control.dependency_wake_count}</b> dependency wakes</span>
-        <span><b>{control.waiting_event_count}</b> waiting boundaries</span>
-        <span><b>{control.wake_latency_measurement === 'unavailable' ? 'NOT MEASURED' : control.wake_latency_measurement.toUpperCase()}</b> wake latency</span>
-        {stopReasons.map(([reason, count]) => <span key={reason}><b>{count}</b> {runtimeToken(reason)}</span>)}
-      </div>
-    </section>
-  )
-}
-
-function TaskTopologyBlueprint({ loading }: { loading: boolean }) {
-  const { text } = useI18n()
-  return <div className="task-ledger-empty">{loading ? text('读取执行记录…', 'Loading execution records…') : text('暂无可读执行记录。', 'No execution records available.')}</div>
-}
-
-function TaskLensBlueprint() {
-  const { text } = useI18n()
-  return <div className="memory-empty"><Waypoints size={28} /><strong>{text('打开一次真实执行', 'Inspect a real execution')}</strong><p>{text('选择任务，查看角色协作、调用过程、证据与终止原因。', 'Select a task to inspect collaboration, calls, evidence and its stop reason.')}</p></div>
-}
-
-function SkillBlueprintList() {
-  const { text } = useI18n()
-  return <p className="memory-empty">{text('暂无已保存的技能。', 'No saved skills yet.')}</p>
-}
-
-function SkillBlueprintDetail() {
-  const { text } = useI18n()
-  return <div className="memory-empty"><BrainCircuit size={25} /><strong>{text('可复用的调查方法', 'Reusable investigation methods')}</strong><p>{text('选择已保存的技能，查看它的适用条件、执行步骤和版本记录。', 'Select a saved skill to read its conditions, procedure and version history.')}</p></div>
-}
-
-function ExperienceBlueprint() {
-  const { text } = useI18n()
-  return <p className="memory-empty">{text('暂无已保存的经验。调查产生的经验经评估后会保留在这里。', 'No saved experiences yet. Evaluated investigation experience will appear here.')}</p>
-}
+function SkillBlueprintList() { const { text } = useI18n(); return <p className="ops-empty">{text('暂无已保存的技能。', 'No saved skills yet.')}</p> }
+function SkillBlueprintDetail() { const { text } = useI18n(); return <p className="ops-empty">{text('选择技能，查看适用条件和执行步骤。', 'Select a skill to read its conditions and procedure.')}</p> }
+function ExperienceBlueprint() { const { text } = useI18n(); return <p className="ops-empty">{text('暂无已保存的经验。', 'No saved experiences yet.')}</p> }
 
 export function AgentsPage() {
   const { text } = useI18n()
-  const navigate = useNavigate()
-  const reduceMotion = Boolean(useReducedMotion())
   const [params, setParams] = useSearchParams()
   const sectionParam = params.get('section')
+  const memoryOpen = sectionParam === 'memory'
+  const selectedTask = params.get('run')
   const roleParam = params.get('role')
-  const origin = params.get('from')
-  const originCaseRef = params.get('caseRef')
-  const runtimeQuery = useQuery({ queryKey: ['agent-runtime'], queryFn: getAgentRuntime, refetchInterval: 12_000 })
-  const runtime = runtimeQuery.data
-  const learningQuery = useQuery({ queryKey: ['agent-learning'], queryFn: getAgentLearning, refetchInterval: 30_000 })
-  const learning = learningQuery.data
-  const skillsQuery = useQuery({ queryKey: ['agent-skills'], queryFn: getAgentSkills, refetchInterval: 30_000 })
-  const experiencesQuery = useQuery({ queryKey: ['agent-experiences'], queryFn: getAgentExperiences, refetchInterval: 30_000 })
-  const initialTask = runtime?.recent_tasks.find((task) => activeStatuses.has(task.status))?.run_id ?? runtime?.recent_tasks[0]?.run_id ?? null
-  const requestedRun = params.get('run')
-  const selectedTask = requestedRun ?? initialTask
-  const detailQuery = useQuery({ queryKey: ['agent-task', selectedTask], queryFn: () => getAgentTask(selectedTask!), enabled: Boolean(selectedTask), refetchInterval: selectedTask ? 10_000 : false })
-  const selectedTaskRole = detailQuery.data?.task.role_id
-    ?? runtime?.recent_tasks.find((task) => task.run_id === selectedTask)?.role_id
-    ?? null
-  const skillFamilies = useMemo(() => groupSkillFamilies(skillsQuery.data ?? []), [skillsQuery.data])
-  const [selectedSkillFamily, setSelectedSkillFamily] = useState<string | null>(null)
   const focusedRole = roleParam && rolePresentation[roleParam] ? roleParam : null
+  const runtimeQuery = useQuery({ queryKey: ['agent-runtime'], queryFn: getAgentRuntime, refetchInterval: 15_000 })
+  const runtime = runtimeQuery.data
   const taskArchive = useInfiniteQuery({
     queryKey: ['agent-task-archive', focusedRole],
     queryFn: ({ pageParam }) => listAgentTasks({ roleId: focusedRole ?? undefined, limit: 24, cursor: pageParam ?? undefined }),
     initialPageParam: null as string | null,
-    getNextPageParam: (page) => page.next_cursor,
-    enabled: sectionParam !== 'memory',
+    getNextPageParam: page => page.next_cursor,
+    enabled: !memoryOpen,
+    refetchInterval: 15_000,
   })
-  const selectedSkill = skillFamilies.find((item) => item.key === (selectedSkillFamily ?? skillFamilies[0]?.key)) ?? null
+  const detailQuery = useQuery({ queryKey: ['agent-task', selectedTask], queryFn: () => getAgentTask(selectedTask!), enabled: Boolean(selectedTask) && !memoryOpen, refetchInterval: 10_000 })
+  const [filter, setFilter] = useState('all')
+  const [search, setSearch] = useState('')
+  const tasks = useMemo(() => {
+    const all = new Map((runtime?.recent_tasks ?? []).filter(task => !focusedRole || task.role_id === focusedRole).map(task => [task.run_id, task]))
+    for (const task of taskArchive.data?.pages.flatMap(page => page.items) ?? []) all.set(task.run_id, task)
+    return [...all.values()].sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+  }, [runtime?.recent_tasks, taskArchive.data, focusedRole])
+  const visible = tasks.filter(task => {
+    if (filter === 'active' && !activeStatuses.has(task.status)) return false
+    if (filter === 'history' && activeStatuses.has(task.status)) return false
+    if (filter === 'failed' && !['failed', 'timed_out'].includes(task.status)) return false
+    return `${taskTitle(task, text)} ${task.target_label ?? ''} ${taskOutcome(task, text)}`.toLowerCase().includes(search.toLowerCase())
+  })
+  const learningQuery = useQuery({ queryKey: ['agent-learning'], queryFn: getAgentLearning, enabled: memoryOpen })
+  const learning = learningQuery.data
+  const skillsQuery = useQuery({ queryKey: ['agent-skills'], queryFn: getAgentSkills, enabled: memoryOpen })
+  const experiencesQuery = useQuery({ queryKey: ['agent-experiences'], queryFn: getAgentExperiences, enabled: memoryOpen })
+  const skillFamilies = useMemo(() => groupSkillFamilies(skillsQuery.data ?? []), [skillsQuery.data])
+  const [selectedSkillFamily, setSelectedSkillFamily] = useState<string | null>(null)
+  const selectedSkill = skillFamilies.find(item => item.key === (selectedSkillFamily ?? skillFamilies[0]?.key)) ?? null
   const selectedSkillRef = selectedSkill?.records[0]?.skill_ref ?? null
-  const selectedSkillDetailQuery = useQuery({
-    queryKey: ['agent-skill', selectedSkillRef],
-    queryFn: () => getAgentSkill(selectedSkillRef!),
-    enabled: Boolean(selectedSkillRef),
-    staleTime: 30_000,
-  })
-  const visibleTasks = useMemo(
-    () => runtime?.recent_tasks.filter((task) => !focusedRole || task.role_id === focusedRole) ?? [],
-    [focusedRole, runtime?.recent_tasks],
-  )
-  const focusedActiveTasks = useMemo(() => visibleTasks.filter((task) => activeStatuses.has(task.status)), [visibleTasks])
-  const [historyExpanded, setHistoryExpanded] = useState(false)
-  const archivedTasks = taskArchive.data?.pages.flatMap((page) => page.items) ?? visibleTasks
-  const terminalTasks = archivedTasks.filter((task) => !activeStatuses.has(task.status))
-  const focusedRecentTasks = terminalTasks.slice(0, historyExpanded ? undefined : 6)
-  const deepLinkedTask = requestedRun && detailQuery.data?.task.run_id === requestedRun
-    && !visibleTasks.some((task) => task.run_id === requestedRun)
-    && !archivedTasks.some((task) => task.run_id === requestedRun)
-    ? detailQuery.data.task : null
-  const activeCount = runtime?.roles.reduce((sum, role) => sum + role.active_tasks, 0) ?? 0
-  const totalRuns = runtime?.roles.reduce((sum, role) => sum + role.total_tasks, 0) ?? 0
-
-  useEffect(() => {
-    if (sectionParam !== 'memory') return
-    const frame = window.requestAnimationFrame(() => document.getElementById('agent-memory-field')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
-    return () => window.cancelAnimationFrame(frame)
-  }, [sectionParam])
-
-  function focusRole(roleId: string | null) {
-    const nextParams = new URLSearchParams(params)
-    if (roleId) nextParams.set('role', roleId)
-    else nextParams.delete('role')
-    if (roleId) {
-      const firstTask = runtime?.recent_tasks.find((task) => task.role_id === roleId)
-      if (firstTask) nextParams.set('run', firstTask.run_id)
-    }
-    setParams(nextParams, { replace: true })
-  }
-
-  function selectTask(runId: string) {
-    const nextParams = new URLSearchParams(params)
-    nextParams.set('run', runId)
-    nextParams.delete('role')
-    setParams(nextParams, { replace: true })
-  }
-
-  function inspectSkillRef(skillRef: string) {
-    const key = skillFamilyKeyFromRef(skillRef)
-    if (key) setSelectedSkillFamily(key)
-    const next = new URLSearchParams(params)
-    next.set('section', 'memory')
-    setParams(next, { replace: true })
-    requestAnimationFrame(() => document.getElementById('skill-codex')?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
-  }
-
-  return (
-    <section className={`agents-space studio-agents ${runtime ? 'runtime-loaded' : 'runtime-unresolved'}`}>
-      <SpaceHeading index="04" eyebrow="AGENTS / EXECUTION" title={text('智能体协作', 'Agents')} description={text('观察研判、调查与富化如何接力，追踪每一次真实执行。', 'Follow reasoning, investigation and enrichment through their actual execution.')}>
-        <div className="agent-runtime-readout">
-          <span className={activeCount > 0 ? 'live' : ''} />
-          <p>{runtime ? text(
-            `${activeCount} 个任务正在执行 · 累计 ${totalRuns} 次运行。选中任务，查看执行过程和终止原因。`,
-            `${activeCount} tasks are active now, while ${totalRuns} durable runs remain inspectable. The current projection contains ${runtime.recent_capabilities.length} persisted CapabilityInvocation records. Select any task to inspect why it stopped, which capabilities it invoked, what budget it consumed, and how it relates to a preceding investigation or delegated child task.`,
-          ) : text('正在读取持久 Task、Role 与 Capability 运行事实。', 'Reading durable Task, Role, and Capability runtime facts.')}</p>
-        </div>
-      </SpaceHeading>
-      {origin === 'case' && originCaseRef && (
-        <div className="agent-origin case-origin">
-          <span>CASE → TASK</span>
-          <strong className="mono">{originCaseRef}</strong>
-          <button onClick={() => navigate(`/investigations?case=${encodeURIComponent(originCaseRef)}`)}>{text('返回 Case', 'BACK TO CASE')}</button>
-        </div>
-      )}
-
-      <div className="studio-section-switch"><button className={sectionParam !== 'memory' ? 'active' : ''} onClick={() => { const next = new URLSearchParams(params); next.delete('section'); setParams(next, { replace: true }); document.getElementById('agent-runtime-field')?.scrollIntoView({ behavior: reduceMotion ? 'instant' : 'smooth' }) }}>{text('任务与协作', 'Execution & collaboration')}</button><button className={sectionParam === 'memory' ? 'active' : ''} onClick={() => { const next = new URLSearchParams(params); next.set('section', 'memory'); setParams(next, { replace: true }) }}>{text('技能与经验', 'Skills & experience')}</button></div>
-      {(runtimeQuery.isError || learningQuery.isError || skillsQuery.isError || experiencesQuery.isError) && (
-        <div className="agent-seam-fault">
-          <TerminalSquare size={14} />
-          <div>
-            <small>{text('产品读取降级', 'PRODUCT READ DEGRADED')}</small>
-            <strong>{runtimeQuery.isError
-              ? text('Agent Runtime 当前不可读；三 Role 权威结构保持可见。', 'Agent Runtime is unreadable; the three canonical Roles remain visible.')
-              : text('Skill / Experience read 读取失败；Task Runtime 保持独立可读。', 'Skill / Experience read failed; Task Runtime remains independently readable.')}</strong>
-          </div>
-          <span>{runtimeQuery.isError ? 'runtime seam' : 'learning seam'}</span>
-          <button className="recovery-action" onClick={() => {
-            if (runtimeQuery.isError) void runtimeQuery.refetch()
-            else void Promise.all([learningQuery.refetch(), skillsQuery.refetch(), experiencesQuery.refetch()])
-          }}>{runtimeQuery.isError ? text('重试 Runtime read', 'RETRY RUNTIME READ') : text('重试 Learning read', 'RETRY LEARNING READ')}</button>
-        </div>
-      )}
-
-      {sectionParam !== 'memory' && <>
-      <RoleConstellation runtime={runtime?.roles} selected={selectedTaskRole} focused={focusedRole} onFocus={focusRole} />
-
-      {runtime && <details className="agent-model-details"><summary>{text("模型与运行统计", "Model and runtime statistics")}</summary><ModelRuntimeRibbon runtime={runtime} /></details>}
-      {detailQuery.data && <details className="agent-model-details"><summary>{text("所选任务的执行链", "Selected task execution chain")}</summary><RuntimeActivityView detail={detailQuery.data} onSkillSelect={inspectSkillRef} onTaskSelect={selectTask} /></details>}
-
-      <div id="agent-runtime-field" className={`agent-runtime-grid ${focusedRole ? `runtime-focus-${focusedRole.toLowerCase()}` : ''}`}>
-        <section className={`task-field ${focusedRole ? 'role-owned-field' : ''}`}>
-          <div className="instrument-section-head">
-            <div><small>{text('任务执行', 'DURABLE TASK FIELD')}</small><strong>{text('执行与协作', 'EXECUTION / DELEGATION TOPOLOGY')}</strong></div>
-            <span>{focusedRole ? text(`${visibleTasks.length} 个 ${rolePresentation[focusedRole]?.alias ?? focusedRole} Task · 再点 Role 解除聚焦`, `${visibleTasks.length} ${rolePresentation[focusedRole]?.alias ?? focusedRole} tasks · click role again to release`) : text(`已加载 ${runtime?.recent_tasks.length ?? 0} 个 Task · 仅展示真实 parent/child 边`, `${runtime?.recent_tasks.length ?? 0} loaded · real parent/child edges only`)}</span>
-          </div>
-
-          {(runtime?.recent_tasks.length ?? 0) > 0
-            ? <TaskTopology tasks={visibleTasks} selectedTask={selectedTask} onSelect={selectTask} focusedRole={focusedRole} />
-            : <TaskTopologyBlueprint loading={runtimeQuery.isLoading} />}
-
-          {deepLinkedTask && <div className="agent-deep-task"><small>{text('当前直达任务 · 不在已加载历史页', 'DIRECT-LINKED TASK · OUTSIDE LOADED HISTORY')}</small><TaskCard task={deepLinkedTask} selected onSelect={selectTask} /></div>}
-
-          <div className="task-ledger">
-            <div className="task-ledger-column live">
-              <div className="task-ledger-title"><CircleDot size={12} /><strong>{text('实时执行', 'LIVE EXECUTION')}</strong><span>{focusedActiveTasks.length}</span></div>
-              <div>
-                {focusedActiveTasks.map((task) => <TaskCard key={task.run_id} task={task} selected={task.run_id === selectedTask} onSelect={selectTask} />)}
-                {runtime && focusedActiveTasks.length === 0 && <div className="task-ledger-empty">{text('当前所选角色没有执行中的任务。', 'No active durable tasks in current role focus.')}</div>}
-              </div>
-            </div>
-            <div className="task-ledger-column history">
-              <div className="task-ledger-title"><TimerReset size={12} /><strong>{text('历史执行', 'TASK HISTORY')}</strong><span>{terminalTasks.length}{taskArchive.hasNextPage ? '+' : ''}</span></div>
-              <div>
-                {focusedRecentTasks.map((task) => <TaskCard key={task.run_id} task={task} selected={task.run_id === selectedTask} onSelect={selectTask} />)}
-                {terminalTasks.length > 6 && <button className="agent-history-toggle" onClick={() => setHistoryExpanded(v => !v)}>{historyExpanded ? text('收起历史', 'Less history') : text('展开已加载历史', 'Show loaded history')}</button>}
-                {(historyExpanded || terminalTasks.length <= 6) && taskArchive.hasNextPage && <button className="agent-history-toggle agent-history-next" disabled={taskArchive.isFetchingNextPage} onClick={() => void taskArchive.fetchNextPage()}>{taskArchive.isFetchingNextPage ? text('正在读取…', 'Loading…') : text('读取更早任务', 'Load older tasks')}</button>}
-                {taskArchive.isError && <button className="agent-history-toggle agent-history-error" onClick={() => void taskArchive.refetch()}>{text('历史任务读取失败，重试', 'Task history failed to load. Retry')}</button>}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <aside className="task-runtime-lens">
-          <div className="task-lens-head">
-            <div><small>{text('选中 Task', 'SELECTED TASK')}</small><strong>{detailQuery.data?.task.task_kind ?? text('选择一个 Task', 'Select a task')}</strong></div>
-            {detailQuery.data && <span className={`task-state state-${detailQuery.data.task.status}`}>{detailQuery.data.task.status}</span>}
-          </div>
-          {detailQuery.data ? <TaskDossier detail={detailQuery.data} onSkillSelect={inspectSkillRef} /> : detailQuery.isError
-            ? <div className="task-ledger-empty" role="alert">{text('任务详情不可读或不属于当前账户。', 'This task is unavailable or does not belong to your account.')} <button className="recovery-action" onClick={() => void detailQuery.refetch()}>{text('重试', 'Retry')}</button></div>
-            : <TaskLensBlueprint />}
-        </aside>
-      </div>
-
+  const selectedSkillDetailQuery = useQuery({ queryKey: ['agent-skill', selectedSkillRef], queryFn: () => getAgentSkill(selectedSkillRef!), enabled: memoryOpen && Boolean(selectedSkillRef) })
+  function selectTask(run: string) { const next = new URLSearchParams(params); next.set('run', run); setParams(next) }
+  function inspectSkillRef(ref: string) { setSelectedSkillFamily(skillFamilyKeyFromRef(ref)); const next = new URLSearchParams(params); next.set('section', 'memory'); setParams(next) }
+  function closeTask() { const next = new URLSearchParams(params); next.delete('run'); setParams(next) }
+  return <section className="ops-tasks-page">
+    <header className="workspace-heading"><div><h1>{memoryOpen ? text('技能与经验', 'Skills & experience') : text('任务记录', 'Task records')}</h1><p>{text('查看任务进展、结果和执行中遇到的问题。', 'Review task progress, results and blockers.')}</p></div><Button variant="outline" onClick={() => void Promise.all([runtimeQuery.refetch(), taskArchive.refetch()])} disabled={runtimeQuery.isFetching || taskArchive.isFetching}><ArrowClockwise size={16} />{text('刷新', 'Refresh')}</Button></header>
+    <div className="ops-task-sections"><Tabs value={memoryOpen ? 'memory' : 'tasks'} onValueChange={value => { const next = new URLSearchParams(params); if (value === 'memory') next.set('section', value); else next.delete('section'); setParams(next) }}><TabsList variant="line"><TabsTrigger value="tasks">{text('任务记录', 'Task records')}</TabsTrigger><TabsTrigger value="memory">{text('技能与经验', 'Skills & experience')}</TabsTrigger></TabsList></Tabs></div>
+    {!memoryOpen && <>
+      {(runtimeQuery.isError || taskArchive.isError) && <p className="error-block" role="alert">{text('部分任务记录读取失败。下方可能保留上次读取的记录，请刷新重试。', 'Some task records could not be loaded. Previous readings may remain below; refresh to retry.')}</p>}
+      {selectedTask ? <>
+        <div className="ops-task-back"><Button variant="ghost" onClick={closeTask}><ArrowLeft size={16} />{text('返回任务记录', 'Back to task records')}</Button></div>
+        {detailQuery.isError ? <p className="error-block" role="alert">{text('任务详情读取失败或不属于当前账户。', 'Task detail could not be read or is not available to your account.')} <Button variant="outline" onClick={() => void detailQuery.refetch()}>{text('重新读取', 'Reload')}</Button></p> : detailQuery.data ? <TaskDossier key={selectedTask} detail={detailQuery.data} onSkillSelect={inspectSkillRef} onTaskSelect={selectTask} /> : <p className="ops-empty" role="status">{text('正在读取任务详情…', 'Loading task details…')}</p>}
+      </> : <>
+        <div className="ops-task-toolbar"><Tabs value={filter} onValueChange={setFilter}><TabsList variant="line"><TabsTrigger value="all">{text('全部', 'All')}</TabsTrigger><TabsTrigger value="active">{text('进行中', 'Active')}</TabsTrigger><TabsTrigger value="history">{text('历史', 'History')}</TabsTrigger><TabsTrigger value="failed">{text('失败', 'Failed')}</TabsTrigger></TabsList></Tabs><Input aria-label={text('搜索已加载任务', 'Search loaded tasks')} placeholder={text('搜索目标或任务内容', 'Search goal or target')} value={search} onChange={event => setSearch(event.target.value)} /></div>
+        {focusedRole && <div className="ops-role-filter">{text('已按执行角色筛选', 'Filtered by role')} · {rolePresentation[focusedRole].cn}<Button variant="ghost" onClick={() => { const next = new URLSearchParams(params); next.delete('role'); setParams(next) }}>{text('清除筛选', 'Clear filter')}</Button></div>}
+        <div className="ops-task-table"><div className="ops-task-table-heading"><span>{text('任务与目标', 'Task & target')}</span><span>{text('结果 / 状态', 'Outcome / state')}</span><span>{text('最近更新', 'Updated')}</span></div>{visible.map(task => <TaskCard key={task.run_id} task={task} selected={false} onSelect={selectTask} />)}</div>
+        {!visible.length && <p className="ops-empty" role="status">{taskArchive.isPending ? text('正在读取任务…', 'Loading tasks…') : taskArchive.isError ? text('任务记录暂不可用。', 'Task records unavailable.') : text('当前筛选下没有任务。', 'No tasks match the current filters.')}</p>}
+        <footer className="ops-task-list-footer"><span>{text(`已加载 ${tasks.length} 条记录；搜索和状态筛选作用于已加载记录。`, `${tasks.length} records loaded; search and state filters apply to loaded records.`)}</span>{taskArchive.hasNextPage && <Button variant="outline" disabled={taskArchive.isFetchingNextPage} onClick={() => void taskArchive.fetchNextPage()}>{taskArchive.isFetchingNextPage ? text('正在读取…', 'Loading…') : text('加载更早记录', 'Load earlier records')}</Button>}</footer>
+        <Link className="ops-overview-link" to="/workspace/operations">{text('查看运行概览与待关注事项', 'Open operations overview and attention items')}<CaretRight size={15} /></Link>
       </>}
+    </>}
+    {memoryOpen && (learningQuery.isError || skillsQuery.isError || experiencesQuery.isError || selectedSkillDetailQuery.isError) && <p role="alert" className="error-block">{text('技能或经验读取失败，请重新读取。', 'Skills or experience could not be loaded.')}<Button variant="outline" onClick={() => void Promise.all([learningQuery.refetch(), skillsQuery.refetch(), experiencesQuery.refetch(), selectedSkillRef ? selectedSkillDetailQuery.refetch() : Promise.resolve()])}>{text('重新读取', 'Reload')}</Button></p>}
       {sectionParam === 'memory' && <div id="agent-memory-field" className="agent-memory-complex">
         <section id="skill-codex" className="skill-codex">
           <div className="instrument-section-head"><div><small>{text('SKILL 典藏', 'SKILL CODEX')}</small><strong>{text('持久程序记忆', 'DURABLE PROCEDURAL MEMORY')}</strong></div><span>{text(String(skillsQuery.data?.length ?? 0) + ' 条记录 · ' + String(skillFamilies.length) + ' 个家族', String(skillsQuery.data?.length ?? 0) + ' records · ' + String(skillFamilies.length) + ' families')}</span></div>
           <div className="skill-codex-body">
             <div className="skill-family-list">
               {skillFamilies.length
-                ? skillFamilies.map((family) => <button key={family.key} className={family.key === selectedSkill?.key ? 'selected' : ''} onClick={() => setSelectedSkillFamily(family.key)}><span className="skill-glyph"><BookOpenCheck size={15} /></span><span><small>{family.records.map((item) => item.status).join(' · ')}</small><strong>{family.label}</strong><em>{text(`${family.records.length} 条 durable 记录`, `${family.records.length} durable records`)}</em></span><ChevronRight size={14} /></button>)
+                ? skillFamilies.map((family) => <button key={family.key} className={family.key === selectedSkill?.key ? 'selected' : ''} onClick={() => setSelectedSkillFamily(family.key)}><span className="skill-glyph"><BookOpen size={15} /></span><span><small>{family.records.map((item) => item.status).join(' · ')}</small><strong>{family.label}</strong><em>{text(`${family.records.length} 条 durable 记录`, `${family.records.length} durable records`)}</em></span><CaretRight size={14} /></button>)
                 : <SkillBlueprintList />}
             </div>
             <div className="skill-detail">
@@ -278,6 +105,5 @@ export function AgentsPage() {
             : <ExperienceBlueprint />}
         </section>
       </div>}
-    </section>
-  )
+  </section>
 }

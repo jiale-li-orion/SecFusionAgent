@@ -12,6 +12,7 @@ from pydantic import JsonValue
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.application.queries.agent_task_context import apply_task_context
 from apps.application.queries.ownership import visible_task_run_ids
 from apps.application.views.agents import (
     AgentBudgetSnapshotView,
@@ -652,6 +653,9 @@ async def _task_summaries(
                 item.parent_run_id = None
             if item.predecessor_run_id not in visible_ids:
                 item.predecessor_run_id = None
+    await apply_task_context(
+        session, summaries, runs, contract_models, executions, principal=principal
+    )
     return summaries
 
 

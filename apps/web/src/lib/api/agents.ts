@@ -33,6 +33,10 @@ export type AgentRoleRuntime = {
 }
 
 export type AgentTaskSummary = {
+  goal?: string | null
+  target_label?: string | null
+  target_refs?: string[]
+  session_id?: string | null
   run_id: string
   request_id: string | null
   task_kind: string

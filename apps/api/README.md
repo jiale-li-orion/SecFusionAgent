@@ -87,3 +87,7 @@ The application uses `packages.shared.config.Settings`. Database engine/session 
 ## Verification
 
 API transport tests live under `apps/api/tests`. `test_product_questions.py` covers Investigation session continuation and verifies that session-only LOOKUP without `cve_id/object_id` is accepted by the transport and reaches the model dependency rather than failing schema validation. Domain behavior remains covered by its owning package tests.
+
+Personalized activity APIs (account required): `GET /api/v1/intelligence/follow-resolution?q=...` returns a unique exact identity and/or selectable candidates. Ambiguity is explicit and topic fallback requires the user to choose it. `GET /api/v1/intelligence/feed?mode=following|recommended&window=30d|all&limit=12&cursor=...` returns evidence-backed dynamic items with `activity_id`, source previews, `next_cursor` and `has_more`. `PUT /api/v1/intelligence/feed/{activity_id}/feedback` accepts interested/ignored/neutral independently of object follow state and legacy recommendation feedback.
+
+Task summaries include owner-checked user goals, readable target labels and originating sessions. The same projection backs task archives and details; foreign Case/session context is never joined into another account's task. The web presents result/blocker semantics before technical runtime fields and links back to `/start?session=…`.

@@ -6,14 +6,15 @@ import { Link } from 'react-router-dom'
 import { getAgentRuntime } from '../../lib/api/agents'
 import { getSystemOverview } from '../../lib/api/system'
 import { useI18n } from '../../lib/i18n'
-import { investigationStopMessage } from '../../lib/investigationPresentation'
+import { taskAttentionGroups, taskOutcome, taskResult, taskTitle } from '../../lib/taskPresentation'
 
 export function OperationsOverview() {
   const { text } = useI18n()
   const runtime = useQuery({ queryKey: ['agent-runtime'], queryFn: getAgentRuntime, refetchInterval: 30_000 })
   const system = useQuery({ queryKey: ['observatory-system'], queryFn: getSystemOverview, refetchInterval: 30_000 })
   const active = runtime.data?.roles.reduce((sum, role) => sum + role.active_tasks, 0)
-  const failedTasks = runtime.data?.recent_tasks.filter((task) => ['failed', 'blocked', 'timed_out'].includes(task.status)) ?? []
+  const attention = runtime.data ? taskAttentionGroups(runtime.data.recent_tasks, runtime.data.generated_at) : []
+  const recentTasks = runtime.data?.recent_tasks.slice(0, 5) ?? []
   const issues =
     system.data?.dependencies.filter((item) => item.status !== 'healthy' && item.status !== 'ready' && item.status !== 'ok') ?? []
   const healthy = system.data?.overall === 'healthy' || system.data?.overall === 'ready' || system.data?.overall === 'ok'
@@ -22,11 +23,6 @@ export function OperationsOverview() {
     redis_broker: ['任务调度队列', 'Task dispatch queue'],
     redis_hot_cache: ['热区缓存', 'Hot cache'],
     redis_task_bus: ['任务事件通道', 'Task event channel'],
-  }
-  const roles: Record<string, [string, string]> = {
-    DecisionRole: ['研判', 'Reasoning'],
-    InvestigationRole: ['调查', 'Investigation'],
-    EnrichmentRole: ['富化', 'Enrichment'],
   }
   return (
     <div className="operations-overview">
@@ -55,7 +51,7 @@ export function OperationsOverview() {
             <CardContent>
               <span>
                 <Activity size={17} />
-                {text('系统状态', 'System state')}
+                {text('服务状态', 'Service status')}
               </span>
               <strong className={healthy && !system.isError ? 'metric-healthy' : 'metric-warning'}>
                 {system.isError
@@ -126,7 +122,7 @@ export function OperationsOverview() {
           <CardContent>
             <header className="workspace-card-heading">
               <div>
-                <h2>{text('智能体协作', 'Agent collaboration')}</h2>
+                <h2>{text('近期任务', 'Recent tasks')}</h2>
               </div>
               <Link to="/agents">
                 {text('查看任务', 'View tasks')}
@@ -134,20 +130,10 @@ export function OperationsOverview() {
               </Link>
             </header>
             <div className="operations-role-list">
-              {runtime.data?.roles.map((role) => (
-                <Link to={`/agents?role=${encodeURIComponent(role.role_id)}`} key={role.role_id}>
-                  <span className={`operations-role-icon role-${role.role_id}`}>
-                    <Network size={22} />
-                  </span>
-                  <div>
-                    <strong>{roles[role.role_id] ? text(...roles[role.role_id]) : role.role_id}</strong>
-                    <small>
-                      {role.active_tasks} {text('个执行中', 'active')} · {role.total_tasks} {text('次累计运行', 'runs')}
-                    </small>
-                  </div>
-                  <ArrowRight size={16} />
-                </Link>
-              ))}
+              {recentTasks.map(task => <Link to={`/agents?run=${encodeURIComponent(task.run_id)}`} key={task.run_id}>
+                <div><strong>{taskTitle(task, text)}</strong><small>{task.target_label || text('未记录具体对象', 'No specific target recorded')} · {taskOutcome(task, text)}</small></div><ArrowRight size={16} />
+              </Link>)}
+              {!runtime.isPending && !runtime.isError && !recentTasks.length && <p className="empty-block">{text('暂无任务记录。', 'No task records yet.')}</p>}
             </div>
             {runtime.isPending && (
               <p className="empty-block" role="status">
@@ -168,13 +154,13 @@ export function OperationsOverview() {
               </div>
               <CircleAlert size={18} />
             </header>
-            {(system.isPending || runtime.isPending) && !system.data && !runtime.data ? (
+            {(system.isPending || runtime.isPending) ? (
               <p className="empty-block">{text('正在读取…', 'Loading…')}</p>
             ) : system.isError || runtime.isError ? (
               <p className="empty-block" role="status">
                 {text('部分状态读取失败，暂时无法判断是否有新的异常。', 'Some readings failed. New issues cannot be assessed yet.')}
               </p>
-            ) : !issues.length && !failedTasks.length && healthy ? (
+            ) : !issues.length && !attention.length && healthy ? (
               <div className="workspace-empty">
                 <CheckCircle2 size={26} />
                 <div>
@@ -184,7 +170,7 @@ export function OperationsOverview() {
               </div>
             ) : (
               <div className="operations-attention-list">
-                {!issues.length && !failedTasks.length && !healthy && (
+                {!issues.length && !attention.length && !healthy && (
                   <Link to="/observatory">
                     <span className="workspace-status status-waiting" />
                     <div>
@@ -206,22 +192,17 @@ export function OperationsOverview() {
                     <ArrowUpRight size={14} />
                   </Link>
                 ))}
-                {failedTasks.slice(0, 3).map((item) => (
-                  <Link key={item.run_id} to={`/agents?run=${encodeURIComponent(item.run_id)}`}>
-                    <span className="workspace-status status-failed" />
-                    <div>
-                      <strong>
-                        {text('任务未完成', 'Task stopped')} · {roles[item.role_id] ? text(...roles[item.role_id]) : item.role_id}
-                      </strong>
-                      <small>{investigationStopMessage(item.stop_reason ?? '', text)}</small>
-                    </div>
+                {attention.slice(0, 4).map(group => (
+                  <Link key={group.key} to={`/agents?run=${encodeURIComponent(group.task.run_id)}`}>
+                    <span className={`workspace-status ${group.kind === 'failure' ? 'status-failed' : 'status-waiting'}`} />
+                    <div><strong>{taskTitle(group.task, text)}</strong><small>{taskOutcome(group.task, text)} · {group.count > 1 ? text(`${group.count} 个关联执行 · `, `${group.count} related runs · `) : ''}{taskResult(group.task, text)}</small></div>
                     <ArrowUpRight size={14} />
                   </Link>
                 ))}
               </div>
             )}
             <p className="operations-scope">
-              {text('显示当前可见的近期任务与最新服务读数。', 'Recent visible tasks and latest service readings.')}
+              {text('在已加载记录中按关联任务与原因合并；显示最近 24 小时的受阻或失败，以及仍在等待的任务。更早记录见任务历史。', 'Loaded records grouped by task family and cause. Blocked or failed runs from the last 24 hours and tasks still waiting; older records remain in task history.')}
             </p>
           </CardContent>
         </Card>

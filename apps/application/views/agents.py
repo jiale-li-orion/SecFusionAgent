@@ -20,6 +20,10 @@ class AgentRoleRuntimeView(BaseModel):
 
 
 class AgentTaskSummaryView(BaseModel):
+    goal: str | None = None
+    target_label: str | None = None
+    target_refs: list[str] = Field(default_factory=list)
+    session_id: str | None = None
     run_id: str
     request_id: str | None = None
     task_kind: str

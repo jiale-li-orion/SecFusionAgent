@@ -49,7 +49,13 @@ async def _database():
             task_kind="verify_version_fix",
             effect_ceiling="read_only",
             policy_revision="policy-v1",
-            contract_json={"test": True},
+            contract_json={
+                "desired_state": {
+                    "question": "Verify the fix for CVE-2026-1234",
+                    "cve_id": "CVE-2026-1234",
+                },
+                "target_resources": ["cve:CVE-2026-1234"],
+            },
             content_hash="a" * 64,
             created_at=NOW,
         )
@@ -233,6 +239,9 @@ async def test_product_agent_runtime_exposes_roles_tasks_and_safe_event_summary(
         assert role["active_tasks"] == 1
         assert role["status_counts"] == {"running": 1}
         assert body["recent_tasks"][0]["task_kind"] == "verify_version_fix"
+        assert body["recent_tasks"][0]["goal"] == "Verify the fix for CVE-2026-1234"
+        assert body["recent_tasks"][0]["target_label"] == "CVE-2026-1234"
+        assert body["recent_tasks"][0]["session_id"] is None
         assert body["recent_tasks"][0]["last_event_type"] == "TaskStarted"
         assert overview.json()["recent_capabilities"] == []
         assert body["model_runtime"]["request_count"] == 1

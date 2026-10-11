@@ -8,8 +8,8 @@ export function WorkspaceNavigation() {
   const operations = ['/agents', '/observatory', '/workspace/operations'].includes(pathname)
   const entries = operations ? [
     { to: '/workspace/operations', label: text('运行概览', 'Overview'), icon: LayoutDashboard },
-    { to: '/agents', label: text('智能体与任务', 'Agents & tasks'), icon: Network },
-    { to: '/observatory', label: text('数据与服务', 'Data & services'), icon: Activity },
+    { to: '/agents', label: text('任务记录', 'Task records'), icon: Network },
+    { to: '/observatory', label: text('服务状态', 'Service status'), icon: Activity },
   ] : [
     { to: '/workspace', label: text('我的空间', 'My workspace'), icon: UserRound },
     { to: '/investigations', label: text('我的调查', 'Investigations'), icon: Telescope },
