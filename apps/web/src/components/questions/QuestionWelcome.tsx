@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { ArrowRight, ArrowUpRight, BookOpen, Compass, ShieldCheck } from 'lucide-react'
+import { ArrowRight, ArrowUpRight, BookOpen, Compass, ShieldCheck } from '../ui/icons'
 import { Item, ItemMedia, ItemContent, ItemTitle, ItemDescription, ItemActions } from '../ui/item'
 import { Button } from '../ui/button'
 import { readableObjectTitle } from '../../lib/source-identity'

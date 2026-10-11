@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Activity, ArrowRight, BookOpen, Braces, Bug, Fingerprint, Globe2, Radio, Scale, Shield, X } from 'lucide-react'
+import { Activity, ArrowRight, BookOpen, Braces, Bug, Fingerprint, Globe2, Radio, Scale, Shield, X } from '../ui/icons'
 import type { WorldFormation, WorldOverview, WorldStory, WorldKnowledgeChange } from '../../lib/api/world'
 import { useI18n } from '../../lib/i18n'
 import { EvidenceAtlas } from './EvidenceAtlas'

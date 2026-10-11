@@ -13,7 +13,7 @@ import {
   Send,
   SlidersHorizontal,
   Telescope,
-} from 'lucide-react'
+} from '../components/ui/icons'
 import { askQuestion, cancelInvestigation, getDecision, getInvestigation, type QuestionResult, type TaskKind } from '../lib/api'
 import { MissionTarget } from '../components/start/MissionTarget'
 import { MissionField } from '../components/start/MissionField'

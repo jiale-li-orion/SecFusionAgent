@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowRight, FileText, Plus, Search, Telescope } from 'lucide-react'
+import { ArrowRight, FileText, Plus, Search, Telescope } from '../ui/icons'
 import { Link } from 'react-router-dom'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'

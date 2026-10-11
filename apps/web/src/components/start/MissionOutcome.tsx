@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { AnimatePresence } from 'motion/react'
-import { ArrowUpRight, BrainCircuit, Sparkles } from 'lucide-react'
+import { ArrowUpRight, BrainCircuit, Sparkles } from '../ui/icons'
 import { useNavigate } from 'react-router-dom'
 import type { QuestionResult } from '../../lib/api'
 import { displayUnknowns, investigationStopMessage } from '../../lib/investigationPresentation'

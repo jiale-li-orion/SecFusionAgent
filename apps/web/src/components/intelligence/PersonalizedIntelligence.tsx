@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowUpRight, ArrowRight, Bookmark, CircleMinus, MoreHorizontal, RefreshCw, Settings2, Sparkles, ThumbsUp } from 'lucide-react'
+import { ArrowUpRight, ArrowRight, Bookmark, CircleMinus, MoreHorizontal, RefreshCw, Settings2, Sparkles, ThumbsUp } from '../ui/icons'
 import { Link, useSearchParams } from 'react-router-dom'
 import { getIntelligencePreferences, getIntelligenceRecommendations, saveIntelligenceRecommendationFeedback, type FollowedIntelligenceObject, type IntelligenceRecommendation } from '../../lib/api/recommendations'
 import { useI18n } from '../../lib/i18n'

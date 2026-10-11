@@ -2,9 +2,15 @@ import { Button } from './ui/button'
 import { useDeferredValue, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import * as Dialog from '@radix-ui/react-dialog'
-import { ArrowUpRight, Globe2, Layers3, MessageCircle, Search, UserRound, X } from 'lucide-react'
+import { ArrowUpRight } from "@phosphor-icons/react/dist/csr/ArrowUpRight"
+import { GlobeHemisphereWest as Globe2 } from "@phosphor-icons/react/dist/csr/GlobeHemisphereWest"
+import { Newspaper as Layers3 } from "@phosphor-icons/react/dist/csr/Newspaper"
+import { ChatCircle as MessageCircle } from "@phosphor-icons/react/dist/csr/ChatCircle"
+import { MagnifyingGlass as Search } from "@phosphor-icons/react/dist/csr/MagnifyingGlass"
+import { UserCircle as UserRound } from "@phosphor-icons/react/dist/csr/UserCircle"
+import { X } from "@phosphor-icons/react/dist/csr/X"
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { BrandMark, ProductGlyph } from './instrument/ProductGlyph'
+import { ProductGlyph } from './instrument/ProductGlyph'
 import { AccountControl } from './AccountControl'
 import { WorkspaceNavigation } from './workspace/WorkspaceNavigation'
 import { useAuth } from '../lib/auth'
@@ -59,9 +65,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
   return <div className={`product-shell shell-space-${space}`}>
     <a className="product-skip-link" href="#product-main">{text('跳到主内容', 'Skip to content')}</a>
     <header className="sf-header">
-      <Link className="sf-brand" to="/" aria-label="SecFusion"><BrandMark size={34} /><span>SecFusion<span className="sf-brand-dot">.</span></span></Link>
+      <Link className="sf-brand" to="/" aria-label="SecFusion"><span className="sf-wordmark">sec<span>fusion</span></span></Link>
       <nav className="sf-navigation" aria-label={text('主导航', 'Main navigation')}>
-        {nav.map(({ path, key, label, icon: Icon }) => <Link key={key} to={path} aria-current={space === key ? 'page' : undefined}><Icon size={18} /><span>{label}</span></Link>)}
+        {nav.map(({ path, key, label, icon: Icon }) => <Link key={key} to={path} aria-current={space === key ? 'page' : undefined}><Icon size={24} weight={space === key ? 'fill' : 'regular'} /><span>{label}</span></Link>)}
       </nav>
       <div className="sf-header-tools">
         <Button variant="ghost" size="sm" className="sf-search-trigger" onClick={() => { setSearchOpen(true); setCommandIndex(0) }} aria-label={text('搜索情报、事件和任务', 'Search intelligence, events and tasks')}><Search size={17} /><span>{text('搜索', 'Search')}</span><kbd>⌘ K</kbd></Button>

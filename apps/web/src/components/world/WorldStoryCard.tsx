@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowRight, ArrowUpRight, ChevronDown, Radio } from 'lucide-react'
+import { ArrowRight, ArrowUpRight, ChevronDown, Radio } from '../ui/icons'
 import type { WorldStory } from '../../lib/api/world'
 import { Button } from '../ui/button'
 import { useI18n } from '../../lib/i18n'

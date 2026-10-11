@@ -7,7 +7,7 @@ import {
   ArrowLeft,
   FileSearch,
   Search,
-} from 'lucide-react'
+} from '../components/ui/icons'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   getDocumentByObject,
@@ -17,7 +17,6 @@ import {
   getWorldIncidentCandidates,
   getIncident,
   getIntelligenceEnrichment,
-  getIntelligenceGraph,
   getKnowledgeObject,
   getVulnerability,
   listIncidents,
@@ -51,7 +50,6 @@ export function IntelligencePage() {
   const [inputOverride, setInputOverride] = useState<string | null>(null)
   const [searchError, setSearchError] = useState('')
   const [searchBusy, setSearchBusy] = useState(false)
-  const [graphLimit, setGraphLimit] = useState(24)
   const input = inputOverride ?? (paramIncident ? `incident:${paramIncident}` : paramObject ? `object:${paramObject}` : paramCve || paramQuery)
   const deferredInput = useDeferredValue(input.trim())
   const evidenceRef = paramEvidence
@@ -88,16 +86,10 @@ export function IntelligencePage() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['knowledge-object', selectedObjectId || selectedCve] }),
       queryClient.invalidateQueries({ queryKey: ['intelligence-enrichment', obj?.object_id] }),
-      queryClient.invalidateQueries({ queryKey: ['intelligence-graph', obj?.object_id] }),
+      queryClient.invalidateQueries({ queryKey: ['knowledge-network', obj?.object_id] }),
       queryClient.invalidateQueries({ queryKey: ['world-hot-intelligence'] }),
     ])
   }
-  const graphQuery = useQuery({
-    queryKey: ['intelligence-graph', obj?.object_id, graphLimit],
-    queryFn: () => getIntelligenceGraph(obj!.object_id, graphLimit),
-    enabled: Boolean(obj),
-    staleTime: 30_000,
-  })
   const enrichmentQuery = useQuery({
     queryKey: ['intelligence-enrichment', obj?.object_id],
     queryFn: () => getIntelligenceEnrichment(obj!.object_id),
@@ -196,7 +188,7 @@ export function IntelligencePage() {
   return (
     <section className={`intel-experience ${hasSelection ? 'has-dossier' : 'intel-home'}`}>
       <header className="intel-page-heading"><div>{hasSelection && <button className="intel-back" onClick={() => { setInputOverride(null); setParams(destination({})) }}><ArrowLeft size={15}/>{text('返回情报', 'Back to intelligence')}</button>}{!hasSelection && <><h1>{text('情报', 'Intelligence')}</h1></>}</div>
-        <form className="intel-search intel-discovery-search" onSubmit={submitSearch}>
+        {!hasSelection && <form className="intel-search intel-discovery-search" onSubmit={submitSearch}>
           <Search size={15} />
           <Input value={input} onChange={(event) => setInputOverride(event.target.value)} aria-label={text("查找情报对象", "Find an intelligence object")} placeholder={text("论文、项目、漏洞编号或资产名称", "Paper, project, vulnerability or asset")} />
           <Button size="sm" type="submit" disabled={searchBusy}>{searchBusy ? text('检索中…', 'SEARCHING…') : text('搜索', 'Search')}</Button>
@@ -229,7 +221,7 @@ export function IntelligencePage() {
             )}
           </AnimatePresence>
           {searchError && <span className="intel-search-error">{searchError}</span>}
-        </form>
+        </form>}
       </header>
 
       {originSpace === 'world' && worldRef && <div className="dossier-return-link"><Button variant="ghost" size="sm" onClick={() => navigate('/')}><ArrowLeft size={14}/>{text('返回世界', 'Back to world')}</Button></div>}
@@ -242,7 +234,7 @@ export function IntelligencePage() {
 
       {hasSelection && <motion.div className="dossier-reading-content" initial={reduceMotion ? false : { opacity:0, y:6 }} animate={{ opacity:1,y:0 }} transition={{duration:.18}}>
         {obj && <DossierReader obj={obj} headline={headline} cveId={obj.external_identifiers.cve?.[0] || selectedCve || headline} view={readingMode} onView={selectReadingMode} onEvidence={openEvidence} onMission={openMission}
-          graph={graphQuery.data} graphLoading={graphQuery.isLoading} graphError={graphQuery.isError ? String(graphQuery.error.message) : null} onLoadMore={graphLimit < 64 ? () => setGraphLimit(64) : undefined} onOpenTarget={openSearchResult}
+          onOpenTarget={openSearchResult}
           enrichment={enrichmentQuery.data ?? null} enrichmentLoading={enrichmentQuery.isLoading} enrichmentError={enrichmentQuery.isError} retryEnrichment={() => void enrichmentQuery.refetch()} refresh={refreshDossier}
           document={documentQuery.data ?? null} documentLoading={documentQuery.isLoading} documentError={documentQuery.isError ? String(documentQuery.error.message) : null}/>}
         {incident && <><DossierHeading title={headline} kind={text('事件档案', 'Event dossier')} coordinate={incident.incident.incident_id} stats={[

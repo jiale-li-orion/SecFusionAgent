@@ -1,7 +1,7 @@
 import { Button } from '../ui/button'
 import { Card, CardContent } from '../ui/card'
 import { useQuery } from '@tanstack/react-query'
-import { Activity, ArrowRight, ArrowUpRight, CheckCircle2, CircleAlert, Database, Network, RefreshCw, Workflow } from 'lucide-react'
+import { Activity, ArrowRight, ArrowUpRight, CheckCircle2, CircleAlert, Database, Network, RefreshCw, Workflow } from '../ui/icons'
 import { Link } from 'react-router-dom'
 import { getAgentRuntime } from '../../lib/api/agents'
 import { getSystemOverview } from '../../lib/api/system'

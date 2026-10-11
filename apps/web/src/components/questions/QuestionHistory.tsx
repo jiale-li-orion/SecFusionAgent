@@ -1,5 +1,5 @@
 import { useInfiniteQuery } from '@tanstack/react-query'
-import { ChevronRight, MessageSquarePlus, ShieldCheck } from 'lucide-react'
+import { ChevronRight, MessageSquarePlus, ShieldCheck } from '../ui/icons'
 import { Button } from '../ui/button'
 import { Link } from 'react-router-dom'
 import { listAccountConversations } from '../../lib/api/investigations'

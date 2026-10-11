@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown, LogIn, LogOut, Settings2, UserRound } from 'lucide-react'
+import { ChevronDown, LogIn, LogOut, Settings2, UserRound } from './ui/icons'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { safeAccountReturnTo, useAuth } from '../lib/auth'
 import { useI18n } from '../lib/i18n'

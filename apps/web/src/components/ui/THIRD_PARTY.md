@@ -23,3 +23,7 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+## Runtime dependencies
+
+Functional icons use [Phosphor React](https://github.com/phosphor-icons/react) (MIT). Relationship exploration uses [Cytoscape.js](https://github.com/cytoscape/cytoscape.js) and [fCoSE](https://github.com/iVis-at-Bilkent/cytoscape.js-fcose) (MIT). These are package dependencies; their original licenses ship with the installed packages.

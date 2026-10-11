@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BadgeCheck, FileText, Link2 } from 'lucide-react'
+import { BadgeCheck, FileText, Link2 } from '../ui/icons'
 import { DecisionReport } from '../DecisionReport'
 import { EvidenceCitation } from '../questions/EvidenceCitation'
 import { Button } from '../ui/button'

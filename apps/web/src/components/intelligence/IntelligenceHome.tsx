@@ -1,4 +1,4 @@
-import { ArrowRight, ArrowUpRight, Bookmark, Radio, Search, TrendingUp } from 'lucide-react'
+import { ArrowRight, ArrowUpRight, Bookmark, Radio, Search, TrendingUp } from '../ui/icons'
 import { Link, useLocation } from 'react-router-dom'
 import type { IncidentSummary } from '../../lib/api'
 import { safeAccountReturnTo, useAuth } from '../../lib/auth'

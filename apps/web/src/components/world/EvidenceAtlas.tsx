@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import { ArrowUpRight, type LucideIcon } from 'lucide-react'
+import { ArrowUpRight, type LucideIcon } from '../ui/icons'
 import type { WorldOverview, WorldStory } from '../../lib/api/world'
 import { useI18n } from '../../lib/i18n'
 import { WorldGlobe } from './WorldGlobe'

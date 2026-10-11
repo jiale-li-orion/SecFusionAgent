@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useNavigate } from 'react-router-dom'
-import { Activity, ArrowDownRight, BrainCircuit, CircleDot, GitFork, TerminalSquare, Waypoints } from 'lucide-react'
+import { Activity, ArrowDownRight, BrainCircuit, CircleDot, GitFork, TerminalSquare, Waypoints } from '../ui/icons'
 
 import { getAgentTask, type AgentTaskSummary } from '../../lib/api'
 import { activeStatuses, rolePresentation } from '../../lib/agentRuntimePresentation'

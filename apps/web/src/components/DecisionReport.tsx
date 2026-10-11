@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Link2 } from 'lucide-react'
+import { Link2 } from './ui/icons'
 import type { DecisionView } from '../lib/api'
 import { useI18n } from '../lib/i18n'
 

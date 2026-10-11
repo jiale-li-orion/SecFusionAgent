@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, ArrowRight } from 'lucide-react'
+import { ArrowLeft, ArrowRight } from '../ui/icons'
 import { getHotWorld, type HotBug } from '../../lib/api/world'
 import { useI18n } from '../../lib/i18n'
 import { Button } from '../ui/button'

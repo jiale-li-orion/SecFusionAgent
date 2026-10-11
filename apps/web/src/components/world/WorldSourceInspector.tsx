@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { X, ArrowRight } from 'lucide-react'
+import { X, ArrowRight } from '../ui/icons'
 import { Link } from 'react-router-dom'
 import { getWorldOverview, type WorldStory } from '../../lib/api/world'
 import { useI18n } from '../../lib/i18n'

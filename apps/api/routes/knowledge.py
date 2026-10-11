@@ -13,6 +13,8 @@ from apps.application.views.intelligence import (
     ProductDocumentView,
     ProductEnrichmentStateView,
 )
+from packages.intelligence.knowledge.network import NetworkView, get_object_network
+from packages.intelligence.knowledge.network_incident import get_incident_network
 from packages.intelligence.knowledge.read import (
     KnowledgeObjectView,
     get_object_by_id,
@@ -139,5 +141,72 @@ async def knowledge_object_by_id(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="knowledge object not found",
+        )
+    return result
+
+
+@router.get(
+    "/intelligence/objects/{object_id}/network",
+    response_model=NetworkView,
+)
+async def intelligence_object_network(
+    object_id: str,
+    session: SessionDep,
+    limit: int = Query(default=40, ge=2, le=80),
+    focus_id: str | None = Query(default=None, max_length=36),
+    existing_ids: str = Query(default="", max_length=7400),
+    revision: int | None = Query(default=None, ge=1),
+    cursor: str | None = Query(default=None, max_length=2048),
+) -> NetworkView:
+    try:
+        result = await get_object_network(
+            session,
+            object_id,
+            limit=limit,
+            focus_id=focus_id,
+            existing_ids=[item for item in existing_ids.split(",") if item],
+            revision=revision,
+            cursor=cursor,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="knowledge object or focus not found at snapshot",
+        )
+    return result
+
+
+@router.get("/incidents/{incident_id}/network", response_model=NetworkView)
+async def incident_network(
+    incident_id: str,
+    session: SessionDep,
+    limit: int = Query(default=40, ge=2, le=80),
+    focus_id: str | None = Query(default=None, max_length=128),
+    existing_ids: str = Query(default="", max_length=26000),
+    revision: int | None = Query(default=None, ge=1),
+    cursor: str | None = Query(default=None, max_length=2048),
+) -> NetworkView:
+    try:
+        result = await get_incident_network(
+            session,
+            incident_id,
+            limit=limit,
+            focus_id=focus_id,
+            existing_ids=[item for item in existing_ids.split(",") if item],
+            revision=revision,
+            cursor=cursor,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="incident or focus not found in bounded snapshot",
         )
     return result

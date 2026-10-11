@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { ArrowRight, Eye, EyeOff, LockKeyhole } from 'lucide-react'
+import { ArrowRight, Eye, EyeOff, LockKeyhole } from '../components/ui/icons'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'

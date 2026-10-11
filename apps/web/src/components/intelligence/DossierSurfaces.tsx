@@ -1,4 +1,4 @@
-import { BookOpenText, ExternalLink, FileSearch } from 'lucide-react'
+import { BookOpenText, ExternalLink, FileSearch } from '../ui/icons'
 
 import { getDocumentByObject, type HotBug, type IncidentDetail } from '../../lib/api'
 import { formatDate, formatValue, humanize } from '../../lib/intelligencePresentation'

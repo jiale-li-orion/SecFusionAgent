@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { ArrowUpRight, ChevronRight, ScanLine, Workflow } from 'lucide-react'
+import { ArrowUpRight, ChevronRight, ScanLine, Workflow } from '../ui/icons'
 import { Link } from 'react-router-dom'
 import { DecisionReport } from '../DecisionReport'
 import { getDecision, getInvestigation, type QuestionSessionTurn } from '../../lib/api/investigations'

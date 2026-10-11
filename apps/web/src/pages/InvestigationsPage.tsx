@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence } from 'motion/react'
-import { ArrowLeft, LoaderCircle } from 'lucide-react'
+import { ArrowLeft, LoaderCircle } from '../components/ui/icons'
 import { Link, useSearchParams } from 'react-router-dom'
 import { getInvestigation, getInvestigationActivity, listInvestigations, type ProductRuntimeEvent } from '../lib/api'
 import { EvidenceOverlay } from '../components/investigations/CaseSurfaces'

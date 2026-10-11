@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { ArrowUpRight, ChevronRight, FileText, GitBranch, Layers, Library, Sparkles } from 'lucide-react'
-import type { getDocumentByObject, IntelligenceEnrichmentState, IntelligenceGraph, KnowledgeObject } from '../../lib/api'
+import { ArrowUpRight, ChevronRight, FileText, GitBranch, Layers, Library, Sparkles } from '../ui/icons'
+import type { getDocumentByObject, IntelligenceEnrichmentState, KnowledgeObject } from '../../lib/api'
 import { evidenceFieldLabel, formatDate, formatValue, groupClaims } from '../../lib/intelligencePresentation'
 import { sourceIdentity } from '../../lib/source-identity'
 import { useI18n } from '../../lib/i18n'
@@ -11,7 +11,8 @@ import { SourceIdentity } from '../ui/source-identity'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs'
 import { DocumentIndexDossier } from './DossierSurfaces'
 import { EnrichmentConstellation } from './EnrichmentConstellation'
-import { EvidenceCapsules, FocusedKnowledgeGraph } from './KnowledgeSurfaces'
+import { EvidenceCapsules } from './KnowledgeSurfaces'
+import { KnowledgeNetwork } from './KnowledgeNetwork'
 import { ProductEnrichmentActions } from './ProductEnrichmentActions'
 import './dossier-reader.css'
 
@@ -24,10 +25,6 @@ type Props = {
   onView: (view: DossierView) => void
   onEvidence: (ref: string) => void
   onMission: (profile: 'VERIFY' | 'INVESTIGATE') => void
-  graph: IntelligenceGraph | undefined
-  graphLoading: boolean
-  graphError: string | null
-  onLoadMore?: () => void
   onOpenTarget: (id: string) => void
   enrichment: IntelligenceEnrichmentState | null
   enrichmentLoading: boolean
@@ -85,7 +82,7 @@ export function DossierReader(props: Props) {
   const isDocument = ['Document', 'ResearchWork'].includes(obj.object_type)
   const view = props.view === 'enrichment' && obj.object_type !== 'Vulnerability' ? 'dossier' : props.view
   return (
-    <Tabs value={view} onValueChange={(next) => props.onView(next as DossierView)} className="dossier-reader">
+    <Tabs value={view} onValueChange={(next) => props.onView(next as DossierView)} className={`dossier-reader ${view === 'graph' ? 'is-network' : ''}`}>
       <DossierHeading
         title={headline}
         kind={
@@ -135,18 +132,7 @@ export function DossierReader(props: Props) {
         <DossierFacts obj={obj} onEvidence={onEvidence} />
       </TabsContent>
       <TabsContent value="graph">
-        <FocusedKnowledgeGraph
-          relations={props.graph?.relations ?? []}
-          totalRelationCount={props.graph?.total_relation_count ?? obj.relations.length}
-          neighborhood={props.graph?.neighborhood ?? 'canonical_outbound_one_hop'}
-          loading={props.graphLoading}
-          error={props.graphError}
-          selectedLabel={headline}
-          objectType={obj.object_type}
-          onEvidence={onEvidence}
-          onLoadMore={props.onLoadMore}
-          onOpenTarget={props.onOpenTarget}
-        />
+        <KnowledgeNetwork objectId={obj.object_id} onEvidence={onEvidence} onOpenTarget={props.onOpenTarget} />
       </TabsContent>
       <TabsContent value="evidence">
         <DossierSources obj={obj} onEvidence={onEvidence} />

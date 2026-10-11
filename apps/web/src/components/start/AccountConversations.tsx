@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowUpRight, ChevronDown } from 'lucide-react'
+import { ArrowUpRight, ChevronDown } from '../ui/icons'
 import { Link } from 'react-router-dom'
 import { listAccountConversations, type AccountConversation } from '../../lib/api/investigations'
 import { useAuth } from '../../lib/auth'

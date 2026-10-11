@@ -1,4 +1,4 @@
-import { BrainCircuit, Radar, Sparkles, ArrowUpRight } from 'lucide-react'
+import { BrainCircuit, Radar, Sparkles, ArrowUpRight } from '../ui/icons'
 import { Card } from '../ui/card'
 import { Badge } from '../ui/badge'
 import type { AgentRoleRuntime } from '../../lib/api'

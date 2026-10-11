@@ -1,5 +1,5 @@
 import { useSearchParams } from 'react-router-dom'
-import { ArrowUpRight, BookOpen, Code2, FileText, Globe, Radar, ShieldAlert, Building2, Scale, Server } from 'lucide-react'
+import { ArrowUpRight, BookOpen, Code2, FileText, Globe, Radar, ShieldAlert, Building2, Scale, Server } from '../ui/icons'
 import type { HotBug, WorldIncidentCandidate, WorldStory } from '../../lib/api/world'
 import { useI18n } from '../../lib/i18n'
 import { dateLabel } from './feedPresentation'
@@ -42,7 +42,7 @@ export function IntelligenceIndex({ stories, hot, hotTotal, candidates, candidat
   const failure = isHot ? hotError : isCandidate ? candidateError : error
   const count = isHot ? hot.length : isCandidate ? candidates.length : items.length
   return <section className="intel-collection" aria-label={text(library ? '情报资料库' : '公开发现', library ? 'Intelligence library' : 'Public discovery')}>
-    {library && <div className="overflow-x-auto py-3"><ToggleGroup type="single" value={category ?? 'all'} onValueChange={value => { if (value) setCategory(value === 'all' ? null : value) }} spacing={1} aria-label={text('资料类型', 'Material type')}><ToggleGroupItem value="all">{text('全部', 'All')}</ToggleGroupItem>{kinds.map(item => <ToggleGroupItem value={item.key} key={item.key}><item.icon size={14}/>{text(item.zh, item.en)}</ToggleGroupItem>)}</ToggleGroup></div>}
+    {library && <div className="overflow-x-auto py-3"><ToggleGroup type="single" value={category ?? 'all'} onValueChange={value => { if (value) setCategory(value === 'all' ? null : value) }} spacing={1} aria-label={text('资料类型', 'Material type')}><ToggleGroupItem value="all">{text('全部', 'All')}</ToggleGroupItem>{kinds.map(item => <ToggleGroupItem value={item.key} key={item.key}>{text(item.zh, item.en)}</ToggleGroupItem>)}</ToggleGroup></div>}
     <div className="intel-stream-label"><span>{isHot ? text('漏洞观测', 'Vulnerability observations') : isCandidate ? text('待确认的事件线索', 'Incident signals awaiting confirmation') : library ? text('最近收录', 'Recently retained') : text('公开发现', 'Public discovery')}</span><small>{busy ? text('读取中…', 'Loading…') : text(`${count} 条内容`, `${count} items`)}{isHot && ` / ${hotTotal.toLocaleString()}`}{isCandidate && ` / ${candidateTotal}`}</small></div>
     {busy && !count && <div className="intel-feed-empty" role="status">{text('正在读取最新情报…', 'Loading intelligence…')}</div>}
     {failure && <p className="intel-feed-error" role="alert">{failure}</p>}

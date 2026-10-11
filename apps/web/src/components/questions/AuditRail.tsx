@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { EvidenceCitation } from './EvidenceCitation'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowUpRight, ChevronRight } from 'lucide-react'
+import { ArrowUpRight, ChevronRight } from '../ui/icons'
 import { Link } from 'react-router-dom'
 import type { AgentTaskDetail } from '../../lib/api/agents'
 import { getDecision, type ProductRuntimeEvent, type QuestionSessionTurn } from '../../lib/api/investigations'

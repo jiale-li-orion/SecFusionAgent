@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, ArrowRight, Search } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Search } from '../ui/icons'
 import type { WorldFormation, WorldStory } from '../../lib/api/world'
 import { searchHotWorldCve } from '../../lib/api/world'
 import { useI18n } from '../../lib/i18n'

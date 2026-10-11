@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useNavigate } from 'react-router-dom'
-import { Binary, Boxes, BrainCircuit, CircleGauge, Clock3, DatabaseZap, Eye, Fingerprint, RadioTower, ScanLine, ServerCog, ShieldCheck, Sparkles, Waypoints } from 'lucide-react'
+import { Binary, Boxes, BrainCircuit, CircleGauge, Clock3, DatabaseZap, Eye, Fingerprint, RadioTower, ScanLine, ServerCog, ShieldCheck, Sparkles, Waypoints } from '../ui/icons'
 
 import { getAgentRuntime, type SystemOverview, type WorldOverview } from '../../lib/api'
 import { useI18n } from '../../lib/i18n'

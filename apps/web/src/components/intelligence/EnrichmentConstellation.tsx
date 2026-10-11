@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown } from '../ui/icons'
 import { Button } from '../ui/button'
 import { EvidenceCapsules } from './KnowledgeSurfaces'
 import { evidenceFieldLabel, formatValue } from '../../lib/intelligencePresentation'

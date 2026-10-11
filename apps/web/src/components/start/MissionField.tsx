@@ -1,8 +1,8 @@
 import { HeroArtifact } from '../instrument/HeroArtifact'
 import { motion, useReducedMotion } from 'motion/react'
 import { ProductGlyph } from '../instrument/ProductGlyph'
-import type { LucideIcon } from 'lucide-react'
-import { ArrowRight, CircleDot } from 'lucide-react'
+import type { LucideIcon } from '../ui/icons'
+import { ArrowRight, CircleDot } from '../ui/icons'
 import { useI18n } from '../../lib/i18n'
 import { modeDescriptionEn, modeTitleEn } from '../../lib/startMissionPresentation'
 

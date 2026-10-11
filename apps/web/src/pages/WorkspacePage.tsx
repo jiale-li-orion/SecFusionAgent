@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Activity, ArrowRight, ArrowUpRight, BookOpen, ChevronRight, Compass, History, LayoutDashboard, Network, Pencil, Plus, ShieldCheck, Telescope } from 'lucide-react'
+import { Activity, ArrowRight, ArrowUpRight, BookOpen, ChevronRight, Compass, History, LayoutDashboard, Network, Pencil, Plus, ShieldCheck, Telescope } from '../components/ui/icons'
 import { Link, useLocation } from 'react-router-dom'
 import { AccountConversations } from '../components/start/AccountConversations'
 import { ProfileEditor } from '../components/workspace/ProfileEditor'

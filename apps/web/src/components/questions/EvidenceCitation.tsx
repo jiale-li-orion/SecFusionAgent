@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { ArrowUpRight } from 'lucide-react'
+import { ArrowUpRight } from '../ui/icons'
 import { getEvidence } from '../../lib/api/intelligence'
 import { useI18n } from '../../lib/i18n'
 import { evidenceFieldLabel } from '../../lib/intelligencePresentation'

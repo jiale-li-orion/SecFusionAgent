@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { Button } from '../ui/button'
 import { Link, useLocation } from 'react-router-dom'
-import { ArrowRight, LockKeyhole } from 'lucide-react'
+import { ArrowRight, LockKeyhole } from '../ui/icons'
 import { safeAccountReturnTo, useAuth } from '../../lib/auth'
 import { useI18n } from '../../lib/i18n'
 

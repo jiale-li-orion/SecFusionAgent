@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Search, X } from 'lucide-react'
+import { Search, X } from '../ui/icons'
 import { searchIntelligence } from '../../lib/api/intelligence'
 import { parseMissionTarget } from '../../lib/startMissionPresentation'
 import { useI18n } from '../../lib/i18n'

@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Activity, Database, RadioTower } from 'lucide-react'
+import { Activity, Database, RadioTower } from '../ui/icons'
 import type { WorldOverview } from '../../lib/api/world'
 import { useI18n } from '../../lib/i18n'
 import { linePath, type ObservatoryWindow } from '../../lib/observatoryPresentation'

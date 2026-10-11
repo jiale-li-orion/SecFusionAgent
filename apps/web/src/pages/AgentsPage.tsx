@@ -12,7 +12,7 @@ import {
   TerminalSquare,
   TimerReset,
   Waypoints,
-} from 'lucide-react'
+} from '../components/ui/icons'
 import { getAgentExperiences, getAgentLearning, getAgentRuntime, getAgentSkill, getAgentSkills, getAgentTask, listAgentTasks } from '../lib/api'
 import { ExperienceMemory, SkillFamilyDetail } from '../components/agents/LearningSurfaces'
 import { RuntimeActivityView, TaskCard, TaskDossier, TaskTopology } from '../components/agents/RuntimeSurfaces'

@@ -1,4 +1,4 @@
-import { ArrowUpRight, BrainCircuit, Braces, Link2, Waypoints } from 'lucide-react'
+import { ArrowUpRight, BrainCircuit, Braces, Link2, Waypoints } from '../ui/icons'
 import { useNavigate } from 'react-router-dom'
 import type { AgentTaskDetail } from '../../lib/api/agents'
 import { useI18n } from '../../lib/i18n'

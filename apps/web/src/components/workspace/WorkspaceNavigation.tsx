@@ -1,4 +1,4 @@
-import { Activity, ChevronRight, LayoutDashboard, Network, Settings2, Telescope, UserRound } from 'lucide-react'
+import { Activity, ChevronRight, LayoutDashboard, Network, Settings2, Telescope, UserRound } from '../ui/icons'
 import { Link, useLocation } from 'react-router-dom'
 import { useI18n } from '../../lib/i18n'
 

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { BrainCircuit, ChevronRight, Orbit, Waypoints } from 'lucide-react'
+import { BrainCircuit, ChevronRight, Orbit, Waypoints } from '../ui/icons'
 import { useNavigate } from 'react-router-dom'
 
 import { getAgentExperience, type AgentLearningOverview, type ProductExperience, type ProductSkill } from '../../lib/api'

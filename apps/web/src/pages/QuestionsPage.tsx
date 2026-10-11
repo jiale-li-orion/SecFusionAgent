@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useInfiniteQuery, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence } from 'motion/react'
-import { ArrowUp, ArrowUpRight, ChevronRight, CircleHelp, History, Layers, MessageSquarePlus, ScanLine, SlidersHorizontal, Square, X } from 'lucide-react'
+import { ArrowUp, ArrowUpRight, ChevronRight, CircleHelp, History, Layers, MessageSquarePlus, ScanLine, SlidersHorizontal, Square, X } from '../components/ui/icons'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'

@@ -1,6 +1,6 @@
 import { useRef, type ReactNode } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
-import { X } from 'lucide-react'
+import { X } from '../ui/icons'
 import { useI18n } from '../../lib/i18n'
 
 export function QuestionDrawer({ open, onOpenChange, title, description, side, children }: {
