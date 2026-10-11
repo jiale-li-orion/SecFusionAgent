@@ -1,7 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
 import { ArrowUpRight, BookOpen, Compass, ShieldCheck } from 'lucide-react'
-import { Item, ItemContent, ItemDescription, ItemMedia, ItemTitle } from '../ui/item'
-import { Button } from '../ui/button'
 import { SourceIdentity } from '../ui/source-identity'
 import { readableObjectTitle } from '../../lib/source-identity'
 import { BrandMark } from '../instrument/ProductGlyph'
@@ -17,7 +15,7 @@ export function QuestionWelcome({ onSelect }: { onSelect: (prompt: string) => vo
   const recommendations = useQuery({ queryKey: ['intelligence-recommendations', 3], queryFn: () => getIntelligenceRecommendations(3), enabled: authenticated, retry: false, staleTime: 60_000 })
   const followed = preferences.data?.target_objects[0]
   const keyword = preferences.data?.keywords[0]
-  const recommended = recommendations.data?.items.find(item => item.object_id !== followed?.object_id)
+  const recommended = recommendations.data?.items.find(item => item.object_id !== followed?.object_id && isSecurityQuestion(item.object_type, item.label))
   const personalized = Boolean(followed || keyword || recommended?.reasons.length)
   const prompts = [
     followed ? {
@@ -52,14 +50,19 @@ export function QuestionWelcome({ onSelect }: { onSelect: (prompt: string) => vo
   const article = recommended ? prompts[1] : null
   const alternatives = recommended ? [prompts[2]] : prompts.slice(1)
   return <div className="qa-welcome">
-    <div className="qa-welcome-identity"><BrandMark size={36}/><span>SecFusion<span className="qa-assistant-description">{text('安全情报助手', 'Intelligence assistant')}</span></span></div>
-    <div className="qa-welcome-message"><h2>{text('今天，想了解什么？', 'What’s on your mind?')}</h2><p>{text('追踪安全动态，核对一个结论，或把一个问题查清楚。我们可以从这里开始。', 'Follow a security story, verify a claim, or work through a question. Let’s start here.')}</p></div>
-    <div className="qa-suggestions-heading"><span>{personalized ? text('从你的关注开始', 'From your interests') : text('你可以这样问', 'A few places to start')}</span>{authenticated && <Link to="/workspace/profile">{text('调整兴趣', 'Your interests')}<ArrowUpRight size={12}/></Link>}</div>
-    <Button variant="outline" className="qa-starter-question" onClick={() => onSelect(first.prompt)}>{first.title}<ArrowUpRight size={17}/></Button>
-    {article && <Item variant="outline" asChild className="qa-recommended-article"><button onClick={() => onSelect(article.prompt)}>
-      <ItemContent><ItemDescription>{article.label}</ItemDescription><ItemTitle>{article.title}</ItemTitle><SourceIdentity source={recommended?.evidence[0]?.source_id} url={recommended?.evidence[0]?.canonical_url}/></ItemContent>
-      <ItemMedia><ArrowUpRight size={20}/></ItemMedia>
-    </button></Item>}
-    <div className="qa-prompt-chips">{alternatives.map(({ title, prompt, icon: Icon }) => <Button variant="ghost" key={title} onClick={() => onSelect(prompt)}><Icon size={16}/><span>{title}</span><ArrowUpRight size={14}/></Button>)}</div>
+    <div className="qa-welcome-identity"><BrandMark size={34}/><span>SecFusion<span className="qa-assistant-description">{text('情报问答', 'Intelligence assistant')}</span></span></div>
+    <div className="qa-welcome-message"><span className="qa-welcome-eyebrow">ASK / EVIDENCE</span><h2>{text('从一个问题，走向可核对的答案。', 'Ask a question. Follow the evidence.')}</h2><p>{text('像平常聊天一样提问。需要时，我会检索材料、追踪事件，并把依据与你分享。', 'Ask naturally. I can search the material, follow a story, and show you the evidence behind an answer.')}</p></div>
+    <div className="qa-suggestions-heading"><span>{personalized ? text('从你的关注开始', 'Start with your interests') : text('从这里开始', 'Start here')}</span>{authenticated && <Link to="/workspace/profile">{text('调整兴趣', 'Your interests')}<ArrowUpRight size={14}/></Link>}</div>
+    <div className={`qa-welcome-actions ${article ? 'has-article' : ''}`}>
+      <div className="qa-welcome-prompt-list">
+        <button className="qa-starter-question" onClick={() => onSelect(first.prompt)}><span className="qa-prompt-icon"><Compass size={20}/></span><span className="qa-prompt-copy"><small>{first.label}</small><strong>{first.title}</strong></span><ArrowUpRight size={18}/></button>
+        {alternatives.map(({ title, prompt, label, icon: Icon }) => <button className="qa-prompt-option" key={title} onClick={() => onSelect(prompt)}><span className="qa-prompt-icon"><Icon size={18}/></span><span className="qa-prompt-copy"><small>{label}</small><strong>{title}</strong></span><ArrowUpRight size={16}/></button>)}
+      </div>
+      {article && <button className="qa-recommended-article" onClick={() => onSelect(article.prompt)}><span className="qa-recommended-kicker"><BookOpen size={16}/>{text('正在读的情报', 'From the intelligence feed')}</span><strong>{article.title}</strong><span className="qa-recommended-source"><SourceIdentity source={recommended?.evidence[0]?.source_id} url={recommended?.evidence[0]?.canonical_url}/></span><span className="qa-recommended-action">{text('围绕这条材料提问', 'Ask about this story')}<ArrowUpRight size={15}/></span></button>}
+    </div>
   </div>
+}
+
+function isSecurityQuestion(type: string, title: string) {
+  return type === 'Vulnerability' || type === 'Incident' || /CVE-|安全|漏洞|攻击|入侵|威胁|风险|防护|恶意|钓鱼|security|cyber|vulnerab|attack|intrusion|threat|exploit|malware|breach|phishing|incident/i.test(title)
 }

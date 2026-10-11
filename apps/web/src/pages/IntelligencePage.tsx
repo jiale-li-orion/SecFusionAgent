@@ -195,7 +195,7 @@ export function IntelligencePage() {
 
   return (
     <section className={`intel-experience ${hasSelection ? 'has-dossier' : 'intel-home'}`}>
-      <header className="intel-page-heading"><div>{hasSelection && <button className="intel-back" onClick={() => { setInputOverride(null); setParams(destination({})) }}><ArrowLeft size={15}/>{text('返回情报', 'Back to intelligence')}</button>}{!hasSelection && <h1>{text('情报', 'Intelligence')}</h1>}</div>
+      <header className="intel-page-heading"><div>{hasSelection && <button className="intel-back" onClick={() => { setInputOverride(null); setParams(destination({})) }}><ArrowLeft size={15}/>{text('返回情报', 'Back to intelligence')}</button>}{!hasSelection && <><span className="intel-page-kicker">INTELLIGENCE / SECFUSION</span><h1>{text('情报', 'Intelligence')}</h1></>}</div>
         <form className="intel-search intel-discovery-search" onSubmit={submitSearch}>
           <Search size={15} />
           <Input value={input} onChange={(event) => setInputOverride(event.target.value)} aria-label={text("查找情报对象", "Find an intelligence object")} placeholder={text("论文、项目、漏洞编号或资产名称", "Paper, project, vulnerability or asset")} />

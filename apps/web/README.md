@@ -6,10 +6,10 @@ The Product Web has four primary spaces: **World, Intelligence, Ask and Workspac
 
 | Entry | Opening experience | Deeper interaction |
 | --- | --- | --- |
-| World `/` | Eight labeled source controls and a focused live material map | Source inspection, real Hot index/search, evidence formation and dossier handoff |
-| Intelligence `/intelligence` | Recommendation feed; Following, Events and Library channels | Recommendation reasons/feedback, evidence-backed dossiers, enrichment and incident evolution |
-| Ask `/start` | Natural question, suggested prompts and bottom composer | Full conversation, history drawer, per-turn evidence/model/context/tool audit |
-| Workspace `/workspace` | Account, conversations, interests and investigations | Profile editor and Operations overview |
+| World `/` | One labeled eight-source selector and a focused live material map | Source inspection, real Hot index/search, evidence formation and dossier handoff |
+| Intelligence `/intelligence` | Personalized reading feed; Following, Events and Library channels | Recommendation reasons/feedback, evidence-backed dossiers, enrichment and incident evolution |
+| Ask `/start` | Natural question, context-aware starters and bottom composer | Full conversation, history drawer, per-turn evidence/model/context/tool audit |
+| Workspace `/workspace` | Account cover, shortcuts, recent conversations and investigations | Interests, profile editor and Operations overview |
 
 `/investigations` opens My investigations as a cursor-paged record list. Selecting a record opens a report-first reader with Findings and Activity tabs; Continue question retains its server-owned conversation. Search filters loaded records with a local draft and a debounced URL replacement, so rapid typing preserves focus and Back restores the correct query. `/agents` and `/observatory` remain directly addressable under Workspace → Operations, preserving task, Skill and source deep links. `/workspace/profile` edits the display name and explicit recommendation interests; `/workspace/operations` reads current task and service state.
 
@@ -24,6 +24,8 @@ World keeps source health, acquisition time, original source text and Hot/cache 
 ## Conversation and evidence
 
 Ask sends ordinary natural language. The API resolves intent and builds retrieval queries; the browser does not require a mode or CVE. Optional object scope and provider reasoning are under Answer options. Suggestions fill the editable composer and do not start a model call automatically.
+
+The opening screen has one reading hierarchy: a plain-language purpose, concrete questions drawn from followed interests or general security workflows, and a real recommended source only when its title concerns security. The three starters form a single row when no matching source is available. The composer stays visible below them on desktop and phone widths.
 
 The conversation occupies one reading column. The composer has its own bottom layout row, so it cannot overlay the transcript. History and audit are Radix dialogs with focus containment, Escape and focus return. Citations in audit load the exact retained evidence version and display publisher identity, object and evidence type. The Evidence inspector opens above the audit drawer, preserving its reading position; dismissing it returns focus to the original citation.
 

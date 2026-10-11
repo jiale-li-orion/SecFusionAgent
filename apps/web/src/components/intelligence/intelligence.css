@@ -1,7 +1,7 @@
 /* Intelligence owns discovery and event playback; shared styles own dossier primitives. */
 
 .intel-experience {
-  max-width: 1120px;
+  max-width: 1200px;
   width: 100%;
   margin: 0 auto;
   color: var(--ink,#202127);
@@ -33,12 +33,14 @@
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  padding: 2px 0 10px;
+  padding: 12px 0 16px;
 }
+
+.intel-page-kicker { display:block; margin-bottom:8px; color:#6981b4; font:600 10px ui-monospace,monospace; letter-spacing:.16em; }
 
 .intel-page-heading h1 {
   margin: 0;
-  font-size: 30px;
+  font-size: 34px;
   font-weight: 650;
   letter-spacing: -.6px;
 }
@@ -167,7 +169,7 @@
   gap: 30px;
   min-height: 48px;
   border-bottom: 1px solid #e5e7eb;
-  margin-bottom: 16px;
+  margin-bottom: 25px;
 }
 
 /* Radix tabs own selection, focus, and keyboard behavior. */
@@ -187,8 +189,8 @@
 
 .intel-home-grid {
   display: grid;
-  grid-template-columns: minmax(0,1fr) 264px;
-  gap: 24px;
+  grid-template-columns: minmax(0,1fr) 272px;
+  gap: 34px;
   align-items: start;
 }
 
@@ -198,17 +200,28 @@
 
 .intel-home-aside {
   display: grid;
-  gap: 24px;
-  padding-left:24px;
+  gap: 26px;
+  padding-left:27px;
   border-left:1px solid #e5e7eb;
 }
 
+.intel-home-aside>.intel-source-overview { order:2; }
+.intel-home-aside>.intel-workspace-link { order:3; }
+
+.intel-personalized-hero { display:flex; align-items:end; justify-content:space-between; gap:20px; padding:5px 0 26px; }
+.intel-personalized-kicker { display:inline-flex; align-items:center; gap:7px; color:#4e6fd0; font:600 10px ui-monospace,monospace; letter-spacing:.13em; }
+.intel-personalized-hero h2 { margin:8px 0 6px; color:#15243e; font-size:25px; font-weight:660; letter-spacing:-.035em; }
+.intel-personalized-hero p { margin:0; color:#8390a6; font-size:13px; line-height:1.65; }
+.intel-personalized-hero>a { display:inline-flex; flex:none; align-items:center; gap:5px; color:#5470a9; font-size:12px; }
+
 .intel-stream {
-  display: block;
+  display: grid;
+  gap: 0;
   background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
+  border: 1px solid #e2e8f1;
+  border-radius: 17px;
   overflow: hidden;
+  box-shadow: 0 8px 35px #1d365607;
 }
 
 .intel-stream-label {
@@ -242,20 +255,20 @@
 }
 
 .intel-feed-card {
-  padding: 26px 28px 23px;
+  position: relative;
+  padding: 29px 30px 26px;
   border: 0;
+  border-bottom: 1px solid #e9edf4;
   border-radius: 0;
   background: #fff;
-  transition: background .15s;
-  overflow: hidden;
-  border-bottom: 1px solid #edf1f6;
-}
-
-.intel-feed-card:hover {
-  border-color: #edf1f6;
   box-shadow: none;
-  background: #fdfdff;
+  transition: background .18s;
+  overflow: hidden;
 }
+.intel-feed-card:last-child { border-bottom:0; }
+.intel-feed-card:hover { background:#fafcff; }
+.intel-feed-card.is-lead { padding-top:33px; background:linear-gradient(150deg,#f7faff,#fff 56%); }
+.intel-feed-card.is-lead::before { content:''; position:absolute; top:0; left:30px; width:78px; height:3px; background:#4263eb; }
 
 .intel-card-meta {
   display: flex;
@@ -303,7 +316,7 @@
 
 .intel-feed-card h2 {
   margin: 10px 0 11px;
-  font-size: 23px;
+  font-size: 22px;
   line-height: 1.5;
   font-weight: 650;
   letter-spacing: -.25px;
@@ -1289,7 +1302,7 @@
 
 .intel-publisher-row { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:15px; }
 .intel-publisher-row>span:last-child { display:flex; align-items:center; gap:6px; color:#868a94; font-size:12px; }
-.intel-source-excerpt { margin:13px 0 17px; padding:0; border:0; }
+.intel-source-excerpt { margin:14px 0 18px; padding:0; border:0; }
 .intel-source-excerpt p { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; font-size:15px; line-height:1.8; color:#5b606a; }
 .intel-source-excerpt>span { display:block; margin-top:7px; font-size:11px; color:#91959e; }
 .intel-card-meta { font-size:12px; }
@@ -1416,13 +1429,15 @@
 }
 
 @media(max-width:520px) {
+  .intel-page-heading { align-items:stretch; flex-direction:column; gap:13px; padding-bottom:12px; }
+  .intel-page-heading>div { flex-shrink:1; }
+  .intel-experience .intel-discovery-search { width:100%; flex:none; }
   .intel-source-excerpt p { font-size:14px; -webkit-line-clamp:3; }
   .intel-publisher-row { margin-bottom:12px; }
   .intel-publisher-row>span:last-child { font-size:11px; }
-  .intel-feed-card {
-    padding: 21px 18px;
-    border-radius: 0;
-  }
+  .intel-feed-card { padding:21px 18px; }
+  .intel-feed-card.is-lead { padding-top:24px; }
+  .intel-feed-card.is-lead::before { left:18px; }
   .intel-feed-card h2 {
     font-size: 20px;
     margin: 10px 0 11px;

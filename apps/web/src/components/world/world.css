@@ -19,17 +19,22 @@
 .world-view-switch button { border-radius: 4px; padding: 7px 14px; color: #a4b0c7; font-size: 12px; transition: color .2s, background .2s; white-space: nowrap; }
 .world-view-switch button:hover { color: #f3f5fa; }
 .world-view-switch button[aria-pressed=true] { color: #ecf2ff; background: #203052; box-shadow: 0 1px 4px #0002; }
-.world-source-anchors { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 8px; padding: 16px 24px 0; }
-.world-source-anchor { position: relative; display: grid; grid-template-columns: 23px minmax(0, 1fr); align-items: center; gap: 5px 7px; min-width: 0; padding: 14px 10px; border: 1px solid #829bce22; border-radius: 9px; color: #c6d3ec; text-align: left; background: linear-gradient(135deg, #1c2c472e, #1019287d); transition: transform .18s, border-color .18s, background .18s; }
-.world-source-anchor:hover { transform: translateY(-3px); border-color: #7395ff90; background: #182848; }
-.world-source-anchor.is-selected { color: #eff7ff; border-color: #7297ff; background: linear-gradient(130deg, #34509988, #1c2d4c); box-shadow: 0 0 24px #4263eb22, inset 0 1px #abc1ff26; }
-.world-source-icon { grid-row: span 2; display: grid; place-items: center; color: #779deb; }
-.world-source-anchor:nth-child(3) .world-source-icon { color: #a79adf; }
-.world-source-anchor:nth-child(5) .world-source-icon, .world-source-anchor:nth-child(7) .world-source-icon { color: #7ac4d7; }
-.world-source-anchor strong { font-size: 12px; font-weight: 550; white-space: nowrap; }
-.world-source-anchor small { color: #7f93b6; font-size: 9px; white-space: nowrap; }
-.world-source-anchor.is-selected small { color: #bdd2fa; }
-.world-anchor-arrow { display: none; }
+.world-source-guide { display:flex; align-items:baseline; gap:13px; padding:17px 24px 0; }
+.world-source-guide strong { color:#e5edfd; font-size:12px; font-weight:650; }
+.world-source-guide span { color:#7589aa; font-size:10px; }
+.world-source-anchors { display:grid; grid-template-columns:repeat(8,minmax(0,1fr)); gap:0; margin:14px 24px 0; border-top:1px solid #829bce26; border-bottom:1px solid #829bce26; }
+.world-source-anchor { position:relative; display:grid; grid-template-columns:22px minmax(0,1fr); align-items:center; gap:3px 7px; min-width:0; padding:13px 9px 14px; border:0; border-right:1px solid #829bce1c; border-radius:0; color:#c5d4ef; text-align:left; background:transparent; transition:background .18s,color .18s; }
+.world-source-anchor:first-child { border-left:1px solid #829bce1c; }
+.world-source-anchor:hover { color:#f2f6ff; background:#1a2b4c88; }
+.world-source-anchor.is-selected { color:#fff; background:#253d6b9c; box-shadow:inset 0 -2px #8fb0ff; }
+.world-source-icon { grid-row:span 2; display:grid; place-items:center; color:#83a4ec; }
+.world-source-anchor:nth-child(3) .world-source-icon { color:#a79adf; }
+.world-source-anchor:nth-child(5) .world-source-icon, .world-source-anchor:nth-child(7) .world-source-icon { color:#7ac4d7; }
+.world-source-anchor strong { font-size:12px; font-weight:600; white-space:nowrap; }
+.world-source-anchor small { color:#788fb4; font-size:9px; white-space:nowrap; }
+.world-source-anchor.is-selected small { color:#c8d8f8; }
+.world-anchor-arrow { display:none; }
+
 .world-content { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(290px, 1fr); min-height: 465px; }
 .world-main { min-width: 0; position: relative; }
 .world-atlas { position: relative; min-height: 465px; height: 100%; overflow: hidden; isolation: isolate; background: radial-gradient(ellipse at 52% 50%, #182c541f, transparent 68%); }
@@ -198,8 +203,8 @@
   .world-story-card h2 { font-size: 29px; }
 }
 @media (max-width: 1180px) {
-  .world-source-anchors { gap: 6px; padding-inline: 16px; }
-  .world-source-anchor { grid-template-columns: 1fr; gap: 7px; padding: 12px 6px; text-align: center; justify-items: center; }
+  .world-source-anchors { margin-inline: 16px; }
+  .world-source-anchor { grid-template-columns: 1fr; gap: 5px; padding: 12px 4px; text-align: center; justify-items: center; }
   .world-source-icon { grid-row: auto; }
   .world-source-anchor strong { font-size: 11px; }
   .world-source-anchor small { font-size: 8px; }
@@ -222,7 +227,7 @@
   .world-atlas { min-height: 405px; }
   .world-focus-panel { margin: 0 16px 20px; }
   .world-story-card h2 { max-width: 30ch; }
-  .world-source-anchors { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .world-source-anchors { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .world-source-anchor { grid-template-columns: 23px minmax(0, 1fr); text-align: left; justify-items: start; padding: 10px 13px; gap: 4px 8px; }
   .world-source-icon { grid-row: span 2; }
   .world-source-anchor strong { font-size: 12px; }
@@ -253,7 +258,8 @@
   .world-map-label { margin: 0 0 11px 3px; font-size: 10px; }
   .world-view-switch { width: 100%; }
   .world-view-switch button { flex: 1; padding: 7px 4px; font-size: 10px; }
-  .world-source-anchors { padding: 12px 12px 0; gap: 6px; }
+  .world-source-guide { display:grid; gap:4px; padding:13px 12px 0; }
+  .world-source-anchors { margin:10px 12px 0; }
   .world-source-anchor { grid-template-columns: 1fr; gap: 5px; padding: 10px 3px; text-align: center; justify-items: center; border-radius: 7px; }
   .world-source-icon { grid-row: auto; }
   .world-source-icon svg { width: 17px; height: 17px; }

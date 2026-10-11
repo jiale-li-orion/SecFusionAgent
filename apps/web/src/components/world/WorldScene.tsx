@@ -60,6 +60,7 @@ export function WorldScene(props: Props) {
         {[{ key: 'stories', zh: '来源与动态', en: 'Sources & signals' }, { key: 'hot', zh: '热点对象', en: 'Hot objects' }, { key: 'formation', zh: '知识形成', en: 'Knowledge formation' }].map(item => <button key={item.key} aria-pressed={item.key === 'stories' ? sourceView : view === item.key} onClick={() => { onView(item.key); setShowSource(false) }}>{text(item.zh, item.en)}</button>)}
       </div></div>
 
+      <div className="world-source-guide"><strong>{text('选择来源', 'Choose a source')}</strong><span>{text('查看这个方向的材料、更新与来源状态', 'Explore its material, changes, and source status')}</span></div>
       <div className="world-source-anchors" aria-label={text('选择八类来源', 'Choose a source domain')}>
         {categories.map(c => { const sources = overview?.sources.filter(s => s.measurement_category === c.key); const selected = region === c.key && sourceView; return <button key={c.key} aria-pressed={selected} className={`world-source-anchor ${selected ? 'is-selected' : ''}`} onClick={() => selectSource(c.key)}><span className="world-source-icon"><c.icon size={18} /></span><strong>{text(c.zh, c.en)}</strong><small>{sources ? c.key === 'assets' && !sources.length ? text('按需查询', 'On demand') : text(`${sources.length} 个来源`, `${sources.length} ${sources.length === 1 ? 'source' : 'sources'}`) : '—'}</small><ArrowRight className="world-anchor-arrow" size={13} /></button> })}
       </div>

@@ -33,6 +33,7 @@ export function PersonalizedIntelligence({ following = false, onOpen, publicFeed
   if (preferences.isPending) return <div className="intel-feed-empty" role="status">{text('正在读取你的关注…', 'Loading your interests…')}</div>
   if (preferences.isError) return <div className="intel-feed-empty" role="alert"><p>{text('暂时无法读取你的关注设置。', 'Your interests are temporarily unavailable.')}</p><button onClick={() => void preferences.refetch()}>{text('重试', 'Retry')}</button></div>
   return <section className="intel-personalized" aria-label={following ? text('关注情报', 'Following') : text('为你推荐', 'For you')}>
+    {!following && <div className="intel-personalized-hero"><div><span className="intel-personalized-kicker"><Sparkles size={14}/>{text('属于你的情报流', 'YOUR INTELLIGENCE FEED')}</span><h2>{text('看见与你有关的变化', 'Discover what matters to you')}</h2><p>{text('基于你关注的方向和有来源的材料，持续发现值得读的内容。', 'Follow your interests through sourced material worth reading.')}</p></div>{configured && <Link to="/workspace/profile">{text('调整关注', 'Tune your interests')}<ArrowUpRight size={14}/></Link>}</div>}
     {following && configured && <div className="intel-following-strip"><div><Bookmark size={17}/><strong>{text('我的关注', 'Your interests')}</strong><Link to="/workspace/profile"><Settings2 size={14}/>{text('管理', 'Manage')}</Link></div><div className="intel-interest-chips">{preferences.data?.keywords.map(keyword => <span key={keyword}>#{keyword}</span>)}{preferences.data?.target_objects.map(obj => <button key={obj.object_id} onClick={() => onOpen(obj.object_id)}>{readableLabel(obj.label, text('关注对象', 'Followed object'))}<ArrowUpRight size={12}/></button>)}</div></div>}
     {!configured && <div className="intel-signin-row"><span>{text('选择关注，定制你的推荐', 'Choose your interests to personalize your feed')}</span><Button size="sm" asChild><Link to="/workspace/profile">{text('设置关注', 'Set interests')}<ArrowUpRight size={13}/></Link></Button></div>}
     {(configured || items.length > 0) && <>
@@ -40,14 +41,14 @@ export function PersonalizedIntelligence({ following = false, onOpen, publicFeed
       {recommendations.isPending && <p className="intel-feed-empty" role="status">{text('正在查找相关情报…', 'Finding related intelligence…')}</p>}
       {recommendations.isError && <p className="intel-feed-error" role="alert">{text('推荐读取失败，请刷新重试。', 'Recommendations could not be loaded. Refresh to retry.')}</p>}
       {!recommendations.isPending && !recommendations.isError && !items.length && <div className="intel-feed-empty"><Bookmark size={28}/><h3>{text('暂时没有匹配的情报', 'No matching intelligence yet')}</h3><p>{text('新的相关内容收录后会出现在这里。也可以调整你的关注。', 'New relevant material will appear here. You can also update your interests.')}</p><Link to="/workspace/profile">{text('管理关注', 'Manage interests')}<ArrowUpRight size={14}/></Link></div>}
-      <div className="intel-stream">{items.map(item => {
+      <div className="intel-stream">{items.map((item, index) => {
         const observed = latestObservedAt(item.evidence)
         const sources = groupedSources(item.evidence)
         const origin = item.evidence[0]
         const title = readableObjectTitle(item.label, origin?.canonical_url, origin?.source_id)
         const quotes = item.evidence.map(ref => ref.locator?.quote).filter((quote): quote is string => typeof quote === 'string' && quote.trim().length > 35)
         const quote = (quotes.find(value => item.reasons.some(reason => reason.kind === 'keyword' && value.toLowerCase().includes(reason.value.toLowerCase()))) ?? quotes[0])?.replace(/\s+/g, ' ').trim()
-        return <article key={item.object_id} className="intel-feed-card">
+        return <article key={item.object_id} className={`intel-feed-card ${index === 0 && !following ? 'is-lead' : ''}`}>
           <div className="intel-publisher-row"><SourceIdentity source={origin?.source_id} url={origin?.canonical_url}/><span>{observed && dateLabel(observed, language)}</span></div>
           <div className="intel-card-meta"><Badge variant="secondary" className="intel-type-badge">{objectTypeLabel(item.object_type, text)}</Badge><span>{text(`${sources.length} 处来源 · ${item.evidence.length} 份证据`, `${sources.length} sources · ${item.evidence.length} evidence references`)}</span>{item.feedback === 'interested' && <span className="intel-interest-mark"><Check size={12}/>{text('你感兴趣', 'Interested')}</span>}</div>
           <h2><button onClick={() => onOpen(item.object_id)}>{title}</button></h2>
