@@ -1,4 +1,7 @@
 .ops-tasks-page { padding: 28px 0 64px; max-width: 1180px; margin: 0 auto; color: var(--ink, #202127); }
+.ops-tasks-page > .workspace-heading { display:flex; align-items:center; justify-content:space-between; gap:20px; margin-bottom:24px; }
+.ops-tasks-page > .workspace-heading h1 { margin:0 0 6px; font-size:28px; font-weight:650; letter-spacing:-.03em; }
+.ops-tasks-page > .workspace-heading p { margin:0; color:#717681; font-size:13px; }
 .ops-task-sections { border-bottom: 1px solid var(--line, #e5e7eb); margin: 16px 0 24px; }
 .ops-task-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin: 16px 0; }
 .ops-task-toolbar input { max-width: 320px; }
@@ -25,7 +28,7 @@
 .ops-task-result { padding: 14px 18px; margin: 20px 0; background: #f0f3f8; border-left: 3px solid #7a83b9; }
 .ops-task-links a, .ops-task-links button { display: inline-flex; align-items: center; gap: 5px; overflow-wrap: anywhere; }
 .ops-task-time { display: flex; align-items: center; gap: 6px; margin-top: 16px; color: #717681; font-size: 12px; }
-.ops-task-detail [data-slot=tabs-list] { max-width: 100%; overflow-x: auto; }
+.ops-task-detail [data-slot=tabs-list] { max-width: 100%; overflow-x: auto; overflow-y:hidden; }
 .ops-task-detail [data-slot=tabs-trigger] { flex-shrink: 0; }
 .ops-task-family > p { color: #717681; font-size: 12px; }
 .ops-task-family ol { padding: 8px 0 8px 20px; margin-left: 8px; border-left: 1px solid #ccd3df; list-style: none; }

@@ -308,20 +308,22 @@ export function QuestionsPage() {
     return () => observer.disconnect()
   }, [pendingQuestion])
 
+  const isNewConversation = !sessionId && !pendingQuestion
+
   return <section className="qa-workspace">
     <header className="qa-heading">
       <Button variant="ghost" className="qa-icon-button" onClick={() => setHistoryOpen(true)} disabled={busy} aria-label={text('历史对话', 'Conversation history')}><History size={20} /></Button>
       <div className="qa-heading-title"><h1>{text('问答', 'Ask SecFusion')}</h1><span>SecFusion</span></div>
       <Button variant="ghost" className="qa-new-button" aria-label={text('新对话', 'New chat')} onClick={newConversation} disabled={busy}><MessageSquarePlus size={18} /><span>{text('新对话', 'New chat')}</span></Button>
     </header>
-    <main className={`qa-dialogue ${!sessionId && !pendingQuestion ? 'is-new' : ''}`}>
+    <main className={`qa-dialogue ${isNewConversation ? 'is-new' : 'has-conversation'}`}>
         <div className="qa-transcript" ref={transcriptRef} onScroll={event => { const node = event.currentTarget; followBottomRef.current = node.scrollHeight - node.scrollTop - node.clientHeight < 100 }}><div className="qa-transcript-content">
           {originPath && <div className="qa-origin"><Layers size={18} /><div><small>{originSpace === 'case' ? text('沿着这次调查继续', 'Continue this investigation') : text('从情报继续探索', 'Continue from intelligence')}</small><strong>{params.get('originTitle') || params.get('targetLabel') || incidentOrigin || origin}</strong></div><Link to={originPath}>{originSpace === 'case' ? text('返回调查', 'Back to investigation') : text('查看来源', 'Source')}<ArrowUpRight size={13} /></Link></div>}
           {history.hasNextPage && <button className="qa-load-more qa-load-turns" onClick={() => void history.fetchNextPage()} disabled={history.isFetchingNextPage}>{history.isFetchingNextPage ? text('正在恢复更早回合…', 'Restoring earlier turns…') : text('查看更早回合', 'Load earlier turns')}</button>}
           {history.isFetchNextPageError && <button className="qa-retry" onClick={() => void history.fetchNextPage()}>{text('重试恢复更早回合', 'Retry earlier turns')}</button>}
           {history.isLoading && <p className="qa-muted">{text('恢复完整会话…', 'Restoring conversation…')}</p>}
           {history.isError && <div className="qa-error">{text('无法读取这段会话。', 'Could not load this conversation.')}<button onClick={() => void history.refetch()}>{text('重试', 'Retry')}</button></div>}
-          {!sessionId && !pendingQuestion && <QuestionWelcome onSelect={prompt => { setQuestion(prompt); composerRef.current?.focus() }} />}
+          {isNewConversation && <QuestionWelcome onSelect={prompt => { setQuestion(prompt); composerRef.current?.focus() }} />}
 
           {turns.map(turn => <ConversationTurn key={turn.turn_index} turn={turn} active={!failedRunId && focusTurn?.turn_index === turn.turn_index} sessionId={sessionId!} reasoning={completedReasoning[`${sessionId}:${turn.turn_index}`] ?? null} onSelect={() => { setFailedRunId(null); setAuditOpen(true); const next = new URLSearchParams(params); next.set('turn', String(turn.turn_index)); setParams(next, { replace: true }) }} onEvidence={setEvidence} />)}
           {pendingQuestion && <div className="qa-turn qa-turn-pending"><div className="qa-question"><small>{text('你 · 当前回合', 'YOU · CURRENT TURN')}</small><p>{pendingQuestion}</p></div><StreamedDecisionDraft draftRaw={draftRaw} reasoningRaw={reasoningRaw} reasoningOpen={reasoningOpen} onReasoningOpen={setReasoningOpen} phase={streamPhase} /></div>}
