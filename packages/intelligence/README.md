@@ -137,3 +137,11 @@ make data-plane-status
 ```
 
 For changes to evidence or canonical state, prefer a real PostgreSQL integration case when SQLite cannot enforce the same FK/locking/query behavior.
+
+## Personalized activity feeds
+
+`feed/` owns deterministic activity eligibility, topic matching, ranking, stable content identity and durable item feedback. Repository/product/package identity rows are follow targets, not updates. Pull requests and commits require explicit security text and an accepted, evidence-backed security relationship; release rows require security or documented major/breaking change content. Title/body fields are the topic-matching boundary; opaque metadata is excluded. No extra model calls are made.
+
+Application composition reads current accepted Knowledge and source previews for `/intelligence/feed`. Following is chronological among explicit topics/objects and their evidenced relationships; recommendations prioritize security and relevance and can include other eligible material. The default window is 30 days using the source update/publication time of current meaningful content or security-relation evidence, falling back to observed time; `window=all` includes older content. Cursor pages carry an observation cutoff, Knowledge revision and deterministic rank key. Current projections are read views, so this is not a historical Knowledge replay contract. Items derive their IDs from full meaningful title/body content and canonical security-relation counterparts (with object identity for title-only items), excluding collection metadata/revisions; identical content merges its evidence references across sources.
+
+Activity feedback is principal + activity ID, independently upserted in `intelligence_activity_feedback` (migration 0035). It never changes follow preferences or legacy object feedback. Existing `/recommendations` endpoints retain compatibility semantics; legacy object-level ignores still filter the new feed. These read views currently assemble all eligible current records before ranking; there is no 128-candidate truncation, but large corpora may need a separately benchmarked projection/index implementation.

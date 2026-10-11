@@ -585,3 +585,532 @@ def test_preview_removes_repeated_heading_and_publication_metadata():
     assert canonical_preview(obj, [], {}, title=False).text == (
         "Anthropic is deepening its scientific research partnerships."
     )
+
+
+@pytest.mark.asyncio
+async def test_dynamic_feed_modes_cursor_and_item_feedback(recommendation_client):
+    client, _factory = recommendation_client
+    base = "/api/v1/intelligence"
+    await client.put(
+        f"{base}/preferences", json={"keywords": ["Ray"], "target_object_ids": ["product-ray"]}
+    )
+    following = await client.get(f"{base}/feed?mode=following&limit=1")
+    assert following.status_code == 200, following.text
+    first = following.json()
+    assert first["items"][0]["object_id"] in {"vulnerability-a", "vulnerability-c"}
+    assert first["next_cursor"]
+    second = (
+        await client.get(f"{base}/feed?mode=following&limit=1&cursor={first['next_cursor']}")
+    ).json()
+    assert second["items"][0]["activity_id"] != first["items"][0]["activity_id"]
+    item = first["items"][0]
+    assert (
+        await client.put(
+            f"{base}/feed/{item['activity_id']}/feedback", json={"feedback": "ignored"}
+        )
+    ).status_code == 200
+    assert item["activity_id"] not in {
+        row["activity_id"] for row in (await client.get(f"{base}/feed")).json()["items"]
+    }
+    assert (await client.get(f"{base}/preferences")).json()["target_object_ids"] == ["product-ray"]
+    assert "vulnerability-a" in {
+        row["object_id"] for row in (await client.get(f"{base}/recommendations")).json()["items"]
+    }
+    assert (await client.get(f"{base}/feed?cursor=broken")).status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_follow_resolution_uses_identity_and_keeps_ambiguity(recommendation_client):
+    client, factory = recommendation_client
+    base = "/api/v1/intelligence/follow-resolution"
+    response = await client.get(base, params={"q": "Ray"})
+    assert response.status_code == 200, response.text
+    assert response.json()["exact_match"]["object_id"] == "product-ray"
+    async with factory() as session, session.begin():
+        session.add(
+            ObjectModel(
+                object_id="repo-ray",
+                object_type="Repo",
+                canonical_key="github:other/ray",
+                properties={"name": "Ray"},
+                created_revision=1,
+            )
+        )
+    ambiguous = (await client.get(base, params={"q": "Ray"})).json()
+    assert ambiguous["exact_match"] is None
+    assert len(ambiguous["candidates"]) >= 2
+    assert (await client.get(base, params={"q": "unknown topic"})).json()["candidates"] == []
+
+
+@pytest.mark.asyncio
+async def test_feed_ignores_metadata_and_repository_identity(recommendation_client):
+    client, factory = recommendation_client
+    async with factory() as session, session.begin():
+        obj = await session.get(ObjectModel, "vulnerability-c")
+        obj.properties = {"title": "Unrelated vulnerability", "collector_debug": "secret-topic"}
+    base = "/api/v1/intelligence"
+    await client.put(
+        f"{base}/preferences",
+        json={"keywords": ["secret-topic"], "target_object_ids": ["product-ray"]},
+    )
+    following = await client.get(f"{base}/feed?mode=following")
+    assert following.status_code == 200, following.text
+    assert {row["object_id"] for row in following.json()["items"]} == {"vulnerability-a"}
+    recommended = (await client.get(f"{base}/feed?mode=recommended")).json()
+    assert "product-ray" not in {row["object_id"] for row in recommended["items"]}
+    assert "vulnerability-c" in {row["object_id"] for row in recommended["items"]}
+
+
+@pytest.mark.asyncio
+async def test_feed_window_replay_and_feedback_principal_isolation(recommendation_client):
+    client, factory = recommendation_client
+    base = "/api/v1/intelligence"
+    first = (await client.get(f"{base}/feed")).json()["items"][0]
+    async with factory() as session, session.begin():
+        obj = await session.get(ObjectModel, first["object_id"])
+        obj.properties = {**obj.properties, "collector_attempts": 50}
+    replay = (await client.get(f"{base}/feed")).json()["items"][0]
+    assert replay["activity_id"] == first["activity_id"]
+    await client.put(f"{base}/feed/{first['activity_id']}/feedback", json={"feedback": "ignored"})
+    foreign = await client.get(f"{base}/feed", headers=account_headers("other"))
+    assert first["activity_id"] in {item["activity_id"] for item in foreign.json()["items"]}
+    async with factory() as session, session.begin():
+        obs = await session.get(ObservationModel, "recommendation-observation")
+        obs.published_at = datetime(2020, 1, 1, tzinfo=UTC)
+    assert (await client.get(f"{base}/feed")).json()["items"] == []
+    assert (await client.get(f"{base}/feed?window=all")).json()["items"]
+
+
+@pytest.mark.asyncio
+async def test_security_pr_requires_real_backed_vulnerability_relation(recommendation_client):
+    client, factory = recommendation_client
+    async with factory() as session, session.begin():
+        session.add(
+            ObjectModel(
+                object_id="security-pr",
+                object_type="PullRequest",
+                canonical_key="github:ray/ray:pr:1",
+                properties={"title": "Fix CVE-2026-10001"},
+                created_revision=1,
+            )
+        )
+        session.add(
+            ClaimModel(
+                claim_id="pr-title",
+                subject_id="security-pr",
+                predicate="title",
+                value="Fix CVE-2026-10001",
+                origin="source_asserted",
+                lifecycle="accepted",
+                created_revision=1,
+            )
+        )
+        session.add(
+            EvidenceLinkModel(
+                evidence_link_id="pr-title-link",
+                target_kind="claim",
+                target_id="pr-title",
+                observation_id="recommendation-observation",
+                locator={"field": "title"},
+                locator_hash="pr-title",
+            )
+        )
+        session.add(
+            RelationModel(
+                relation_id="pr-reference",
+                source_object_id="vulnerability-a",
+                target_object_id="security-pr",
+                relation_type="references-development-object",
+                origin="source_asserted",
+                lifecycle="accepted",
+                created_revision=1,
+            )
+        )
+    path = "/api/v1/intelligence/feed"
+    assert "security-pr" not in {
+        item["object_id"] for item in (await client.get(path)).json()["items"]
+    }
+    async with factory() as session, session.begin():
+        session.add(
+            EvidenceLinkModel(
+                evidence_link_id="pr-reference-link",
+                target_kind="relation",
+                target_id="pr-reference",
+                observation_id="recommendation-observation",
+                locator={"field": "references"},
+                locator_hash="pr-reference",
+            )
+        )
+    assert "security-pr" in {item["object_id"] for item in (await client.get(path)).json()["items"]}
+
+
+@pytest.mark.asyncio
+async def test_feed_recent_fix_of_old_cve_keeps_distinct_activity_time(recommendation_client):
+    client, factory = recommendation_client
+    now = datetime.now(UTC)
+    async with factory() as session, session.begin():
+        obs = await session.get(ObservationModel, "recommendation-observation")
+        obs.published_at = datetime(2020, 1, 1, tzinfo=UTC)
+        obs.observed_at = datetime(2020, 1, 2, tzinfo=UTC)
+    assert (await client.get("/api/v1/intelligence/feed")).json()["items"] == []
+    async with factory() as session, session.begin():
+        session.add(
+            ObservationModel(
+                observation_id="current-fix",
+                source_id="source:recommendation-fixture",
+                external_object_id="new-fix",
+                acquisition_trigger="scheduled",
+                observed_at=now,
+                published_at=datetime(2020, 1, 1, tzinfo=UTC),
+                updated_at=now,
+                content_hash="new-fix",
+                idempotency_key="new-fix",
+                created_at=now,
+            )
+        )
+        session.add(
+            RelationModel(
+                relation_id="new-fix-relation",
+                source_object_id="vulnerability-a",
+                target_object_id="product-ray",
+                relation_type="fixed-by",
+                origin="source_asserted",
+                lifecycle="accepted",
+                created_revision=1,
+            )
+        )
+        session.add(
+            EvidenceLinkModel(
+                evidence_link_id="new-fix-link",
+                target_kind="relation",
+                target_id="new-fix-relation",
+                observation_id="current-fix",
+                locator={"field": "patch"},
+                locator_hash="new-fix",
+            )
+        )
+    rows = (await client.get("/api/v1/intelligence/feed")).json()["items"]
+    row = next(item for item in rows if item["object_id"] == "vulnerability-a")
+    assert row["published_at"].startswith("2020-01-01")
+    assert row["activity_at"].startswith(now.strftime("%Y-%m-%d"))
+    assert row["activity_evidence_ref"] == "evidence:new-fix-link"
+
+
+@pytest.mark.asyncio
+async def test_pr_does_not_borrow_advisory_excerpt_as_its_own_content(recommendation_client):
+    from packages.intelligence.storage.document_models import (
+        DocumentChunkModel,
+        DocumentModel,
+        DocumentRevisionModel,
+    )
+
+    client, factory = recommendation_client
+    async with factory() as session, session.begin():
+        session.add(
+            ObjectModel(
+                object_id="mundane-pr",
+                object_type="PullRequest",
+                canonical_key="github:ray/ray:pr:2",
+                properties={"title": "Refactor parser"},
+                created_revision=1,
+            )
+        )
+        session.add(
+            RelationModel(
+                relation_id="mundane-pr-reference",
+                source_object_id="vulnerability-a",
+                target_object_id="mundane-pr",
+                relation_type="references-development-object",
+                origin="source_asserted",
+                lifecycle="accepted",
+                created_revision=1,
+            )
+        )
+        session.add(
+            EvidenceLinkModel(
+                evidence_link_id="mundane-pr-reference-link",
+                target_kind="relation",
+                target_id="mundane-pr-reference",
+                observation_id="recommendation-observation",
+                locator={"field": "references"},
+                locator_hash="mundane-pr-reference",
+            )
+        )
+    async with factory() as session, session.begin():
+        source = await session.get(SourceModel, "source:recommendation-fixture")
+        source.access_rights = {"classification": "public"}
+        now = datetime.now(UTC)
+        session.add(
+            DocumentModel(
+                document_id="advisory-doc",
+                object_id="vulnerability-a",
+                source_id=source.source_id,
+                external_object_id="fixture-advisory",
+                created_at=now,
+            )
+        )
+        await session.flush()
+        session.add(
+            DocumentRevisionModel(
+                document_revision_id="advisory-revision",
+                document_id="advisory-doc",
+                observation_id="recommendation-observation",
+                title="Critical security vulnerability",
+                content_hash="advisory",
+                parser_name="fixture",
+                parser_version="1",
+                created_at=now,
+            )
+        )
+        await session.flush()
+        session.add(
+            DocumentChunkModel(
+                chunk_id="advisory-chunk",
+                document_revision_id="advisory-revision",
+                ordinal=0,
+                text="This security advisory describes authentication bypass and CVE-2026-10001.",
+                locator={"paragraph": 1},
+                content_hash="advisory",
+                chunker_version="1",
+            )
+        )
+    rows = (await client.get("/api/v1/intelligence/feed")).json()["items"]
+    assert "mundane-pr" not in {row["object_id"] for row in rows}
+
+
+@pytest.mark.asyncio
+async def test_native_release_name_and_legacy_ignore_compatibility(recommendation_client):
+    client, factory = recommendation_client
+    async with factory() as session, session.begin():
+        session.add(
+            ObjectModel(
+                object_id="security-release",
+                object_type="Release",
+                canonical_key="github:ray/ray:release:1",
+                properties={"repo_full_name": "ray/ray", "tag_name": "v2.0.1"},
+                created_revision=1,
+            )
+        )
+        session.add(
+            ClaimModel(
+                claim_id="release-name",
+                subject_id="security-release",
+                predicate="github_release_name",
+                value="Security release fixes authentication bypass",
+                origin="source_asserted",
+                lifecycle="accepted",
+                created_revision=1,
+            )
+        )
+        session.add(
+            EvidenceLinkModel(
+                evidence_link_id="release-name-link",
+                target_kind="claim",
+                target_id="release-name",
+                observation_id="recommendation-observation",
+                locator={"field": "name"},
+                locator_hash="release-name",
+            )
+        )
+    rows = (await client.get("/api/v1/intelligence/feed")).json()["items"]
+    release = next(row for row in rows if row["object_id"] == "security-release")
+    assert release["title"] == "Security release fixes authentication bypass"
+    assert release["title_evidence_refs"] == ["evidence:release-name-link"]
+    await client.put(
+        "/api/v1/intelligence/recommendations/security-release/feedback",
+        json={"feedback": "ignored"},
+    )
+    assert "security-release" not in {
+        row["object_id"] for row in (await client.get("/api/v1/intelligence/feed")).json()["items"]
+    }
+
+
+@pytest.mark.asyncio
+async def test_topic_reason_cites_matching_body_not_unrelated_summary(recommendation_client):
+    client, factory = recommendation_client
+    async with factory() as session, session.begin():
+        obj = await session.get(ObjectModel, "vulnerability-c")
+        obj.properties = {"title": "Unrelated title"}
+        claim = await session.get(ClaimModel, "claim-c")
+        claim.value = "Unrelated summary"
+        session.add(
+            ClaimModel(
+                claim_id="matched-body",
+                subject_id="vulnerability-c",
+                predicate="body",
+                value="Ray security issue",
+                origin="source_asserted",
+                lifecycle="accepted",
+                created_revision=1,
+            )
+        )
+        session.add(
+            EvidenceLinkModel(
+                evidence_link_id="matched-body-link",
+                target_kind="claim",
+                target_id="matched-body",
+                observation_id="recommendation-observation",
+                locator={"field": "body"},
+                locator_hash="matched-body",
+            )
+        )
+    await client.put("/api/v1/intelligence/preferences", json={"keywords": ["Ray"]})
+    rows = (await client.get("/api/v1/intelligence/feed?mode=following")).json()["items"]
+    row = next(row for row in rows if row["object_id"] == "vulnerability-c")
+    reason = next(reason for reason in row["reasons"] if reason["kind"] == "keyword")
+    assert reason["evidence_refs"] == ["evidence:matched-body-link"]
+
+
+@pytest.mark.asyncio
+async def test_body_change_beyond_preview_creates_new_activity(recommendation_client):
+    client, factory = recommendation_client
+    async with factory() as session, session.begin():
+        claim = await session.get(ClaimModel, "claim-a")
+        claim.value = "Security details. " * 50 + "Original finding."
+    before = next(
+        row
+        for row in (await client.get("/api/v1/intelligence/feed")).json()["items"]
+        if row["object_id"] == "vulnerability-a"
+    )
+    await client.put(
+        f"/api/v1/intelligence/feed/{before['activity_id']}/feedback", json={"feedback": "ignored"}
+    )
+    async with factory() as session, session.begin():
+        claim = await session.get(ClaimModel, "claim-a")
+        claim.value = "Security details. " * 50 + "New material finding and mitigation."
+    after = next(
+        row
+        for row in (await client.get("/api/v1/intelligence/feed")).json()["items"]
+        if row["object_id"] == "vulnerability-a"
+    )
+    assert before["summary"] == after["summary"]
+    assert before["activity_id"] != after["activity_id"]
+
+
+@pytest.mark.asyncio
+async def test_recollected_unchanged_fact_does_not_refresh_old_activity(recommendation_client):
+    client, factory = recommendation_client
+    now = datetime.now(UTC)
+    async with factory() as session, session.begin():
+        original = await session.get(ObservationModel, "recommendation-observation")
+        original.published_at = datetime(2020, 1, 1, tzinfo=UTC)
+        original.observed_at = datetime(2020, 1, 2, tzinfo=UTC)
+        session.add(
+            ObservationModel(
+                observation_id="metadata-recollection",
+                source_id="source:recommendation-fixture",
+                external_object_id="fixture-advisory",
+                acquisition_trigger="scheduled",
+                observed_at=now,
+                updated_at=now,
+                content_hash="metadata-only",
+                idempotency_key="metadata-only",
+                created_at=now,
+            )
+        )
+        session.add(
+            EvidenceLinkModel(
+                evidence_link_id="recollected-claim",
+                target_kind="claim",
+                target_id="claim-a",
+                observation_id="metadata-recollection",
+                locator={"field": "description"},
+                locator_hash="recollected",
+            )
+        )
+    assert (await client.get("/api/v1/intelligence/feed")).json()["items"] == []
+
+
+@pytest.mark.asyncio
+async def test_duplicate_content_keeps_followed_representative_and_all_citations(
+    recommendation_client,
+):
+    client, factory = recommendation_client
+    async with factory() as session, session.begin():
+        for suffix in ("a", "b"):
+            session.add(
+                ObjectModel(
+                    object_id=f"duplicate-{suffix}",
+                    object_type="Document",
+                    canonical_key=f"document:{suffix}",
+                    properties={"title": "Security report on isolation"},
+                    created_revision=1,
+                )
+            )
+            session.add(
+                ClaimModel(
+                    claim_id=f"duplicate-description-{suffix}",
+                    subject_id=f"duplicate-{suffix}",
+                    predicate="description",
+                    value="A security report documenting an isolation vulnerability.",
+                    origin="source_asserted",
+                    lifecycle="accepted",
+                    created_revision=1,
+                )
+            )
+            session.add(
+                EvidenceLinkModel(
+                    evidence_link_id=f"duplicate-evidence-{suffix}",
+                    target_kind="claim",
+                    target_id=f"duplicate-description-{suffix}",
+                    observation_id="recommendation-observation",
+                    locator={"field": "description"},
+                    locator_hash=f"duplicate-{suffix}",
+                )
+            )
+    await client.put(
+        "/api/v1/intelligence/preferences", json={"target_object_ids": ["duplicate-b"]}
+    )
+    rows = (await client.get("/api/v1/intelligence/feed?mode=recommended")).json()["items"]
+    duplicates = [row for row in rows if row["title"] == "Security report on isolation"]
+    assert len(duplicates) == 1
+    row = duplicates[0]
+    assert row["object_id"] == "duplicate-b"
+    assert row["reasons"][0]["kind"] == "followed_object"
+    assert row["reasons"][0]["value"] == "duplicate-b"
+    assert row["score"] == 10
+    assert {"evidence:duplicate-evidence-a", "evidence:duplicate-evidence-b"} <= {
+        ref["evidence_ref"] for ref in row["evidence"]
+    }
+    assert rows[0]["object_id"] == "duplicate-b"
+
+
+@pytest.mark.asyncio
+async def test_security_landing_identity_is_not_a_feed_update(recommendation_client):
+    client, factory = recommendation_client
+    async with factory() as session, session.begin():
+        session.add(
+            ObjectModel(
+                object_id="security-homepage",
+                object_type="Document",
+                canonical_key="document:homepage",
+                properties={
+                    "title": "Application and API security",
+                    "url": "https://vendor.example/",
+                },
+                created_revision=1,
+            )
+        )
+        session.add(
+            ClaimModel(
+                claim_id="homepage-description",
+                subject_id="security-homepage",
+                predicate="description",
+                value="A security platform dashboard with product resources.",
+                origin="source_asserted",
+                lifecycle="accepted",
+                created_revision=1,
+            )
+        )
+        session.add(
+            EvidenceLinkModel(
+                evidence_link_id="homepage-evidence",
+                target_kind="claim",
+                target_id="homepage-description",
+                observation_id="recommendation-observation",
+                locator={"field": "description"},
+                locator_hash="homepage",
+            )
+        )
+    rows = (await client.get("/api/v1/intelligence/feed")).json()["items"]
+    assert "security-homepage" not in {row["object_id"] for row in rows}

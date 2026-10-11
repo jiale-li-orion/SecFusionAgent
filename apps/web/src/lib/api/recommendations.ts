@@ -88,3 +88,28 @@ export function saveIntelligenceRecommendationFeedback(
 ): Promise<{ object_id: string; feedback: 'interested' | 'ignored' | 'neutral'; updated_at: string }> {
   return recommendationRequest(`recommendations/${encodeURIComponent(objectId)}/feedback`, { feedback })
 }
+
+export type IntelligenceActivity = IntelligenceRecommendation & { activity_id: string; activity_kind: string; activity_at: string; activity_evidence_ref: string }
+export type IntelligenceFeedPage = {
+  generated_at: string
+  knowledge_revision: number
+  mode: 'following' | 'recommended'
+  window: '30d' | 'all'
+  items: IntelligenceActivity[]
+  has_more: boolean
+  next_cursor: string | null
+}
+
+export function getIntelligenceFeed(mode: 'following' | 'recommended', window: '30d' | 'all', cursor?: string): Promise<IntelligenceFeedPage> {
+  const params = new URLSearchParams({ mode, window, limit: '12' })
+  if (cursor) params.set('cursor', cursor)
+  return recommendationRequest(`feed?${params}`)
+}
+
+export function resolveIntelligenceFollow(query: string): Promise<{ query: string; exact_match: FollowedIntelligenceObject | null; candidates: FollowedIntelligenceObject[] }> {
+  return recommendationRequest(`follow-resolution?${new URLSearchParams({ q: query })}`)
+}
+
+export function saveIntelligenceActivityFeedback(activityId: string, feedback: 'interested' | 'ignored' | 'neutral'): Promise<{ activity_id: string; feedback: string }> {
+  return recommendationRequest(`feed/${encodeURIComponent(activityId)}/feedback`, { feedback })
+}

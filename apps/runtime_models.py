@@ -10,6 +10,7 @@ _MODEL_MODULES = (
     "packages.intelligence.storage.models",
     "packages.intelligence.storage.evidence_models",
     "packages.intelligence.storage.knowledge_models",
+    "packages.intelligence.storage.feed_models",
     "packages.intelligence.storage.incident_models",
     "packages.intelligence.storage.projection_models",
     "packages.intelligence.storage.document_models",

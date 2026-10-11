@@ -84,3 +84,26 @@ class IntelligenceRecommendationsView(BaseModel):
     preferences_updated_at: datetime | None = None
     candidate_limit: int = 128
     items: list[IntelligenceRecommendationView] = Field(default_factory=list)
+
+
+class FollowResolutionView(BaseModel):
+    query: str
+    exact_match: FollowedObjectView | None = None
+    candidates: list[FollowedObjectView] = Field(default_factory=list)
+
+
+class IntelligenceActivityView(IntelligenceRecommendationView):
+    activity_id: str
+    activity_kind: str
+    activity_at: datetime
+    activity_evidence_ref: str
+
+
+class IntelligenceFeedView(BaseModel):
+    generated_at: datetime
+    knowledge_revision: int
+    mode: Literal["following", "recommended"]
+    window: Literal["30d", "all"]
+    items: list[IntelligenceActivityView] = Field(default_factory=list)
+    next_cursor: str | None = None
+    has_more: bool = False
