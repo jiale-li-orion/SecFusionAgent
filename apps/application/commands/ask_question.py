@@ -37,6 +37,7 @@ from apps.application.question_intent import (
     QueryIntent,
     compile_semantic_queries,
     infer_question_route,
+    is_general_methodology_question,
     lexical_queries,
     needs_semantic_query,
     plan_semantic_query,
@@ -58,7 +59,12 @@ from packages.investigation.state.contracts import InvestigationState, Investiga
 from packages.investigation.state.service import InvestigationStateService
 from packages.investigation.storage.models import InvestigationCaseModel
 from packages.reasoning.citation import CitationSource
-from packages.reasoning.decision import DecisionDraft, DecisionReportParagraph, DecisionService
+from packages.reasoning.decision import (
+    ConclusionType,
+    DecisionDraft,
+    DecisionReportParagraph,
+    DecisionService,
+)
 from packages.reasoning.model import ModelDecisionPlanner
 from packages.reasoning.storage import DecisionResultStore
 from packages.runtime.budget import BudgetGovernor, BudgetLimits
@@ -293,11 +299,24 @@ class AskQuestionUseCase:
         if self._provider is None:
             raise DependencyUnavailableError("model provider is not configured")
 
+        methodology_mode = (
+            auto_route
+            and command.task_kind is TaskKind.RETRIEVE
+            and not explicit_target
+            and active_case_id is None
+            and not (
+                session_context.latest_turn
+                and session_context.latest_turn.target_object_ids
+            )
+            and is_general_methodology_question(command.question)
+        )
+
         query_intent: QueryIntent | None = None
         query_intent_model_ref: str | None = None
         if (
             auto_route
             and command.task_kind is TaskKind.RETRIEVE
+            and not methodology_mode
             and needs_semantic_query(command.question)
         ):
             assert self._query_planner_provider is not None
@@ -336,6 +355,7 @@ class AskQuestionUseCase:
                 active_case_id=case_read_id,
                 query_intent=query_intent,
                 query_intent_model_ref=query_intent_model_ref,
+                skip_retrieval=methodology_mode,
             )
         except LifecycleConflictError as exc:
             if (
@@ -380,9 +400,21 @@ class AskQuestionUseCase:
                 session_context=history_payload,
                 runtime_metadata=runtime_metadata,
                 include_report=True,
+                methodology_mode=methodology_mode,
             )
             if isinstance(proposal, DecisionDraft):
                 try:
+                    if methodology_mode and (
+                        not proposal.report_paragraphs
+                        or any(
+                            item.type is not ConclusionType.RECOMMENDATION
+                            or item.evidence_refs
+                            for item in proposal.conclusions
+                        )
+                    ):
+                        raise ValueError(
+                            "general methodology answer must contain only uncited guidance"
+                        )
                     decision = DecisionService().decide(
                         context.state,
                         proposal,
@@ -868,6 +900,7 @@ class AskQuestionUseCase:
         active_case_id: str | None = None,
         query_intent: QueryIntent | None = None,
         query_intent_model_ref: str | None = None,
+        skip_retrieval: bool = False,
     ) -> _QuestionContext:
         if active_case_id is not None:
             return await self._load_active_case_context(
@@ -977,7 +1010,7 @@ class AskQuestionUseCase:
                     added += 1
                     if added >= _QUESTION_MAX_SECOND_HOP_RELATIONS:
                         break
-        if command.task_kind is TaskKind.RETRIEVE:
+        if command.task_kind is TaskKind.RETRIEVE and not skip_retrieval:
             candidates, invocation_refs = await self._retrieve_candidates(
                 session,
                 command,

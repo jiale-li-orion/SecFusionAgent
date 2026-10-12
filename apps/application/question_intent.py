@@ -27,6 +27,20 @@ _COMPOUND_QUESTION = re.compile(
     r"比较|对比|相似|共同|异同|哪些|之间|分别|compare|similar|difference|across|between|several|multiple",
     re.IGNORECASE,
 )
+_GENERAL_METHOD_QUESTION = re.compile(
+    r"(?:一个|某个|一般|通常|通用|方法|流程|步骤|应(?:该)?核对|需要核对|如何评估|怎么评估|如何验证|怎么验证)"
+    r".{0,48}(?:漏洞|修复|补丁|版本|证据|风险)"
+    r"|(?:漏洞|修复|补丁|版本|证据|风险).{0,48}"
+    r"(?:应(?:该)?核对|需要核对|如何评估|怎么评估|如何验证|怎么验证|哪些步骤)"
+    r"|\b(?:how to|what steps|which evidence)\b.{0,80}"
+    r"\b(?:vulnerability|fix|patch|security evidence)\b",
+    re.IGNORECASE,
+)
+_METHOD_GENERIC_TOKENS = frozenset({
+    "how", "to", "what", "steps", "which", "evidence", "vulnerability",
+    "fix", "patch", "security", "version", "versions", "verify", "evaluate",
+    "a", "an", "the", "of", "for", "and", "should", "be", "checked",
+})
 
 # Only clear requests to perform work take this fast path. Merely mentioning an
 # investigation/report, or asking without a resolved target, remains a read.
@@ -54,6 +68,16 @@ class QueryIntent(BaseModel):
 
 def needs_semantic_query(question: str) -> bool:
     return bool(_COMPOUND_QUESTION.search(question))
+
+
+def is_general_methodology_question(question: str) -> bool:
+    """Recognize targetless how-to requests; named cases still require evidence."""
+    if _CVE.search(question) or not _GENERAL_METHOD_QUESTION.search(question):
+        return False
+    return all(
+        token.casefold() in _METHOD_GENERIC_TOKENS
+        for token in _TECHNICAL_TOKEN.findall(question)
+    )
 
 
 def compile_semantic_queries(intent: QueryIntent) -> QueryIntent:

@@ -15,6 +15,7 @@ from apps.application.question_facts import render_relation_fact
 from apps.application.question_intent import (
     QueryIntent,
     infer_question_route,
+    is_general_methodology_question,
     lexical_queries,
     needs_semantic_query,
     unbound_target_message,
@@ -50,6 +51,7 @@ from packages.reasoning.model import (
     ContinuationProposal,
     DecisionPlannerResponse,
     FinalDecisionProposal,
+    InvestigationReportResponse,
 )
 from packages.runtime.model.service import RecordedModelProvider
 from packages.runtime.retrieval.storage import RetrievalInvocationModel
@@ -107,9 +109,9 @@ class _Provider:
         self.requests: list[StructuredModelRequest] = []
 
     async def generate_structured(self, request, response_model):
-        assert response_model is DecisionPlannerResponse
+        assert response_model in {DecisionPlannerResponse, InvestigationReportResponse}
         self.requests.append(request)
-        return self.response
+        return response_model.model_validate(self.response.model_dump())
 
 
 class _FailingProvider:
@@ -1301,6 +1303,47 @@ async def test_natural_chat_without_any_target_returns_clear_unknown() -> None:
         assert result.decision.answer == {"status": "insufficient_evidence"}
         assert result.decision.report_paragraphs[0].evidence_refs == []
         assert "没有找到可继续调查的对象" in result.decision.report_paragraphs[0].text
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_general_fix_verification_question_answers_method_without_target() -> None:
+    class UnexpectedRetrieval(LexicalRetrievalOperator):
+        async def search(self, session, *, query: str, limit: int = 20, source_ids=None):
+            raise AssertionError("general method question should not search for a case")
+
+    question = "评估一个漏洞是否已经修复时，应核对哪些版本、补丁和证据？"  # noqa: RUF001
+    assert is_general_methodology_question(question)
+    assert not is_general_methodology_question("如何验证 vLLM 0.9.0 的漏洞修复?")
+    assert not is_general_methodology_question("如何验证 CVE-2026-51515 的修复?")
+    provider = _Provider(DecisionPlannerResponse(action=FinalDecisionProposal(
+        conclusions=[DecisionConclusion(
+            statement="先确认受影响与已修复版本的准确范围。",
+            type=ConclusionType.RECOMMENDATION,
+        )],
+        answer_payload={"response_type": "methodology"},
+        report_paragraphs=[DecisionReportParagraph(
+            text="先对照原始公告确认受影响版本和修复版本, 再核对补丁是否进入对应分支。"
+        )],
+        stop_reason="methodology_guidance",
+    )))
+    engine, factory = await _factory()
+    try:
+        async with factory() as session:
+            result = await _use_case(provider, retrieval=UnexpectedRetrieval()).execute(
+                session,
+                AskQuestionCommand(
+                    principal="user:test", request_id="general-fix-method-1", question=question,
+                ),
+            )
+        assert result.mode == "completed"
+        assert result.decision is not None
+        assert result.decision.answer == {"response_type": "methodology"}
+        assert "修复版本" in result.decision.report_paragraphs[0].text
+        assert result.decision.citations == []
+        assert provider.requests[0].data["methodology_mode"] is True
+        assert "without requesting a target" in provider.requests[0].system_instruction
     finally:
         await engine.dispose()
 

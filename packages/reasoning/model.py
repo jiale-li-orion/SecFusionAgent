@@ -94,6 +94,7 @@ REPORT_INSTRUCTION = (
 class ModelDecisionPlanner:
     PROMPT_REVISION = "decision-model-v6-core"
     REPORT_PROMPT_REVISION = "decision-model-v6"
+    METHODOLOGY_PROMPT_REVISION = "decision-methodology-v1"
 
     def __init__(self, provider: ModelProvider) -> None:
         self._provider = provider
@@ -107,8 +108,10 @@ class ModelDecisionPlanner:
         runtime_metadata: dict[str, JsonValue] | None = None,
         include_report: bool = False,
         prefer_partial_final: bool = False,
+        methodology_mode: bool = False,
     ) -> DecisionDraft | ContinuationRequest:
         prompt_revision = (
+            self.METHODOLOGY_PROMPT_REVISION if methodology_mode else
             self.REPORT_PROMPT_REVISION if include_report else self.PROMPT_REVISION
         )
         metadata: dict[str, JsonValue] = {
@@ -161,7 +164,18 @@ class ModelDecisionPlanner:
                 "For a final answer, stop_reason is a short machine-readable lifecycle code, "
                 "prefer snake_case such as evidence_sufficient; do not put explanation text there. "
                 "For continuation, purpose is likewise a short machine-readable purpose code, "
-                "prefer snake_case such as verify_cvss_score; put the explanation in reason."
+                "prefer snake_case such as verify_cvss_score; put the explanation in reason. "
+                + (
+                    "This is a targetless request for a general verification method, not a "
+                    "claim about any particular vulnerability or project. Return a final "
+                    "practical answer without requesting a target or continuation. Explain "
+                    "what to check and why, in complete readable paragraphs. Use only "
+                    "recommendation conclusions with empty evidence_refs; do not assert "
+                    "that any specific version is fixed, or invent a source, result, or citation. "
+                    "Set answer_payload to a compact methodology summary and stop_reason "
+                    "to methodology_guidance."
+                    if methodology_mode else ""
+                )
             ),
             data={
                 "investigation_state": cast(JsonValue, state.model_dump(mode="json")),
@@ -171,11 +185,13 @@ class ModelDecisionPlanner:
                 ),
                 "session_context": cast(JsonValue, list(session_context or [])),
                 "prefer_partial_final": prefer_partial_final,
+                "methodology_mode": methodology_mode,
             },
             metadata=metadata,
         )
         response_model = (
-            InvestigationReportResponse if prefer_partial_final else DecisionPlannerResponse
+            InvestigationReportResponse
+            if prefer_partial_final or methodology_mode else DecisionPlannerResponse
         )
         response = await self._provider.generate_structured(request, response_model)
         action = response.action
