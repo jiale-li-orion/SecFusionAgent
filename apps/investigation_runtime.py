@@ -64,9 +64,14 @@ class InvestigationExternalObservationPort:
         request: PerceptionRequest,
         step: PhysicalPerceptionStep,
     ) -> PerceptionStepResult:
-        if request.target.source_ids == ["github-target-repos"]:
+        source_ids = request.target.source_ids
+        if len(source_ids) != 1:
+            return PerceptionStepResult(
+                unresolved=["external_observation_requires_one_source_id"]
+            )
+        if source_ids == ["github-target-repos"]:
             return await self._github.execute(task_run_id=task_run_id, request=request, step=step)
-        if request.target.source_ids and request.target.source_ids != ["nvd-cves-2"]:
+        if source_ids != ["nvd-cves-2"]:
             return await self._registered.execute(
                 task_run_id=task_run_id, request=request, step=step
             )
