@@ -506,16 +506,15 @@ class InvestigationRoleRuntime:
         action: DelegationAction,
         iteration: int,
     ) -> InvestigationRoleOutcome | Percept:
-        if self._delegation_port is None:
-            return await self._finish(
-                run_id,
-                frame,
-                TaskRunStatus.BLOCKED,
-                "delegation_unavailable",
-                iteration,
-            )
         if action.request.target_object_id not in set(frame.state.targets):
             raise ValueError("delegated enrichment target escapes Investigation Case")
+        if self._delegation_port is None:
+            return Percept(
+                percept_id=f"percept:delegation-unavailable:{action.request.delegation_id}",
+                request_id=f"delegation:{action.request.delegation_id}",
+                target_refs=[action.request.target_object_id],
+                unresolved=["delegated_enrichment_unavailable"],
+            )
         result = await self._delegation_port.delegate_enrichment(
             parent_run_id=run_id,
             request=action.request,

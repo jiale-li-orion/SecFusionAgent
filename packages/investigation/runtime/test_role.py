@@ -538,6 +538,14 @@ class _DelegateFailureFallbackPlanner(_PerceiveThenPatchPlanner):
         return await super().next_action(frame)
 
 
+class _NoDelegationPortPlanner:
+    async def next_action(self, frame: InvestigationFrame):
+        if frame.last_percept is None:
+            return await _DelegatePlanner().next_action(frame)
+        assert frame.last_percept.unresolved == ["delegated_enrichment_unavailable"]
+        return StopAction(reason="no_permitted_enrichment_route")
+
+
 @pytest.mark.asyncio
 async def test_investigation_role_perceives_evidence_commits_state_and_completes() -> None:
     engine, factory = await _database()
@@ -1109,6 +1117,28 @@ async def test_repeated_failed_delegation_stops_with_bounded_reason() -> None:
         assert outcome.run_status is TaskRunStatus.BLOCKED
         assert outcome.result.stop_reason == "delegated_enrichment_unavailable"
         assert len(delegation.calls) == 3
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_missing_delegation_port_is_planner_feedback() -> None:
+    engine, factory = await _database()
+    try:
+        async with factory() as session, session.begin():
+            case_id, object_id, need_id, _ = await _seed_case_need_and_evidence(session)
+            run_id = await _create_run(
+                session, case_id=case_id, object_id=object_id, need_id=need_id
+            )
+        outcome = await InvestigationRoleRuntime(
+            factory,
+            _NoDelegationPortPlanner(),
+            stream_name=STREAM,
+            now=lambda: NOW,
+        ).run(run_id)
+        assert outcome.run_status is TaskRunStatus.BLOCKED
+        assert outcome.result.stop_reason == "no_permitted_enrichment_route"
+        assert outcome.result.iterations == 2
     finally:
         await engine.dispose()
 
