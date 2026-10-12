@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from hashlib import sha256
 
 from pydantic import BaseModel, Field
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from packages.intelligence.retrieval.validation import current_knowledge_revision
@@ -39,6 +40,8 @@ from packages.investigation.state.service import (
     InvestigationStateService,
     StatePatchRejected,
 )
+from packages.runtime.model.storage import ModelRequestModel
+from packages.runtime.storage.models import BudgetAccountModel
 from packages.shared.model_provider import ModelProviderResponseError
 from packages.task_runtime.context.contracts import ContextRefresh
 from packages.task_runtime.context.service import refresh_context
@@ -86,7 +89,7 @@ class InvestigationRoleRuntime:
         case_service: CaseService | None = None,
         execution_boundary: InvestigationExecutionBoundary | None = None,
         stream_name: str = "secfusion:task-events",
-        max_iterations: int = 8,
+        max_iterations: int = 64,
         no_progress_limit: int = 2,
         now: Callable[[], datetime] | None = None,
     ) -> None:
@@ -121,8 +124,9 @@ class InvestigationRoleRuntime:
         recent_percepts: list[Percept] = []
         seen_percept_signals: set[str] = set()
         no_progress = 0
+        first_iteration, last_iteration = await self._iteration_window(run_id)
 
-        for iteration in range(1, self._max_iterations + 1):
+        for iteration in range(first_iteration, last_iteration + 1):
             frame = await self._load_frame(run_id, iteration, last_percept, recent_percepts)
             await self._refresh_context_for_frame(run_id, frame)
             completion = await self._completion(run_id, frame)
@@ -249,15 +253,30 @@ class InvestigationRoleRuntime:
                 )
 
         frame = await self._load_frame(
-            run_id, self._max_iterations, last_percept, recent_percepts,
+            run_id, last_iteration, last_percept, recent_percepts,
         )
         return await self._finish(
             run_id,
             frame,
             TaskRunStatus.BLOCKED,
             "budget_exhausted",
-            self._max_iterations,
+            last_iteration,
         )
+
+    async def _iteration_window(self, run_id: str) -> tuple[int, int]:
+        async with self._session_factory() as session:
+            manifest = await get_task_context(session, run_id)
+            account = await session.get(BudgetAccountModel, manifest.budget_ref)
+            budget_turns = (
+                int(account.limits.get("agent_turns", "8")) if account is not None else 8
+            )
+            used_turns = int(await session.scalar(
+                select(func.count(ModelRequestModel.model_request_id)).where(
+                    ModelRequestModel.task_run_id == run_id,
+                    ModelRequestModel.purpose == "m5.investigation_plan",
+                )
+            ) or 0)
+        return used_turns + 1, min(self._max_iterations, budget_turns)
 
     async def _execution_boundary(
         self,
@@ -543,9 +562,18 @@ class InvestigationRoleRuntime:
             TaskRunStatus.BLOCKED, TaskRunStatus.FAILED,
             TaskRunStatus.CANCELLED, TaskRunStatus.TIMED_OUT,
         }:
-            return await self._finish(
-                run_id, frame, TaskRunStatus.BLOCKED,
-                f"delegated_enrichment_{result.child_status.value}", iteration,
+            # A failed enrichment is an observation about one route, not a verdict
+            # on the parent question. Give the planner a bounded chance to inspect
+            # retained evidence or choose another permitted source.
+            return Percept(
+                percept_id=f"percept:delegation:{result.child_run_id}:{result.child_status.value}",
+                request_id=f"delegation:{action.request.delegation_id}",
+                target_refs=[action.request.target_object_id],
+                unresolved=[
+                    f"delegated_enrichment_{result.child_status.value}",
+                    *([f"child_stop_reason:{result.child_stop_reason}"]
+                      if result.child_stop_reason else []),
+                ],
             )
         return await self._wait(
             run_id,
@@ -769,6 +797,7 @@ def _percept_signal(percept: Percept) -> str:
             *sorted(percept.evidence_handles),
             *sorted(percept.independent_source_keys),
             *sorted(item.candidate_id for item in percept.candidate_evidence),
+            *sorted(percept.unresolved),
         ]
     )
     return sha256(value.encode()).hexdigest()
@@ -780,6 +809,8 @@ def _no_progress_stop_reason(last_percept: Percept | None) -> str:
             return "evidence_contract_unmet"
         if any(item.startswith("state_patch_rejected:") for item in last_percept.unresolved):
             return "state_patch_rejected"
+        if any(item.startswith("delegated_enrichment_") for item in last_percept.unresolved):
+            return "delegated_enrichment_unavailable"
     return "no_progress"
 
 

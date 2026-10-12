@@ -26,6 +26,7 @@ from packages.investigation.skills.contracts import SkillDisclosureLevel
 from packages.investigation.skills.materialize import materialize_skill_selection
 from packages.investigation.skills.resolver import SkillResolutionContext, SkillResolver
 from packages.investigation.skills.service import SkillStore
+from packages.runtime.storage.models import BudgetAccountModel
 from packages.shared.model_provider import ModelProvider
 from packages.task_runtime.context.contracts import ContextRefresh
 from packages.task_runtime.context.materializer import (
@@ -179,6 +180,27 @@ _SOURCE_EVIDENCE_GUIDANCE = MaterializedFragment.build(
 )
 
 
+_DELEGATION_RECOVERY_GUIDANCE = MaterializedFragment.build(
+    kind="delegation_recovery_guidance",
+    source_ref="runtime-guidance:delegation-recovery-v1",
+    source_revision="delegation-recovery-v1",
+    trust_class=FragmentTrustClass.RUNTIME_CONTROL,
+    cache_class=FragmentCacheClass.TASK_STABLE,
+    content={
+        "instruction": (
+            "The delegated enrichment child ended without completing. Its failure is not "
+            "evidence that the investigated claim is false or that the parent task is "
+            "finished. Read the child status and stop reason in the latest Percept. Do not "
+            "delegate the same target and dimensions again. Inspect existing canonical "
+            "evidence or choose another registered source through the permitted external "
+            "observation capability. Preserve supported partial findings through the State "
+            "Gate. If no permitted route can resolve the EvidenceNeed, record the remaining "
+            "gap as unknown and stop with a specific short reason."
+        )
+    },
+)
+
+
 class ModelInvestigationPlanner:
     def __init__(
         self,
@@ -190,8 +212,11 @@ class ModelInvestigationPlanner:
         skill_store: SkillStore | None = None,
         capability_context_provider: PlannerCapabilityContextProvider | None = None,
         prompt_assembly_recorder: PromptAssemblyRecorder | None = None,
+        model_token_reservation_per_attempt: int = 32768,
         stream_name: str = "secfusion:task-events",
     ) -> None:
+        if model_token_reservation_per_attempt < 1:
+            raise ValueError("model token reservation must be positive")
         self._session_factory = session_factory
         self._provider = provider
         self._materializer = materializer
@@ -201,6 +226,7 @@ class ModelInvestigationPlanner:
             capability_context_provider or EmptyPlannerCapabilityContextProvider()
         )
         self._prompt_assembly_recorder = prompt_assembly_recorder or NullPromptAssemblyRecorder()
+        self._model_token_reservation_per_attempt = model_token_reservation_per_attempt
         self._stream_name = stream_name
 
     async def next_action(self, frame: InvestigationFrame) -> InvestigationAction:
@@ -210,6 +236,12 @@ class ModelInvestigationPlanner:
         )
         async with self._session_factory() as session, session.begin():
             manifest = await get_task_context(session, frame.task_run_id)
+            account = await session.get(BudgetAccountModel, manifest.budget_ref)
+            model_budget_available = (
+                account is not None
+                and int(account.limits.get("model_tokens", "0"))
+                >= self._model_token_reservation_per_attempt
+            )
             context_fragments = await materialize_investigation_context_fragments(
                 session,
                 manifest,
@@ -269,6 +301,11 @@ class ModelInvestigationPlanner:
                 item.percept_id != frame.last_percept.percept_id for item in percepts
             ):
                 percepts.append(frame.last_percept)
+            delegation_failed = any(
+                item.startswith("delegated_enrichment_")
+                for percept in percepts
+                for item in percept.unresolved
+            )
             ephemeral = [
                 fragment
                 for percept in percepts
@@ -284,12 +321,15 @@ class ModelInvestigationPlanner:
                     *capability_context.disclosure_fragments,
                     *skill_fragments,
                     *([_SOURCE_EVIDENCE_GUIDANCE] if source_task else []),
+                    *([_DELEGATION_RECOVERY_GUIDANCE] if delegation_failed else []),
                 ],
                 additional_dynamic_fragments=capability_context.dynamic_fragments,
                 ephemeral_fragments=ephemeral,
                 runtime_disclosure_refs=(
                     capability_context.runtime_disclosure_refs
                     | ({_SOURCE_EVIDENCE_GUIDANCE.source_ref} if source_task else set())
+                    | ({_DELEGATION_RECOVERY_GUIDANCE.source_ref}
+                       if delegation_failed else set())
                 ),
                 percept_refs=[item.source_ref for item in ephemeral],
                 execution_profile_revision=capability_context.execution_profile_revision,
@@ -316,6 +356,9 @@ class ModelInvestigationPlanner:
                     "case_id": frame.state.case_id,
                     "prompt_assembly_id": assembly.assembly_id,
                     "budget_ref": manifest.budget_ref,
+                    **({
+                        "model_token_reservation": self._model_token_reservation_per_attempt,
+                    } if model_budget_available else {}),
                     "planner": prompt_revision,
                     "iteration": frame.iteration,
                     "selected_need_id": (

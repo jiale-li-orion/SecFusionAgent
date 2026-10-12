@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from decimal import Decimal
 from uuid import uuid4
 
 import pytest
@@ -41,6 +42,7 @@ from packages.investigation.state.contracts import (
     StatePatchOperation,
 )
 from packages.investigation.state.service import InvestigationStateService
+from packages.runtime.budget import BudgetGovernor, BudgetLimits
 from packages.shared.db import Base
 from packages.shared.model_provider import StructuredModelRequest
 from packages.sources.storage.models import SourceModel
@@ -237,7 +239,7 @@ async def _database():
     return engine, async_sessionmaker(engine, expire_on_commit=False)
 
 
-async def _seed(factory):
+async def _seed(factory, *, legacy_budget: bool = False):
     state_service = InvestigationStateService(now=lambda: NOW)
     async with factory() as session, session.begin():
         revision = KnowledgeRevisionModel(committed_at=NOW)
@@ -305,6 +307,15 @@ async def _seed(factory):
             run_id=run_id,
             now=NOW,
         )
+        await BudgetGovernor().create_account(
+            session,
+            account_id=manifest.budget_ref,
+            task_run_id=run_id,
+            limits=BudgetLimits(quantities={
+                "agent_turns": Decimal(8),
+                **({} if legacy_budget else {"model_tokens": Decimal(8 * 3 * 32768)}),
+            }),
+        )
         skill = seeded_skills()[0]
         validated = skill.model_copy(
             update={
@@ -319,6 +330,29 @@ async def _seed(factory):
         await SkillStore(now=lambda: NOW).publish(session, validated)
         state = await state_service.get_state(session, case.case_id)
     return run_id, object_id, contract, state, need.need, validated.manifest.ref
+
+
+@pytest.mark.asyncio
+async def test_legacy_investigation_budget_does_not_reserve_missing_model_tokens() -> None:
+    engine, factory = await _database()
+    provider = _ModelProvider()
+    try:
+        run_id, _, contract, state, need, _ = await _seed(factory, legacy_budget=True)
+        planner = ModelInvestigationPlanner(
+            factory, provider,
+            materializer=ContextMaterializer(
+                platform_invariant_revision="platform-v1",
+                platform_invariant={"state_write": "StatePatch gate"},
+            ),
+            stream_name=STREAM,
+        )
+        await planner.next_action(InvestigationFrame(
+            task_run_id=run_id, task_contract=contract, state=state,
+            selected_need=need, iteration=1,
+        ))
+        assert "model_token_reservation" not in provider.requests[0].metadata
+    finally:
+        await engine.dispose()
 
 
 async def _attach_primary_evidence(factory, *, object_id: str) -> str:
@@ -428,6 +462,7 @@ async def test_model_planner_materializes_skill_capability_and_runtime_owned_act
         assert manifest.context_revision == 2
         assert manifest.skill_selection_refs == [skill_ref]
         first_request = provider.requests[0]
+        assert first_request.metadata["model_token_reservation"] == 32768
         assert '"kind":"skill_manifest"' in first_request.system_instruction
         assert '"kind":"skill_procedure"' in first_request.system_instruction
         assert '"kind":"capability_cards"' in first_request.system_instruction

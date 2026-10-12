@@ -74,6 +74,8 @@ async def start_investigation(
     use_case = StartInvestigationUseCase(
         policy_path=settings.runtime_policy_path,
         task_event_stream_name=settings.task_event_stream_name,
+        model_token_reservation_per_attempt=settings.model_token_reservation_per_attempt,
+        model_max_attempts=settings.model_max_attempts,
     )
     result = await use_case.execute(
         session,

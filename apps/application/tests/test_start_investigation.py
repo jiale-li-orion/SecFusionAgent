@@ -101,11 +101,13 @@ async def test_start_investigation_builds_real_domain_runtime_coordinate() -> No
             )
             assert execution is not None
             assert execution.envelope_json["trace_context"]["request_id"] == "request-product-1"
-            assert execution.envelope_json["capability_scope"] == ["nvd.read_cve"]
+            assert "nvd.read_cve" in execution.envelope_json["capability_scope"]
             budget = await session.scalar(
                 select(BudgetAccountModel).where(BudgetAccountModel.task_run_id == run.run_id)
             )
             assert budget is not None
+            assert budget.limits["model_tokens"] == str(32768 * 3 * 8)
+            assert budget.limits["retries"] == str(2 * 8)
     finally:
         await engine.dispose()
 
@@ -152,7 +154,8 @@ async def test_non_cve_investigation_does_not_advertise_nvd_capability() -> None
                 select(ExecutionRunModel).where(ExecutionRunModel.task_run_id == run.run_id)
             )
             assert execution is not None
-            assert execution.envelope_json["capability_scope"] == []
+            assert "nvd.read_cve" not in execution.envelope_json["capability_scope"]
+            assert "source.read_registered_document" in execution.envelope_json["capability_scope"]
     finally:
         await engine.dispose()
 

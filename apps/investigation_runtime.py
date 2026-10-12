@@ -197,6 +197,7 @@ def create_configured_investigation_runtime(
             policy,
         ),
         prompt_assembly_recorder=RuntimePromptAssemblyRecorder(),
+        model_token_reservation_per_attempt=settings.model_token_reservation_per_attempt,
         stream_name=settings.task_event_stream_name,
     )
     delegation = EnrichmentDelegationAdapter(

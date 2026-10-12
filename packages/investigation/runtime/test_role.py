@@ -211,6 +211,7 @@ async def _create_run(
     need_id: str,
     task_kind: TaskKind = TaskKind.VERIFY_VERSION_FIX,
     deadline_at: datetime | None = None,
+    agent_turns: int = 8,
 ) -> str:
     run_id = str(uuid4())
     contract = build_investigation_contract(
@@ -252,7 +253,7 @@ async def _create_run(
         task_run_id=run_id,
         limits=BudgetLimits(
             quantities={
-                "agent_turns": Decimal("8"),
+                "agent_turns": Decimal(agent_turns),
                 "tool_calls": Decimal("4"),
             }
         ),
@@ -394,6 +395,41 @@ class _WaitPlanner:
         return WaitAction(reason="waiting_for_world_update")
 
 
+class _RepeatedInspectPlanner:
+    def __init__(self, object_id: str) -> None:
+        self.object_id = object_id
+        self.calls = 0
+
+    async def next_action(self, frame: InvestigationFrame):
+        self.calls += 1
+        return PerceptionAction(request=PerceptionRequest(
+            request_id=f"inspect:{frame.iteration}",
+            operation=PerceptionOperation.INSPECT,
+            target=PerceptionTarget(object_id=self.object_id),
+        ))
+
+
+@pytest.mark.asyncio
+async def test_investigation_role_honors_admitted_turn_budget_above_eight() -> None:
+    engine, factory = await _database()
+    try:
+        async with factory() as session, session.begin():
+            case_id, object_id, need_id, _ = await _seed_case_need_and_evidence(session)
+            run_id = await _create_run(
+                session, case_id=case_id, object_id=object_id, need_id=need_id,
+                agent_turns=10,
+            )
+        planner = _RepeatedInspectPlanner(object_id)
+        outcome = await InvestigationRoleRuntime(
+            factory, planner, no_progress_limit=20, stream_name=STREAM, now=lambda: NOW,
+        ).run(run_id)
+        assert planner.calls == 10
+        assert outcome.run_status is TaskRunStatus.BLOCKED
+        assert outcome.result.iterations == 10
+    finally:
+        await engine.dispose()
+
+
 class _PrematureSuccessPlanner:
     async def next_action(self, frame: InvestigationFrame):
         del frame
@@ -459,9 +495,14 @@ class _DelegatePlanner:
 
 
 class _DelegationPort:
-    def __init__(self, child_status: TaskRunStatus | None = None) -> None:
+    def __init__(
+        self,
+        child_status: TaskRunStatus | None = None,
+        child_stop_reason: str | None = None,
+    ) -> None:
         self.calls: list[tuple[str, EnrichmentDelegationRequest]] = []
         self.child_status = child_status
+        self.child_stop_reason = child_stop_reason
 
     async def delegate_enrichment(self, *, parent_run_id, request):
         self.calls.append((parent_run_id, request))
@@ -470,6 +511,7 @@ class _DelegationPort:
             child_context_ref="context:child-enrichment-1@1",
             child_execution_ref="execution:child-enrichment-1",
             child_status=self.child_status,
+            child_stop_reason=self.child_stop_reason,
         )
 
 
@@ -477,6 +519,22 @@ class _DelegateThenPatchPlanner(_PerceiveThenPatchPlanner):
     async def next_action(self, frame: InvestigationFrame):
         if frame.last_percept is None:
             return await _DelegatePlanner().next_action(frame)
+        return await super().next_action(frame)
+
+
+class _DelegateFailureFallbackPlanner(_PerceiveThenPatchPlanner):
+    async def next_action(self, frame: InvestigationFrame):
+        if frame.last_percept is None:
+            return await _DelegatePlanner().next_action(frame)
+        if "delegated_enrichment_failed" in frame.last_percept.unresolved:
+            assert frame.selected_need is not None
+            assert "child_stop_reason:source_unavailable" in frame.last_percept.unresolved
+            assert frame.last_percept.target_refs == [
+                frame.selected_need.target_objects[0]
+            ]
+            return await _PerceiveThenPatchPlanner().next_action(
+                frame.model_copy(update={"last_percept": None})
+            )
         return await super().next_action(frame)
 
 
@@ -997,6 +1055,60 @@ async def test_completed_delegated_child_is_inspected_without_waiting_again() ->
             events = await list_task_events(session, run_id)
         assert "EvidenceFound" in [event.event_type.value for event in events]
         assert "NeedContext" not in [event.event_type.value for event in events]
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_failed_delegated_child_returns_feedback_for_local_fallback() -> None:
+    engine, factory = await _database()
+    delegation = _DelegationPort(
+        child_status=TaskRunStatus.FAILED,
+        child_stop_reason="source_unavailable",
+    )
+    try:
+        async with factory() as session, session.begin():
+            case_id, object_id, need_id, _ = await _seed_case_need_and_evidence(session)
+            run_id = await _create_run(
+                session, case_id=case_id, object_id=object_id, need_id=need_id
+            )
+        outcome = await InvestigationRoleRuntime(
+            factory,
+            _DelegateFailureFallbackPlanner(),
+            delegation_port=delegation,
+            stream_name=STREAM,
+            now=lambda: NOW,
+        ).run(run_id)
+        assert outcome.run_status is TaskRunStatus.COMPLETED
+        assert outcome.result.resolved_need_ids == [need_id]
+        assert len(delegation.calls) == 1
+        async with factory() as session:
+            events = await list_task_events(session, run_id)
+        assert "EvidenceFound" in [event.event_type.value for event in events]
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_repeated_failed_delegation_stops_with_bounded_reason() -> None:
+    engine, factory = await _database()
+    delegation = _DelegationPort(child_status=TaskRunStatus.BLOCKED)
+    try:
+        async with factory() as session, session.begin():
+            case_id, object_id, need_id, _ = await _seed_case_need_and_evidence(session)
+            run_id = await _create_run(
+                session, case_id=case_id, object_id=object_id, need_id=need_id
+            )
+        outcome = await InvestigationRoleRuntime(
+            factory,
+            _DelegatePlanner(),
+            delegation_port=delegation,
+            stream_name=STREAM,
+            now=lambda: NOW,
+        ).run(run_id)
+        assert outcome.run_status is TaskRunStatus.BLOCKED
+        assert outcome.result.stop_reason == "delegated_enrichment_unavailable"
+        assert len(delegation.calls) == 3
     finally:
         await engine.dispose()
 

@@ -122,12 +122,18 @@ class InvestigationTaskLauncher:
         state_service: InvestigationStateService | None = None,
         budget_governor: BudgetGovernor | None = None,
         execution_service: ExecutionRunService | None = None,
+        model_token_reservation_per_attempt: int = 32768,
+        model_max_attempts: int = 3,
     ) -> None:
+        if model_token_reservation_per_attempt < 1 or model_max_attempts < 1:
+            raise ValueError("model budget settings must be positive")
         self._policy_path = policy_path
         self._stream_name = task_event_stream_name
         self._state = state_service or InvestigationStateService()
         self._budget = budget_governor or BudgetGovernor()
         self._execution = execution_service or ExecutionRunService()
+        self._model_token_reservation_per_attempt = model_token_reservation_per_attempt
+        self._model_max_attempts = model_max_attempts
 
     async def launch(
         self,
@@ -224,6 +230,12 @@ class InvestigationTaskLauncher:
                 quantities={
                     "agent_turns": Decimal(agent_turns),
                     "tool_calls": Decimal(tool_calls),
+                    "model_tokens": Decimal(
+                        agent_turns
+                        * self._model_token_reservation_per_attempt
+                        * self._model_max_attempts
+                    ),
+                    "retries": Decimal(agent_turns * (self._model_max_attempts - 1)),
                 }
             ),
         )
@@ -284,6 +296,8 @@ class StartInvestigationUseCase:
         case_service: CaseService | None = None,
         state_service: InvestigationStateService | None = None,
         queries: InvestigationQueries | None = None,
+        model_token_reservation_per_attempt: int = 32768,
+        model_max_attempts: int = 3,
     ) -> None:
         self._case_service = case_service or CaseService()
         self._state = state_service or InvestigationStateService()
@@ -292,6 +306,8 @@ class StartInvestigationUseCase:
             policy_path=policy_path,
             task_event_stream_name=task_event_stream_name,
             state_service=self._state,
+            model_token_reservation_per_attempt=model_token_reservation_per_attempt,
+            model_max_attempts=model_max_attempts,
         )
 
     async def execute(
@@ -384,6 +400,8 @@ class ContinueInvestigationUseCase:
         case_service: CaseService | None = None,
         state_service: InvestigationStateService | None = None,
         queries: InvestigationQueries | None = None,
+        model_token_reservation_per_attempt: int = 32768,
+        model_max_attempts: int = 3,
     ) -> None:
         self._cases = case_service or CaseService()
         self._state = state_service or InvestigationStateService()
@@ -392,6 +410,8 @@ class ContinueInvestigationUseCase:
             policy_path=policy_path,
             task_event_stream_name=task_event_stream_name,
             state_service=self._state,
+            model_token_reservation_per_attempt=model_token_reservation_per_attempt,
+            model_max_attempts=model_max_attempts,
         )
 
     async def execute(

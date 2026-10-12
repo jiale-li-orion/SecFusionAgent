@@ -79,6 +79,9 @@ TD2 的 M4/M5 没有落成一个“万能 Agent service”。Case lifecycle 由 
 当前 production composition 位于 `apps/investigation_runtime.py`：Context/Skill/model/local Perception/delegation、NVD CVE 读取、已登记公开 HTML 来源按需读取及登记 GitHub 仓库的精确 issue/PR/提交/版本读取均已接入。非 CVE 任务可用 `OBSERVE_EXTERNAL` 指定一个来源 ID；HTML 来源接受本源 URL 或定向标题，GitHub 来源接受自身对象或同仓库精确链接。GitHub PR 同时保留最多 100 个改动文件的原始响应和有界补丁摘录，缺失 patch 与列表截断不会被解释为无改动。同仓库的 `/compare/<fix-commit-sha>...<release-tag>` 读取 GitHub 提交比较和发布记录，只有发布记录已公开且比较状态为 `ahead` 或 `identical` 时才可说明该修复提交位于所比较发布标签的提交历史；这不能证明部署产物使用了该版本。来源域名、跳转、仓库白名单与 TaskContract 目标均受限，结果先成临时观测再经 Policy/EvidenceIngress 提升。没有命中的来源不会关闭 EvidenceNeed。任意网页搜索、浏览器、未登记仓库、资产及 sandbox tool action 仍须另建正式 binding，不能绕过 Policy 直接调用 provider。
 
 `OBSERVE_EXTERNAL` 运行时要求显式选择恰好一个 `source_id`。漏选或多选会返回可供下一轮规划修正的未解决原因，不再悄悄落入 NVD 路由并让非 CVE 调查空转。
+
+M5 规划现在将每次模型调用的 token 预留量交给 RecordedModelProvider，并在任务接纳时按允许轮次和每轮最多重试次数创建 `model_tokens`/`retries` 预算。Role 读取账户中的 `agent_turns` 上限，不再把请求的 9–64 轮硬截为 8；已有 ModelRequest 数量用于恢复时续接轮次，安全上限仍为 64。模型返回的精确用量由 recorder 结算，未返回时按预留上界占用预算；这不代表提供方已经报告货币费用。
+委派的富化子任务若失败、阻塞、取消或超时，父调查会把子任务状态与停止原因作为下一轮 Percept 交给规划器，允许改查既有证据或其他已授权来源。子任务的失败不构成调查结论；重复无进展仍由 no-progress 上限终止。
 来源与文档类调查现在把最近四个不同的 Percept 连同可追溯 EvidenceRef 一起装配给规划器，并明确要求先把已找到的可引用局部发现写入 M4，再继续寻找比较维度的缺口。重复读取相同片段会触发 `no_progress` 终止。若终止时仍无已确认事实，Product M6 会提交零事实、零引用的自然语言证据边界说明，并让 Case 等待新材料；这不会把候选材料冒充已核验结论。
 
 ## Dependency boundary

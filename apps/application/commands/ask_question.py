@@ -1333,6 +1333,8 @@ class AskQuestionUseCase:
         result = await StartInvestigationUseCase(
             policy_path=self._policy_path,
             task_event_stream_name=self._stream_name,
+            model_token_reservation_per_attempt=self._model_token_reservation_per_attempt,
+            model_max_attempts=self._model_max_attempts,
         ).execute(
             session,
             StartInvestigationCommand(
@@ -1383,6 +1385,8 @@ class AskQuestionUseCase:
         result = await ContinueInvestigationUseCase(
             policy_path=self._policy_path,
             task_event_stream_name=self._stream_name,
+            model_token_reservation_per_attempt=self._model_token_reservation_per_attempt,
+            model_max_attempts=self._model_max_attempts,
         ).execute(
             session,
             ContinueInvestigationCommand(

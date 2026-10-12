@@ -201,6 +201,7 @@ class EnrichmentDelegationAdapter:
             child_context_ref=f"{child_context_id}@1",
             child_execution_ref=child_execution_id,
             child_status=child_run.status,
+            child_stop_reason=child_run.stop_reason,
         )
 
 

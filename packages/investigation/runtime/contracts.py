@@ -48,6 +48,7 @@ class DelegationResult(BaseModel):
     child_context_ref: str
     child_execution_ref: str
     child_status: TaskRunStatus | None = None
+    child_stop_reason: str | None = None
 
 
 class InvestigationDelegationPort(Protocol):
