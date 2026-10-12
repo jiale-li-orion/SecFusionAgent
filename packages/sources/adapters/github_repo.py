@@ -155,6 +155,37 @@ class GitHubRepoAdapter:
                 )
             ]
 
+        if object_type == "compare_commit_to_release":
+            sha = _required_str(spec, "fix_commit_sha")
+            tag = _required_str(spec, "release_tag")
+            payload = await self._get_json(
+                source,
+                f"/repos/{full_name}/compare/{sha}...{quote(tag, safe='')}",
+            )
+            if not isinstance(payload, dict):
+                raise SourceSchemaChanged("GitHub compare response root is not an object")
+            if payload.get("status") not in {"ahead", "behind", "identical", "diverged"}:
+                raise SourceSchemaChanged("GitHub compare response has no recognized status")
+            return [
+                IngestEnvelope.for_json_payload(
+                    acquisition_run_id=acquisition_run_id,
+                    trigger=trigger,
+                    source_id=source.source_id,
+                    external_object_id=f"{full_name}:compare:{sha}:{tag}",
+                    payload=payload,
+                    canonical_url=(
+                        f"https://github.com/{full_name}/compare/{sha}...{quote(tag, safe='')}"
+                    ),
+                    published_at=None,
+                    updated_at=None,
+                    external_revision=None,
+                    request_metadata={
+                        "provider": "github", "repo_full_name": full_name,
+                        "object_type": "compare_commit_to_release",
+                    },
+                )
+            ]
+
         if object_type == "commit":
             sha = _required_str(spec, "commit_sha")
             payload = await self._get_json(source, f"/repos/{full_name}/commits/{sha}")
@@ -165,10 +196,10 @@ class GitHubRepoAdapter:
             ]
 
         if object_type == "release":
-            tag = spec.filters.get("tag")
+            release_tag = spec.filters.get("tag")
             release_id = spec.filters.get("release_id")
-            if isinstance(tag, str) and tag:
-                path = f"/repos/{full_name}/releases/tags/{quote(tag, safe='')}"
+            if isinstance(release_tag, str) and release_tag:
+                path = f"/repos/{full_name}/releases/tags/{quote(release_tag, safe='')}"
             elif isinstance(release_id, int):
                 path = f"/repos/{full_name}/releases/{release_id}"
             else:

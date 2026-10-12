@@ -177,10 +177,12 @@ def create_configured_investigation_runtime(
                     "source_ids=['github-target-repos'] reads its current official record. "
                     "Set query_text to an exact GitHub issue, pull, commit or release URL "
                     "for another record in the same repository, or 'releases' for a bounded "
-                    "current release list. A pull request read also returns bounded "
-                    "changed-file patches. "
+                    "current release list. For a fix commit versus published release tag, "
+                    "use the same-repository /compare/<commit-sha>...<release-tag> URL. "
+                    "A pull request read also returns bounded changed-file patches. "
                     "Use the promoted evidence_ref for claims supported by the returned "
-                    "record; a PR title or release note does not by itself prove a fix."
+                    "record; a PR title or release note does not by itself prove a fix. "
+                    "An ancestry comparison does not prove that a deployment uses that release."
                 ),
             },
         ),

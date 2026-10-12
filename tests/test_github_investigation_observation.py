@@ -44,6 +44,21 @@ def test_github_selection_stays_in_bound_registered_repository() -> None:
         _repo_for_object(repo, {"other/repo"})
 
 
+def test_github_selection_accepts_exact_commit_to_release_comparison() -> None:
+    repo = _repo()
+    assert _selection(
+        repo,
+        "vllm-project/vllm",
+        "https://github.com/vllm-project/vllm/compare/abcdef123456...v0.10.0",
+    ) == {
+        "object_type": "compare_commit_to_release",
+        "fix_commit_sha": "abcdef123456",
+        "release_tag": "v0.10.0",
+    }
+    with pytest.raises(ValueError, match="unsupported"):
+        _selection(repo, "vllm-project/vllm", "https://github.com/vllm-project/vllm/compare/main...v0.10.0")
+
+
 def test_bound_pull_request_reads_its_own_record_without_query_text() -> None:
     pull = ObjectModel(
         object_id="pull-1",
@@ -146,3 +161,61 @@ async def test_github_pull_read_rejects_unbound_target_before_network() -> None:
                 native_arguments={"object_id": "other-target"},
                 timeout_seconds=15,
             )
+
+
+@pytest.mark.asyncio
+async def test_github_release_comparison_records_published_release_and_ancestry() -> None:
+    source = github_investigation_source(Settings())
+    registry = github_capability_registry()
+    _, implementation = registry.resolve_binding(
+        registry.contract("github.read_development_record", 1)
+    )
+    paths: list[str] = []
+
+    def transport(request: httpx.Request) -> httpx.Response:
+        paths.append(request.url.path)
+        if "/compare/" in request.url.path:
+            return httpx.Response(200, json={
+                "status": "ahead", "ahead_by": 3, "behind_by": 0,
+                "base_commit": {"sha": "abcdef1234567890"},
+                "merge_base_commit": {"sha": "abcdef1234567890"},
+            })
+        return httpx.Response(200, json={
+            "id": 123, "tag_name": "v0.10.0", "draft": False,
+            "prerelease": False, "published_at": "2026-10-01T12:00:00Z",
+            "html_url": "https://github.com/vllm-project/vllm/releases/tag/v0.10.0",
+        })
+
+    session = MagicMock()
+    session.get = AsyncMock(return_value=_repo())
+    session.flush = AsyncMock()
+    artifacts = MagicMock()
+    artifacts.write = AsyncMock(return_value=SimpleNamespace(artifact_ref="artifact:comparison"))
+    async with httpx.AsyncClient(transport=httpx.MockTransport(transport)) as client:
+        result = await GitHubInvestigationExecutor(
+            session=session,
+            execution_id="execution:test", task_run_id="task:test",
+            allowed_object_ids={"target-1"}, source=source, client=client,
+            token=None, artifacts=artifacts,
+        ).execute(
+            implementation,
+            native_arguments={
+                "object_id": "target-1",
+                "query_text": "https://github.com/vllm-project/vllm/compare/abcdef123456...v0.10.0",
+            },
+            timeout_seconds=15,
+        )
+    assert paths == [
+        "/repos/vllm-project/vllm/compare/abcdef123456...v0.10.0",
+        "/repos/vllm-project/vllm/releases/tags/v0.10.0",
+    ]
+    assert result.status is CapabilityResultStatus.SUCCEEDED
+    assert result.cost["provider_requests"] == 2
+    assert result.provenance["record_type"] == "compare_commit_to_release"
+    assert any(
+        "fix_commit_in_release_history=True" in item["statement"]
+        for item in result.extracted_candidates
+    )
+    stored = json.loads(artifacts.write.call_args.kwargs["body"])
+    assert stored["comparison"]["status"] == "ahead"
+    assert stored["release"]["tag_name"] == "v0.10.0"

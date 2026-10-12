@@ -138,12 +138,14 @@ def github_capability_registry() -> CapabilityRegistry:
             CAPABILITY_ID: CapabilityDescriptor(
                 purpose=(
                     "Read an exact GitHub issue, pull request with changed-file patches, "
-                    "commit, release or repository record for the bound registered project"
+                    "commit, release, release/commit comparison or repository record "
+                    "for the bound registered project"
                 ),
                 limitations=[
                     "Registered repositories only; one exact record or bounded release list",
                     "A PR title or release note alone does not prove a vulnerability fix",
                     "GitHub lists at most the first 100 changed files",
+                    "Compare verifies commit ancestry in a published release tag, not deployment",
                 ],
             )
         },
@@ -207,6 +209,14 @@ def _selection(obj: ObjectModel, repo: str, query: str | None) -> dict[str, Json
         return {"object_type": "commit", "commit_sha": value}
     if kind == "releases" and value == "tag" and len(segments) == 5:
         return {"object_type": "release", "tag": _checked_tag(segments[4])}
+    if kind == "compare" and len(segments) == 4 and "..." in value:
+        sha, tag = value.split("...", 1)
+        if _SHA.fullmatch(sha):
+            return {
+                "object_type": "compare_commit_to_release",
+                "fix_commit_sha": sha,
+                "release_tag": _checked_tag(tag),
+            }
     raise ValueError("unsupported GitHub development record URL")
 
 
@@ -217,6 +227,23 @@ def _checked_tag(tag: str) -> str:
 
 
 def _statements(payload: dict[str, object], kind: str) -> list[JsonValue]:
+    if kind == "compare_commit_to_release":
+        release = payload.get("release")
+        comparison = payload.get("comparison")
+        if not isinstance(release, dict) or not isinstance(comparison, dict):
+            return []
+        status = comparison.get("status")
+        contained = status in {"ahead", "identical"}
+        return [{"statement": (
+            f"Official GitHub release tag {release.get('tag_name')} "
+            f"(published_at={release.get('published_at')}, "
+            f"draft={release.get('draft')}, prerelease={release.get('prerelease')}) "
+            f"points to a commit compared with fix commit {payload.get('fix_commit_sha')}. "
+            f"GitHub comparison status={status}, ahead_by={comparison.get('ahead_by')}, "
+            f"behind_by={comparison.get('behind_by')}; "
+            f"fix_commit_in_release_history={contained}. "
+            f"Release URL={release.get('html_url')}."
+        )}]
     if kind == "releases":
         releases = payload.get("releases")
         if not isinstance(releases, list):
@@ -399,6 +426,55 @@ class GitHubInvestigationExecutor:
                         request_metadata={
                             "provider": "github",
                             "object_type": "pull_request_with_files",
+                        },
+                    )
+                if kind == "compare_commit_to_release":
+                    comparison = envelope
+                    base_commit = comparison.json_payload.get("base_commit")
+                    base_sha = (
+                        base_commit.get("sha") if isinstance(base_commit, dict) else None
+                    )
+                    if not isinstance(base_sha, str) or not base_sha.lower().startswith(
+                        str(filters["fix_commit_sha"]).lower()
+                    ):
+                        raise ValueError("GitHub comparison did not resolve the requested commit")
+                    request_count = 2
+                    release = (await adapter.query(
+                        self._source,
+                        QuerySpec(filters={
+                            "repo_full_name": repo,
+                            "object_type": "release",
+                            "tag": filters["release_tag"],
+                        }),
+                        acquisition_run_id=run_id,
+                        trigger=AcquisitionTrigger.INVESTIGATION,
+                    ))[0]
+                    release_payload = release.json_payload
+                    if release_payload.get("tag_name") != filters["release_tag"]:
+                        raise ValueError("GitHub release did not resolve the requested tag")
+                    if release_payload.get("draft") is True or not release_payload.get(
+                        "published_at"
+                    ):
+                        raise ValueError("release tag is not a published GitHub release")
+                    envelope = IngestEnvelope.for_json_payload(
+                        acquisition_run_id=run_id,
+                        trigger=AcquisitionTrigger.INVESTIGATION,
+                        source_id=SOURCE_ID,
+                        external_object_id=(
+                            f"{repo}:compare:{filters['fix_commit_sha']}:"
+                            f"{filters['release_tag']}:investigation"
+                        ),
+                        payload={
+                            "fix_commit_sha": filters["fix_commit_sha"],
+                            "release": release_payload,
+                            "comparison": comparison.json_payload,
+                        },
+                        canonical_url=comparison.canonical_url,
+                        published_at=release.published_at,
+                        updated_at=release.updated_at,
+                        external_revision=None,
+                        request_metadata={
+                            "provider": "github", "object_type": "compare_commit_to_release",
                         },
                     )
         except Exception as exc:
