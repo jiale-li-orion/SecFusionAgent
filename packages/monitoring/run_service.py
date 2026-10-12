@@ -7,7 +7,7 @@ from typing import Any
 from uuid import uuid4
 
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.intelligence.storage.artifacts import ArtifactStoreUnavailable
@@ -269,14 +269,37 @@ async def recover_stale_acquisition_runs(
 ) -> list[str]:
     instant = now or datetime.now(UTC)
     threshold = instant - timedelta(seconds=timeout_seconds)
+    # A queued run with a pending outbox event still has a delivery path. A
+    # delivered event whose worker message was lost has none; re-publish only
+    # after the last delivery attempt is stale. The consumer locks the run and
+    # makes duplicate Celery messages idempotent.
+    recent_or_pending_delivery = exists().where(
+        OutboxEventModel.aggregate_id == AcquisitionRunModel.run_id,
+        OutboxEventModel.topic == "collection.requested",
+        or_(
+            OutboxEventModel.status == "pending",
+            OutboxEventModel.available_at > threshold,
+            OutboxEventModel.delivered_at > threshold,
+        ),
+    )
     statement = (
         select(AcquisitionRunModel)
         .where(
-            AcquisitionRunModel.status == "running",
-            AcquisitionRunModel.started_at.is_not(None),
-            AcquisitionRunModel.started_at <= threshold,
+            or_(
+                (
+                    (AcquisitionRunModel.status == "running")
+                    & AcquisitionRunModel.started_at.is_not(None)
+                    & (AcquisitionRunModel.started_at <= threshold)
+                ),
+                (
+                    (AcquisitionRunModel.status == "queued")
+                    & (AcquisitionRunModel.trigger == "scheduled")
+                    & (AcquisitionRunModel.created_at <= threshold)
+                    & ~recent_or_pending_delivery
+                ),
+            ),
         )
-        .order_by(AcquisitionRunModel.started_at)
+        .order_by(func.coalesce(AcquisitionRunModel.started_at, AcquisitionRunModel.created_at))
         .limit(limit)
         .with_for_update(skip_locked=True)
     )

@@ -85,6 +85,7 @@ The Product Web at `/product/` has four primary spaces: **World / Intelligence /
 Investigation planning now uses the admitted `agent_turns` limit (up to 64) and records prior logical model requests when resuming a TaskRun. M5 model attempts reserve and settle token/retry budgets through the recorded provider, as M6 decisions already do; M3 semantic extraction and provider monetary cost remain separate open measurement boundaries.
 When a delegated enrichment child fails or blocks, the parent investigation now receives the child status as planner feedback and may inspect retained evidence or choose another permitted source; repeated attempts remain bounded.
 The CVE-only delegation route is selected from bound task targets and validates the target object's vulnerability identity; related evidence objects cannot silently switch a paper or repository investigation into a CVE task.
+M1 recovery now redelivers scheduled acquisition runs stranded in `queued` after a stale delivered outbox event, while keeping pending or recently delivered events single-flight.
 
 QUESTIONS pages through older account conversations and turns. Completed Product questions and Investigations present cited, natural-paragraph research reports generated from the same validated Decision; structured fields and conclusions stay available for audit and evaluation. Earlier decisions without report paragraphs remain readable through their validated conclusions.
 

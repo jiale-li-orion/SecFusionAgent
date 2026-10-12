@@ -627,6 +627,124 @@ async def test_stale_running_run_is_requeued_with_new_outbox_event() -> None:
         await engine.dispose()
 
 
+@pytest.mark.asyncio
+async def test_stale_queued_run_is_redelivered_once_without_duplicate_pending_event() -> None:
+    engine, factory = await _database()
+    now = datetime(2026, 9, 25, 5, 0, tzinfo=UTC)
+    try:
+        async with factory() as session, session.begin():
+            session.add(
+                AcquisitionRunModel(
+                    run_id="stale-queued",
+                    source_id="nvd-cves-2",
+                    trigger="scheduled",
+                    parent_run_id=None,
+                    query_spec={},
+                    status="queued",
+                    cursor_in={},
+                    cursor_out={},
+                    attempt=0,
+                    created_at=now - timedelta(minutes=30),
+                )
+            )
+            session.add(
+                OutboxEventModel(
+                    event_id="first-delivery",
+                    topic="collection.requested",
+                    aggregate_id="stale-queued",
+                    payload={"run_id": "stale-queued"},
+                    status="delivered",
+                    attempts=1,
+                    available_at=now - timedelta(minutes=30),
+                    delivered_at=now - timedelta(minutes=29),
+                )
+            )
+        async with factory() as session, session.begin():
+            recovered = await recover_stale_acquisition_runs(
+                session, now=now, timeout_seconds=15 * 60
+            )
+        assert recovered == ["stale-queued"]
+        async with factory() as session, session.begin():
+            assert await recover_stale_acquisition_runs(
+                session, now=now + timedelta(minutes=1), timeout_seconds=15 * 60
+            ) == []
+        async with factory() as session:
+            events = list(await session.scalars(
+                select(OutboxEventModel).where(
+                    OutboxEventModel.aggregate_id == "stale-queued"
+                )
+            ))
+        assert len(events) == 2
+        assert sorted(event.status for event in events) == ["delivered", "pending"]
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_queued_recovery_waits_for_existing_pending_delivery() -> None:
+    engine, factory = await _database()
+    now = datetime(2026, 9, 25, 5, 0, tzinfo=UTC)
+    try:
+        async with factory() as session, session.begin():
+            session.add(
+                AcquisitionRunModel(
+                    run_id="pending-queued",
+                    source_id="nvd-cves-2",
+                    trigger="scheduled",
+                    parent_run_id=None,
+                    query_spec={},
+                    status="queued",
+                    cursor_in={},
+                    cursor_out={},
+                    attempt=0,
+                    created_at=now - timedelta(minutes=30),
+                )
+            )
+            session.add(
+                OutboxEventModel(
+                    event_id="pending-delivery",
+                    topic="collection.requested",
+                    aggregate_id="pending-queued",
+                    payload={"run_id": "pending-queued"},
+                    status="pending",
+                    attempts=0,
+                    available_at=now - timedelta(minutes=30),
+                )
+            )
+            session.add(
+                AcquisitionRunModel(
+                    run_id="recently-redelivered",
+                    source_id="nvd-cves-2",
+                    trigger="scheduled",
+                    parent_run_id=None,
+                    query_spec={},
+                    status="queued",
+                    cursor_in={},
+                    cursor_out={},
+                    attempt=0,
+                    created_at=now - timedelta(minutes=30),
+                )
+            )
+            session.add(
+                OutboxEventModel(
+                    event_id="recent-delivery",
+                    topic="collection.requested",
+                    aggregate_id="recently-redelivered",
+                    payload={"run_id": "recently-redelivered"},
+                    status="delivered",
+                    attempts=1,
+                    available_at=now - timedelta(minutes=2),
+                    delivered_at=now - timedelta(minutes=1),
+                )
+            )
+        async with factory() as session, session.begin():
+            assert await recover_stale_acquisition_runs(
+                session, now=now, timeout_seconds=15 * 60
+            ) == []
+    finally:
+        await engine.dispose()
+
+
 def _as_utc(value: datetime | None) -> datetime | None:
     if value is None:
         return None

@@ -113,6 +113,7 @@ This service deliberately stops at `IngestEnvelope`. The caller must still send 
 `run_service.py` owns start/complete/fail transitions. Collection runs are idempotent at the run-id boundary: re-executing a terminal or already-running run returns no new work. Failure classification maps provider/runtime exceptions into stable statuses and backoff behavior.
 
 The scheduler process also calls stale-run recovery. Recovery changes durable run/source state and emits work through the normal outbox path instead of invoking collectors inline.
+Recovery covers both timed-out `running` runs and scheduled runs stranded in `queued` after their original outbox event was marked delivered. A queued run is redispatched only when its last delivery is older than the timeout and no `collection.requested` event remains pending; the run ID is reused, so concurrent or duplicate worker delivery remains idempotent. This closes the case where a lost broker message otherwise blocks every future schedule for that source indefinitely.
 
 For a source that opts into catch-up scheduling, successful completion can move `next_due_at` earlier than the value chosen when the run was queued. This update happens in the same durable completion transaction as `cursor_out`, so a crash cannot persist “backfill pending” while losing the accelerated next-due decision.
 
