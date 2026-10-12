@@ -1,7 +1,8 @@
 .source-identity { display:inline-flex; align-items:center; gap:10px; min-width:0; vertical-align:middle; }
-.source-avatar { display:inline-grid; place-items:center; width:30px; height:30px; flex:none; border:1px solid #e7e8ec; border-radius:9px; background:#fff; color:#333844; font-size:11px; font-weight:650; letter-spacing:-.025em; }
-.source-avatar img { width:18px; height:18px; object-fit:contain; }
-.source-identity-name { font-size:13px; font-weight:550; color:#454b57; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.source-avatar { display:inline-grid; place-items:center; width:30px; height:30px; flex:none; border:1px solid #dce4f0; border-radius:9px; background:linear-gradient(145deg,#f9fbff,#eaf0fa); box-shadow:inset 0 1px 0 #fff,0 2px 5px #24396010; color:#31539a; font-size:10px; font-weight:750; letter-spacing:-.04em; }
+.source-avatar:has(img) { border-color:transparent; background:transparent; box-shadow:none; }
+.source-avatar img { width:21px; height:21px; object-fit:contain; }
+.source-identity-name { font-size:13px; font-weight:590; color:#414e65; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .source-anthropic { background:#f7f3ec; }
 .source-arxiv { background:#fff6f5; }
 .source-huggingface { background:#fff9e9; }
