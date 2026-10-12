@@ -9,3 +9,8 @@ export function latestObservedAt(evidence: Array<{ observed_at: string }>): stri
     return Number.isFinite(time) && (latest === null || time > Date.parse(latest)) ? item.observed_at : latest
   }, null)
 }
+
+export function presentationTitle(title: string) {
+  // Publisher dates and link labels belong in the byline/source, not the headline.
+  return title.trim().replace(/^\d{4}-\d{2}-\d{2}\s+(?=\S)/, '').replace(/\s+(?:See details|Read more)$/i, '').trim()
+}

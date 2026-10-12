@@ -19,11 +19,11 @@ export function EvidenceAtlas({ directions, overview, stories, focusedId, region
   const materials = selected ? [selected, ...unique.filter(s => s.story_id !== selected.story_id)].slice(0, 3) : []
   return <div className={`world-atlas ${region ? 'has-source-focus' : ''}`}>
     <WorldGlobe/>
-    <div className="world-atlas-coordinate" aria-hidden="true"><span>SOURCE CONSTELLATION</span><span>01 — 08</span></div>
+    <div className="world-atlas-coordinate" aria-hidden="true"><span>{text('点击来源，查看流入的材料', 'Select a source to inspect its material')}</span><span>{text('八类来源', 'Eight domains')}</span></div>
     <svg className="world-graph" viewBox="0 0 740 460" preserveAspectRatio="none" aria-hidden="true">
       <defs><radialGradient id="world-field-glow"><stop stopColor="#4263eb" stopOpacity=".16" /><stop offset="1" stopColor="#4263eb" stopOpacity="0" /></radialGradient><linearGradient id="world-provenance-light" x1="0" x2="1"><stop stopColor="#7395ff" stopOpacity=".12" /><stop offset="1" stopColor="#84dcf5" stopOpacity=".7" /></linearGradient></defs>
       <ellipse cx="370" cy="250" rx="320" ry="200" fill="url(#world-field-glow)" />
-      <g className="world-orbit-lines"><ellipse cx="365" cy="236" rx="290" ry="167" transform="rotate(-13 365 236)" /><ellipse cx="365" cy="236" rx="231" ry="133" transform="rotate(-13 365 236)" /><ellipse cx="365" cy="236" rx="164" ry="96" transform="rotate(-13 365 236)" /><path d="M58 306 662 166M150 40 575 430" /></g>
+      <g className="world-orbit-lines"><ellipse cx="365" cy="236" rx="290" ry="167" transform="rotate(-13 365 236)" /><ellipse cx="365" cy="236" rx="231" ry="133" transform="rotate(-13 365 236)" /><ellipse cx="365" cy="236" rx="164" ry="96" transform="rotate(-13 365 236)" /></g>
       {materials.map((story, i) => { const sourceIndex = directions.findIndex(d => d.key === story.category); if (sourceIndex < 0) return null; const [sx, sy] = sourcePoints[sourceIndex]; const [x, y] = materialPoints[i]; return <g key={story.story_id} data-category={story.category} className={i === 0 ? 'world-edge is-focused' : 'world-edge'}><path d={`M${sx} ${sy} Q${(sx + x) / 2} ${sy - 26} ${x} ${y}`} /><circle cx={sx} cy={sy} r="3" /><circle cx={x} cy={y} r={i === 0 ? 7 : 4} /></g> })}
 
     </svg>

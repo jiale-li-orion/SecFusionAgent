@@ -24,6 +24,7 @@ import {
 } from '../lib/api'
 import { HotWorkingSetPanel, IncidentDossier, IntelligenceArchiveBlueprint } from '../components/intelligence/DossierSurfaces'
 import { DossierHeading, DossierReader, type DossierView } from '../components/intelligence/DossierReader'
+import { presentationTitle } from '../components/intelligence/feedPresentation'
 import { EvidenceOverlay } from '../components/investigations/CaseSurfaces'
 import { humanize } from '../lib/intelligencePresentation'
 import { useI18n } from '../lib/i18n'
@@ -104,9 +105,9 @@ export function IntelligencePage() {
   })
   const incident = incidentQuery.data
   const displayName = documentQuery.data?.current_revision?.title ?? [obj?.properties.display_name, obj?.properties.title, obj?.properties.full_name, obj?.properties.name, obj?.properties.ip].find((v) => typeof v === 'string' && v)
-  const headline = incident
+  const headline = presentationTitle(incident
     ? incident.incident.current_summary || humanize(incident.incident.incident_type)
-    : (typeof displayName === 'string' && displayName) || obj?.external_identifiers.cve?.[0] || obj?.canonical_key || selectedCve || selectedObjectId || text('选择一个对象', 'SELECT AN OBJECT')
+    : (typeof displayName === 'string' && displayName) || obj?.external_identifiers.cve?.[0] || obj?.canonical_key || selectedCve || selectedObjectId || text('选择一个对象', 'SELECT AN OBJECT'))
 
   async function submitSearch(event: React.FormEvent) {
     event.preventDefault()
@@ -187,7 +188,7 @@ export function IntelligencePage() {
 
   return (
     <section className={`intel-experience ${hasSelection ? 'has-dossier' : 'intel-home'}`}>
-      <header className="intel-page-heading"><div>{hasSelection && <button className="intel-back" onClick={() => { setInputOverride(null); setParams(destination({})) }}><ArrowLeft size={15}/>{text('返回情报', 'Back to intelligence')}</button>}{!hasSelection && <><h1>{text('情报', 'Intelligence')}</h1></>}</div>
+      <header className="intel-page-heading"><div>{hasSelection && <button className="intel-back" onClick={() => { setInputOverride(null); setParams(destination({})) }}><ArrowLeft size={15}/>{text('返回情报', 'Back to intelligence')}</button>}{!hasSelection && <><span className="intel-page-kicker">SECFUSION / INTELLIGENCE</span><h1>{text('情报', 'Intelligence')}</h1><p>{text('跟进值得关注的变化，沿证据读懂它的来龙去脉。', 'Follow what matters and trace each story to its evidence.')}</p></>}</div>
         {!hasSelection && <form className="intel-search intel-discovery-search" onSubmit={submitSearch}>
           <Search size={15} />
           <Input value={input} onChange={(event) => setInputOverride(event.target.value)} aria-label={text("查找情报对象", "Find an intelligence object")} placeholder={text("论文、项目、漏洞编号或资产名称", "Paper, project, vulnerability or asset")} />

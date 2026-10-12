@@ -11,8 +11,12 @@
 .world-sync button { color: #4263eb; }
 .world-status-dot { width: 7px; height: 7px; border-radius: 50%; background: #13856f; box-shadow: 0 0 0 4px #13856f0d; }
 .world-status-dot.is-unavailable { background: #8390a3; box-shadow: none; }
-.world-stage { --world-text: #eff4ff; --world-muted: #8b9cbb; position: relative; overflow: hidden; border: 1px solid #202e47; border-radius: 14px; color: var(--world-text); background: #0b1020; box-shadow: 0 18px 50px #14244614; }
+.world-stage { --world-text: #eff4ff; --world-muted: #9dabca; position: relative; overflow: hidden; border: 1px solid #253858; border-radius: 18px; color: var(--world-text); background: radial-gradient(ellipse at 38% 45%, #172744, #0b1020 68%); box-shadow: 0 28px 65px -45px #0b1c45a6, inset 0 1px 0 #90b5ff19; }
 .world-stage-top { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 18px 24px; border-bottom: 1px solid #a1bbef13; }
+.world-stage-top [data-slot=tabs-list] { border-color:#33496f; background:linear-gradient(180deg,#1b2a47,#121d34); box-shadow:inset 0 1px 4px #050b1f88; }
+.world-stage-top [data-slot=tabs-trigger] { color:#9cafcf; }
+.world-stage-top [data-slot=tabs-trigger][data-state=active] { color:#f6f9ff; border-color:#5172ac; background:linear-gradient(180deg,#344f7b,#243b60); box-shadow:inset 0 1px 0 #9dbbff40,0 2px 8px #050b1f73; }
+.world-stage-top [data-slot=tabs-trigger]:hover { color:#fff; }
 .world-map-label { display: flex; align-items: center; gap: 10px; color: #bbc9e3; font-size: 11px; letter-spacing: .06em; }
 .world-map-label svg { color: #7497fa; }
 .world-source-anchor:first-child { border-left:1px solid #829bce1c; }
@@ -23,11 +27,11 @@
 
 .world-content { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(290px, 1fr); min-height: 465px; }
 .world-main { min-width: 0; position: relative; }
-.world-atlas { position: relative; min-height: 465px; height: 100%; overflow: hidden; isolation: isolate; background: radial-gradient(ellipse at 52% 50%, #182c541f, transparent 68%); }
+.world-atlas { position: relative; min-height: 465px; height: 100%; overflow: hidden; isolation: isolate; background: radial-gradient(ellipse at 52% 50%, #38589320, transparent 68%); }
 .world-atlas::before { position: absolute; content: ''; z-index: -1; inset: 0; opacity: .18; background-image: radial-gradient(#9abbf866 .8px, transparent .8px); background-size: 24px 24px; mask-image: radial-gradient(ellipse, #000 20%, transparent 70%); }
 .world-globe { position:absolute; width:min(72%,460px); aspect-ratio:1; top:50%; left:50%; transform:translate(-50%,-50%); pointer-events:none; opacity:.9; z-index:-1; }
 .world-globe canvas { display:block; width:100%; height:100%; }
-.world-atlas-coordinate { position: absolute; top: 23px; left: 25px; right: 20px; display: flex; justify-content: space-between; color: #7c8eac; font: 10px/1.4 var(--font-mono, monospace); letter-spacing: .14em; }
+.world-atlas-coordinate { position: absolute; top: 23px; left: 25px; right: 20px; display: flex; justify-content: space-between; gap:12px; color: #9aaccb; font-size: 11px; line-height:1.5; letter-spacing: .02em; }
 .world-graph { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .world-orbit-lines { fill: none; stroke: #829ccb; stroke-width: .6; stroke-opacity: .14; }
 .world-orbit-lines ellipse:nth-child(2) { stroke-dasharray: 2 8; }
@@ -42,10 +46,11 @@
 .world-node-mark { display: grid; place-items: center; width: 32px; height: 32px; border: 1px solid #516b9f; border-radius: 10px; color: #97b7ed; background: radial-gradient(circle at 35% 22%, #2c4168, #10192c 75%); box-shadow: 0 3px 12px #050918aa; transition: transform .2s; }
 .world-node-mark .source-avatar { border:0; }
 .world-node-mark .source-avatar img { width:20px; height:20px; }
+.world-node-mark .source-arxiv img,.world-node-mark .source-github img { filter:invert(1); opacity:.88; }
 .world-material-node.is-focused .source-avatar img { width:27px; height:27px; }
 .world-material-node:hover .world-node-mark { transform: scale(1.12); }
 .world-node-label { width: 100%; padding: 8px 10px; border: 1px solid #6c8ece1f; border-radius: 5px; background: #0c1322e8; backdrop-filter:blur(10px); }
-.world-node-label small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #758bad; font-size: 10px; }
+.world-node-label small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #9aafd0; font-size: 11px; }
 .world-node-label strong { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-top: 3px; font-size: 12px; line-height: 1.5; font-weight: 450; overflow-wrap: anywhere; }
 .world-node-arrow { position: absolute; top: 33px; right: 5px; opacity: 0; }
 .world-material-node:hover .world-node-arrow { opacity: 1; }
@@ -54,7 +59,7 @@
 .world-material-node.is-focused .world-node-label { border-color: #749eee64; background: linear-gradient(120deg, #20335a, #122039); box-shadow: 0 8px 24px #0003; }
 .world-material-node.is-focused small { color: #93b8f4; }
 .world-material-node.is-focused strong { font-size: 11px; }
-.world-map-legend { position: absolute; bottom: 22px; left: 25px; display: flex; gap: 15px; color: #667c9f; font-size: 9px; }
+.world-map-legend { position: absolute; bottom: 22px; left: 25px; display: flex; gap: 15px; color: #91a5c5; font-size: 10px; }
 .world-map-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .world-map-legend i { width: 5px; height: 5px; border: 1px solid #6b84ae; border-radius: 50%; }
 .world-map-legend span:nth-child(2) i { background: #7da8e6; }
@@ -200,8 +205,9 @@
 
 /* Source controls use the shared Button/Tooltip components; only scene geometry belongs here. */
 .world-source-nodes { position:absolute; inset:0; pointer-events:none; z-index:3; }
-.world-source-node { position:absolute; transform:translate(-50%, -50%); display:flex; flex-direction:column; gap:6px; width:auto; min-width:64px; height:62px; padding:8px; pointer-events:auto; font-size:12px; }
-.world-source-node svg { width:20px; height:20px; }
+.world-source-node { position:absolute; transform:translate(-50%, -50%); display:flex; flex-direction:column; gap:5px; width:auto; min-width:74px; height:64px; padding:8px 10px; pointer-events:auto; font-size:13px; font-weight:550; color:#d5e3fb; border:1px solid transparent; border-radius:12px; text-shadow:0 1px 8px #030b1d; }
+.world-source-node:hover,.world-source-node[data-selected=true] { color:#fff; border-color:#658ff16b; background:#182c4ac7; box-shadow:0 10px 25px #02091670; }
+.world-source-node svg { width:20px; height:20px; color:#9dc2ff; }
 .world-recent-knowledge { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:22px 0; border-bottom:1px solid var(--ui-border); }
 .world-recent-knowledge > div { display:flex; align-items:center; gap:12px; }
 .world-recent-knowledge span { display:grid; gap:5px; }

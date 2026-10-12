@@ -16,7 +16,7 @@ import { useI18n } from '../../lib/i18n'
 import { Item, ItemContent } from '../ui/item'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '../ui/dropdown-menu'
 import { Button } from '../ui/button'
-import { dateLabel, latestObservedAt } from './feedPresentation'
+import { dateLabel, latestObservedAt, presentationTitle } from './feedPresentation'
 import { SourceIdentity } from '../ui/source-identity'
 import { readableObjectTitle } from '../../lib/source-identity'
 
@@ -54,7 +54,7 @@ export function PersonalizedIntelligence({ following = false, onOpen }: { follow
       <div className="intel-reading-feed">{items.map(item => {
         const observed = item.activity_at ?? item.published_at ?? item.observed_at ?? latestObservedAt(item.evidence)
         const origin = item.evidence.find(ref => ref.evidence_ref === item.activity_evidence_ref) ?? item.evidence.find(ref => ref.evidence_ref === item.timestamp_evidence_ref) ?? item.evidence[0]
-        const title = item.title || readableObjectTitle(item.label, origin?.canonical_url, origin?.source_id)
+        const title = presentationTitle(item.title || readableObjectTitle(item.label, origin?.canonical_url, origin?.source_id))
         const summary = item.summary?.replace(/\s+/g, ' ').trim()
         const reason = item.reasons[0]
         return <Item asChild key={item.activity_id} className="rounded-none border-0 border-b border-border px-0 py-6 sm:py-7"><article>
