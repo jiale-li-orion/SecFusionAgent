@@ -258,3 +258,44 @@ async def test_delegated_enrichment_rejects_scope_expansion_before_child_creatio
             )
     finally:
         await engine.dispose()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("object_type", "cve_id"),
+    [("ResearchWork", "CVE-2026-71717"), ("Vulnerability", "CVE-2026-99999")],
+)
+async def test_delegation_requires_bound_vulnerability_identity(
+    object_type: str, cve_id: str
+) -> None:
+    engine, factory = await _database()
+    budget = BudgetGovernor(now=lambda: NOW)
+    execution = ExecutionRunService(now=lambda: NOW)
+    try:
+        async with factory() as session, session.begin():
+            parent_run_id, object_id, _, _ = await _seed_parent(session, budget, execution)
+            obj = await session.get(ObjectModel, object_id)
+            assert obj is not None
+            obj.object_type = object_type
+        adapter = EnrichmentDelegationAdapter(
+            factory,
+            policy=DelegatedEnrichmentPolicy(
+                budget_quantities={"tool_calls": Decimal("1")}
+            ),
+            budget_governor=budget,
+            execution_service=execution,
+            stream_name=STREAM,
+        )
+        with pytest.raises(ValueError, match="bound Vulnerability CVE"):
+            await adapter.delegate_enrichment(
+                parent_run_id=parent_run_id,
+                request=EnrichmentDelegationRequest(
+                    delegation_id="wrong-target-kind",
+                    target_object_id=object_id,
+                    cve_id=cve_id,
+                    required_dimensions=["fix_remediation"],
+                    reason="test",
+                ),
+            )
+    finally:
+        await engine.dispose()

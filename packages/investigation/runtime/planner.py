@@ -246,8 +246,8 @@ class ModelInvestigationPlanner:
                 session,
                 manifest,
             )
-            object_types = _object_types(context_fragments)
-            source_task = "Vulnerability" not in object_types
+            object_types = _task_target_types(context_fragments, frame.state.targets)
+            source_task = object_types != ["Vulnerability"]
             role = canonical_roles()["InvestigationRole"]
             selection = await self._skill_resolver.resolve(
                 session,
@@ -388,10 +388,15 @@ class ModelInvestigationPlanner:
         )
 
 
-def _object_types(fragments: list[MaterializedFragment]) -> list[str]:
+def _task_target_types(
+    fragments: list[MaterializedFragment], target_object_ids: list[str]
+) -> list[str]:
     result: set[str] = set()
+    targets = set(target_object_ids)
     for fragment in fragments:
         if fragment.kind != "knowledge_object" or not isinstance(fragment.content, dict):
+            continue
+        if fragment.content.get("object_id") not in targets:
             continue
         object_type = fragment.content.get("object_type")
         if isinstance(object_type, str) and object_type:

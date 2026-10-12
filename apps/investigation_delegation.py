@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from packages.enrichment.runtime.tasks import build_vulnerability_enrichment_contract
 from packages.intelligence.knowledge.vocabulary import EnrichmentDimension
+from packages.intelligence.storage.knowledge_models import ObjectModel
 from packages.investigation.runtime.contracts import (
     DelegationResult,
     EnrichmentDelegationRequest,
@@ -78,6 +79,13 @@ class EnrichmentDelegationAdapter:
                 raise ValueError(
                     "delegated enrichment target must be present in parent ContextManifest"
                 )
+            target = await session.get(ObjectModel, request.target_object_id)
+            if (
+                target is None
+                or target.object_type != "Vulnerability"
+                or target.canonical_key.upper() != f"cve:{request.cve_id}".upper()
+            ):
+                raise ValueError("delegated enrichment requires the bound Vulnerability CVE")
             if not set(self._policy.capability_scope) <= set(parent_envelope.capability_scope):
                 raise ValueError("delegated capability scope exceeds parent execution scope")
             if not set(self._policy.identity_scope) <= set(parent_envelope.identity_scope):

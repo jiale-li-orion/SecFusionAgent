@@ -28,6 +28,7 @@ from packages.investigation.runtime.contracts import (
 from packages.investigation.runtime.planner import (
     ModelInvestigationPlanner,
     PlannerCapabilityContext,
+    _task_target_types,
     _visible_object_ref_aliases,
 )
 from packages.investigation.runtime.role import InvestigationRoleRuntime
@@ -91,6 +92,28 @@ def test_visible_object_ref_aliases_resolve_nested_relation_target_canonical_key
     )
     assert aliases["software-version:npm:knowns:0.30.0"] == "object:version-object-id"
     assert aliases["version-object-id"] == "object:version-object-id"
+
+
+def test_planner_type_gate_uses_bound_target_not_related_vulnerability() -> None:
+    fragments = [
+        MaterializedFragment.build(
+            kind="knowledge_object",
+            source_ref=object_id,
+            source_revision="1",
+            trust_class=FragmentTrustClass.EVIDENCE_REFERENCE,
+            cache_class=FragmentCacheClass.STATE_DYNAMIC,
+            content={"object_id": object_id, "object_type": object_type},
+        )
+        for object_id, object_type in (
+            ("paper-1", "ResearchWork"),
+            ("cve-1", "Vulnerability"),
+        )
+    ]
+    assert _task_target_types(fragments, ["paper-1"]) == ["ResearchWork"]
+    assert _task_target_types(fragments, ["cve-1"]) == ["Vulnerability"]
+    assert _task_target_types(fragments, ["paper-1", "cve-1"]) == [
+        "ResearchWork", "Vulnerability"
+    ]
 
 
 class _CapabilityContext:
