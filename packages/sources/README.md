@@ -14,6 +14,7 @@
 
 For `html_index` on-demand URL queries, the adapter reads a bounded `h1` from the fetched HTML when discovery did not supply a title. The title remains source-derived request metadata; the article parser separately chooses body content, so a related-post card cannot provide the document excerpt for an unrelated headline.
 HTML index reads validate the URL before every redirect; a `Location` outside configured HTTPS hosts is rejected before any request reaches it. InvestigationRole may invoke this adapter only through its registered-source Capability binding, which additionally binds one public primary/authority/forensic source and the TaskContract target before promoting the raw page to durable Evidence. A bounded index title match is a discovery lead, not a fact claim.
+The registered GitHub repository adapter also supports an on-demand pull-request file listing. InvestigationRole reads the PR metadata and at most the first 100 changed-file records into one promoted investigation observation, retaining the original API payload and a bounded patch excerpt. `possibly_truncated` and missing `patch` remain explicit; a changed-file listing is evidence of code changes, not proof by itself that a vulnerability is fixed.
 
 `IngestEnvelope` is the handoff into M1/M2. It carries acquisition-run identity, source/object identity, source timestamps, observation time, provider revision when available, media type, payload/body, request metadata, content hash, and idempotency key. JSON payloads are canonicalized before hashing. The idempotency identity is:
 

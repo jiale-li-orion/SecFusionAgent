@@ -95,6 +95,33 @@
       "action_patterns": ["promote_observation"],
       "resource_patterns": ["source:*"],
       "authorization": "permit"
+    },
+    {
+      "policy_id": "github-investigation-capability-visible",
+      "policy_revision": "policy-v1",
+      "decision_points": ["capability_visibility"],
+      "principal_patterns": ["user:*", "system:*"],
+      "action_patterns": ["read_development_record"],
+      "resource_patterns": ["capability:github.read_development_record"],
+      "authorization": "permit"
+    },
+    {
+      "policy_id": "github-investigation-capability-invoke",
+      "policy_revision": "policy-v1",
+      "decision_points": ["capability_invocation"],
+      "principal_patterns": ["user:*", "system:*"],
+      "action_patterns": ["read_development_record"],
+      "resource_patterns": ["source:github-target-repos"],
+      "authorization": "permit"
+    },
+    {
+      "policy_id": "github-investigation-observation-promote",
+      "policy_revision": "policy-v1",
+      "decision_points": ["observation_promotion"],
+      "principal_patterns": ["user:*", "system:*"],
+      "action_patterns": ["promote_observation"],
+      "resource_patterns": ["source:github-target-repos"],
+      "authorization": "permit"
     }
   ]
 }

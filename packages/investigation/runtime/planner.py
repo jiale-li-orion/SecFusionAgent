@@ -104,8 +104,8 @@ class SourceInvestigationPlannerDecision(BaseModel):
 
 _SOURCE_EVIDENCE_GUIDANCE = MaterializedFragment.build(
     kind="source_investigation_guidance",
-    source_ref="runtime-guidance:source-investigation-v5",
-    source_revision="source-investigation-v5",
+    source_ref="runtime-guidance:source-investigation-v6",
+    source_revision="source-investigation-v6",
     trust_class=FragmentTrustClass.RUNTIME_CONTROL,
     cache_class=FragmentCacheClass.TASK_STABLE,
     content={
@@ -133,6 +133,11 @@ _SOURCE_EVIDENCE_GUIDANCE = MaterializedFragment.build(
             "returned excerpt, canonical URL, source role and promoted evidence_ref; "
             "record only what the source actually supports. A no-match result does not "
             "prove absence and should lead to a different relevant source or an open gap. "
+            "For a bound GitHub development object, use the registered GitHub external "
+            "observation when current issue, pull request, commit or release evidence is "
+            "needed. Supply the exact same-repository URL if a linked record is the "
+            "target; a pull request read includes changed-file patches. Distinguish code "
+            "changes actually visible in the patch from claims in a title or description. "
             "A pull request title is a lead, not proof of a vulnerability or a fix. "
             "For source/document questions, prioritize the requested passages and comparison "
             "dimensions. INSPECT returns at most eight document chunks at a time; when "

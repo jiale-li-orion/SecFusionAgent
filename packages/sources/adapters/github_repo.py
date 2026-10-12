@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 from pydantic import JsonValue
@@ -126,6 +127,34 @@ class GitHubRepoAdapter:
                 )
             ]
 
+        if object_type == "pull_request_files":
+            number = _required_int(spec, "pull_number")
+            payload = await self._get_json(
+                source,
+                f"/repos/{full_name}/pulls/{number}/files",
+                params={"per_page": "100"},
+            )
+            if not isinstance(payload, list) or not all(isinstance(item, dict) for item in payload):
+                raise SourceSchemaChanged("GitHub pull request files response is not a list")
+            return [
+                IngestEnvelope.for_json_payload(
+                    acquisition_run_id=acquisition_run_id,
+                    trigger=trigger,
+                    source_id=source.source_id,
+                    external_object_id=f"{full_name}:pull_request_files:{number}",
+                    payload={"files": payload, "possibly_truncated": len(payload) >= 100},
+                    canonical_url=f"https://github.com/{full_name}/pull/{number}/files",
+                    published_at=None,
+                    updated_at=None,
+                    external_revision=None,
+                    request_metadata={
+                        "provider": "github",
+                        "repo_full_name": full_name,
+                        "object_type": "pull_request_files",
+                    },
+                )
+            ]
+
         if object_type == "commit":
             sha = _required_str(spec, "commit_sha")
             payload = await self._get_json(source, f"/repos/{full_name}/commits/{sha}")
@@ -139,7 +168,7 @@ class GitHubRepoAdapter:
             tag = spec.filters.get("tag")
             release_id = spec.filters.get("release_id")
             if isinstance(tag, str) and tag:
-                path = f"/repos/{full_name}/releases/tags/{tag}"
+                path = f"/repos/{full_name}/releases/tags/{quote(tag, safe='')}"
             elif isinstance(release_id, int):
                 path = f"/repos/{full_name}/releases/{release_id}"
             else:

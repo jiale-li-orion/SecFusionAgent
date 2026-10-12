@@ -9,6 +9,7 @@
     "archive_state",
     "issue_identity",
     "pull_request_identity",
+    "pull_request_changed_files",
     "commit_identity",
     "release_identity",
     "merge_commit_relation",

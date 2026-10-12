@@ -6,6 +6,11 @@ from decimal import Decimal
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from apps.github_investigation_observation import (
+    GitHubInvestigationObservationPort,
+    github_capability_registry,
+    github_investigation_source,
+)
 from apps.investigation_capabilities import CapabilityPlannerContextProvider
 from apps.investigation_delegation import (
     DelegatedEnrichmentPolicy,
@@ -46,9 +51,11 @@ class InvestigationExternalObservationPort:
         self,
         nvd: NVDObservationPort,
         registered: RegisteredSourceObservationPort,
+        github: GitHubInvestigationObservationPort,
     ) -> None:
         self._nvd = nvd
         self._registered = registered
+        self._github = github
 
     async def execute(
         self,
@@ -57,6 +64,8 @@ class InvestigationExternalObservationPort:
         request: PerceptionRequest,
         step: PhysicalPerceptionStep,
     ) -> PerceptionStepResult:
+        if request.target.source_ids == ["github-target-repos"]:
+            return await self._github.execute(task_run_id=task_run_id, request=request, step=step)
         if request.target.source_ids and request.target.source_ids != ["nvd-cves-2"]:
             return await self._registered.execute(
                 task_run_id=task_run_id, request=request, step=step
@@ -109,10 +118,12 @@ def create_configured_investigation_runtime(
     if artifact_service is None:
         raise InvestigationRuntimeUnavailable("InvestigationRole requires runtime artifact storage")
     research_sources = registered_research_sources(settings)
+    github_source = github_investigation_source(settings)
     registry = CapabilityRegistry.combine(
-        "investigation-external-v2",
+        "investigation-external-v3",
         nvd_capability_registry(),
         registered_source_registry(research_sources),
+        github_capability_registry(),
     )
     policy = load_runtime_policy(settings.runtime_policy_path)
     planner = ModelInvestigationPlanner(
@@ -159,6 +170,17 @@ def create_configured_investigation_runtime(
                         f"{source_id}={source.discovery_method['index_url']}"
                         for source_id, source in research_sources.items()
                     )
+                ),
+                "github_external_observation": (
+                    "For a bound Repo, PullRequest, Issue, Commit or Release in a registered "
+                    "GitHub repository, observe_external with target.object_id and "
+                    "source_ids=['github-target-repos'] reads its current official record. "
+                    "Set query_text to an exact GitHub issue, pull, commit or release URL "
+                    "for another record in the same repository, or 'releases' for a bounded "
+                    "current release list. A pull request read also returns bounded "
+                    "changed-file patches. "
+                    "Use the promoted evidence_ref for claims supported by the returned "
+                    "record; a PR title or release note does not by itself prove a fix."
                 ),
             },
         ),
@@ -207,6 +229,16 @@ def create_configured_investigation_runtime(
                     policy,
                     budget,
                     research_sources,
+                ),
+                GitHubInvestigationObservationPort(
+                    settings,
+                    session_factory,
+                    client,
+                    artifact_service,
+                    registry,
+                    policy,
+                    budget,
+                    github_source,
                 ),
             )
         ),

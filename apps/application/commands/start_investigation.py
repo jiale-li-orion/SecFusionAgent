@@ -19,6 +19,7 @@ from apps.application.errors import (
 )
 from apps.application.queries.investigations import InvestigationQueries
 from apps.application.views.investigations import StartInvestigationResult
+from apps.github_investigation_observation import CAPABILITY_ID as GITHUB_CAPABILITY_ID
 from apps.registered_source_observation import CAPABILITY_ID as REGISTERED_SOURCE_CAPABILITY_ID
 from apps.task_admission import create_task_contract_service
 from packages.intelligence.knowledge.read import get_vulnerability_by_cve
@@ -198,7 +199,7 @@ class InvestigationTaskLauncher:
             object_refs=list(case.target_object_ids),
             policy_context_ref=f"policy-context:{policy.policy_revision}",
             capability_envelope_ref=(
-                "capability:investigation:external-v2"
+                "capability:investigation:external-v3"
                 if capability_scope
                 else "capability:investigation:local-v1"
             ),
@@ -526,6 +527,17 @@ async def _investigation_capability_scope(
 ) -> list[str]:
     if not target_object_ids:
         return []
+    scope = [REGISTERED_SOURCE_CAPABILITY_ID]
+    github_target = await session.scalar(
+        select(ObjectModel.object_id).where(
+            ObjectModel.object_id.in_(target_object_ids),
+            ObjectModel.object_type.in_(["Repo", "Issue", "PullRequest", "Commit", "Release"]),
+            ObjectModel.canonical_key.like("github:%"),
+            ObjectModel.superseded_revision.is_(None),
+        )
+    )
+    if github_target is not None:
+        scope.append(GITHUB_CAPABILITY_ID)
     candidates = list(
         await session.scalars(
             select(ObjectModel).where(
@@ -536,7 +548,7 @@ async def _investigation_capability_scope(
         )
     )
     if not candidates:
-        return [REGISTERED_SOURCE_CAPABILITY_ID]
+        return scope
     identifiers = (
         await session.execute(
             select(ExternalIdentifierModel.object_id, ExternalIdentifierModel.value).where(
@@ -548,7 +560,6 @@ async def _investigation_capability_scope(
     by_object: dict[str, list[str]] = {}
     for object_id, value in identifiers:
         by_object.setdefault(object_id, []).append(value)
-    scope = [REGISTERED_SOURCE_CAPABILITY_ID]
     if any(
         len(values) == 1 and re.fullmatch(r"CVE-\d{4}-\d{4,}", values[0], re.IGNORECASE)
         for values in by_object.values()

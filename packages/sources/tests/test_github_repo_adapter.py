@@ -5,7 +5,7 @@ import httpx
 import pytest
 
 from packages.sources.adapters.github_repo import GitHubRepoAdapter
-from packages.sources.contracts import AcquisitionTrigger, SourceState
+from packages.sources.contracts import AcquisitionTrigger, QuerySpec, SourceState
 from packages.sources.errors import SourceRateLimited
 from packages.sources.registry.loader import load_source_definitions
 
@@ -102,3 +102,33 @@ async def test_github_repo_rate_limit_exposes_provider_reset(monkeypatch) -> Non
         with pytest.raises(SourceRateLimited) as captured:
             await adapter.discover(SOURCE, SourceState())
     assert captured.value.retry_after_seconds == 3600
+
+
+@pytest.mark.asyncio
+async def test_github_repo_can_read_bounded_pull_request_files() -> None:
+    paths: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        paths.append(request.url.path)
+        assert request.url.params["per_page"] == "100"
+        return httpx.Response(
+            200,
+            json=[{"filename": "src/fix.py", "patch": "@@ -1 +1 @@\n-bad\n+fixed"}],
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        result = await GitHubRepoAdapter(client).query(
+            SOURCE,
+            QuerySpec(
+                filters={
+                    "repo_full_name": "vllm-project/vllm",
+                    "object_type": "pull_request_files",
+                    "pull_number": 42,
+                }
+            ),
+            acquisition_run_id="pull-files-run",
+            trigger=AcquisitionTrigger.INVESTIGATION,
+        )
+    assert paths == ["/repos/vllm-project/vllm/pulls/42/files"]
+    assert result[0].canonical_url == "https://github.com/vllm-project/vllm/pull/42/files"
+    assert result[0].json_payload["files"][0]["filename"] == "src/fix.py"
