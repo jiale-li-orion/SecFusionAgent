@@ -9,6 +9,7 @@ from redis.asyncio import Redis
 
 from apps.runtime_models import register_runtime_models
 from apps.worker.celery_app import celery_app
+from packages.runtime.execution.recovery import recover_queued_role_tasks
 from packages.shared.config import get_settings
 from packages.shared.db import create_engine, create_session_factory
 from packages.task_runtime.contracts.models import TaskEventType, TaskRunStatus
@@ -17,7 +18,6 @@ from packages.task_runtime.events.redis_stream import (
     read_task_event_messages,
 )
 from packages.task_runtime.scheduler import DependencyWakeDisposition, DependencyWakeScheduler
-from packages.task_runtime.scheduler.recovery import recover_queued_role_tasks
 from packages.task_runtime.storage.service import get_task_event, get_task_run
 
 logger = logging.getLogger(__name__)
@@ -36,11 +36,16 @@ async def tick(*, consumer_name: str | None = None) -> tuple[int, int, int, int,
     replayed = 0
     dispatched = 0
     try:
-        async with factory() as session, session.begin():
-            retried_runs, closed_runs = await recover_queued_role_tasks(
-                session,
-                stream_name=settings.task_event_stream_name,
-            )
+        retried_runs: list[str] = []
+        closed_runs: list[str] = []
+        try:
+            async with factory() as session, session.begin():
+                retried_runs, closed_runs = await recover_queued_role_tasks(
+                    session,
+                    stream_name=settings.task_event_stream_name,
+                )
+        except Exception:
+            logger.exception("queued Role recovery failed; continuing task event delivery")
         messages = await read_task_event_messages(
             redis,
             stream_name=settings.task_event_stream_name,

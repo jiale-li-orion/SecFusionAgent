@@ -36,7 +36,7 @@ Task Event delivery is independent from Celery broker and Hot Cache Redis. Healt
 
 The Redis consumer uses a consumer group with `XAUTOCLAIM` before reading fresh entries. Database scheduling commits before `XACK`; consumer loss therefore replays an event, while PostgreSQL wake idempotency prevents duplicate state transitions.
 
-`recover_queued_role_tasks` closes a remaining dispatch gap: when a Role TaskRun stays queued after its original event was delivered, it appends a durable recovery event after five minutes only if no dispatch event is pending or recently delivered. The original run ID and execution envelope remain authoritative. A queued run past its absolute execution deadline becomes `timed_out` instead of being sent to a worker; a missing or invalid envelope becomes `blocked`. The worker's atomic queued-run claim still prevents duplicate execution if the original Celery message arrives later.
+The runtime execution owner closes the remaining lost-dispatch gap using TaskRun events and ExecutionEnvelope deadlines. This package retains the durable TaskRun event and atomic claim primitives; it does not read execution-control storage directly.
 
 The scheduler deliberately owns lifecycle/relevance/claim semantics, not domain composition. It does not instantiate model/tool providers. A queued TaskRun is executable intent; `apps.worker` maps the durable queued event to a coarse-grained Role task and injects the domain Role handler into `QueuedRoleExecutor`.
 

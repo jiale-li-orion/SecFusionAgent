@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from apps.runtime_models import register_runtime_models
+from packages.runtime.execution.recovery import recover_queued_role_tasks
 from packages.runtime.execution.service import ExecutionRunService
 from packages.shared.db import Base
 from packages.task_runtime.contracts.execution import ExecutionEnvelope
@@ -22,7 +23,6 @@ from packages.task_runtime.contracts.models import (
     TaskRunStatus,
 )
 from packages.task_runtime.contracts.roles import canonical_roles
-from packages.task_runtime.scheduler.recovery import recover_queued_role_tasks
 from packages.task_runtime.storage.models import TaskEventDeliveryModel, TaskEventModel
 from packages.task_runtime.storage.service import (
     create_task_run,
