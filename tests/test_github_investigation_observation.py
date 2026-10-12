@@ -44,6 +44,23 @@ def test_github_selection_stays_in_bound_registered_repository() -> None:
         _repo_for_object(repo, {"other/repo"})
 
 
+def test_bound_pull_request_reads_its_own_record_without_query_text() -> None:
+    pull = ObjectModel(
+        object_id="pull-1",
+        object_type="PullRequest",
+        canonical_key="github:vllm-project/vllm:pull:9123",
+        properties={"repo_full_name": "vllm-project/vllm", "number": 9123},
+        created_revision=1,
+    )
+    repo = _repo_for_object(pull, {"vllm-project/vllm"})
+    assert _selection(pull, repo, None) == {
+        "object_type": "pull_request", "pull_number": 9123,
+    }
+    pull.properties = {"repo_full_name": "vllm-project/vllm"}
+    with pytest.raises(ValueError, match="exact number"):
+        _selection(pull, repo, None)
+
+
 @pytest.mark.asyncio
 async def test_github_pull_read_includes_changed_file_patch_and_provenance() -> None:
     source = github_investigation_source(Settings())

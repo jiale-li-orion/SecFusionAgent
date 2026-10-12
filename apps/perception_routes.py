@@ -45,6 +45,7 @@ class PerceptionCapabilityRoute(BaseModel):
     resource_input_key: str | None = None
     resource_prefix: str = ""
     argument_map: dict[str, str] = Field(default_factory=dict)
+    optional_argument_map: dict[str, str] = Field(default_factory=dict)
     static_arguments: dict[str, JsonValue] = Field(default_factory=dict)
     estimated_budget: dict[str, Decimal] = Field(default_factory=dict)
     healthy_refs: set[str] | None = None
@@ -65,6 +66,8 @@ class PerceptionCapabilityRoute(BaseModel):
                 raise ValueError(f"PerceptionCapabilityRoute {label} cannot be empty")
         if (self.resource is None) == (self.resource_input_key is None):
             raise ValueError("route requires exactly one of resource or resource_input_key")
+        if set(self.argument_map) & set(self.optional_argument_map):
+            raise ValueError("required and optional route arguments cannot overlap")
         return self
 
 
@@ -263,6 +266,9 @@ def _project_arguments(
         if input_key not in step.input:
             raise ValueError(f"perception route {route.route_id} requires step input {input_key!r}")
         result[canonical_name] = _json_value(step.input[input_key], input_key)
+    for canonical_name, input_key in route.optional_argument_map.items():
+        if input_key in step.input:
+            result[canonical_name] = _json_value(step.input[input_key], input_key)
     return result
 
 

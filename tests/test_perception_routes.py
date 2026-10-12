@@ -105,6 +105,7 @@ async def test_static_resolver_binds_external_route_and_promotion_without_native
                         "repo_full_name": "repo_full_name",
                         "tag": "release_tag",
                     },
+                    optional_argument_map={"query_text": "query_text"},
                     estimated_budget={"tool_calls": Decimal("1")},
                     healthy_refs={"health:github"},
                     available_execution_classes={ExecutionClass.PROXIED_PROVIDER_READ},
@@ -144,6 +145,14 @@ async def test_static_resolver_binds_external_route_and_promotion_without_native
             "tag": "v0.22.0",
         }
         assert "ignored_native_detail" not in resolved.request.canonical_arguments
+        with_query = await resolver.resolve_external(
+            task_run_id=run_id,
+            request=request,
+            step=step.model_copy(update={
+                "input": {**step.input, "query_text": "releases"},
+            }),
+        )
+        assert with_query.request.canonical_arguments["query_text"] == "releases"
         assert resolved.request.evidence_purpose == "need-release"
         assert resolved.available_execution_classes == {ExecutionClass.PROXIED_PROVIDER_READ}
         assert resolved.promotion is not None

@@ -98,3 +98,5 @@ make model-provider-probe
 Planner correction context retains the latest StatePatch rejection alongside the preceding source Percepts, so a rejected target can be corrected without losing its evidence. Visible source-object aliases are normalized to stable object refs; relation IDs are never promoted to M4 targets. The full Role-loop regression verifies rejection, correction and one accepted finding through the unchanged M4 gate.
 
 If the model provider returns HTTP 402 before planning, the Role records `model_provider_payment_required` as its failure reason. This is an execution dependency failure rather than a finding about the investigated object; Product renders a readable service-credit explanation and retains earlier evidence.
+
+The external-perception route now distinguishes required from optional canonical arguments. A bound GitHub Repo/Issue/PR/Commit/Release can be read with only its `object_id`; `query_text` is optional for a specific same-repository URL or the bounded `releases` list. A missing optional query no longer aborts before the CapabilityBroker is reached.
