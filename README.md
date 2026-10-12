@@ -421,7 +421,7 @@ The current implementation is organized around several invariants that should re
 7. Agent trajectories and reusable experience are observable and versioned.
 8. Package dependencies follow ownership direction and remain acyclic.
 
-Task Event scheduling recovers Role runs stranded in `queued` after a lost coarse Celery delivery. Recovery uses the same durable event outbox and run ID; an expired execution deadline closes the run as `timed_out` instead of silently retrying it.
+Task Event scheduling recovers Role runs stranded in `queued` after a lost coarse Celery delivery, and closes orphaned `running` episodes after their absolute execution deadline. Recovery uses the same durable event outbox and run ID; expired work becomes `timed_out` instead of silently retrying or appearing active forever.
 
 The detailed rationale, failure cases and revisit conditions for these decisions are maintained in the project Wiki rather than duplicated into source comments or this README.
 

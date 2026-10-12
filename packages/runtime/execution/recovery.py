@@ -18,6 +18,7 @@ from packages.task_runtime.storage.models import (
 from packages.task_runtime.storage.service import append_task_event, transition_task_run
 
 DISPATCHED_ROLES = ("EnrichmentRole", "InvestigationRole")
+EXECUTING_ROLES = ("DecisionRole", *DISPATCHED_ROLES)
 
 
 async def recover_queued_role_tasks(
@@ -145,3 +146,64 @@ async def recover_queued_role_tasks(
         )
         retried.append(run.run_id)
     return retried, closed
+
+
+async def expire_stale_running_tasks(
+    session: AsyncSession,
+    *,
+    now: datetime | None = None,
+    stale_seconds: int = 300,
+    limit: int = 100,
+    stream_name: str = "secfusion:task-events",
+) -> list[str]:
+    """Close orphaned running episodes after their absolute execution deadline."""
+    if stale_seconds < 1 or limit < 1:
+        raise ValueError("execution recovery bounds must be positive")
+    instant = now or datetime.now(UTC)
+    threshold = instant - timedelta(seconds=stale_seconds)
+    runs = list(
+        await session.scalars(
+            select(TaskRunModel)
+            .where(
+                TaskRunModel.status == TaskRunStatus.RUNNING.value,
+                TaskRunModel.role_id.in_(EXECUTING_ROLES),
+                TaskRunModel.updated_at <= threshold,
+            )
+            .order_by(TaskRunModel.updated_at, TaskRunModel.run_id)
+            .limit(limit)
+            .with_for_update(skip_locked=True)
+        )
+    )
+    closed: list[str] = []
+    execution_service = ExecutionRunService(now=lambda: instant)
+    for run in runs:
+        execution = await session.get(ExecutionRunModel, run.execution_envelope_ref)
+        if execution is None or execution.status not in {"created", "running"}:
+            # Without an active execution record, this episode has no valid
+            # deadline authority. Leave it visible for an operator audit.
+            continue
+        try:
+            envelope = ExecutionEnvelope.model_validate(execution.envelope_json)
+        except ValidationError:
+            continue
+        if envelope.task_run_id != run.run_id or envelope.deadline_at > instant:
+            continue
+        await transition_task_run(
+            session,
+            run_id=run.run_id,
+            target=TaskRunStatus.TIMED_OUT,
+            payload_ref="execution-recovery:deadline-exceeded",
+            idempotency_key=f"execution-recovery:deadline:{run.run_id}",
+            stream_name=stream_name,
+            producer="execution-runtime-recovery",
+            stop_reason="deadline_exceeded_without_terminal_result",
+            now=instant,
+        )
+        await execution_service.finish(
+            session,
+            execution.execution_id,
+            status="timed_out",
+            stop_reason="deadline_exceeded_without_terminal_result",
+        )
+        closed.append(run.run_id)
+    return closed

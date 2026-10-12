@@ -9,7 +9,10 @@ from redis.asyncio import Redis
 
 from apps.runtime_models import register_runtime_models
 from apps.worker.celery_app import celery_app
-from packages.runtime.execution.recovery import recover_queued_role_tasks
+from packages.runtime.execution.recovery import (
+    expire_stale_running_tasks,
+    recover_queued_role_tasks,
+)
 from packages.shared.config import get_settings
 from packages.shared.db import create_engine, create_session_factory
 from packages.task_runtime.contracts.models import TaskEventType, TaskRunStatus
@@ -23,7 +26,7 @@ from packages.task_runtime.storage.service import get_task_event, get_task_run
 logger = logging.getLogger(__name__)
 
 
-async def tick(*, consumer_name: str | None = None) -> tuple[int, int, int, int, int, int]:
+async def tick(*, consumer_name: str | None = None) -> tuple[int, int, int, int, int, int, int]:
     register_runtime_models()
     settings = get_settings()
     engine = create_engine(settings.database_url)
@@ -38,9 +41,14 @@ async def tick(*, consumer_name: str | None = None) -> tuple[int, int, int, int,
     try:
         retried_runs: list[str] = []
         closed_runs: list[str] = []
+        expired_running: list[str] = []
         try:
             async with factory() as session, session.begin():
                 retried_runs, closed_runs = await recover_queued_role_tasks(
+                    session,
+                    stream_name=settings.task_event_stream_name,
+                )
+                expired_running = await expire_stale_running_tasks(
                     session,
                     stream_name=settings.task_event_stream_name,
                 )
@@ -83,7 +91,15 @@ async def tick(*, consumer_name: str | None = None) -> tuple[int, int, int, int,
             consumed += 1
             queued += int(result.disposition is DependencyWakeDisposition.QUEUED)
             replayed += int(result.disposition is DependencyWakeDisposition.REPLAY)
-        return consumed, queued, replayed, dispatched, len(retried_runs), len(closed_runs)
+        return (
+            consumed,
+            queued,
+            replayed,
+            dispatched,
+            len(retried_runs),
+            len(closed_runs),
+            len(expired_running),
+        )
     finally:
         await redis.aclose()
         await engine.dispose()
@@ -94,19 +110,20 @@ async def run_forever() -> None:
     consumer_name = _consumer_name()
     while True:
         try:
-            consumed, queued, replayed, dispatched, retried, closed = await tick(
+            consumed, queued, replayed, dispatched, retried, closed, expired_running = await tick(
                 consumer_name=consumer_name
             )
-            if consumed or retried or closed:
+            if consumed or retried or closed or expired_running:
                 logger.info(
                     "task event scheduler consumed=%d queued=%d replayed=%d "
-                    "dispatched=%d recovered=%d expired=%d",
+                    "dispatched=%d recovered=%d queued_expired=%d running_expired=%d",
                     consumed,
                     queued,
                     replayed,
                     dispatched,
                     retried,
                     closed,
+                    expired_running,
                 )
         except Exception:
             logger.exception("task event scheduler tick failed")

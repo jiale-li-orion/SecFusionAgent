@@ -8,8 +8,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from apps.runtime_models import register_runtime_models
-from packages.runtime.execution.recovery import recover_queued_role_tasks
+from packages.runtime.execution.recovery import (
+    expire_stale_running_tasks,
+    recover_queued_role_tasks,
+)
 from packages.runtime.execution.service import ExecutionRunService
+from packages.runtime.storage.models import ExecutionRunModel
 from packages.shared.db import Base
 from packages.task_runtime.contracts.execution import ExecutionEnvelope
 from packages.task_runtime.contracts.models import (
@@ -43,13 +47,19 @@ async def _database():
     return engine, async_sessionmaker(engine, expire_on_commit=False)
 
 
-async def _queued_role(factory, *, deadline_at: datetime, queued_at: datetime) -> str:
+async def _queued_role(
+    factory,
+    *,
+    deadline_at: datetime,
+    queued_at: datetime,
+    role_id: str = "InvestigationRole",
+) -> str:
     run_id = str(uuid4())
     contract = TaskContract(
         task_contract_id=f"recover:{run_id}",
         contract_revision=1,
         principal="user:test",
-        task_kind=TaskKind.VERIFY_VERSION_FIX,
+        task_kind=(TaskKind.LOOKUP if role_id == "DecisionRole" else TaskKind.VERIFY_VERSION_FIX),
         target_resources=["object:test"],
         desired_state={"test": True},
         evidence_contract={},
@@ -64,7 +74,7 @@ async def _queued_role(factory, *, deadline_at: datetime, queued_at: datetime) -
         context_id=f"context:{run_id}",
         context_revision=1,
         task_contract_ref=f"{contract.task_contract_id}@1",
-        role_ref="InvestigationRole@1",
+        role_ref=f"{role_id}@1",
         knowledge_revision=1,
         object_refs=["test"],
         policy_context_ref="policy-context:v1",
@@ -76,7 +86,7 @@ async def _queued_role(factory, *, deadline_at: datetime, queued_at: datetime) -
             session,
             contract=contract,
             manifest=manifest,
-            role=canonical_roles()["InvestigationRole"],
+            role=canonical_roles()[role_id],
             execution_envelope_ref=f"execution:{run_id}",
             stream_name=STREAM,
             run_id=run_id,
@@ -97,7 +107,7 @@ async def _queued_role(factory, *, deadline_at: datetime, queued_at: datetime) -
                 execution_id=f"execution:{run_id}",
                 task_contract_id=contract.task_contract_id,
                 task_run_id=run_id,
-                role_revision="InvestigationRole@1",
+                role_revision=f"{role_id}@1",
                 context_manifest_revision=1,
                 execution_profile=ExecutionProfile.VERIFY,
                 deadline_at=deadline_at,
@@ -174,5 +184,42 @@ async def test_expired_queued_role_times_out_instead_of_dispatching() -> None:
         assert run.stop_reason == "deadline_reached_before_start"
         assert events[-1].event_type is TaskEventType.TASK_FAILED
         assert recovery_events == []
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_orphaned_running_decision_closes_after_execution_deadline() -> None:
+    engine, factory = await _database()
+    try:
+        run_id = await _queued_role(
+            factory,
+            role_id="DecisionRole",
+            deadline_at=NOW - timedelta(minutes=1),
+            queued_at=NOW - timedelta(minutes=10),
+        )
+        async with factory() as session, session.begin():
+            await transition_task_run(
+                session,
+                run_id=run_id,
+                target=TaskRunStatus.RUNNING,
+                payload_ref="start:test",
+                idempotency_key=f"start:{run_id}",
+                stream_name=STREAM,
+                now=NOW - timedelta(minutes=10),
+            )
+            await ExecutionRunService(now=lambda: NOW - timedelta(minutes=10)).start(
+                session, f"execution:{run_id}"
+            )
+        async with factory() as session, session.begin():
+            assert await expire_stale_running_tasks(
+                session, now=NOW, stale_seconds=300, stream_name=STREAM
+            ) == [run_id]
+        async with factory() as session:
+            run = await get_task_run(session, run_id)
+            execution = await session.get(ExecutionRunModel, f"execution:{run_id}")
+        assert run.status is TaskRunStatus.TIMED_OUT
+        assert run.stop_reason == "deadline_exceeded_without_terminal_result"
+        assert execution is not None and execution.status == "timed_out"
     finally:
         await engine.dispose()
