@@ -54,7 +54,7 @@ class HTMLIndexAdapter:
         max_items = _positive_int(source.discovery_method.get("max_items"), default=50)
         allowed_hosts = _allowed_hosts(source, index_url)
 
-        response = await self._get(index_url)
+        response = await self._get(index_url, allowed_hosts)
         tree = HTMLParser(response.text)
         containers: list[Node]
         if item_selector:
@@ -137,7 +137,7 @@ class HTMLIndexAdapter:
         allowed_hosts = _allowed_hosts(source, _required_setting(source, "index_url"))
         if not _is_allowed_url(ref.canonical_url, allowed_hosts):
             raise ValueError("HTML source URL is outside configured allowed_hosts")
-        response = await self._get(ref.canonical_url)
+        response = await self._get(ref.canonical_url, allowed_hosts)
         content_type = response.headers.get("content-type", "").split(";", 1)[0].strip().lower()
         allowed_media_types = _allowed_media_types(source)
         effective_media_type = content_type or "text/html"
@@ -210,20 +210,34 @@ class HTMLIndexAdapter:
             )
         ]
 
-    async def _get(self, url: str) -> httpx.Response:
-        try:
-            response = await self._client.get(
-                url,
-                follow_redirects=True,
-                headers={
-                    "User-Agent": self.USER_AGENT,
-                    "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.1",
-                },
-            )
-        except httpx.HTTPError as exc:
-            raise SourceFetchFailed(
-                f"HTML source request failed: {exc.__class__.__name__}"
-            ) from exc
+    async def _get(self, url: str, allowed_hosts: set[str]) -> httpx.Response:
+        # Validate each redirect before the next request, rather than checking only the
+        # final URL after httpx has already followed an untrusted Location header.
+        for _ in range(5):
+            if not _is_allowed_url(url, allowed_hosts):
+                raise SourceAccessBlocked("HTML source redirect left configured allowed_hosts")
+            try:
+                response = await self._client.get(
+                    url,
+                    follow_redirects=False,
+                    headers={
+                        "User-Agent": self.USER_AGENT,
+                        "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.1",
+                    },
+                )
+            except httpx.HTTPError as exc:
+                raise SourceFetchFailed(
+                    f"HTML source request failed: {exc.__class__.__name__}"
+                ) from exc
+            if response.status_code in {301, 302, 303, 307, 308}:
+                location = response.headers.get("location")
+                if not location:
+                    raise SourceFetchFailed("HTML source redirect has no Location")
+                url = urljoin(str(response.url), location)
+                continue
+            break
+        else:
+            raise SourceFetchFailed("HTML source exceeded redirect limit")
         if response.status_code == 429:
             raise SourceRateLimited("HTML source rate limit reached")
         if response.status_code in {401, 403}:
@@ -310,7 +324,14 @@ def _allowed_hosts(source: SourceDefinition, index_url: str) -> set[str]:
 def _is_allowed_url(url: str, allowed_hosts: set[str]) -> bool:
     parsed = urlparse(url)
     host = parsed.hostname
-    return parsed.scheme in {"http", "https"} and host is not None and host.lower() in allowed_hosts
+    return (
+        parsed.scheme == "https"
+        and parsed.port in {None, 443}
+        and parsed.username is None
+        and parsed.password is None
+        and host is not None
+        and host.lower() in allowed_hosts
+    )
 
 
 def _title_for(container: Node, link: Node, title_selector: str | None) -> str:

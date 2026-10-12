@@ -15,6 +15,7 @@ from packages.sources.contracts import (
     SourceRole,
     SourceState,
 )
+from packages.sources.errors import SourceAccessBlocked
 
 SOURCE = SourceDefinition(
     source_id="vendor-security-html",
@@ -133,6 +134,25 @@ async def test_html_index_query_enforces_allowed_host() -> None:
                 acquisition_run_id=str(uuid4()),
                 trigger=AcquisitionTrigger.INVESTIGATION,
             )
+
+
+@pytest.mark.asyncio
+async def test_html_index_rejects_cross_host_redirect_before_request() -> None:
+    requested: list[str] = []
+
+    def transport(request: httpx.Request) -> httpx.Response:
+        requested.append(str(request.url))
+        return httpx.Response(302, headers={"location": "https://evil.example/private"})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(transport)) as client:
+        with pytest.raises(SourceAccessBlocked, match="allowed_hosts"):
+            await HTMLIndexAdapter(client).query(
+                SOURCE,
+                QuerySpec(filters={"url": "https://security.example.test/research/a"}),
+                acquisition_run_id=str(uuid4()),
+                trigger=AcquisitionTrigger.INVESTIGATION,
+            )
+    assert requested == ["https://security.example.test/research/a"]
 
 
 @pytest.mark.asyncio

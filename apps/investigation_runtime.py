@@ -13,12 +13,23 @@ from apps.investigation_delegation import (
 )
 from apps.model_runtime import RuntimePromptAssemblyRecorder, create_recorded_model_provider
 from apps.nvd_observation import NVDObservationPort, nvd_capability_registry
+from apps.registered_source_observation import (
+    RegisteredSourceObservationPort,
+    registered_research_sources,
+    registered_source_registry,
+)
+from packages.investigation.perception.contracts import (
+    PerceptionRequest,
+    PerceptionStepResult,
+    PhysicalPerceptionStep,
+)
 from packages.investigation.perception.runtime import PerceptionRuntime
 from packages.investigation.runtime.contracts import InvestigationExecutionBoundary
 from packages.investigation.runtime.planner import ModelInvestigationPlanner
 from packages.investigation.runtime.role import InvestigationRoleRuntime
 from packages.runtime.artifacts import RuntimeArtifactService
 from packages.runtime.budget import BudgetGovernor
+from packages.runtime.capability.registry import CapabilityRegistry
 from packages.runtime.execution.service import ExecutionRunService
 from packages.runtime.policy.loader import load_runtime_policy
 from packages.shared.config import Settings
@@ -28,6 +39,29 @@ from packages.task_runtime.storage.service import get_task_run
 
 class InvestigationRuntimeUnavailable(RuntimeError):
     pass
+
+
+class InvestigationExternalObservationPort:
+    def __init__(
+        self,
+        nvd: NVDObservationPort,
+        registered: RegisteredSourceObservationPort,
+    ) -> None:
+        self._nvd = nvd
+        self._registered = registered
+
+    async def execute(
+        self,
+        *,
+        task_run_id: str,
+        request: PerceptionRequest,
+        step: PhysicalPerceptionStep,
+    ) -> PerceptionStepResult:
+        if request.target.source_ids and request.target.source_ids != ["nvd-cves-2"]:
+            return await self._registered.execute(
+                task_run_id=task_run_id, request=request, step=step
+            )
+        return await self._nvd.execute(task_run_id=task_run_id, request=request, step=step)
 
 
 class RuntimeInvestigationExecutionBoundary(InvestigationExecutionBoundary):
@@ -74,7 +108,12 @@ def create_configured_investigation_runtime(
     execution = execution_service or ExecutionRunService()
     if artifact_service is None:
         raise InvestigationRuntimeUnavailable("InvestigationRole requires runtime artifact storage")
-    registry = nvd_capability_registry()
+    research_sources = registered_research_sources(settings)
+    registry = CapabilityRegistry.combine(
+        "investigation-external-v2",
+        nvd_capability_registry(),
+        registered_source_registry(research_sources),
+    )
     policy = load_runtime_policy(settings.runtime_policy_path)
     planner = ModelInvestigationPlanner(
         session_factory,
@@ -97,7 +136,8 @@ def create_configured_investigation_runtime(
                 "enrichment_delegation": (
                     "EnrichmentRole v1 only accepts a Vulnerability with its actual CVE. "
                     "Document, ResearchWork, Repo and InternetAsset investigations use "
-                    "local perception (inspect, search, trace) and StatePatch. "
+                    "local perception (inspect, search, trace), registered official source "
+                    "observation when needed, and StatePatch. "
                     "Read source material using perception before drawing conclusions; "
                     "inspect with target.object_id reads current document chunks. "
                     "Use returned durable evidence_ref values as evidence_refs in StatePatch; "
@@ -107,10 +147,18 @@ def create_configured_investigation_runtime(
                 ),
                 "official_external_observation": (
                     "For an existing Vulnerability with an actual CVE, observe_external with "
-                    "target.object_id reads the latest official NVD record. The returned "
+                    "target.object_id and source_ids=['nvd-cves-2'] reads the latest official "
+                    "NVD record. For a non-CVE target, use observe_external with its bound "
+                    "target.object_id, exactly one source_id from registered_research_sources, "
+                    "and query_text set to a source URL or focused title/query. The returned "
                     "observation is untrusted until the runtime promotes it to a durable "
                     "Evidence reference. Use the promoted evidence_ref for confirmed StatePatch. "
-                    "Do not use this operation for non-CVE objects or an arbitrary URL."
+                    "Do not infer that a failed index search proves absence. Registered "
+                    "source IDs and their index URLs: "
+                    + "; ".join(
+                        f"{source_id}={source.discovery_method['index_url']}"
+                        for source_id, source in research_sources.items()
+                    )
                 ),
             },
         ),
@@ -140,14 +188,26 @@ def create_configured_investigation_runtime(
         session_factory,
         planner,
         perception_runtime=PerceptionRuntime(
-            NVDObservationPort(
-                settings,
-                session_factory,
-                client,
-                artifact_service,
-                registry,
-                policy,
-                budget,
+            InvestigationExternalObservationPort(
+                NVDObservationPort(
+                    settings,
+                    session_factory,
+                    client,
+                    artifact_service,
+                    registry,
+                    policy,
+                    budget,
+                ),
+                RegisteredSourceObservationPort(
+                    settings,
+                    session_factory,
+                    client,
+                    artifact_service,
+                    registry,
+                    policy,
+                    budget,
+                    research_sources,
+                ),
             )
         ),
         delegation_port=delegation,

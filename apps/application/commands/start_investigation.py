@@ -19,6 +19,7 @@ from apps.application.errors import (
 )
 from apps.application.queries.investigations import InvestigationQueries
 from apps.application.views.investigations import StartInvestigationResult
+from apps.registered_source_observation import CAPABILITY_ID as REGISTERED_SOURCE_CAPABILITY_ID
 from apps.task_admission import create_task_contract_service
 from packages.intelligence.knowledge.read import get_vulnerability_by_cve
 from packages.intelligence.storage.knowledge_models import (
@@ -197,7 +198,7 @@ class InvestigationTaskLauncher:
             object_refs=list(case.target_object_ids),
             policy_context_ref=f"policy-context:{policy.policy_revision}",
             capability_envelope_ref=(
-                "capability:investigation:nvd-v1"
+                "capability:investigation:external-v2"
                 if capability_scope
                 else "capability:investigation:local-v1"
             ),
@@ -248,7 +249,9 @@ class InvestigationTaskLauncher:
                 budget_ref=budget_ref,
                 policy_revision=policy.policy_revision,
                 identity_scope=["public"],
-                network_policy="local-only",
+                network_policy=(
+                    "registered-public-sources-only" if capability_scope else "local-only"
+                ),
                 side_effect_policy="internal-state-only",
                 sandbox_profile_revision="process_restricted@1",
                 trace_context=trace_context,
@@ -302,9 +305,11 @@ class StartInvestigationUseCase:
             principal=command.principal,
             operation="start_investigation",
             key=command.idempotency_key,
-            digest=command_digest(command.model_dump(
-                mode="json", exclude={"principal", "request_id", "trace_id", "idempotency_key"}
-            )),
+            digest=command_digest(
+                command.model_dump(
+                    mode="json", exclude={"principal", "request_id", "trace_id", "idempotency_key"}
+                )
+            ),
         )
         if replay:
             assert record is not None and record.response_ref is not None
@@ -486,9 +491,11 @@ class ContinueInvestigationUseCase:
 
 async def _resolve_targets(session: AsyncSession, command: StartInvestigationCommand) -> list[str]:
     if command.object_ids:
-        objects = list(await session.scalars(
-            select(ObjectModel).where(ObjectModel.object_id.in_(command.object_ids))
-        ))
+        objects = list(
+            await session.scalars(
+                select(ObjectModel).where(ObjectModel.object_id.in_(command.object_ids))
+            )
+        )
         resolved = {item.object_id for item in objects}
         if resolved != set(command.object_ids):
             raise ResourceNotFoundError(
@@ -529,7 +536,7 @@ async def _investigation_capability_scope(
         )
     )
     if not candidates:
-        return []
+        return [REGISTERED_SOURCE_CAPABILITY_ID]
     identifiers = (
         await session.execute(
             select(ExternalIdentifierModel.object_id, ExternalIdentifierModel.value).where(
@@ -541,14 +548,13 @@ async def _investigation_capability_scope(
     by_object: dict[str, list[str]] = {}
     for object_id, value in identifiers:
         by_object.setdefault(object_id, []).append(value)
-    return (
-        ["nvd.read_cve"]
-        if any(
-            len(values) == 1 and re.fullmatch(r"CVE-\d{4}-\d{4,}", values[0], re.IGNORECASE)
-            for values in by_object.values()
-        )
-        else []
-    )
+    scope = [REGISTERED_SOURCE_CAPABILITY_ID]
+    if any(
+        len(values) == 1 and re.fullmatch(r"CVE-\d{4}-\d{4,}", values[0], re.IGNORECASE)
+        for values in by_object.values()
+    ):
+        scope.append("nvd.read_cve")
+    return scope
 
 
 def _execution_profile(task_kind: TaskKind) -> ExecutionProfile:

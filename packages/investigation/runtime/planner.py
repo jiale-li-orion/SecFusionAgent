@@ -104,8 +104,8 @@ class SourceInvestigationPlannerDecision(BaseModel):
 
 _SOURCE_EVIDENCE_GUIDANCE = MaterializedFragment.build(
     kind="source_investigation_guidance",
-    source_ref="runtime-guidance:source-investigation-v4",
-    source_revision="source-investigation-v4",
+    source_ref="runtime-guidance:source-investigation-v5",
+    source_revision="source-investigation-v5",
     trust_class=FragmentTrustClass.RUNTIME_CONTROL,
     cache_class=FragmentCacheClass.TASK_STABLE,
     content={
@@ -124,6 +124,15 @@ _SOURCE_EVIDENCE_GUIDANCE = MaterializedFragment.build(
             "incident name to find material beyond those edges. SEARCH reads indexed "
             "documents using an AND query: adding many security keywords can hide relevant "
             "passages. It does not read the live web; do not claim an external search occurred. "
+            "If the EvidenceNeed asks for current primary or authority evidence missing "
+            "from the local index, use OBSERVE_EXTERNAL for one registered source listed "
+            "in official_external_observation. Bind target.object_id to this task's object, "
+            "set exactly one target.source_ids entry, and set target.query_text to a "
+            "known URL on that source or a focused document title/query. The runtime "
+            "reads the bounded source index when query_text is not a URL. Read the "
+            "returned excerpt, canonical URL, source role and promoted evidence_ref; "
+            "record only what the source actually supports. A no-match result does not "
+            "prove absence and should lead to a different relevant source or an open gap. "
             "A pull request title is a lead, not proof of a vulnerability or a fix. "
             "For source/document questions, prioritize the requested passages and comparison "
             "dimensions. INSPECT returns at most eight document chunks at a time; when "

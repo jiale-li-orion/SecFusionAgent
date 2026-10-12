@@ -49,6 +49,33 @@ class CapabilityRegistry:
         self._bindings = tuple(bindings)
         self._validate_registry()
 
+    @classmethod
+    def combine(cls, revision: str, *registries: CapabilityRegistry) -> CapabilityRegistry:
+        """Compose independently owned capability families into one runtime view."""
+        contracts = [item for registry in registries for item in registry._contracts.values()]
+        implementations = [
+            item for registry in registries for item in registry._implementations.values()
+        ]
+        bindings = [item for registry in registries for item in registry._bindings]
+        descriptors = {
+            key: value for registry in registries for key, value in registry._descriptors.items()
+        }
+        if len(contracts) != len(
+            {(item.capability_id, item.contract_revision) for item in contracts}
+        ):
+            raise ValueError("combined capability registry contains duplicate contracts")
+        if len(implementations) != len(
+            {(item.tool_impl_id, item.implementation_revision) for item in implementations}
+        ):
+            raise ValueError("combined capability registry contains duplicate implementations")
+        return cls(
+            revision=revision,
+            contracts=contracts,
+            descriptors=descriptors,
+            implementations=implementations,
+            bindings=bindings,
+        )
+
     def contract(self, capability_id: str, contract_revision: int) -> CapabilityContract:
         try:
             return self._contracts[(capability_id, contract_revision)]
