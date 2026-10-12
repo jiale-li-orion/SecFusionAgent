@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { ArrowRight, ArrowUpRight, BookOpen, Compass, ShieldCheck } from '../ui/icons'
+import { ArrowRight, ArrowUpRight } from '../ui/icons'
 import { Item, ItemMedia, ItemContent, ItemTitle, ItemDescription, ItemActions } from '../ui/item'
 import { Button } from '../ui/button'
 import { readableObjectTitle } from '../../lib/source-identity'
@@ -21,39 +21,40 @@ export function QuestionWelcome({ onSelect }: { onSelect: (prompt: string) => vo
     followed ? {
       title: followed.label,
       prompt: text(`我关注的 ${followed.label} 最近有哪些安全动态？请说明证据来源。`, `What are the latest security developments for ${followed.label}? Include the evidence sources.`),
-      label: text('来自你的关注', 'From your follows'), icon: Compass,
+      label: text('来自你的关注', 'From your follows'),
     } : keyword ? {
       title: text(`${keyword} 有哪些新动态？`, `What is new in ${keyword}?`),
       prompt: text(`最近有哪些与 ${keyword} 相关的安全动态值得关注？`, `Which recent security developments related to ${keyword} deserve attention?`),
-      label: text('来自你的关注领域', 'From your interests'), icon: Compass,
+      label: text('来自你的关注领域', 'From your interests'),
     } : {
       title: text('最近有哪些安全事件值得关注？', 'Which security stories matter right now?'),
       prompt: text('最近有哪些安全事件值得关注？请整理事件经过和可靠来源。', 'Which recent security incidents deserve attention? Summarize what happened and the reliable sources.'),
-      label: text('发现新动态', 'Discover'), icon: Compass,
+      label: text('发现新动态', 'Discover'),
     },
     recommended ? {
       title: readableObjectTitle(recommended.label, recommended.evidence[0]?.canonical_url, recommended.evidence[0]?.source_id),
       prompt: text(`帮我了解 ${recommended.label}，有哪些已确认的事实和还未解决的问题？`, `Help me understand ${recommended.label}. What is confirmed, and what remains unresolved?`),
-      label: recommended.reasons.length ? text('与你的兴趣相关', 'Related to your interests') : text('从情报中探索', 'Explore intelligence'), icon: BookOpen,
+      label: recommended.reasons.length ? text('与你的兴趣相关', 'Related to your interests') : text('从情报中探索', 'Explore intelligence'),
     } : {
       title: text('一次供应链攻击，是怎样发生的？', 'How does a supply-chain attack unfold?'),
       prompt: text('最近有哪些典型的软件供应链攻击？请结合证据解释攻击路径和防护建议。', 'Explain recent software supply-chain attacks, their attack paths, and evidence-based defenses.'),
-      label: text('深入理解', 'Understand'), icon: BookOpen,
+      label: text('深入理解', 'Understand'),
     },
     {
       title: text('修复一个漏洞，还需要核对什么？', 'What should I check beyond a patch?'),
       prompt: text('评估一个漏洞是否已经修复时，应该核对哪些版本、补丁和证据？', 'When assessing whether a vulnerability is fixed, which versions, patches, and evidence should I verify?'),
-      label: text('核验证据', 'Verify'), icon: ShieldCheck,
+      label: text('核验证据', 'Verify'),
     },
   ]
   return <div className="qa-conversation-welcome">
     <div className="qa-welcome-intro">
-    <img className="qa-welcome-sculpture" src={`${import.meta.env.BASE_URL}art/research-assistant.webp`} width="176" height="176" alt="" aria-hidden="true" draggable={false}/>
+    <span className="qa-welcome-kicker">SEC FUSION / EVIDENCE ASSISTANT</span>
+    <img className="qa-welcome-sculpture" src={`${import.meta.env.BASE_URL}art/investigation-dossier.svg`} width="192" height="192" alt="" aria-hidden="true" draggable={false}/>
     <h2>{text('今天想了解什么？', 'What would you like to understand?')}</h2>
     <p>{text('聊聊你关心的安全问题。我会帮你查资料、梳理来龙去脉，并保留每一个结论的来源。', 'Ask about a security question. I can find sources, connect the story, and keep the evidence behind each conclusion.')}</p>
     </div>
     <div className="qa-welcome-starters"><div className="qa-starters-heading flex items-center justify-between gap-3 text-xs text-muted-foreground"><span>{personalized ? text('从你的关注开始', 'From your interests') : text('试着问我', 'Try asking')}</span>{authenticated && <Button variant="ghost" size="sm" asChild><Link to="/workspace/profile">{text('调整兴趣', 'Your interests')}<ArrowUpRight size={14}/></Link></Button>}</div>
-    <div className="qa-starter-list">{prompts.map(({ title, prompt, label, icon: Icon }) => <Item asChild key={title} className="qa-starter-item w-full border-0"><button onClick={() => onSelect(prompt)} className="text-left"><ItemMedia className="qa-starter-symbol"><Icon size={19} weight="regular"/></ItemMedia><ItemContent className="qa-starter-copy"><ItemTitle className="font-normal">{title}</ItemTitle><ItemDescription className="text-xs">{label}</ItemDescription></ItemContent><ItemActions><ArrowRight size={16} className="text-muted-foreground"/></ItemActions></button></Item>)}</div></div>
+    <div className="qa-starter-list">{prompts.map(({ title, prompt, label }, index) => <Item asChild key={title} className="qa-starter-item w-full border-0"><button onClick={() => onSelect(prompt)} className="text-left"><ItemMedia className="qa-starter-symbol">0{index + 1}</ItemMedia><ItemContent className="qa-starter-copy"><ItemTitle className="font-normal">{title}</ItemTitle><ItemDescription className="text-xs">{label}</ItemDescription></ItemContent><ItemActions><ArrowRight size={16} className="text-muted-foreground"/></ItemActions></button></Item>)}</div></div>
   </div>
 }
 
