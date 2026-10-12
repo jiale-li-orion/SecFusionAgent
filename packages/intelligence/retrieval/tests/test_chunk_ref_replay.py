@@ -181,6 +181,10 @@ async def test_chunk_ref_replay_preserves_requested_order_and_exact_revision() -
                 len(await reader.for_object(session, object_id="retrieval-replay-object", limit=1))
                 == 1
             )
+            next_page = await reader.for_object(
+                session, object_id="retrieval-replay-object", limit=1, offset=1
+            )
+            assert [item.payload["text"] for item in next_page] == ["second chunk"]
 
         async with factory() as session, session.begin():
             observation = await session.get(ObservationModel, "retrieval-replay-observation")

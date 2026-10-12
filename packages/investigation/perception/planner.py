@@ -10,7 +10,8 @@ from packages.investigation.perception.contracts import (
 
 
 class PerceptionPlanner:
-    PLANNER_REVISION = "perception-planner-v2"
+    PLANNER_REVISION = "perception-planner-v3"
+    DOCUMENT_PAGE_SIZE = 8
 
     def plan(self, request: PerceptionRequest) -> PhysicalPerceptionPlan:
         target = request.target
@@ -53,7 +54,11 @@ class PerceptionPlanner:
                         operator=PhysicalOperator.DOCUMENT,
                         input={
                             "subject_id": target.object_id,
-                            "limit": request.evidence_requirement.max_candidates,
+                            "limit": max(1, min(
+                                request.evidence_requirement.max_candidates,
+                                self.DOCUMENT_PAGE_SIZE,
+                            )),
+                            "offset": target.document_offset,
                         },
                         dependency=None if target.object_id is not None else exact_step_id,
                         expected_output_type="document_chunk",

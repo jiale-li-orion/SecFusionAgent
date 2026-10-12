@@ -160,13 +160,17 @@ class PerceptionRuntime:
             return PerceptionStepResult(candidates=results)
         if step.operator is PhysicalOperator.DOCUMENT:
             results = []
+            warnings = []
+            limit = int(payload.get("limit", 20))
+            offset = int(payload.get("offset", 0))
             for subject_id in _subject_ids(payload, dependency):
-                results.extend(
-                    await self._document.for_object(
-                        session, object_id=subject_id, limit=int(payload.get("limit", 20))
-                    )
+                page = await self._document.for_object(
+                    session, object_id=subject_id, limit=limit + 1, offset=offset
                 )
-            return PerceptionStepResult(candidates=results)
+                results.extend(page[:limit])
+                if len(page) > limit:
+                    warnings.append(f"more_document_chunks:{subject_id}:offset={offset + limit}")
+            return PerceptionStepResult(candidates=results, unresolved=warnings)
         if step.operator is PhysicalOperator.LEXICAL:
             candidates = await self._lexical.search(
                 session,

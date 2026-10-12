@@ -405,7 +405,7 @@ class DocumentRetrievalOperator:
         ]
 
     async def for_object(
-        self, session: AsyncSession, *, object_id: str, limit: int = 20
+        self, session: AsyncSession, *, object_id: str, limit: int = 20, offset: int = 0
     ) -> list[RetrievedCandidate]:
         latest = select(
             DocumentRevisionModel.document_revision_id.label("revision_id"),
@@ -455,6 +455,7 @@ class DocumentRetrievalOperator:
                 .join(SourceModel, SourceModel.source_id == ObservationModel.source_id)
                 .where(DocumentModel.object_id == object_id, latest.c.position == 1)
                 .order_by(DocumentModel.document_id, DocumentChunkModel.ordinal)
+                .offset(max(0, offset))
                 .limit(max(0, min(limit, 100)))
             )
         ).all()

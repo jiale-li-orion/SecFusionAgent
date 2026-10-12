@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from datetime import UTC, datetime
 from hashlib import sha256
@@ -32,8 +33,12 @@ from packages.investigation.runtime.contracts import (
     WaitAction,
 )
 from packages.investigation.runtime.tasks import InvestigationTaskDesiredState
-from packages.investigation.state.contracts import EvidenceNeedStatus
-from packages.investigation.state.service import InvestigationStateService, StatePatchRejected
+from packages.investigation.state.contracts import EvidenceNeedStatus, InvestigationState
+from packages.investigation.state.service import (
+    EvidenceNeedResolutionRejected,
+    InvestigationStateService,
+    StatePatchRejected,
+)
 from packages.task_runtime.context.contracts import ContextRefresh
 from packages.task_runtime.context.service import refresh_context
 from packages.task_runtime.contracts.dependencies import task_dependency_reason
@@ -126,7 +131,7 @@ class InvestigationRoleRuntime:
             if boundary is not None:
                 return boundary
 
-            before_revision = frame.state.case_revision
+            before_state = _state_progress_signature(frame.state)
             action = await self._planner.next_action(frame)
 
             if action.kind is InvestigationActionKind.PERCEIVE:
@@ -157,18 +162,48 @@ class InvestigationRoleRuntime:
                 assert isinstance(action, StatePatchAction)
                 try:
                     result = await self._apply_patch(run_id, frame, action)
+                except EvidenceNeedResolutionRejected as exc:
+                    # A source can support a finding without satisfying the stricter
+                    # contract for closing the whole question. Preserve the findings
+                    # through the normal State Gate, and leave the EvidenceNeed open.
+                    deferred = action.patch.model_copy(
+                        update={
+                            "patch_id": f"{action.patch.patch_id}:partial",
+                            "operations": [
+                                operation.model_copy(update={"resolves_need_id": None})
+                                for operation in action.patch.operations
+                            ],
+                        }
+                    )
+                    try:
+                        result = await self._apply_patch(
+                            run_id, frame, StatePatchAction(patch=deferred)
+                        )
+                    except StatePatchRejected as retry_exc:
+                        last_percept = _patch_rejection_percept(
+                            action.patch.patch_id, retry_exc
+                        )
+                        no_progress += 1
+                    else:
+                        await self._record_deferred_resolution(run_id, deferred.patch_id, exc)
+                        last_percept = Percept(
+                            percept_id=f"percept:resolution-deferred:{deferred.patch_id}",
+                            request_id=f"state-patch:{deferred.patch_id}",
+                            unresolved=[f"resolution_deferred:{exc}"],
+                        )
+                        if _state_progress_signature(result.state) != before_state:
+                            no_progress = 0
+                            seen_percept_signals.clear()
+                        else:
+                            no_progress += 1
                 except StatePatchRejected as exc:
                     # The State Gate remains authoritative. Give the planner a bounded
                     # correction opportunity instead of failing the whole TaskRun.
-                    last_percept = Percept(
-                        percept_id=f"percept:state-patch-rejected:{action.patch.patch_id}",
-                        request_id=f"state-patch:{action.patch.patch_id}",
-                        unresolved=[f"state_patch_rejected:{exc}"],
-                    )
+                    last_percept = _patch_rejection_percept(action.patch.patch_id, exc)
                     no_progress += 1
                 else:
                     last_percept = None
-                    if result.state.case_revision > before_revision:
+                    if _state_progress_signature(result.state) != before_state:
                         no_progress = 0
                         recent_percepts = []
                         seen_percept_signals.clear()
@@ -545,6 +580,23 @@ class InvestigationRoleRuntime:
             )
             return result
 
+    async def _record_deferred_resolution(
+        self, run_id: str, patch_id: str, reason: EvidenceNeedResolutionRejected
+    ) -> None:
+        async with self._session_factory() as session, session.begin():
+            run = await get_task_run(session, run_id)
+            await append_task_event(
+                session,
+                task_run_id=run_id,
+                event_type=TaskEventType.PROGRESS,
+                producer=self.ROLE_ID,
+                base_context_revision=run.base_context_revision,
+                payload_ref=f"evidence-need-resolution-deferred:{type(reason).__name__}",
+                idempotency_key=f"investigation-partial:{run_id}:{patch_id}",
+                stream_name=self._stream_name,
+                now=self._now(),
+            )
+
     async def _wait(
         self,
         run_id: str,
@@ -682,6 +734,29 @@ def _desired_state(frame: InvestigationFrame) -> InvestigationTaskDesiredState:
     return InvestigationTaskDesiredState.model_validate(frame.task_contract.desired_state)
 
 
+def _state_progress_signature(state: InvestigationState) -> str:
+    # Reasserting the same proposition advances the append-only revision but does
+    # not answer a new question or add evidence. Ignore bookkeeping coordinates.
+    buckets = {}
+    for name in ("confirmed", "tentative", "conflicts", "unknowns", "hypotheses"):
+        buckets[name] = sorted(
+            json.dumps(
+                item.model_dump(
+                    mode="json",
+                    exclude={"writer", "reason_code", "updated_revision"},
+                ),
+                sort_keys=True,
+            )
+            for item in getattr(state, name)
+        )
+    payload = {
+        "buckets": buckets,
+        "evidence_need_ids": sorted(state.evidence_need_ids),
+        "current_decision": state.current_decision,
+    }
+    return sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
+
+
 def _percept_signal(percept: Percept) -> str:
     value = "|".join(
         [
@@ -691,6 +766,14 @@ def _percept_signal(percept: Percept) -> str:
         ]
     )
     return sha256(value.encode()).hexdigest()
+
+
+def _patch_rejection_percept(patch_id: str, error: StatePatchRejected) -> Percept:
+    return Percept(
+        percept_id=f"percept:state-patch-rejected:{patch_id}",
+        request_id=f"state-patch:{patch_id}",
+        unresolved=[f"state_patch_rejected:{error}"],
+    )
 
 
 def _result_ref(result: InvestigationTaskResult) -> str:

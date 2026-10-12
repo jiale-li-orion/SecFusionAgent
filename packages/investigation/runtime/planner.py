@@ -126,7 +126,10 @@ _SOURCE_EVIDENCE_GUIDANCE = MaterializedFragment.build(
             "passages. It does not read the live web; do not claim an external search occurred. "
             "A pull request title is a lead, not proof of a vulnerability or a fix. "
             "For source/document questions, prioritize the requested passages and comparison "
-            "dimensions. Persist question-relevant supported subfindings as soon as their "
+            "dimensions. INSPECT returns at most eight document chunks at a time; when "
+            "the Percept says more_document_chunks, inspect the same object with "
+            "target.document_offset set to the reported offset, or SEARCH for a focused "
+            "section. Persist question-relevant supported subfindings as soon as their "
             "citable passages are available, batching related findings into one StatePatch "
             "with multiple operations instead of spending one model call per metadata field. "
             "Do not wait until every target or comparison dimension is covered before "
@@ -148,7 +151,10 @@ _SOURCE_EVIDENCE_GUIDANCE = MaterializedFragment.build(
             "then WAIT or STOP. Do not repeat the same inspection or claim all questions "
             "are resolved because no conflict has yet been recorded."
             " StatePatch target_ref accepts only object:<id> or incident:<id>, never "
-            "relation:<id>. When state_patch_rejected appears, correct the rejected "
+            "relation:<id>. When resolution_deferred appears, partial findings were saved "
+            "but the EvidenceNeed remains open; seek the missing source role or independent "
+            "source instead of resubmitting the same resolution. "
+            "When state_patch_rejected appears, correct the rejected "
             "operation using the retained source evidence instead of repeating it."
         )
     },

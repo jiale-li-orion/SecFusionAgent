@@ -46,6 +46,10 @@ class StatePatchRejected(ValueError):
     pass
 
 
+class EvidenceNeedResolutionRejected(StatePatchRejected):
+    """The proposed finding may be valid, but it cannot close the EvidenceNeed."""
+
+
 class StatePatchApplyResult(BaseModel):
     state: InvestigationState
     events: list[CaseStateEvent]
@@ -780,20 +784,24 @@ async def _validate_need_resolution(
 ) -> None:
     contract = EvidenceNeedContract.model_validate(need.evidence_contract)
     if operation.proposed_state not in contract.accepted_states:
-        raise StatePatchRejected("proposed state does not satisfy EvidenceNeed completion contract")
+        raise EvidenceNeedResolutionRejected(
+            "proposed state does not satisfy EvidenceNeed completion contract"
+        )
     predicate_type = need.completion_predicate.get("type")
     if predicate_type != "state_accepted":
-        raise StatePatchRejected(f"unsupported EvidenceNeed completion predicate: {predicate_type}")
+        raise EvidenceNeedResolutionRejected(
+            f"unsupported EvidenceNeed completion predicate: {predicate_type}"
+        )
     if contract.require_evidence and not operation.evidence_refs:
-        raise StatePatchRejected("EvidenceNeed resolution requires evidence")
+        raise EvidenceNeedResolutionRejected("EvidenceNeed resolution requires evidence")
     if not operation.evidence_refs:
         return
     support = await evidence_support_summary(session, operation.evidence_refs)
     for role in contract.required_source_roles:
         if role not in support.source_roles:
-            raise StatePatchRejected(f"required source role missing: {role}")
+            raise EvidenceNeedResolutionRejected(f"required source role missing: {role}")
     if len(support.independent_source_keys) < contract.min_independent_sources:
-        raise StatePatchRejected(
+        raise EvidenceNeedResolutionRejected(
             "independent source requirement unsatisfied: "
             f"{len(support.independent_source_keys)}/{contract.min_independent_sources}"
         )

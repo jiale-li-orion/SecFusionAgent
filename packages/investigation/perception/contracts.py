@@ -34,6 +34,7 @@ class EvidenceTarget(BaseModel):
 class PerceptionTarget(BaseModel):
     identifier: IdentifierTarget | None = None
     object_id: str | None = None
+    document_offset: int = Field(default=0, ge=0, le=1000)
     query_text: str | None = None
     query_vector: list[float] | None = None
     projection_types: list[str] = Field(default_factory=list)

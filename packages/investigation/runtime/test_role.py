@@ -102,7 +102,9 @@ async def _database():
     return engine, async_sessionmaker(engine, expire_on_commit=False)
 
 
-async def _seed_case_need_and_evidence(session) -> tuple[str, str, str, str]:
+async def _seed_case_need_and_evidence(
+    session, *, source_role: str = "primary"
+) -> tuple[str, str, str, str]:
     revision = KnowledgeRevisionModel(committed_at=NOW)
     session.add(revision)
     await session.flush()
@@ -123,7 +125,7 @@ async def _seed_case_need_and_evidence(session) -> tuple[str, str, str, str]:
             adapter_type="fixture",
             source_class="vendor_security_material",
             authority_scope=["fix_status"],
-            source_role="primary",
+            source_role=source_role,
             source_family="vendor",
             upstream_source=None,
             access_mode="fixture",
@@ -521,6 +523,114 @@ async def test_investigation_role_perceives_evidence_commits_state_and_completes
             "ContextUpdated",
             "TaskCompleted",
         ]
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_resolution_contract_failure_preserves_source_supported_findings() -> None:
+    class PartialFindingPlanner:
+        async def next_action(self, frame: InvestigationFrame):
+            assert frame.selected_need is not None
+            if frame.state.confirmed:
+                assert frame.last_percept is not None
+                assert any(
+                    item.startswith("resolution_deferred:required source role missing")
+                    for item in frame.last_percept.unresolved
+                )
+                return StopAction(reason="primary_source_still_needed")
+            if frame.last_percept is None:
+                return PerceptionAction(
+                    request=PerceptionRequest(
+                        request_id="read-reference",
+                        operation=PerceptionOperation.INSPECT,
+                        target=PerceptionTarget(
+                            evidence_targets=[EvidenceTarget(
+                                target_kind="object",
+                                target_id=frame.state.targets[0],
+                            )]
+                        ),
+                    )
+                )
+            return StatePatchAction(
+                patch=StatePatch(
+                    patch_id="source-attributed-finding",
+                    case_id=frame.state.case_id,
+                    base_case_revision=frame.state.case_revision,
+                    producer="InvestigationRole:test-planner",
+                    operations=[StatePatchOperation(
+                        proposition="The reference document reports a possible fix.",
+                        target_ref=f"object:{frame.state.targets[0]}",
+                        proposed_state=ProposedState.CONFIRMED,
+                        evidence_refs=list(frame.last_percept.evidence_handles),
+                        resolves_need_id=frame.selected_need.need_id,
+                    )],
+                )
+            )
+
+    engine, factory = await _database()
+    try:
+        async with factory() as session, session.begin():
+            case_id, object_id, need_id, evidence_id = await _seed_case_need_and_evidence(
+                session, source_role="reference"
+            )
+            run_id = await _create_run(
+                session, case_id=case_id, object_id=object_id, need_id=need_id
+            )
+        outcome = await InvestigationRoleRuntime(
+            factory, PartialFindingPlanner(), stream_name=STREAM, now=lambda: NOW
+        ).run(run_id)
+        assert outcome.run_status is TaskRunStatus.BLOCKED
+        assert outcome.result.open_need_ids == [need_id]
+        async with factory() as session:
+            state = await InvestigationStateService().get_state(session, case_id)
+            events = await list_task_events(session, run_id)
+        assert len(state.confirmed) == 1
+        assert state.confirmed[0].evidence_refs == [evidence_id]
+        assert [event.event_type for event in events].count(
+            TaskEventType.INVESTIGATION_STATE_CHANGED
+        ) == 1
+        assert any(
+            event.payload_ref.startswith("evidence-need-resolution-deferred:")
+            for event in events
+        )
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_reasserting_same_finding_is_not_investigation_progress() -> None:
+    class RepeatPlanner:
+        async def next_action(self, frame: InvestigationFrame):
+            return StatePatchAction(
+                patch=StatePatch(
+                    patch_id=f"repeat:{frame.iteration}",
+                    case_id=frame.state.case_id,
+                    base_case_revision=frame.state.case_revision,
+                    producer="InvestigationRole:test-planner",
+                    operations=[StatePatchOperation(
+                        proposition="The advisory reports a fixed release.",
+                        target_ref=f"object:{object_id}",
+                        proposed_state=ProposedState.CONFIRMED,
+                        evidence_refs=[evidence_id],
+                    )],
+                )
+            )
+
+    engine, factory = await _database()
+    try:
+        async with factory() as session, session.begin():
+            case_id, object_id, need_id, evidence_id = await _seed_case_need_and_evidence(
+                session
+            )
+            run_id = await _create_run(
+                session, case_id=case_id, object_id=object_id, need_id=need_id
+            )
+        outcome = await InvestigationRoleRuntime(
+            factory, RepeatPlanner(), stream_name=STREAM, now=lambda: NOW
+        ).run(run_id)
+        assert outcome.result.stop_reason == "no_progress"
+        assert outcome.result.iterations == 3
     finally:
         await engine.dispose()
 
