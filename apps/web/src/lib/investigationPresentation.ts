@@ -45,7 +45,7 @@ export function runtimeEventSummary(event: ProductRuntimeEvent, text: Translate)
   const actions: Record<string, [string, string]> = {
     TaskCreated: ['已接收任务', 'accepted a task'], TaskStarted: ['开始执行', 'started work'],
     TaskPatched: ['更新执行状态', 'updated the task'], ContextUpdated: ['更新调查上下文', 'updated context'],
-    EvidenceFound: ['取得新的证据', 'found evidence'], KnowledgeChanged: ['更新情报知识', 'updated knowledge'],
+    EvidenceFound: ['完成一次证据读取', 'completed an evidence read'], KnowledgeChanged: ['更新情报知识', 'updated knowledge'],
     EnrichmentStateChanged: ['更新富化状态', 'updated enrichment'], InvestigationStateChanged: ['更新调查状态', 'updated investigation'],
     TaskBlocked: ['执行受到阻碍', 'was blocked'], NeedInput: ['等待补充信息', 'needs input'],
     NeedContext: ['等待依赖结果', 'needs a dependency'], BudgetWarning: ['执行额度接近上限', 'approached its budget'],
@@ -78,6 +78,8 @@ export function investigationStopMessage(reason: string, text: (zh: string, en: 
     no_eligible_enrichment_operator: ['当前没有可用的补全操作，已有材料已保留。', 'No eligible enrichment operation is available. Retrieved material is retained.'],
     enrichment_round_budget_exhausted: ['本轮补全已达到执行额度，部分维度仍待补充。', 'This enrichment run reached its budget; some dimensions remain incomplete.'],
     no_progress: ['重复读取未带来新进展，本轮已停止。可补充线索后继续调查。', 'Repeated reads yielded no progress. Add a lead to continue the investigation.'],
+    evidence_contract_unmet: ['已保留有依据的局部发现，但现有来源仍不满足完整结论所需的证据条件。', 'Supported partial findings were retained, but the available sources do not satisfy the evidence contract for a full conclusion.'],
+    state_patch_rejected: ['模型提出的状态更新未通过证据校验，本轮已停止；未通过校验的结论不会写入调查。', 'The proposed state update failed evidence validation and this episode stopped; rejected claims were not saved.'],
     budget_exhausted: ['本轮执行额度已用完，尚未完成调查。', 'This episode exhausted its execution budget before completing the investigation.'],
     deadline_reached: ['本轮运行已达到时间上限，调查尚未完成。', 'This episode reached its time limit before completing the investigation.'],
     waiting_not_allowed: ['本轮需要等待额外信息，当前执行设置不允许继续等待。', 'This episode needs additional information, but its execution settings do not allow waiting.'],

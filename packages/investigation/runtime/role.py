@@ -243,7 +243,7 @@ class InvestigationRoleRuntime:
                     run_id,
                     refreshed,
                     TaskRunStatus.BLOCKED,
-                    "no_progress",
+                    _no_progress_stop_reason(last_percept),
                     iteration,
                 )
 
@@ -766,6 +766,15 @@ def _percept_signal(percept: Percept) -> str:
         ]
     )
     return sha256(value.encode()).hexdigest()
+
+
+def _no_progress_stop_reason(last_percept: Percept | None) -> str:
+    if last_percept is not None:
+        if any(item.startswith("resolution_deferred:") for item in last_percept.unresolved):
+            return "evidence_contract_unmet"
+        if any(item.startswith("state_patch_rejected:") for item in last_percept.unresolved):
+            return "state_patch_rejected"
+    return "no_progress"
 
 
 def _patch_rejection_percept(patch_id: str, error: StatePatchRejected) -> Percept:

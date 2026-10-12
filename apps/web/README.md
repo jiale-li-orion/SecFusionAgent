@@ -54,6 +54,7 @@ Operations separates overview, task records and service health. Task rows lead w
 ## Components and style ownership
 
 Task detail now reads durable `PerceptionEvent` records separately from external `CapabilityInvocation` calls. The Tools & models tab shows local inspect/search/trace actions, their physical read operators and citation count before external capability calls and model attempts. An empty external-call list no longer suggests that the investigation made no local reads. The execution timeline labels `EvidenceFound` as a completed perception because a read may return no citable evidence.
+When a source supports partial findings but cannot satisfy the full EvidenceNeed contract, the timeline shows that the findings were saved and the evidence gap remains. Bounded stops distinguish an unmet evidence contract from a rejected state write and a repeated read.
 
 `src/components/ui/` contains adapted **shadcn/ui source**, with MIT attribution in [`THIRD_PARTY.md`](src/components/ui/THIRD_PARTY.md). Button, Card, Badge, Input, Avatar, Separator, DropdownMenu, Tabs, Item, Tooltip, ToggleGroup, Sheet, Accordion, Skeleton and Empty are editable project components. Radix owns dialogs, account menus and keyboard tab navigation; Phosphor owns functional icons. There is no extra shadcn runtime package.
 

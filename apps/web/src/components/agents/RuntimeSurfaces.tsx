@@ -38,7 +38,8 @@ export function TaskTopology({ detail, onSelect }: { detail: AgentTaskDetail; on
   </section>
 }
 
-function eventLabel(type: string, text: (zh: string, en: string) => string) {
+function eventLabel(type: string, detailCode: string | null, text: (zh: string, en: string) => string) {
+  if (detailCode === 'evidence_need_resolution_deferred') return text('已保存局部发现，仍需补齐证据', 'Partial findings saved; more evidence required')
   const labels: Record<string, [string, string]> = {
     TaskCreated: ['接收任务', 'Task accepted'], TaskStarted: ['开始执行', 'Execution started'], TaskPatched: ['更新执行状态', 'Task updated'],
     ContextUpdated: ['更新上下文', 'Context updated'], EvidenceFound: ['完成感知', 'Perception completed'], KnowledgeChanged: ['更新知识', 'Knowledge updated'],
@@ -86,7 +87,7 @@ export function TaskDossier({ detail, onSkillSelect, onTaskSelect }: { detail: A
       <TabsContent value="process">
         <TaskTopology detail={detail} onSelect={onTaskSelect} />
         <section className="ops-task-events"><h3><GitBranch size={17} />{text('执行时间线', 'Execution timeline')}</h3>
-          {detail.events.length ? <ol>{detail.events.map(event => <li key={event.event_id}><span>{eventLabel(event.event_type, text)}</span><time dateTime={event.emitted_at}>{new Date(event.emitted_at).toLocaleString()}</time><details><summary>{text('事件详情', 'Event details')}</summary><code>{event.event_type} · {event.producer} · #{event.seq}</code></details></li>)}</ol> : <p>{text('没有已记录的执行事件。', 'No execution events recorded.')}</p>}
+          {detail.events.length ? <ol>{detail.events.map(event => <li key={event.event_id}><span>{eventLabel(event.event_type, event.detail_code, text)}</span><time dateTime={event.emitted_at}>{new Date(event.emitted_at).toLocaleString()}</time><details><summary>{text('事件详情', 'Event details')}</summary><code>{event.event_type} · {event.producer} · #{event.seq}</code></details></li>)}</ol> : <p>{text('没有已记录的执行事件。', 'No execution events recorded.')}</p>}
         </section>
       </TabsContent>
       <TabsContent value="calls">

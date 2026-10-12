@@ -599,6 +599,62 @@ async def test_resolution_contract_failure_preserves_source_supported_findings()
 
 
 @pytest.mark.asyncio
+async def test_repeating_unmet_source_contract_stops_with_specific_reason() -> None:
+    class RepeatingClosurePlanner:
+        async def next_action(self, frame: InvestigationFrame):
+            assert frame.selected_need is not None
+            if frame.iteration == 1:
+                return PerceptionAction(
+                    request=PerceptionRequest(
+                        request_id="read-reference-once",
+                        operation=PerceptionOperation.INSPECT,
+                        target=PerceptionTarget(
+                            evidence_targets=[EvidenceTarget(
+                                target_kind="object", target_id=object_id
+                            )]
+                        ),
+                    )
+                )
+            return StatePatchAction(
+                patch=StatePatch(
+                    patch_id=f"try-close:{frame.iteration}",
+                    case_id=case_id,
+                    base_case_revision=frame.state.case_revision,
+                    producer="InvestigationRole:test-planner",
+                    operations=[StatePatchOperation(
+                        proposition="The reference document reports a possible fix.",
+                        target_ref=f"object:{object_id}",
+                        proposed_state=ProposedState.CONFIRMED,
+                        evidence_refs=[evidence_id],
+                        resolves_need_id=need_id,
+                    )],
+                )
+            )
+
+    engine, factory = await _database()
+    try:
+        async with factory() as session, session.begin():
+            case_id, object_id, need_id, evidence_id = await _seed_case_need_and_evidence(
+                session, source_role="reference"
+            )
+            run_id = await _create_run(
+                session, case_id=case_id, object_id=object_id, need_id=need_id
+            )
+        outcome = await InvestigationRoleRuntime(
+            factory, RepeatingClosurePlanner(), stream_name=STREAM, now=lambda: NOW
+        ).run(run_id)
+        assert outcome.run_status is TaskRunStatus.BLOCKED
+        assert outcome.result.stop_reason == "evidence_contract_unmet"
+        assert outcome.result.iterations == 4
+        async with factory() as session:
+            state = await InvestigationStateService().get_state(session, case_id)
+        assert len(state.confirmed) == 1
+        assert state.evidence_need_ids == [need_id]
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_reasserting_same_finding_is_not_investigation_progress() -> None:
     class RepeatPlanner:
         async def next_action(self, frame: InvestigationFrame):

@@ -230,6 +230,20 @@ async def _database():
                 emitted_at=NOW,
             )
         )
+        session.add(
+            TaskEventModel(
+                event_id="event-2",
+                task_run_id=run.run_id,
+                parent_run_id=None,
+                seq=2,
+                event_type=TaskEventType.PROGRESS.value,
+                producer="InvestigationRole",
+                base_context_revision=1,
+                payload_ref="evidence-need-resolution-deferred:EvidenceNeedResolutionRejected",
+                idempotency_key="event-key-2",
+                emitted_at=NOW,
+            )
+        )
     return engine, factory
 
 
@@ -263,7 +277,7 @@ async def test_product_agent_runtime_exposes_roles_tasks_and_safe_event_summary(
         assert body["recent_tasks"][0]["goal"] == "Verify the fix for CVE-2026-1234"
         assert body["recent_tasks"][0]["target_label"] == "CVE-2026-1234"
         assert body["recent_tasks"][0]["session_id"] is None
-        assert body["recent_tasks"][0]["last_event_type"] == "TaskStarted"
+        assert body["recent_tasks"][0]["last_event_type"] == "Progress"
         assert overview.json()["recent_capabilities"] == []
         assert body["model_runtime"]["request_count"] == 1
         assert body["model_runtime"]["attempt_count"] == 2
@@ -281,6 +295,7 @@ async def test_product_agent_runtime_exposes_roles_tasks_and_safe_event_summary(
         assert detail.status_code == 200, detail.text
         detail_body = detail.json()
         assert detail_body["events"][0]["event_type"] == "TaskStarted"
+        assert detail_body["events"][1]["detail_code"] == "evidence_need_resolution_deferred"
         assert detail_body["budget"]["limits"] == {
             "agent_turns": 8.0,
             "tool_calls": 12.0,

@@ -125,6 +125,7 @@ export type AgentTaskDetail = {
     event_id: string
     seq: number
     event_type: string
+    detail_code: string | null
     producer: string
     emitted_at: string
   }>

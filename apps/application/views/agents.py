@@ -54,6 +54,7 @@ class AgentTaskEventView(BaseModel):
     event_id: str
     seq: int
     event_type: str
+    detail_code: str | None = None
     producer: str
     emitted_at: datetime
 

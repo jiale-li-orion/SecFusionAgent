@@ -482,6 +482,11 @@ async def get_agent_task_detail(
                 event_id=item.event_id,
                 seq=item.seq,
                 event_type=item.event_type,
+                detail_code=(
+                    "evidence_need_resolution_deferred"
+                    if item.payload_ref.startswith("evidence-need-resolution-deferred:")
+                    else None
+                ),
                 producer=item.producer,
                 emitted_at=item.emitted_at,
             )
