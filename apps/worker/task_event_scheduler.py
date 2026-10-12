@@ -17,12 +17,13 @@ from packages.task_runtime.events.redis_stream import (
     read_task_event_messages,
 )
 from packages.task_runtime.scheduler import DependencyWakeDisposition, DependencyWakeScheduler
+from packages.task_runtime.scheduler.recovery import recover_queued_role_tasks
 from packages.task_runtime.storage.service import get_task_event, get_task_run
 
 logger = logging.getLogger(__name__)
 
 
-async def tick(*, consumer_name: str | None = None) -> tuple[int, int, int, int]:
+async def tick(*, consumer_name: str | None = None) -> tuple[int, int, int, int, int, int]:
     register_runtime_models()
     settings = get_settings()
     engine = create_engine(settings.database_url)
@@ -35,6 +36,11 @@ async def tick(*, consumer_name: str | None = None) -> tuple[int, int, int, int]
     replayed = 0
     dispatched = 0
     try:
+        async with factory() as session, session.begin():
+            retried_runs, closed_runs = await recover_queued_role_tasks(
+                session,
+                stream_name=settings.task_event_stream_name,
+            )
         messages = await read_task_event_messages(
             redis,
             stream_name=settings.task_event_stream_name,
@@ -72,7 +78,7 @@ async def tick(*, consumer_name: str | None = None) -> tuple[int, int, int, int]
             consumed += 1
             queued += int(result.disposition is DependencyWakeDisposition.QUEUED)
             replayed += int(result.disposition is DependencyWakeDisposition.REPLAY)
-        return consumed, queued, replayed, dispatched
+        return consumed, queued, replayed, dispatched, len(retried_runs), len(closed_runs)
     finally:
         await redis.aclose()
         await engine.dispose()
@@ -83,14 +89,19 @@ async def run_forever() -> None:
     consumer_name = _consumer_name()
     while True:
         try:
-            consumed, queued, replayed, dispatched = await tick(consumer_name=consumer_name)
-            if consumed:
+            consumed, queued, replayed, dispatched, retried, closed = await tick(
+                consumer_name=consumer_name
+            )
+            if consumed or retried or closed:
                 logger.info(
-                    "task event scheduler consumed=%d queued=%d replayed=%d dispatched=%d",
+                    "task event scheduler consumed=%d queued=%d replayed=%d "
+                    "dispatched=%d recovered=%d expired=%d",
                     consumed,
                     queued,
                     replayed,
                     dispatched,
+                    retried,
+                    closed,
                 )
         except Exception:
             logger.exception("task event scheduler tick failed")
@@ -102,7 +113,13 @@ def _consumer_name() -> str:
 
 
 async def _role_dispatch_for_event(session, event) -> tuple[str, str] | None:
-    if event.event_type is not TaskEventType.TASK_PATCHED:
+    initial_dispatch = event.event_type is TaskEventType.TASK_PATCHED
+    recovery_dispatch = (
+        event.event_type is TaskEventType.PROGRESS
+        and event.producer == "task-runtime-recovery"
+        and event.payload_ref == f"role-dispatch-recovery:{event.task_run_id}"
+    )
+    if not initial_dispatch and not recovery_dispatch:
         return None
     run = await get_task_run(session, event.task_run_id)
     if run.status is not TaskRunStatus.QUEUED:

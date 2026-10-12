@@ -14,11 +14,13 @@ from packages.task_runtime.contracts.models import (
     DelegationCeiling,
     EffectCeiling,
     TaskContract,
+    TaskEventType,
     TaskKind,
     TaskRunStatus,
 )
 from packages.task_runtime.contracts.roles import canonical_roles
 from packages.task_runtime.storage.service import (
+    append_task_event,
     create_task_run,
     list_task_events,
     transition_task_run,
@@ -131,5 +133,40 @@ async def test_old_queue_event_stops_dispatching_after_run_is_running() -> None:
             )
             dispatch = await _role_dispatch_for_event(session, queued_event)
         assert dispatch is None
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_durable_recovery_event_dispatches_only_queued_role() -> None:
+    engine, factory = await _database()
+    try:
+        run_id = await _queued_run(factory, role_id="InvestigationRole")
+        async with factory() as session, session.begin():
+            recovery = await append_task_event(
+                session,
+                task_run_id=run_id,
+                event_type=TaskEventType.PROGRESS,
+                producer="task-runtime-recovery",
+                base_context_revision=1,
+                payload_ref=f"role-dispatch-recovery:{run_id}",
+                idempotency_key=f"role-dispatch-recovery:{run_id}:test",
+                stream_name=STREAM,
+                now=NOW,
+            )
+            assert await _role_dispatch_for_event(session, recovery.event) == (
+                "secfusion.investigation.run",
+                run_id,
+            )
+            await transition_task_run(
+                session,
+                run_id=run_id,
+                target=TaskRunStatus.RUNNING,
+                payload_ref="start:test",
+                idempotency_key=f"start:{run_id}",
+                stream_name=STREAM,
+                now=NOW,
+            )
+            assert await _role_dispatch_for_event(session, recovery.event) is None
     finally:
         await engine.dispose()

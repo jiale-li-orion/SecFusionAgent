@@ -31,6 +31,8 @@ Use `make data-plane-status` to inspect dependencies plus all five runtime contr
 
 `task_event_scheduler.py` is the consumer-side Task Event Plane loop. It reads the Task Bus through a Redis consumer group, reloads each event from PostgreSQL, applies the deterministic Task Runtime dependency relevance gate, and maps durable queued-Role `TaskPatched` events to coarse Celery tasks. Database scheduling commits before broker dispatch; Redis `XACK` happens only after any required Celery send succeeds. Unacknowledged messages are reclaimable after `task_event_claim_idle_ms`; replay may redeliver the coarse task, while the PostgreSQL queued-run claim prevents concurrent Role execution.
 
+Before reading the stream, the same loop asks Task Runtime to recover stranded queued Role runs. Recovery emits a new durable `Progress` dispatch event for an unexpired run, or closes an expired/invalid run with an explicit TaskRun and ExecutionRun state. The dispatcher publishes that event through the normal outbox; the scheduler only maps recovery events bearing the Task Runtime recovery producer and matching run ID to Celery. A pending or recent dispatch event suppresses another retry.
+
 ## Outbox topic routing
 
 The scheduler currently translates committed topics as follows:
