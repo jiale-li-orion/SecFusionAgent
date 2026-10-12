@@ -105,6 +105,8 @@ Users can register or sign in at `/product/auth`. Server-side sessions use a has
 
 Product investigation reports now use the full confirmed evidence state, with cited prose and explicit coverage gaps. Completed episodes always deliver a report; unresolved scope keeps the Case available for follow-up. This fixes metadata-only routing, dropped graph/document citations, hidden planner rejection feedback and report fallback losing relevant earlier findings. Existing conversation answers remain immutable.
 
+Investigation INSPECT now reads documents in eight-chunk pages. When the cited findings are valid but the EvidenceNeed still lacks a required primary or independent source, M4 retains those partial findings without closing the need. Task detail distinguishes these local perception reads from external Capability calls, so the audit does not report an empty tool trail for a task that actually read evidence.
+
 Question and investigation report citations open an Evidence inspector with the fixed source identity, locator and canonical URL. Public managed documents additionally expose bounded passages from the cited Observation's latest parser revision; restricted documents do not expose excerpts.
 Durable Incident dossiers now lead into evidence retrieval with a prefilled event question and a return path to the original dossier. This route uses the existing targetless RETRIEVE contract; it does not claim to have run a target-bound verification against an Incident ID.
 

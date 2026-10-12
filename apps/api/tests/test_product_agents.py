@@ -18,6 +18,7 @@ from packages.investigation.storage.models import (
     ExperienceVersionModel,
     InvestigationCaseModel,
     InvestigationTrajectoryModel,
+    PerceptionEventModel,
 )
 from packages.runtime.model.storage import ModelAttemptModel, ModelRequestModel
 from packages.runtime.storage.models import BudgetAccountModel
@@ -105,6 +106,26 @@ async def _database():
             finished_at=None,
         )
         session.add(run)
+        session.add(
+            PerceptionEventModel(
+                perception_event_id="perception-1",
+                case_id="case:test",
+                task_run_id=run.run_id,
+                request_id="inspect:1",
+                need_id=None,
+                request_json={"operation": "inspect", "target": {"object_id": "object-1"}},
+                plan_json={"steps": [{"operator": "structured"}, {"operator": "document"}]},
+                percept_ref="percept:inspect:1",
+                evidence_refs=["evidence-1"],
+                observation_refs=[],
+                cost={},
+                world_revision=1,
+                status="completed",
+                failure_class=None,
+                started_at=NOW,
+                finished_at=NOW,
+            )
+        )
         session.add(
             BudgetAccountModel(
                 account_id="budget:task-run-1",
@@ -270,6 +291,9 @@ async def test_product_agent_runtime_exposes_roles_tasks_and_safe_event_summary(
         assert detail_body["model_attempts"][1]["usage_source"] == "provider_exact"
         assert detail_body["model_attempts"][1]["budget_settlement"] == "provider_exact"
         assert detail_body["model_attempts"][1]["budget_committed_model_tokens"] == 30
+        assert detail_body["perceptions"][0]["operation"] == "inspect"
+        assert detail_body["perceptions"][0]["operators"] == ["structured", "document"]
+        assert detail_body["perceptions"][0]["evidence_refs"] == ["evidence-1"]
         assert "payload_ref" not in detail.text
         assert "idempotency_key" not in detail.text
     finally:

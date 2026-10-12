@@ -41,13 +41,26 @@ export function TaskTopology({ detail, onSelect }: { detail: AgentTaskDetail; on
 function eventLabel(type: string, text: (zh: string, en: string) => string) {
   const labels: Record<string, [string, string]> = {
     TaskCreated: ['接收任务', 'Task accepted'], TaskStarted: ['开始执行', 'Execution started'], TaskPatched: ['更新执行状态', 'Task updated'],
-    ContextUpdated: ['更新上下文', 'Context updated'], EvidenceFound: ['取得证据', 'Evidence found'], KnowledgeChanged: ['更新知识', 'Knowledge updated'],
+    ContextUpdated: ['更新上下文', 'Context updated'], EvidenceFound: ['完成感知', 'Perception completed'], KnowledgeChanged: ['更新知识', 'Knowledge updated'],
     EnrichmentStateChanged: ['更新补全状态', 'Enrichment updated'], InvestigationStateChanged: ['更新调查状态', 'Investigation updated'],
     TaskBlocked: ['执行受阻', 'Execution blocked'], NeedInput: ['等待补充信息', 'Input needed'], NeedContext: ['等待证据或依赖', 'Evidence or dependency needed'],
     BudgetWarning: ['执行额度接近上限', 'Budget nearing its limit'], ArtifactProduced: ['保存运行材料', 'Artifact saved'], Progress: ['记录进展', 'Progress recorded'],
     TaskCompleted: ['执行完成', 'Execution completed'], TaskFailed: ['执行失败', 'Execution failed'], TaskCanceled: ['执行取消', 'Execution cancelled'],
   }
   return labels[type] ? text(...labels[type]) : text('记录运行事件', 'Runtime event recorded')
+}
+
+function perceptionLabel(operation: string, text: (zh: string, en: string) => string) {
+  const labels: Record<string, [string, string]> = {
+    inspect: ['检查对象与材料', 'Inspect object and material'],
+    search: ['检索已有材料', 'Search indexed material'],
+    trace: ['追踪关联', 'Trace relationships'],
+    expand: ['展开关联', 'Expand relationships'],
+    corroborate: ['交叉核验', 'Corroborate'],
+    contrast: ['比较证据', 'Compare evidence'],
+    observe_external: ['读取外部来源', 'Observe external source'],
+  }
+  return labels[operation] ? text(...labels[operation]) : text('读取调查材料', 'Read investigation material')
 }
 
 export function TaskDossier({ detail, onSkillSelect, onTaskSelect }: { detail: AgentTaskDetail; onSkillSelect: (skillRef: string) => void; onTaskSelect: (runId: string) => void }) {
@@ -77,12 +90,20 @@ export function TaskDossier({ detail, onSkillSelect, onTaskSelect }: { detail: A
         </section>
       </TabsContent>
       <TabsContent value="calls">
-        <h3><Terminal size={17} />{text('工具调用', 'Tool calls')}</h3>
+        <h3><Terminal size={17} />{text('感知与检索', 'Perception and retrieval')}</h3>
+        {detail.perceptions.length ? <div className="ops-tool-list">{detail.perceptions.map(item => <details key={item.perception_event_id}>
+          <summary><strong>{perceptionLabel(item.operation, text)}</strong><span>{item.evidence_refs.length ? text(`${item.evidence_refs.length} 条证据引用`, `${item.evidence_refs.length} evidence references`) : text('未取得可引用证据', 'No citable evidence')} · {item.status}</span></summary>
+          <p>{item.query_text || (item.target_object_id && task.target_refs?.some(ref => ref === item.target_object_id || ref === `object:${item.target_object_id}`) ? task.target_label : item.target_object_id) || task.target_label || text('未记录目标', 'Target not recorded')}</p>
+          <p>{text('实际读取', 'Operators')}: {item.operators.join(' · ') || '—'}</p>
+          {item.failure_class && <p role="status" className="ops-call-failure">{item.failure_class}</p>}
+          <details><summary>{text('证据引用', 'Evidence references')}</summary><p className="ops-perception-refs">{item.evidence_refs.join(' · ') || text('没有可引用的证据', 'No citable evidence')}</p></details>
+        </details>)}</div> : <p className="ops-empty">{text('本次任务尚无已记录的感知或检索。', 'No perception or retrieval has been recorded for this task.')}</p>}
+        <h3><Terminal size={17} />{text('外部能力调用', 'External capability calls')}</h3>
         {detail.capabilities.length ? <div className="ops-tool-list">{detail.capabilities.map(item => <details key={item.invocation_id} open={Boolean(item.failure_code || item.failure_detail)}>
           <summary><strong>{item.capability_id}</strong><span>{['failed', 'blocked'].includes(item.status) ? text('调用失败或受阻', 'Failed or blocked') : item.status === 'succeeded' || item.status === 'completed' ? text('已完成', 'Completed') : text('查看调用状态', 'Review call state')}</span></summary>
           {(item.failure_code || item.failure_detail) && <p role="status" className="ops-call-failure">{item.failure_detail || item.failure_code}</p>}
           <dl><dt>{text('实现', 'Implementation')}</dt><dd>{item.tool_impl_id}</dd><dt>{text('状态', 'Status')}</dt><dd>{item.status}</dd><dt>{text('调用标识', 'Invocation')}</dt><dd>{item.invocation_id}</dd><dt>{text('输出', 'Output')}</dt><dd>{item.canonical_output_ref || '—'}</dd><dt>{text('错误代码', 'Failure code')}</dt><dd>{item.failure_code || '—'}</dd><dt>{text('策略', 'Policy')}</dt><dd>{item.policy_decision_ref || '—'}</dd><dt>{text('原始材料', 'Raw artifact')}</dt><dd>{item.raw_artifact_ref || '—'}</dd><dt>{text('操作回执', 'Effect receipt')}</dt><dd>{item.effect_receipt_ref || '—'}</dd><dt>{text('观测类型', 'Observation class')}</dt><dd>{item.observation_class || '—'}</dd></dl>
-        </details>)}</div> : <p className="ops-empty">{text('本次任务没有已记录的工具调用。', 'No tool calls recorded for this task.')}</p>}
+        </details>)}</div> : <p className="ops-empty">{text('本次任务没有外部能力调用；本地读取见上方记录。', 'No external capability calls; local reads are shown above.')}</p>}
         <TaskModelLedger attempts={detail.model_attempts} />
         <details className="ops-technical"><summary>{text('预算与用量', 'Budget and usage')}</summary>{detail.budget ? <dl>{Object.entries(detail.budget.limits).map(([resource, limit]) => <div key={resource}><dt>{resource}</dt><dd>{text('已用', 'Used')} {detail.budget!.committed[resource] ?? 0} / {limit} · {text('预留', 'Reserved')} {detail.budget!.reserved[resource] ?? 0} · {text('剩余', 'Remaining')} {detail.budget!.remaining[resource] ?? '—'}</dd></div>)}</dl> : <p>{text('未记录预算账户。', 'No budget account recorded.')}</p>}</details>
       </TabsContent>

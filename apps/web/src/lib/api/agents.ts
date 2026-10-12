@@ -128,6 +128,18 @@ export type AgentTaskDetail = {
     producer: string
     emitted_at: string
   }>
+  perceptions: Array<{
+    perception_event_id: string
+    operation: string
+    target_object_id: string | null
+    query_text: string | null
+    operators: string[]
+    evidence_refs: string[]
+    status: string
+    failure_class: string | null
+    started_at: string
+    finished_at: string
+  }>
   capabilities: AgentCapabilityActivity[]
   budget: {
     account_id: string

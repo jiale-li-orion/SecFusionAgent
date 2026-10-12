@@ -23,6 +23,7 @@ from apps.application.views.agents import (
     AgentControlRuntimeView,
     AgentModelAttemptView,
     AgentModelRuntimeView,
+    AgentPerceptionActivityView,
     AgentPromptAssemblyView,
     AgentRoleRuntimeView,
     AgentRuntimeOverviewView,
@@ -31,6 +32,7 @@ from apps.application.views.agents import (
     AgentTaskPageView,
     AgentTaskSummaryView,
 )
+from packages.investigation.storage.models import PerceptionEventModel
 from packages.runtime.model.storage import (
     ModelAttemptModel,
     ModelRequestModel,
@@ -426,6 +428,13 @@ async def get_agent_task_detail(
             .order_by(CapabilityInvocationModel.started_at)
         )
     )
+    perceptions = list(
+        await session.scalars(
+            select(PerceptionEventModel)
+            .where(PerceptionEventModel.task_run_id == run_id)
+            .order_by(PerceptionEventModel.started_at)
+        )
+    )
     prompt_assemblies = list(
         await session.scalars(
             select(PromptAssemblyRecordModel)
@@ -479,6 +488,7 @@ async def get_agent_task_detail(
             for item in events
         ],
         capabilities=[_capability_view(item) for item in capabilities],
+        perceptions=[_perception_view(item) for item in perceptions],
         budget=budget,
         prompt_assemblies=[
             AgentPromptAssemblyView(
@@ -686,6 +696,29 @@ def _task_summary(
         created_at=run.created_at,
         updated_at=run.updated_at,
         finished_at=run.finished_at,
+    )
+
+
+def _perception_view(item: PerceptionEventModel) -> AgentPerceptionActivityView:
+    raw_target = item.request_json.get("target")
+    target = raw_target if isinstance(raw_target, dict) else {}
+    raw_steps = item.plan_json.get("steps")
+    steps = raw_steps if isinstance(raw_steps, list) else []
+    return AgentPerceptionActivityView(
+        perception_event_id=item.perception_event_id,
+        operation=str(item.request_json.get("operation") or "unknown"),
+        target_object_id=_optional_string(target.get("object_id")),
+        query_text=_optional_string(target.get("query_text")),
+        operators=[
+            str(step["operator"])
+            for step in steps
+            if isinstance(step, dict) and isinstance(step.get("operator"), str)
+        ],
+        evidence_refs=list(item.evidence_refs),
+        status=item.status,
+        failure_class=item.failure_class,
+        started_at=item.started_at,
+        finished_at=item.finished_at,
     )
 
 

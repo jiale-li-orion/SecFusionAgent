@@ -77,6 +77,19 @@ class AgentCapabilityActivityView(BaseModel):
     observation_class: str | None = None
 
 
+class AgentPerceptionActivityView(BaseModel):
+    perception_event_id: str
+    operation: str
+    target_object_id: str | None = None
+    query_text: str | None = None
+    operators: list[str] = Field(default_factory=list)
+    evidence_refs: list[str] = Field(default_factory=list)
+    status: str
+    failure_class: str | None = None
+    started_at: datetime
+    finished_at: datetime
+
+
 class AgentModelRuntimeView(BaseModel):
     scope: str
     request_limit: int
@@ -177,6 +190,7 @@ class AgentTaskDetailView(BaseModel):
     predecessor: AgentTaskSummaryView | None = None
     children: list[AgentTaskSummaryView] = Field(default_factory=list)
     events: list[AgentTaskEventView] = Field(default_factory=list)
+    perceptions: list[AgentPerceptionActivityView] = Field(default_factory=list)
     capabilities: list[AgentCapabilityActivityView] = Field(default_factory=list)
     budget: AgentBudgetSnapshotView | None = None
     prompt_assemblies: list[AgentPromptAssemblyView] = Field(default_factory=list)
