@@ -24,6 +24,21 @@ class Result(BaseModel):
 
 
 @pytest.mark.asyncio
+async def test_provider_payment_failure_keeps_status_code_for_task_explanation() -> None:
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(lambda request: httpx.Response(402, request=request))
+    ) as client:
+        provider = OpenAICompatibleProvider(
+            client, base_url="https://provider.example/v1", chat_model="model-a"
+        )
+        with pytest.raises(ModelProviderResponseError) as caught:
+            await provider.generate_structured(
+                StructuredModelRequest(system_instruction="extract", data={}), Result
+            )
+    assert caught.value.status_code == 402
+
+
+@pytest.mark.asyncio
 async def test_structured_generation_uses_schema_and_validates_response() -> None:
     requests: list[dict[str, object]] = []
 

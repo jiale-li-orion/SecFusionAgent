@@ -75,6 +75,8 @@ export function displayUnknowns(investigation: InvestigationView): Investigation
 export function investigationStopMessage(reason: string, text: (zh: string, en: string) => string) {
   const messages: Record<string, [string, string]> = {
     question_reasoning_failed: ['本轮回答未能形成有效结论，执行记录已保留。', 'This answer did not produce a valid conclusion. Execution records are retained.'],
+    model_provider_payment_required: ['模型服务当前无法继续调用，请检查服务额度。任务证据与执行记录已保留。', 'The model service cannot be called until its credit is available. Evidence and execution records are retained.'],
+    question_model_payment_required: ['模型服务当前无法继续调用，请检查服务额度。', 'The model service cannot be called until its credit is available.'],
     no_eligible_enrichment_operator: ['当前没有可用的补全操作，已有材料已保留。', 'No eligible enrichment operation is available. Retrieved material is retained.'],
     enrichment_round_budget_exhausted: ['本轮补全已达到执行额度，部分维度仍待补充。', 'This enrichment run reached its budget; some dimensions remain incomplete.'],
     no_progress: ['重复读取未带来新进展，本轮已停止。可补充线索后继续调查。', 'Repeated reads yielded no progress. Add a lead to continue the investigation.'],

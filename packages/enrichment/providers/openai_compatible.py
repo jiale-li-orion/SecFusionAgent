@@ -420,7 +420,10 @@ def _retry_after_seconds(response: httpx.Response) -> float | None:
 
 def _response_json(response: httpx.Response) -> dict[str, Any]:
     if response.is_error:
-        raise AIProviderResponseError(f"model provider returned HTTP {response.status_code}")
+        raise AIProviderResponseError(
+            f"model provider returned HTTP {response.status_code}",
+            status_code=response.status_code,
+        )
     try:
         payload = response.json()
     except ValueError as exc:

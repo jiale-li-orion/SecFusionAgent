@@ -39,6 +39,8 @@ Account conversations and turns use owner-checked cursor pages. Loading older tu
 
 Completed answers lead with natural report paragraphs and citations. Older Decisions without paragraphs retain their validated conclusions. Structured answer fields stay expandable for audit and QA. The per-turn audit exposes query plans, evidence, linked TaskRuns, model attempts, usage versus budget settlement, ContextManifest, prompt-fragment provenance and tool/runtime events. Raw provider reasoning stays transient rather than pretending to be durable audit data.
 
+Provider payment failure appears as a service-credit interruption in the question audit and task detail; the raw lifecycle code remains in technical details. A failed model call does not become an evidence judgment or erase task material already recorded.
+
 Evidence inspection leads with readable source content, the cited version and the original link. Provenance details retain source/Observation identity, locator, trust class and content hash. Public managed documents also expose bounded excerpts from the cited source version. These are source previews; object-level evidence does not imply a sentence-level claim locator. Unavailable reads provide retry actions.
 
 ## Accounts and integration

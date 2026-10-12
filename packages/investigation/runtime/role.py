@@ -39,6 +39,7 @@ from packages.investigation.state.service import (
     InvestigationStateService,
     StatePatchRejected,
 )
+from packages.shared.model_provider import ModelProviderResponseError
 from packages.task_runtime.context.contracts import ContextRefresh
 from packages.task_runtime.context.service import refresh_context
 from packages.task_runtime.contracts.dependencies import task_dependency_reason
@@ -687,6 +688,11 @@ class InvestigationRoleRuntime:
             if run.status is not TaskRunStatus.RUNNING:
                 return
             error_type = type(exc).__name__
+            stop_reason = (
+                "model_provider_payment_required"
+                if isinstance(exc, ModelProviderResponseError) and exc.status_code == 402
+                else f"unexpected_runtime_error:{error_type}"
+            )
             await transition_task_run(
                 session,
                 run_id=run_id,
@@ -695,7 +701,7 @@ class InvestigationRoleRuntime:
                 idempotency_key=f"investigation-failed:{run_id}:{error_type}",
                 stream_name=self._stream_name,
                 producer=self.ROLE_ID,
-                stop_reason=f"unexpected_runtime_error:{error_type}",
+                stop_reason=stop_reason,
                 now=self._now(),
             )
 

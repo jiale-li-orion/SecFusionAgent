@@ -76,7 +76,7 @@ from packages.runtime.retrieval import (
     RetrievalInvocationService,
     RetrievalRequestCoordinate,
 )
-from packages.shared.model_provider import ModelProvider
+from packages.shared.model_provider import ModelProvider, ModelProviderResponseError
 from packages.task_runtime.admission import TaskAdmissionRequest, TaskIntentParser
 from packages.task_runtime.contracts.execution import ExecutionEnvelope
 from packages.task_runtime.contracts.models import (
@@ -475,6 +475,8 @@ class AskQuestionUseCase:
         except Exception as exc:
             if isinstance(exc, TimeoutError):
                 stop_reason = "question_deadline_exceeded"
+            elif isinstance(exc, ModelProviderResponseError) and exc.status_code == 402:
+                stop_reason = "question_model_payment_required"
             elif isinstance(exc, DecisionValidationError):
                 stop_reason = "question_decision_rejected"
             else:

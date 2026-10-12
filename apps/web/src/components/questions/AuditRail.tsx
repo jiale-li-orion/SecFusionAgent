@@ -6,7 +6,8 @@ import { Link } from 'react-router-dom'
 import type { AgentTaskDetail } from '../../lib/api/agents'
 import { getDecision, type ProductRuntimeEvent, type QuestionSessionTurn } from '../../lib/api/investigations'
 import { useI18n } from '../../lib/i18n'
-import { runtimeActorLabel, runtimeEventSummary, runtimeTaskLabel } from '../../lib/investigationPresentation'
+import { investigationStopMessage, runtimeActorLabel, runtimeEventSummary, runtimeTaskLabel } from '../../lib/investigationPresentation'
+import { taskOutcome } from '../../lib/taskPresentation'
 
 
 export function AuditRail({ turn, failedRunId, tasks, taskLoading, taskReadFailed, onRetryTasks, caseId, caseStatus, caseEvents, caseActivityLoading, caseActivityFailed, onRetryActivity, streamConnected, onEvidence }: { turn: QuestionSessionTurn | null; failedRunId: string | null; tasks: AgentTaskDetail[]; taskLoading: boolean; taskReadFailed: boolean; onRetryTasks: () => void; caseId: string | null; caseStatus?: string; caseEvents: ProductRuntimeEvent[]; caseActivityLoading: boolean; caseActivityFailed: boolean; onRetryActivity: () => void; streamConnected: boolean; onEvidence: (ref: string) => void }) {
@@ -23,11 +24,11 @@ export function AuditRail({ turn, failedRunId, tasks, taskLoading, taskReadFaile
     {!turn && !failedRunId && <div className="qa-audit-empty"><div className="qa-audit-diagram"><span>01</span><i /><span>02</span><i /><span>03</span></div><p>{text('选中一个会话回合后，这里展示证据引用、模型调用、上下文装配和工具执行记录。', 'Select a turn to inspect its citations, model calls, assembled context, and tool activity.')}</p></div>}
     {(turn || failedRunId) && <>
       <details className="qa-audit-coordinate"><summary>{text('数据与运行坐标', 'Data and run coordinates')}</summary><small>{failedRunId ? 'TASK RUN' : 'WORLD REVISION'}</small><strong>{failedRunId ? text('未形成决策', 'NO DECISION') : turn?.knowledge_revision ?? '—'}</strong><span>{failedRunId ? `task-run:${failedRunId}` : turn?.context_id ?? (caseId ? `case:${caseId}` : turn?.request_id)}</span></details>
-      {failedRunId && <div className="qa-audit-failure"><small>{text('停止原因', 'STOP REASON')}</small><strong>{failedTask?.task.stop_reason ?? (taskLoading ? text('读取运行记录…', 'Loading run…') : text('运行记录不可用', 'Run record unavailable'))}</strong></div>}
+      {failedRunId && <div className="qa-audit-failure"><small>{text('停止原因', 'STOP REASON')}</small><strong>{failedTask?.task.stop_reason ? investigationStopMessage(failedTask.task.stop_reason, text) : taskLoading ? text('读取运行记录…', 'Loading run…') : text('运行记录不可用', 'Run record unavailable')}</strong></div>}
       <section className="qa-audit-section"><h3>{text('结论引用', 'Citations')} <b>{refs.length}</b></h3>{refs.length ? refs.map((ref, index) => <EvidenceCitation key={ref} evidenceRef={ref} index={index} onOpen={onEvidence}/>) : <p>{text('本回合尚无可引用的最终结论。', 'No final citation yet for this turn.')}</p>}</section>
       <section className="qa-audit-section"><h3>{text('执行任务', 'Task runs')} <b>{tasks.length}</b></h3>
         {tasks.map(task => <Link className="qa-task-link" key={task.task.run_id} to={`/agents?run=${encodeURIComponent(task.task.run_id)}&from=questions`}>
-          <span><small>{runtimeActorLabel(task.task.role_id, text)} · {task.task.status}</small><strong>{runtimeTaskLabel(task.task.task_kind, text)}</strong><em>{task.task.stop_reason ?? `task-run:${task.task.run_id}`}</em></span><ArrowUpRight size={14} />
+          <span><small>{runtimeActorLabel(task.task.role_id, text)} · {task.task.status}</small><strong>{runtimeTaskLabel(task.task.task_kind, text)}</strong><em>{task.task.stop_reason && ['failed', 'blocked', 'timed_out'].includes(task.task.status) ? investigationStopMessage(task.task.stop_reason, text) : taskOutcome(task.task, text)}</em></span><ArrowUpRight size={14} />
         </Link>)}
         {taskLoading && <p>{text('读取关联任务…', 'Reading linked task runs…')}</p>}
         {taskReadFailed && <p role="alert">{text('部分关联任务读取失败，当前轨迹可能不完整。', 'Some linked task reads failed; this trace may be incomplete.')} <button className="qa-retry" onClick={onRetryTasks}>{text('重试任务读取', 'Retry task reads')}</button></p>}
