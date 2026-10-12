@@ -99,4 +99,4 @@ Planner correction context retains the latest StatePatch rejection alongside the
 
 If the model provider returns HTTP 402 before planning, the Role records `model_provider_payment_required` as its failure reason. This is an execution dependency failure rather than a finding about the investigated object; Product renders a readable service-credit explanation and retains earlier evidence.
 
-The external-perception route now distinguishes required from optional canonical arguments. A bound GitHub Repo/Issue/PR/Commit/Release can be read with only its `object_id`; `query_text` is optional for a specific same-repository URL or the bounded `releases` list. A missing optional query no longer aborts before the CapabilityBroker is reached.
+The external-perception route now distinguishes required from optional canonical arguments. A bound GitHub Repo/Issue/PR/Commit/Release can be read with only its `object_id`; `query_text` is optional for a specific same-repository URL or the bounded `releases` list. The standard planner already supplied this key as `null`; this contract change also supports direct callers that omit it.
