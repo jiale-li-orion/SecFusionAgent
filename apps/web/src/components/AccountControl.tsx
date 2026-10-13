@@ -28,7 +28,7 @@ export function AccountControl() {
   return <DropdownMenu>
     <DropdownMenuTrigger asChild><Button variant="ghost" className="sf-account-trigger" aria-label={text('打开账户菜单', 'Open account menu')}><Avatar size="sm"><AvatarFallback>{Array.from(auth.user.display_name)[0]?.toUpperCase()}</AvatarFallback></Avatar><span>{auth.user.display_name}</span><ChevronDown className="size-3"/></Button></DropdownMenuTrigger>
     <DropdownMenuContent align="end" className="w-64" sideOffset={12}>
-      <DropdownMenuLabel><div className="grid gap-1 py-1"><span className="text-sm font-semibold">{auth.user.display_name}</span><span className="text-xs font-normal text-muted-foreground">{auth.user.email}</span></div></DropdownMenuLabel>
+      <DropdownMenuLabel><div className="grid gap-1 px-1 py-2"><span className="text-sm font-semibold">{auth.user.display_name}</span><span className="truncate text-xs font-normal text-muted-foreground" title={auth.user.email}>{auth.user.email}</span></div></DropdownMenuLabel>
       <DropdownMenuSeparator/>
       <DropdownMenuItem asChild><Link to="/workspace"><UserRound/>{text('我的空间', 'My workspace')}</Link></DropdownMenuItem>
       <DropdownMenuItem asChild><Link to="/workspace/profile"><Settings2/>{text('资料与偏好', 'Profile & interests')}</Link></DropdownMenuItem>

@@ -1,8 +1,11 @@
 import { Button } from './ui/button'
+import { UiThemeProvider } from './ui/theme'
 import { useDeferredValue, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import * as Dialog from '@radix-ui/react-dialog'
-import { ArrowUpRight } from "@phosphor-icons/react/dist/csr/ArrowUpRight"
+import { ArrowUp } from "@phosphor-icons/react/dist/csr/ArrowUp"
+import { ArrowDown } from "@phosphor-icons/react/dist/csr/ArrowDown"
+import { ActionIndicator } from './ui/action-indicator'
 import { GlobeHemisphereWest as Globe2 } from "@phosphor-icons/react/dist/csr/GlobeHemisphereWest"
 import { Newspaper as Layers3 } from "@phosphor-icons/react/dist/csr/Newspaper"
 import { ChatCircle as MessageCircle } from "@phosphor-icons/react/dist/csr/ChatCircle"
@@ -64,7 +67,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
   return <div className={`product-shell shell-space-${space}`}>
     <a className="product-skip-link" href="#product-main">{text('跳到主内容', 'Skip to content')}</a>
-    <header className="sf-header">
+    <UiThemeProvider theme="dark"><header className="sf-header ui-night dark">
       <Link className="sf-brand" to="/" aria-label="SecFusion"><span className="sf-wordmark">sec<span>fusion</span></span></Link>
       <nav className="sf-navigation" aria-label={text('主导航', 'Main navigation')}>
         {nav.map(({ path, key, label, icon: Icon }) => <Link key={key} to={path} aria-current={space === key ? 'page' : undefined}><Icon size={24} weight={space === key ? 'fill' : 'regular'} /><span>{label}</span></Link>)}
@@ -74,13 +77,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <button className="sf-language" onClick={() => setLanguage(language === 'zh' ? 'en' : 'zh')} aria-label={text('切换英文', 'Switch to Chinese')}>{language === 'zh' ? 'EN' : '中'}</button>
         <AccountControl />
       </div>
-    </header>
+    </header></UiThemeProvider>
     <main id="product-main" className="product-workspace" tabIndex={-1}>
       {workspace && location.pathname !== '/workspace' && <WorkspaceNavigation />}
       <div className="studio-page-content">{children}</div>
     </main>
     <Dialog.Root open={searchOpen} onOpenChange={setSearchOpen}>
-      <Dialog.Portal><Dialog.Overlay className="sf-dialog-overlay" /><Dialog.Content className="sf-search-dialog" onOpenAutoFocus={event => { event.preventDefault(); searchRef.current?.focus() }}>
+      <Dialog.Portal><Dialog.Overlay className="sf-dialog-overlay ui-night dark" /><Dialog.Content className="sf-search-dialog ui-night dark" onOpenAutoFocus={event => { event.preventDefault(); searchRef.current?.focus() }}>
         <Dialog.Title className="sr-only">{text('搜索情报、事件和任务', 'Search intelligence, events and tasks')}</Dialog.Title>
         <Dialog.Description className="sr-only">{text('输入关键词，用方向键选择结果，回车打开。', 'Search by keyword, use arrow keys to select, and Enter to open.')}</Dialog.Description>
         <div className="sf-search-input"><Search size={21} /><input ref={searchRef} value={searchValue} aria-label={text('搜索关键词', 'Search query')} placeholder={text('搜索事件、项目、漏洞或研究…', 'Search events, projects, vulnerabilities…')} onChange={event => { setSearchValue(event.target.value); setCommandIndex(0) }} onKeyDown={event => {
@@ -90,11 +93,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
         }} /><Dialog.Close aria-label={text('关闭搜索', 'Close search')}><X size={19} /></Dialog.Close></div>
         <div className="sf-search-results">
           <p className="sf-search-caption">{loading ? text('正在查找…', 'Searching…') : searchValue ? text('搜索结果', 'Search results') : text('最近的情报与活动', 'Recent intelligence and activity')}</p>
-          {items.map((item, index) => <button key={`${item.kind}:${item.ref}`} className={index === commandIndex ? 'selected' : ''} onClick={() => openItem(item)} onMouseEnter={() => setCommandIndex(index)}><ProductGlyph kind={item.kind === 'CASE' ? 'investigations' : item.kind === 'TASK' ? 'agents' : item.kind === 'INCIDENT' ? 'incidents' : 'intelligence'} size={19} /><span><strong>{item.label}</strong><small>{item.meta}</small></span><ArrowUpRight size={15} /></button>)}
+          {items.map((item, index) => <button key={`${item.kind}:${item.ref}`} className={index === commandIndex ? 'selected' : ''} onClick={() => openItem(item)} onMouseEnter={() => setCommandIndex(index)}><ProductGlyph kind={item.kind === 'CASE' ? 'investigations' : item.kind === 'TASK' ? 'agents' : item.kind === 'INCIDENT' ? 'incidents' : 'intelligence'} size={19} /><span className="sf-search-result-copy"><strong>{item.label}</strong><small>{item.meta}</small></span><ActionIndicator direction="forward" /></button>)}
           {!loading && !items.length && <p className="empty-block">{text('没有找到匹配内容，换一个关键词试试。', 'No matching results. Try another keyword.')}</p>}
           {failed && <p className="sf-search-caption" role="status">{text('部分内容暂时不可用，已展示成功读取的结果。', 'Some sources are unavailable. Available results are shown.')}</p>}
         </div>
-        <footer className="sf-search-footer">{text('↑ ↓ 选择 · Enter 打开', '↑ ↓ Select · Enter Open')}<span>Esc {text('关闭', 'Close')}</span></footer>
+        <footer className="sf-search-footer"><span className="sf-search-key-hints"><kbd aria-label={text('向上键', 'Up arrow')}><ArrowUp size={12} aria-hidden="true" /></kbd><kbd aria-label={text('向下键', 'Down arrow')}><ArrowDown size={12} aria-hidden="true" /></kbd><span>{text('选择', 'Select')}</span><kbd>Enter</kbd><span>{text('打开', 'Open')}</span></span><span className="sf-search-key-hints"><kbd>Esc</kbd><span>{text('关闭', 'Close')}</span></span></footer>
       </Dialog.Content></Dialog.Portal>
     </Dialog.Root>
   </div>
