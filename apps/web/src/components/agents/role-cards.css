@@ -1,17 +1,17 @@
 .agent-role-cards { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; margin:20px 0 28px; }
-.agent-role-card { padding:0; gap:0; box-shadow:none; background:#fff; transition:border-color .2s,box-shadow .2s; }
-.agent-role-card.is-focused { border-color:#95aaff; box-shadow:0 0 0 3px #4263eb0b; }
+.agent-role-card { padding:0; gap:0; box-shadow:var(--ui-shadow-control); background:var(--ui-card); transition:border-color .2s,box-shadow .2s; }
+.agent-role-card.is-focused { border-color:var(--ui-primary); box-shadow:0 0 0 3px var(--ui-accent); }
 .agent-role-select { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:18px 15px; align-items:center; padding:24px; text-align:left; width:100%; height:100%; border-radius:inherit; }
-.agent-role-select:hover { background:#f8faff; }
-.agent-role-symbol { display:grid; place-items:center; width:48px; height:48px; border-radius:14px; color:#4263eb; background:#edf1ff; }
-.role-InvestigationRole .agent-role-symbol { color:#8355d6; background:#f2eeff; }
-.role-EnrichmentRole .agent-role-symbol { color:#13856f; background:#e8f6f1; }
+.agent-role-select:hover { background:var(--ui-control-hover); }
+.agent-role-symbol { display:grid; place-items:center; width:48px; height:48px; border-radius:14px; color:var(--ui-primary); background:var(--ui-accent); }
+.role-InvestigationRole .agent-role-symbol { color:var(--ui-agent); background:var(--ui-agent-surface); }
+.role-EnrichmentRole .agent-role-symbol { color:var(--ui-success); background:var(--ui-success-surface); }
 .agent-role-identity { display:grid; gap:5px; }
-.agent-role-identity small { font-size:10px; color:var(--muted); letter-spacing:.13em; }
+.agent-role-identity small { font-size:10px; color:var(--ui-muted-foreground); letter-spacing:.13em; }
 .agent-role-identity strong { font-size:16px; }
-.agent-role-select>svg { color:#a1acc0; }
-.agent-role-select>p { grid-column:1/-1; font-size:12px; color:var(--muted); }
-.agent-role-readout { grid-column:1/-1; display:flex; align-items:center; flex-wrap:wrap; gap:10px; font-size:11px; color:var(--muted); }
-.agent-role-readout em { margin-left:auto; font-style:normal; font-size:10px; color:var(--accent); }
+.agent-role-select>svg { color:var(--ui-muted-foreground); }
+.agent-role-select>p { grid-column:1/-1; font-size:12px; color:var(--ui-muted-foreground); }
+.agent-role-readout { grid-column:1/-1; display:flex; align-items:center; flex-wrap:wrap; gap:10px; font-size:11px; color:var(--ui-muted-foreground); }
+.agent-role-readout em { margin-left:auto; font-style:normal; font-size:10px; color:var(--ui-primary); }
 @media(max-width:900px) { .agent-role-select { padding:18px; grid-template-columns:auto minmax(0,1fr); gap:14px 10px; } .agent-role-select>svg { display:none; } .agent-role-identity strong { font-size:14px; } }
 @media(max-width:600px) { .agent-role-cards { grid-template-columns:1fr; gap:12px; } .agent-role-select { grid-template-columns:auto minmax(0,1fr) auto; } .agent-role-select>p { margin-left:58px; } .agent-role-readout { margin-left:58px; } .agent-role-select>svg { display:block; } }

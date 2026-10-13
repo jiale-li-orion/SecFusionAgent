@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { ArrowUpRight, ChevronRight, ScanLine, Workflow } from '../ui/icons'
 import { Link } from 'react-router-dom'
+import { Button } from '../ui/button'
 import { DecisionReport } from '../DecisionReport'
 import { getDecision, getInvestigation, type QuestionSessionTurn } from '../../lib/api/investigations'
 import { useI18n } from '../../lib/i18n'
@@ -36,7 +37,7 @@ export function ConversationTurn({ turn, active, sessionId, reasoning, onSelect,
   const unknownCount = investigation.data ? displayUnknowns(investigation.data).length : 0
   return <article className={`qa-turn ${active ? 'active' : ''}`}>
     <div className="qa-question"><small>{text('你', 'YOU')} / {formatTime(turn.created_at, language)}</small><p>{turn.question}</p></div>
-    <div className="qa-answer"><div className="qa-answer-meta"><span><span className="qa-assistant-avatar"><ScanLine size={17} /></span>SecFusion <small>{routeLabel(turn.task_kind, text)}</small></span><button onClick={onSelect}><Workflow size={14} />{text('查看过程', 'View process')}<ChevronRight size={13} /></button></div>
+    <div className="qa-answer"><div className="qa-answer-meta"><span><span className="qa-assistant-avatar"><ScanLine size={17} /></span>SecFusion <small>{routeLabel(turn.task_kind, text)}</small></span><Button variant="outline" size="sm" className="qa-process-button" onClick={onSelect}><Workflow size={14} />{text('查看过程', 'View process')}<ChevronRight size={13} /></Button></div>
       {decision.isLoading && turn.decision_ref && <p className="qa-muted">{text('正在恢复研判…', 'Restoring decision…')}</p>}
       {decision.isError && <button className="qa-retry" onClick={() => void decision.refetch()}>{text('研判读取失败 · 重试', 'Decision failed · Retry')}</button>}
       {decision.data && <DecisionReport decision={decision.data} onEvidence={onEvidence} dialogue />}

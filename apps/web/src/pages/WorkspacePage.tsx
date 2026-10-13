@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Activity, ArrowRight, ArrowUpRight, BookOpen, ChevronRight, Compass, History, LayoutDashboard, Network, Pencil, Plus, ShieldCheck, Telescope } from '../components/ui/icons'
+import { Activity, ArrowRight, ArrowUpRight, BookOpen, Compass, History, LayoutDashboard, Network, Pencil, Plus, ShieldCheck, Telescope } from '../components/ui/icons'
 import { Link, useLocation } from 'react-router-dom'
 import { AccountConversations } from '../components/start/AccountConversations'
 import { ProfileEditor } from '../components/workspace/ProfileEditor'
@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback } from '../components/ui/avatar'
 import { Item, ItemMedia, ItemContent, ItemTitle, ItemDescription, ItemActions } from '../components/ui/item'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
+import { ActionIndicator } from '../components/ui/action-indicator'
 import './workspace.css'
 import './personal-space.css'
 
@@ -77,7 +78,7 @@ function PersonalWorkspace() {
       </div>
     </div>
 
-    <section className="personal-services" aria-labelledby="personal-services-title"><div className="personal-services-heading"><div><span className="personal-services-kicker">SECFUSION / SERVICES</span><h2 id="personal-services-title">{text('工作台与服务', 'Workspace & services')}</h2></div><img src={`${import.meta.env.BASE_URL}art/workspace-slides.webp`} width="96" height="96" alt="" aria-hidden="true" draggable={false}/></div><div className="personal-service-grid">{services.map(({ to, icon: Icon, title, description }) => <Item asChild key={to} className="rounded-none px-0"><Link to={to}><ItemMedia><Icon className="size-5 text-muted-foreground"/></ItemMedia><ItemContent><ItemTitle>{title}</ItemTitle><ItemDescription>{description}</ItemDescription></ItemContent><ItemActions><ChevronRight size={17}/></ItemActions></Link></Item>)}</div></section>
+    <section className="personal-services" aria-labelledby="personal-services-title"><div className="personal-services-heading"><div><span className="personal-services-kicker">SECFUSION / SERVICES</span><h2 id="personal-services-title">{text('工作台与服务', 'Workspace & services')}</h2></div><img src={`${import.meta.env.BASE_URL}art/night-reading-detail.webp`} width="84" height="84" alt="" aria-hidden="true" draggable={false}/></div><div className="personal-service-grid">{services.map(({ to, icon: Icon, title, description }) => <Item asChild key={to} className="rounded-none px-0"><Link to={to}><ItemMedia><Icon className="size-5 text-muted-foreground"/></ItemMedia><ItemContent><ItemTitle>{title}</ItemTitle><ItemDescription>{description}</ItemDescription></ItemContent><ItemActions><ActionIndicator/></ItemActions></Link></Item>)}</div></section>
     <p className="personal-privacy"><ShieldCheck size={15}/>{text('会话和调查仅自己可见。', 'Your conversations and investigations are private.')}</p>
   </div>
 }

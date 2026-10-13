@@ -9,15 +9,17 @@ import { evidenceFieldLabel, formatValue } from '../../lib/intelligencePresentat
 import { useI18n } from '../../lib/i18n'
 import { Button } from '../ui/button'
 import { SourceIdentity } from '../ui/source-identity'
+import { useUiThemeClass } from '../ui/theme'
 
 export function EvidenceOverlay({ evidenceRef, onClose }: { evidenceRef: string; onClose: () => void }) {
   const { text } = useI18n()
+  const themeClass = useUiThemeClass()
   const previousFocus = useRef<HTMLElement | null>(null)
   const reduceMotion = Boolean(useReducedMotion())
   const query = useQuery({ queryKey: ['evidence-overlay', evidenceRef], queryFn: () => getEvidence(evidenceRef) })
   const item = query.data
   return <Dialog.Root open onOpenChange={open => { if (!open) onClose() }}><Dialog.Portal>
-    <Dialog.Overlay className="evidence-dialog-overlay"/>
+    <Dialog.Overlay className={`evidence-dialog-overlay ${themeClass}`}/>
     <Dialog.Content asChild onOpenAutoFocus={() => {
       previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
     }} onCloseAutoFocus={event => {
@@ -25,7 +27,7 @@ export function EvidenceOverlay({ evidenceRef, onClose }: { evidenceRef: string;
       const target = previousFocus.current?.isConnected ? previousFocus.current : document.getElementById('product-main')
       target?.focus({ preventScroll: true })
     }}><motion.aside
-      className="investigation-evidence-lens"
+      className={`investigation-evidence-lens ${themeClass}`}
       initial={reduceMotion ? false : { opacity: 0, x: 36, clipPath: 'inset(0 0 0 18%)' }}
       animate={{ opacity: 1, x: 0, clipPath: 'inset(0 0 0 0%)' }}
       exit={reduceMotion ? undefined : { opacity: 0, x: 28, clipPath: 'inset(0 0 0 14%)' }}

@@ -9,6 +9,7 @@ import { WorldStoryCard } from './WorldStoryCard'
 import { Button } from '../ui/button'
 import { Tabs, TabsList, TabsTrigger } from '../ui/tabs'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '../ui/sheet'
+import { UiThemeProvider } from '../ui/theme'
 import { useMediaQuery } from '../../lib/useMediaQuery'
 import './world.css'
 
@@ -64,7 +65,7 @@ export function WorldScene(props: Props) {
       <div className="world-sync"><span className={overview ? 'world-status-dot' : 'world-status-dot is-unavailable'} />{overview ? <span>{text('最近更新', 'Updated')}<time dateTime={overview.generated_at}>{new Date(overview.generated_at).toLocaleTimeString(language === 'zh' ? 'zh-CN' : 'en-US', { hour: '2-digit', minute: '2-digit' })}</time></span> : <span>{overviewFailed ? text('状态暂不可用', 'Status unavailable') : text('读取世界状态', 'Reading world state')}</span>}{overviewFailed && <button onClick={onOverviewRetry}>{text('重试', 'Retry')}</button>}</div>
     </header>
 
-    <div className="world-stage ui-night dark">
+    <UiThemeProvider theme="dark"><div className="world-stage ui-night dark">
       <div className="world-stage-top"><span className="world-map-label"><Globe2 size={16} />{text('正在观察的世界', 'World in focus')}</span><Tabs value={view === 'hot' ? 'hot' : 'stories'} onValueChange={value => { onView(value); setShowSource(false) }}><TabsList><TabsTrigger value="stories">{text('浏览来源', 'Explore sources')}</TabsTrigger><TabsTrigger value="hot">{text('查看热点', 'Hot objects')}</TabsTrigger></TabsList></Tabs></div>
 
       <div className={`world-content  ${showSource && direction && sourceView ? 'world-content-inspecting' : ''}`}>
@@ -81,6 +82,7 @@ export function WorldScene(props: Props) {
     </div>
 
     <Sheet open={compact && showSource && Boolean(direction) && sourceView} onOpenChange={open => setShowSource(open)}><SheetContent side="bottom" className="world-source-sheet ui-night dark" onCloseAutoFocus={event => { event.preventDefault(); document.querySelector<HTMLButtonElement>(`[data-source="${region}"]`)?.focus() }}><SheetHeader><SheetTitle>{direction ? text(direction.zh, direction.en) : text('来源', 'Sources')}</SheetTitle><SheetDescription>{text('浏览这个方向的来源和已收录材料。', 'Explore sources and retained material in this domain.')}</SheetDescription></SheetHeader>{direction && <WorldSourceInspector category={direction.key} label={text(direction.zh, direction.en)} path={direction.path} materials={stories} onClose={() => setShowSource(false)} onFocus={selectStory} embedded/>}</SheetContent></Sheet>
+    </UiThemeProvider>
     <section className="world-recent-knowledge"><div><Activity size={18}/><span><strong>{text('最近形成的知识', 'Recent knowledge')}</strong><small>{changesPending ? text('读取中…', 'Loading…') : changesFailed ? text('暂时无法读取提交', 'Commits unavailable') : recentResult ?? (changes.length ? text(`最近 ${changes.length} 次提交，查看对象与关联的变化`, `Explore objects and relationships across ${changes.length} recent commits`) : text('当前暂无新的知识提交', 'No recent knowledge commits'))}</small></span></div><Button ref={formationTrigger} variant="ghost" onClick={() => onView('formation')}>{text('查看变化', 'View changes')}<ArrowRight size={16}/></Button></section>
     <Sheet open={view === 'formation'} onOpenChange={open => { if (!open) onView('stories') }}><SheetContent className="world-formation-sheet" onCloseAutoFocus={event => { event.preventDefault(); formationTrigger.current?.focus() }}><SheetHeader><SheetTitle>{text('最近形成的知识', 'Recent knowledge')}</SheetTitle><SheetDescription>{text('查看处理了哪些材料、形成了哪些对象和关联。', 'See which material was processed and which objects and relationships were retained.')}</SheetDescription></SheetHeader><WorldFormationField formation={formation} failed={formationFailed} onRetry={onFormationRetry}/>{changesFailed && <Button variant="ghost" onClick={onChangesRetry}>{text('重新读取知识提交', 'Retry knowledge commits')}</Button>}</SheetContent></Sheet>
 

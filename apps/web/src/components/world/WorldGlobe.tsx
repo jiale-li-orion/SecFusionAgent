@@ -16,7 +16,7 @@ export function WorldGlobe() {
     let phi = 2.25
     try {
       const size = canvas.clientWidth * dpr
-      globe = createGlobe(canvas, { width: size, height: size, devicePixelRatio: dpr, phi, theta: .18, dark: 1, diffuse: 1.35, mapSamples: 24000, mapBrightness: 4.2, baseColor: [.16, .25, .43], markerColor: [.5, .8, 1], glowColor: [.13, .24, .46], opacity: .8, scale: 1, markers: [] })
+      globe = createGlobe(canvas, { width: size, height: size, devicePixelRatio: dpr, phi, theta: .18, dark: 1, diffuse: 1.35, mapSamples: 24000, mapBrightness: 4.2, baseColor: [.2, .23, .31], markerColor: [.5, .8, 1], glowColor: [.1, .12, .18], opacity: .8, scale: 1, markers: [] })
     } catch { return }
     function animate(now: number) {
       if (!visible || motion.matches || document.hidden) { frame = 0; return }

@@ -1,0 +1,3 @@
+Use case: precise-object-edit.
+Use the supplied artwork as the edit target. Produce the matching tiny service-section corner ornament for the same application.
+Remove the desk lamp completely. Keep the open indigo reference book and its coral, cyan and violet page index tabs, preserving its exact detailed pixel-art style, page texture, warm light and blue-violet shadows. Keep the open-book silhouette recognizable at 80 pixels. Center the complete book with clean transparent margins. The book is the sole subject; no new props, no readable text, no icon badges, no background, no room, no additional glow. Preserve true alpha transparency.

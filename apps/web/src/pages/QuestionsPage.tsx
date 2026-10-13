@@ -5,6 +5,7 @@ import { ArrowUp, ArrowUpRight, ChevronRight, CircleHelp, History, Layers, Messa
 import { Link, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
+import { UiThemeProvider } from '../components/ui/theme'
 import { ConversationTurn } from '../components/questions/ConversationTurn'
 import { AuditRail } from '../components/questions/AuditRail'
 import { QuestionDrawer } from '../components/questions/QuestionDrawer'
@@ -310,7 +311,7 @@ export function QuestionsPage() {
 
   const isNewConversation = !sessionId && !pendingQuestion
 
-  return <section className="qa-workspace">
+  return <UiThemeProvider theme="dark"><section className="qa-workspace ui-night dark">
     <header className="qa-heading">
       <Button variant="ghost" className="qa-icon-button" onClick={() => setHistoryOpen(true)} disabled={busy} aria-label={text('历史对话', 'Conversation history')}><History size={20} /></Button>
       <div className="qa-heading-title"><h1>{text('问答', 'Ask SecFusion')}</h1><span>SecFusion</span></div>
@@ -358,5 +359,5 @@ export function QuestionsPage() {
       {auditOpen && <AuditRail turn={failedRunId ? null : focusTurn} failedRunId={failedRunId} tasks={auditTasks} taskLoading={taskQueries.some(query => query.isLoading)} taskReadFailed={taskQueries.some(query => query.isError)} onRetryTasks={() => taskQueries.forEach(query => { if (query.isError) void query.refetch() })} caseId={failedRunId ? null : caseId} caseStatus={caseDetail.data?.status} caseEvents={failedRunId ? [] : turnAuditEvents} caseActivityLoading={caseActivity.isLoading} caseActivityFailed={caseActivity.isError} onRetryActivity={() => void caseActivity.refetch()} streamConnected={streamConnected} onEvidence={setEvidence} /> }
       </QuestionDrawer>
     <AnimatePresence>{evidence && <EvidenceOverlay key={evidence} evidenceRef={evidence} onClose={() => setEvidence(null)} />}</AnimatePresence>
-  </section>
+  </section></UiThemeProvider>
 }

@@ -5,6 +5,8 @@ import { ArrowsOut } from "@phosphor-icons/react/dist/csr/ArrowsOut"
 import { Crosshair } from "@phosphor-icons/react/dist/csr/Crosshair"
 import { SlidersHorizontal } from "@phosphor-icons/react/dist/csr/SlidersHorizontal"
 import { X } from "@phosphor-icons/react/dist/csr/X"
+import { ArrowRight } from "@phosphor-icons/react/dist/csr/ArrowRight"
+import { ArrowDown } from "@phosphor-icons/react/dist/csr/ArrowDown"
 import { ArrowUpRight } from "@phosphor-icons/react/dist/csr/ArrowUpRight"
 import { Plus } from "@phosphor-icons/react/dist/csr/Plus"
 import { CircleNotch } from "@phosphor-icons/react/dist/csr/CircleNotch"
@@ -12,6 +14,7 @@ import { getKnowledgeNetwork, type KnowledgeNetwork as NetworkData } from '../..
 import { evidenceFieldLabel, formatValue } from '../../lib/intelligencePresentation'
 import { useI18n } from '../../lib/i18n'
 import { Button } from '../ui/button'
+import { ActionIndicator } from '../ui/action-indicator'
 import { Sheet, SheetContent, SheetTitle, SheetDescription, SheetHeader } from '../ui/sheet'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem } from '../ui/dropdown-menu'
 import { EvidenceCapsules } from './KnowledgeSurfaces'
@@ -87,7 +90,7 @@ function KnowledgeNetworkExplorer({ objectId, onEvidence, onOpenTarget, incident
     </SheetHeader>
     <div className="network-detail-body">
       {selectedEdge && <>
-        <div className="network-relationship-sentence"><strong>{labels.get(selectedEdge.source_id)}</strong><span>{evidenceFieldLabel(selectedEdge.relation_type, text)} →</span><strong>{labels.get(selectedEdge.target_id)}</strong></div>
+        <div className="network-relationship-sentence"><strong>{labels.get(selectedEdge.source_id)}</strong><span><ArrowDown size={16} aria-hidden="true"/>{evidenceFieldLabel(selectedEdge.relation_type, text)}</span><strong>{labels.get(selectedEdge.target_id)}</strong></div>
         <p className="network-detail-meta">{text('系统建立于', 'Recorded')} {networkDate(selectedEdge.created_at)}</p>
         {Object.entries(selectedEdge.qualifier).length > 0 && <dl className="network-qualifiers">{Object.entries(selectedEdge.qualifier).map(([key, value]) => <div key={key}><dt>{evidenceFieldLabel(key, text)}</dt><dd>{formatValue(value)}</dd></div>)}</dl>}
       </>}
@@ -135,7 +138,7 @@ function KnowledgeNetworkExplorer({ objectId, onEvidence, onOpenTarget, incident
     </footer>}
     {data && <div className="network-reading-footer">
       <span>{query.data?.remaining_count ? text(`中心对象还有 ${[...pages].reverse().find(page => page.focus === objectId && page.data.snapshot_revision === data.snapshot_revision)?.data.remaining_count ?? query.data.remaining_count} 个关联对象可展开`, 'More connections are available from the center object') : text('当前显示已加载对象的局部关联网络', 'Showing the loaded local network')}</span>
-      <details className="network-accessible-list"><summary>{text('用列表探索对象与关系', 'Explore objects and connections as a list')}</summary><div className="network-node-list">{data.nodes.filter(node => visibleIds.has(node.object_id)).map(node => <Button key={node.object_id} size="sm" variant="outline" onClick={() => setSelection({ kind: 'node', id: node.object_id })}>{node.label}</Button>)}</div>{visibleEdges.map(edge => <button key={edge.relation_id} onClick={() => setSelection({ kind: 'edge', id: edge.relation_id })}><span>{labels.get(edge.source_id)}</span><small>{evidenceFieldLabel(edge.relation_type, text)} →</small><span>{labels.get(edge.target_id)}</span><ArrowUpRight size={16} /></button>)}</details>
+      <details className="network-accessible-list"><summary>{text('用列表探索对象与关系', 'Explore objects and connections as a list')}</summary><div className="network-node-list">{data.nodes.filter(node => visibleIds.has(node.object_id)).map(node => <Button key={node.object_id} size="sm" variant="outline" onClick={() => setSelection({ kind: 'node', id: node.object_id })}>{node.label}</Button>)}</div>{visibleEdges.map(edge => <button key={edge.relation_id} onClick={() => setSelection({ kind: 'edge', id: edge.relation_id })}><span>{labels.get(edge.source_id)}</span><small>{evidenceFieldLabel(edge.relation_type, text)}<ArrowRight size={15} aria-hidden="true"/></small><span>{labels.get(edge.target_id)}</span><ActionIndicator /></button>)}</details>
     </div>}
   </div>
   return <section className="knowledge-network">

@@ -1,4 +1,4 @@
-import { ArrowUpRight } from "@phosphor-icons/react/dist/csr/ArrowUpRight"
+import { ActionIndicator } from "../ui/action-indicator"
 import { GitBranch } from "@phosphor-icons/react/dist/csr/GitBranch"
 import { Clock } from "@phosphor-icons/react/dist/csr/Clock"
 import { Terminal } from "@phosphor-icons/react/dist/csr/Terminal"
@@ -17,7 +17,7 @@ export function TaskCard({ task, selected, onSelect }: { task: AgentTaskSummary;
     <span className="ops-task-subject"><strong>{taskTitle(task, text)}</strong><small>{runtimeTaskLabel(task.task_kind, text)} · {task.target_label || text('未记录具体对象', 'No specific target recorded')}</small></span>
     <span className={`ops-task-outcome outcome-${task.status}`}>{taskOutcome(task, text)}</span>
     <time dateTime={task.updated_at}>{new Date(task.updated_at).toLocaleString(language === 'zh' ? 'zh-CN' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</time>
-    <ArrowUpRight size={16} />
+    <ActionIndicator />
   </button>
 }
 
@@ -70,11 +70,11 @@ export function TaskDossier({ detail, onSkillSelect, onTaskSelect }: { detail: A
   return <article className="ops-task-detail">
     <header><span className={`ops-task-outcome outcome-${task.status}`}>{taskOutcome(task, text)}</span><h2>{taskTitle(task, text)}</h2>
       {task.target_label && <p>{task.target_label}</p>}
-      <p className="ops-task-result">{taskResult(task, text)}</p>
+      <p className="ops-task-result" data-status={task.status}>{taskResult(task, text)}</p>
       <div className="ops-task-links">
-        {task.session_id && <Link to={`/start?session=${encodeURIComponent(task.session_id)}`}>{text('打开原始会话', 'Open conversation')}<ArrowUpRight size={14} /></Link>}
-        {task.case_id && <Link to={`/investigations?case=${encodeURIComponent(task.case_id)}&from=task&run=${encodeURIComponent(task.run_id)}`}>{text('查看调查结果', 'Open investigation')}<ArrowUpRight size={14} /></Link>}
-        {task.target_refs?.find(ref => ref.startsWith('object:')) && <Link to={`/intelligence?object=${encodeURIComponent(task.target_refs.find(ref => ref.startsWith('object:'))!.slice(7))}`}>{text('查看对象', 'Open target')}<ArrowUpRight size={14} /></Link>}
+        {task.session_id && <Link to={`/start?session=${encodeURIComponent(task.session_id)}`}>{text('打开原始会话', 'Open conversation')}<ActionIndicator /></Link>}
+        {task.case_id && <Link to={`/investigations?case=${encodeURIComponent(task.case_id)}&from=task&run=${encodeURIComponent(task.run_id)}`}>{text('查看调查结果', 'Open investigation')}<ActionIndicator /></Link>}
+        {task.target_refs?.find(ref => ref.startsWith('object:')) && <Link to={`/intelligence?object=${encodeURIComponent(task.target_refs.find(ref => ref.startsWith('object:'))!.slice(7))}`}>{text('查看对象', 'Open target')}<ActionIndicator /></Link>}
       </div>
       <small className="ops-task-time"><Clock size={14} />{text('更新于', 'Updated')} {new Date(task.updated_at).toLocaleString()}</small>
     </header>

@@ -1,7 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowUpRight } from "@phosphor-icons/react/dist/csr/ArrowUpRight"
-import { ArrowRight } from "@phosphor-icons/react/dist/csr/ArrowRight"
 import { Bookmark } from "@phosphor-icons/react/dist/csr/Bookmark"
 import { MinusCircle as CircleMinus } from "@phosphor-icons/react/dist/csr/MinusCircle"
 import { DotsThree as MoreHorizontal } from "@phosphor-icons/react/dist/csr/DotsThree"
@@ -16,6 +15,7 @@ import { useI18n } from '../../lib/i18n'
 import { Item, ItemContent } from '../ui/item'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '../ui/dropdown-menu'
 import { Button } from '../ui/button'
+import { ActionIndicator } from '../ui/action-indicator'
 import { dateLabel, latestObservedAt, presentationTitle } from './feedPresentation'
 import { SourceIdentity } from '../ui/source-identity'
 import { readableObjectTitle } from '../../lib/source-identity'
@@ -65,7 +65,7 @@ export function PersonalizedIntelligence({ following = false, onOpen }: { follow
             {reason && <p className="intel-reading-reason"><Sparkles size={13}/>{recommendationReason(reason, text, preferences.data?.target_objects ?? [])}</p>}
             <div className="flex items-center justify-between gap-2 pt-1">
               <Button variant="ghost" size="sm" className="-ml-3 text-muted-foreground" aria-pressed={item.feedback === 'interested'} disabled={feedback.isPending} onClick={() => feedback.mutate({ objectId: item.activity_id, value: item.feedback === 'interested' ? 'neutral' : 'interested' })}><ThumbsUp size={14} className={item.feedback === 'interested' ? 'fill-primary/15 text-primary' : ''}/>{item.feedback === 'interested' ? text('已感兴趣', 'Interested') : text('感兴趣', 'Interested')}</Button>
-              <div className="flex items-center gap-1"><Button variant="ghost" size="sm" onClick={() => onOpen(item.object_id, item.preview_evidence_refs?.[0] ?? origin?.evidence_ref)}>{text('查看来源', 'Sources')}<ArrowRight size={14}/></Button><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label={text(`更多操作：${title}`, `More actions for ${title}`)}><MoreHorizontal size={18}/></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem disabled={feedback.isPending} onSelect={() => feedback.mutate({ objectId: item.activity_id, value: 'ignored', label: title })}><CircleMinus size={15}/>{text('忽略这条动态', 'Ignore this update')}</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>
+              <div className="flex items-center gap-1"><Button variant="ghost" size="sm" className="min-h-11 pr-1" onClick={() => onOpen(item.object_id, item.preview_evidence_refs?.[0] ?? origin?.evidence_ref)}>{text('查看来源', 'Sources')}<ActionIndicator/></Button><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label={text(`更多操作：${title}`, `More actions for ${title}`)}><MoreHorizontal size={18}/></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem disabled={feedback.isPending} onSelect={() => feedback.mutate({ objectId: item.activity_id, value: 'ignored', label: title })}><CircleMinus size={15}/>{text('忽略这条动态', 'Ignore this update')}</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>
             </div>
           </ItemContent>
         </article></Item>

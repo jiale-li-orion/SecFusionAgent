@@ -5,6 +5,7 @@ import { useI18n } from '../../lib/i18n'
 import { dateLabel } from './feedPresentation'
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group'
 import { SourceIdentity } from '../ui/source-identity'
+import { ActionIndicator } from '../ui/action-indicator'
 
 const kinds = [
   { key: 'academic', zh: '研究', en: 'Research', icon: BookOpen },
@@ -64,9 +65,9 @@ export function IntelligenceIndex({ stories, hot, hotTotal, candidates, candidat
         const Icon = kind?.icon ?? FileText
         return <article className="intel-feed-card" key={story.story_id}>
           <div className="intel-publisher-row"><SourceIdentity source={story.source_name ?? story.source_id} url={story.external_ref}/><span><Icon size={13}/>{kind ? text(kind.zh, kind.en) : text('资料', 'Material')}</span></div>
-          <h2><button onClick={() => onSelect(story)}>{story.headline}</button></h2>
+          <h2><button className="min-h-11" onClick={() => onSelect(story)}>{story.headline}</button></h2>
           {story.excerpt && <p className="intel-card-excerpt">{story.excerpt}</p>}
-          <footer><span>{story.published_at ? text('发布于', 'Published') : text('发现于', 'Observed')} {dateLabel(story.published_at ?? story.observed_at, language)}</span><div>{story.external_ref && <a href={story.external_ref} target="_blank" rel="noreferrer">{text('原文', 'Source')}<ArrowUpRight size={13}/></a>}<button onClick={() => onSelect(story)}>{text('阅读档案', 'Read dossier')}<ArrowUpRight size={15}/></button></div></footer>
+          <footer><span>{story.published_at ? text('发布于', 'Published') : text('发现于', 'Observed')} {dateLabel(story.published_at ?? story.observed_at, language)}</span><div>{story.external_ref && <a href={story.external_ref} target="_blank" rel="noreferrer">{text('原文', 'Source')}<ArrowUpRight size={13}/></a>}<button className="min-h-11" onClick={() => onSelect(story)}>{text('阅读档案', 'Read dossier')}<ActionIndicator/></button></div></footer>
         </article>
       })}
     </div>
