@@ -1,6 +1,6 @@
 # `apps.web` — SecFusion Product Web
 
-The Product Web has four primary spaces: **World, Intelligence, Ask and Workspace**. The [October experience contract](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Product-Web-Experience-2026-10) follows the user's latest reference images and feedback and supersedes earlier UI-cache directions. [`SPEC.md`](SPEC.md) retains the underlying behavior contracts. Product facts come from Application/API reads, never presentation fixtures or benchmark snapshots.
+The Product Web has four primary spaces: **World, Intelligence, Ask and Workspace**. The [October experience contract](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Product-Web-Experience-2026-10) defines navigation, reading and interaction contracts. [`SPEC.md`](SPEC.md) retains the underlying behavior contracts. Product facts come from Application/API reads, never presentation fixtures or benchmark snapshots.
 
 ## Navigation and content
 
@@ -24,6 +24,14 @@ Object dossiers open with a compact identity and a fact reader. Facts, Relations
 Incident evolution reuses the same explorer with an independent incident revision domain. Only retained incident events, actual evidence/claim references and documented source associations create edges. Source event time remains separate from system recording time. Reads are bounded to 200 event and 200 source records; the interface discloses this scope and does not claim a complete historical snapshot.
 
 World keeps source health, acquisition time, original source text and Hot/cache identity separate from durable Knowledge. The Hot index pages 24 ranked source records at a time, up to the API offset cap of 4096, and shows the independent resident total. Exact CVE lookup searches the resident pool; free text filters the loaded page. Sources and materials can be focused without a camera-control vocabulary. Motion follows selection and respects reduced motion. COBE supplies the ambient globe without invented geographic markers; the overlaid source links remain actual material provenance. Animation stops offscreen or in a hidden tab, and unavailable WebGL does not remove the evidence controls.
+
+## Library, events and reports
+
+`MaterialLibrary` reads `/api/v1/intelligence/library` with a default 48-item page and carries `as_of` into later pages. Type, source and multi-label subject facets describe eligible public retained material. The displayed clusters are deterministic browsing aids, not inferred relationships or confirmed facts. `EventLibrary` renders durable incidents along their evidence-linked chronology with shared developing-field motion; it does not fabricate missing event dates.
+
+Reviewed public briefings expose their independent summary directly in the reading feed. Opening public or private HTML reports is read-only. The old Intelligence Hot tab redirects to the World Hot view, where featured incidents/tools share discovery with CVEs.
+
+`WorldStoryCard` expands the existing excerpt instead of repeating it in evidence details. The dark `.world-main` explicitly sets both background and foreground from its scoped theme, preventing inherited light-page text from disappearing on a dark surface. Browser validation covered normal, selected and hovered Hot rows; production build and CSS ownership checks passed.
 
 ## Conversation and evidence
 
@@ -55,6 +63,14 @@ Operations separates overview, task records and service health. Open task entrie
 
 ## Components and style ownership
 
+The shell uses `LazyMotion` with asynchronously loaded `domMax` features, retaining
+route transitions and navigation layout animation without including the complete
+engine in the initial script graph. Account controls and the secondary Workspace
+navigation are separately loaded; account loading remains explicitly announced.
+The Product static gate checks the current component owners (Radix tab semantics,
+EvidenceAtlas reduced motion and report-reader continuation) rather than retired
+CSS class names. Its initial-script byte budget remains unchanged.
+
 Task detail now reads durable `PerceptionEvent` records separately from external `CapabilityInvocation` calls. The Tools & models tab shows local inspect/search/trace actions, their physical read operators and citation count before external capability calls and model attempts. An empty external-call list no longer suggests that the investigation made no local reads. The execution timeline labels `EvidenceFound` as a completed perception because a read may return no citable evidence.
 When a source supports partial findings but cannot satisfy the full EvidenceNeed contract, the timeline shows that the findings were saved and the evidence gap remains. Bounded stops distinguish an unmet evidence contract from a rejected state write and a repeated read.
 
@@ -68,11 +84,7 @@ The composer separates the text area and action toolbar; enabled send, disabled 
 
 `ActionIndicator` now supplies only a disclosure chevron. Repeated decorative forward arrows and icon backplates are removed from reading, suggestion, workspace and task rows. `productVocabulary.ts` presents readable skill names, lifecycle states, source categories and operating metrics without changing API values or links. Raw identifiers remain available inside explicit technical details; public identifiers and source prose remain accurate.
 
-
-
 The earlier 2026-10-13 visual pass passed production build, ESLint, CSS-authority and source-size checks. Browser inspection covered the four spaces at 390/768/1440px, a real relationship and its retained evidence, source selection, task details, editable question starters, history-drawer focus return and reduced motion. No new paid question was submitted. The supplied legacy session returned 403 for the inspection account, so this visual pass does not claim fresh end-to-end validation of that conversation or provider streaming. The existing lazy-loaded graph bundle still triggers Vite's 500 KB size warning.
-
-
 
 The global import order in `src/main.tsx` is:
 
@@ -88,6 +100,10 @@ The user approved the developing-pigment motion base on 2026-10-15 and requested
 The renderer caps resolution and frame rate, pauses offscreen or in hidden tabs, renders statically under reduced motion, and releases GPU resources and listeners on unmount. A static fallback covers unavailable/lost WebGL contexts. Shared Card and Item defaults are open surfaces; legacy frames, row fills and repeated internal-link arrows were also removed from evidence, runtime, source, coverage and question components.
 
 Validation includes desktop/mobile route checks, task detail, evidence inspector, source/service tabs, typography, focus-driven motion, reduced motion and offscreen suspension. No paid question was submitted. Technical verification does not imply user acceptance of every page.
+
+### Shared icons and network renderer
+
+`components/ui/icons.ts` maps stable product names to explicit Phosphor module imports. Regular controls use regular weight; selected primary navigation uses fill. Source logos retain publisher identity. The network renderer is loaded only when a graph is opened; fCoSE fixes existing positions during expansion and the viewport refits on width changes.
 
 ## Local development
 
@@ -116,21 +132,7 @@ npm run lint
 
 For layout work, inspect loaded desktop and phone pages plus the changed user path against real local data. The existing `make product-visual-check`, `make product-interaction-check` and `scripts/check_product_decision_flow.py` can cover broader geometry and persisted Decision → citation → Evidence → refresh paths without model calls. Run relevant checks rather than automatically rerunning model evaluation for presentation changes. Runtime screenshots, account state and provider output stay outside Git.
 
-### Shared icons and network renderer
-
-`components/ui/icons.ts` maps stable product names to explicit Phosphor module imports. Regular controls use regular weight; selected primary navigation uses fill. Source logos retain publisher identity. The network renderer is loaded only when a graph is opened; fCoSE fixes existing positions during expansion and the viewport refits on width changes.
-
-The latest validation scope includes 18 routes/views at 390 and 1440px, plus login/registration, graph, source and coverage views. Checks cover horizontal overflow, readable typography, semantic label mapping and interactive/reduced-motion behavior. Private investigation and conversation contents require an authorized record; this pass does not claim fresh provider/SSE validation. Build, lint and focused vocabulary checks are run after the final changes. The existing lazy graph chunk retains its 500 KB warning. This revision is not committed or published.
-
-The intelligence home also reads reviewed public reports from `/api/v1/intelligence/briefs`; the public report link opens its HTML read projection. `DecisionReport` exposes the corresponding account-owned HTML route for private results. Neither UI read triggers generation. WORLD distinguishes publication timestamps, date-only publication and observation time; it does not invent a timestamp for date-only material.
-
-## Library, events and Hot contrast
-
-`MaterialLibrary` reads `/api/v1/intelligence/library` with a default 48-item page and carries `as_of` into later pages. Type, source and multi-label subject facets describe eligible public retained material. The displayed clusters are deterministic browsing aids, not inferred relationships or confirmed facts. `EventLibrary` renders durable incidents along their evidence-linked chronology with shared developing-field motion; it does not fabricate missing event dates.
-
-Reviewed public briefings expose their independent summary directly in the reading feed. Opening public or private HTML reports is read-only. The old Intelligence Hot tab redirects to the World Hot view, where featured incidents/tools share discovery with CVEs.
-
-`WorldStoryCard` expands the existing excerpt instead of repeating it in evidence details. The dark `.world-main` explicitly sets both background and foreground from its scoped theme, preventing inherited light-page text from disappearing on a dark surface. Browser validation covered normal, selected and hovered Hot rows; production build and CSS ownership checks passed.
+The latest validation scope includes 18 routes/views at 390 and 1440px, plus login/registration, graph, source and coverage views. Checks cover horizontal overflow, readable typography, semantic label mapping and interactive/reduced-motion behavior. Private investigation and conversation contents require an authorized record; this pass does not claim fresh provider/SSE validation. Build, lint and focused vocabulary checks are run after the final changes. The existing lazy graph chunk retains its 500 KB warning. This implementation is included in `main`; dated browser observations are acceptance evidence for their tested revision, not a fresh live-provider check.
 
 Additional deterministic presentation checks:
 
@@ -139,11 +141,3 @@ node scripts/test-library-presentation.mjs
 node scripts/test-material-catalog.mjs
 node scripts/test-product-vocabulary.mjs
 ```
-
-The shell uses `LazyMotion` with asynchronously loaded `domMax` features, retaining
-route transitions and navigation layout animation without including the complete
-engine in the initial script graph. Account controls and the secondary Workspace
-navigation are separately loaded; account loading remains explicitly announced.
-The Product static gate checks the current component owners (Radix tab semantics,
-EvidenceAtlas reduced motion and report-reader continuation) rather than retired
-CSS class names. Its initial-script byte budget remains unchanged.

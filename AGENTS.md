@@ -2,7 +2,7 @@
 
 Read `PRODUCT-REPO-STANDARD.zh.md` and the relevant Wiki design before changing code.
 
-Current implementation baseline is defined by `SecFusionAgent.wiki/Technical-Design.md`. The current coding phase covers the M1-M3 data plane. Do not introduce M4-M6 retrieval, investigation, or reasoning behavior into data-plane packages.
+Current cross-module contracts are defined by the sibling Wiki: `Technical-Design-1.md` (M1-M3 data plane), `Technical-Design-2.md` (investigation/runtime), `Technical-Design-2A.md` (Product Application/API), and `Technical-Design-3.md` (measurement/evaluation). `Current-Acceptance.md` records verified scope and open work. M1-M6 and the Product Web are implemented; preserve capability ownership rather than treating the repository as an M1-M3-only phase. Do not introduce investigation or reasoning behavior into data-plane packages.
 
 Repository rules:
 

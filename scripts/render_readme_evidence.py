@@ -51,9 +51,9 @@ def _duration(seconds: float | None) -> str:
 
 def _target_table(report: dict[str, Any], *, chinese: bool = False) -> list[str]:
     header = (
-        "| 决赛目标 | 指标 | 当前值 | 阈值 | 状态 |"
+        "| 留存数值目标 | 指标 | 留存值 | 阈值 | 状态 |"
         if chinese
-        else "| Finals target | Metric | Observed | Threshold | Status |"
+        else "| Retained numeric target | Metric | Observed | Threshold | Status |"
     )
     rows = [header, "| --- | --- | ---: | ---: | --- |"]
     for target in report["target_checks"]:
@@ -91,9 +91,9 @@ def _evaluation_block(*, chinese: bool = False) -> str:
         group_counts[status] = group_counts.get(status, 0) + 1
         unobserved_metrics.update(str(name) for name in group["unobserved_metrics"])
     title = (
-        "## 当前正式评测证据（自动生成）"
+        "## 留存正式评测证据（自动生成）"
         if chinese
-        else "## Current formal evaluation evidence (generated)"
+        else "## Retained formal evaluation evidence (generated)"
     )
     note = (
         "本段由 `benchmarks/**/current*.json` 自动渲染。修改评测结果后运行 `make evidence-doc`；`make evidence-doc-check` 会在 Markdown 与结构化结果漂移时失败。"
@@ -104,7 +104,7 @@ def _evaluation_block(*, chinese: bool = False) -> str:
     if chinese:
         lines.extend(
             [
-                f"当前 CompetitionReport：`{report['report_id']}`；Deployment：`{report['deployment_revision_id']}`。",
+                f"留存 CompetitionReport：`{report['report_id']}`；Deployment：`{report['deployment_revision_id']}`；生成于 `{report['generated_at']}`，不是当前 HEAD 的重测结果。",
                 "",
                 f"M1 固定窗口 `{m1['window_start']}` → `{m1['window_end']}`："
                 f"{m1['latency']['evaluable_samples']}/{m1['latency']['total_samples']} 个样本可评，"
@@ -136,7 +136,7 @@ def _evaluation_block(*, chinese: bool = False) -> str:
     else:
         lines.extend(
             [
-                f"Current CompetitionReport: `{report['report_id']}` on `{report['deployment_revision_id']}`.",
+                f"Retained CompetitionReport: `{report['report_id']}` on `{report['deployment_revision_id']}`, generated `{report['generated_at']}`; not a re-evaluation of current HEAD.",
                 "",
                 f"M1 fixed window `{m1['window_start']}` → `{m1['window_end']}`: "
                 f"{m1['latency']['evaluable_samples']}/{m1['latency']['total_samples']} evaluable samples, "
@@ -212,26 +212,26 @@ def _scoreboard_block(*, chinese: bool = False) -> str:
             runtime["storage"]["artifact_store"].get("public_epoch", {}).get("integrity_rate")
         )
         runtime_line_zh = (
-            f"**持续监测记账起点：`{runtime['public_monitoring_epoch_local']}`；"
-            f"当前 scheduled source 健康状态 {health.get('healthy', 0)} healthy / "
+            f"**留存运行快照：`{runtime['generated_at']}`；监测记账起点：`{runtime['public_monitoring_epoch_local']}`；"
+            f"该快照 scheduled source 健康状态 {health.get('healthy', 0)} healthy / "
             f"{health.get('degraded', 0)} degraded / {health.get('blocked', 0)} blocked；"
             f"epoch 内 Evidence 物理完整性 {_pct(integrity)}。**"
         )
         runtime_line_en = (
-            f"**Public continuous-monitoring epoch: `{runtime['public_monitoring_epoch_local']}`; "
+            f"**Saved runtime snapshot: `{runtime['generated_at']}`; monitoring epoch: `{runtime['public_monitoring_epoch_local']}`; "
             f"scheduled-source health {health.get('healthy', 0)} healthy / "
             f"{health.get('degraded', 0)} degraded / {health.get('blocked', 0)} blocked; "
             f"epoch Evidence integrity {_pct(integrity)}.**"
         )
         runtime_flow_line_zh = (
-            f"**最近 1h 运行面：Run OK {_pct(live.get('scheduled_run_success_rate'))}；"
+            f"**快照结束前 1h 运行面：Run OK {_pct(live.get('scheduled_run_success_rate'))}；"
             f"Provider-boundary fail {_pct(live.get('provider_boundary_failure_rate'))}；"
             f"Runtime-owned fail {_pct(live.get('runtime_owned_failure_rate'))}；"
             f"Queue p95 {_duration(live.get('queue_delay_p95_seconds'))}；"
             f"Execution p95 {_duration(live.get('execution_p95_seconds'))}。**"
         )
         runtime_flow_line_en = (
-            f"**Last-1h operations: Run OK {_pct(live.get('scheduled_run_success_rate'))}; "
+            f"**Hour preceding that snapshot: Run OK {_pct(live.get('scheduled_run_success_rate'))}; "
             f"provider-boundary fail {_pct(live.get('provider_boundary_failure_rate'))}; "
             f"runtime-owned fail {_pct(live.get('runtime_owned_failure_rate'))}; "
             f"queue p95 {_duration(live.get('queue_delay_p95_seconds'))}; "
@@ -240,9 +240,9 @@ def _scoreboard_block(*, chinese: bool = False) -> str:
 
     if chinese:
         lines = [
-            "## 决赛硬指标",
+            "## 留存评测摘要与当前来源配置",
             "",
-            "| 指标 | 当前正式结果 |",
+            "| 指标 | 留存正式结果 |",
             "| --- | ---: |",
             f"| 来源类别覆盖 | **{m1['source_category_count']}/8**（目标 ≥7） |",
             f"| M1 监测时效 | **p50 {_duration(m1['latency']['p50_seconds'])} / p95 {_duration(m1['latency']['p95_seconds'])} / ≤6h {_pct(m1['latency']['within_6h_rate'])}（{m1['latency']['evaluable_samples']}/{m1['latency']['total_samples']}）** |",
@@ -250,7 +250,7 @@ def _scoreboard_block(*, chinese: bool = False) -> str:
             f"| Controlled fault recovery | **{_pct(fault['success_rate'])}（{len(fault['cases'])}/{len(fault['cases'])}）** |",
             f"| M6 QA | **Accuracy {_pct(metrics['m6.answer_accuracy']['value'])} / interactive max {_duration(metrics['m6.interactive_latency_seconds']['value'])}** |",
             "",
-            f"**来源运行口径：{len(inventory['entries'])} 个 catalog entries → {len(source_files)} 个 executable sources → {scheduled_sources} 个 scheduled monitors；8 类产品覆盖，其中 {len(scheduled_categories)}/8 类存在主动定时监测，`assets` 保持按需查询。**",
+            f"**当前来源配置（非在线健康）：{len(inventory['entries'])} 个 catalog entries → {len(source_files)} 个 executable sources → {scheduled_sources} 个 scheduled monitors；8 类产品覆盖，其中 {len(scheduled_categories)}/8 类存在主动定时监测，`assets` 保持按需查询。**",
             *([runtime_line_zh] if runtime_line_zh is not None else []),
             *([runtime_flow_line_zh] if runtime_flow_line_zh is not None else []),
             "",
@@ -258,9 +258,9 @@ def _scoreboard_block(*, chinese: bool = False) -> str:
         ]
     else:
         lines = [
-            "## Competition scoreboard",
+            "## Retained evaluation and current source configuration",
             "",
-            "| Metric | Current formal result |",
+            "| Metric | Retained formal result |",
             "| --- | ---: |",
             f"| Source category coverage | **{m1['source_category_count']}/8** (target ≥7) |",
             f"| M1 monitoring latency | **p50 {_duration(m1['latency']['p50_seconds'])} / p95 {_duration(m1['latency']['p95_seconds'])} / ≤6h {_pct(m1['latency']['within_6h_rate'])} ({m1['latency']['evaluable_samples']}/{m1['latency']['total_samples']})** |",
@@ -268,7 +268,7 @@ def _scoreboard_block(*, chinese: bool = False) -> str:
             f"| Controlled fault recovery | **{_pct(fault['success_rate'])} ({len(fault['cases'])}/{len(fault['cases'])})** |",
             f"| M6 QA | **Accuracy {_pct(metrics['m6.answer_accuracy']['value'])} / interactive max {_duration(metrics['m6.interactive_latency_seconds']['value'])}** |",
             "",
-            f"**Source runtime contract: {len(inventory['entries'])} catalog entries → {len(source_files)} executable sources → {scheduled_sources} scheduled monitors; 8 product categories, with active scheduled monitoring in {len(scheduled_categories)}/8 categories and `assets` intentionally query-time.**",
+            f"**Current source configuration (not live health): {len(inventory['entries'])} catalog entries → {len(source_files)} executable sources → {scheduled_sources} scheduled monitors; 8 product categories, with active scheduled monitoring in {len(scheduled_categories)}/8 categories and `assets` intentionally query-time.**",
             *([runtime_line_en] if runtime_line_en is not None else []),
             *([runtime_flow_line_en] if runtime_flow_line_en is not None else []),
             "",
@@ -282,11 +282,11 @@ def _monitoring_block() -> str:
     provisional = m1["source_delivery_provisional"]
     diagnostics = m1["monitoring_diagnostics"]
     lines = [
-        "## Current M1 evidence (generated)",
+        "## Retained M1 evidence (generated)",
         "",
         f"Suite `{m1['suite_ref']}`, run `{m1['benchmark_run_id']}`, deployment `{m1['deployment_revision_id']}`.",
         "",
-        "| Measurement | Current result |",
+        "| Measurement | Retained result |",
         "| --- | ---: |",
         f"| Product source categories | {m1['source_category_count']} |",
         f"| Raw scheduled candidates | {m1['raw_latency_candidate_count']} |",
@@ -314,13 +314,13 @@ def _monitoring_block() -> str:
         lines.extend(
             [
                 "",
-                "### Live data-plane status (generated)",
+                "### Saved data-plane snapshot (generated)",
                 "",
-                f"Public continuous-monitoring epoch: `{runtime['public_monitoring_epoch_local']}`. Pre-epoch rows are bootstrap/corpus-prefill and stay outside public runtime throughput.",
+                f"Snapshot generated `{runtime['generated_at']}`; monitoring epoch `{runtime['public_monitoring_epoch_local']}`. This is retained evidence, not live health. Pre-epoch bootstrap rows stay outside throughput.",
                 "",
-                f"Source contract: {runtime['taxonomy']['catalog_entries']} catalog entries → {runtime['taxonomy']['executable_sources']} executable sources → {runtime['taxonomy']['scheduled_monitors']} scheduled monitors; {runtime['taxonomy']['scheduled_categories']}/8 categories are actively scheduled and `assets` remains query-time.",
+                f"Source configuration at snapshot time: {runtime['taxonomy']['catalog_entries']} catalog entries → {runtime['taxonomy']['executable_sources']} executable sources → {runtime['taxonomy']['scheduled_monitors']} scheduled monitors; {runtime['taxonomy']['scheduled_categories']}/8 categories are actively scheduled and `assets` remains query-time.",
                 "",
-                f"Current health: {health.get('healthy', 0)} healthy / {health.get('degraded', 0)} degraded / {health.get('blocked', 0)} blocked / {health.get('warming', 0)} warming. Last-hour runtime: run success {_pct(one_hour['scheduled_run_success_rate'])}, queue p95 {_duration(one_hour['queue_delay_p95_seconds'])}, execution p95 {_duration(one_hour['execution_p95_seconds'])}, fresh changes {one_hour['fresh_external_changes']}, fresh contributing sources/categories {one_hour['fresh_contributing_sources']}/{one_hour['fresh_contributing_categories']}. Public-epoch Evidence integrity: {_pct(epoch_integrity)}.",
+                f"Health at snapshot time: {health.get('healthy', 0)} healthy / {health.get('degraded', 0)} degraded / {health.get('blocked', 0)} blocked / {health.get('warming', 0)} warming. Last-hour runtime: run success {_pct(one_hour['scheduled_run_success_rate'])}, queue p95 {_duration(one_hour['queue_delay_p95_seconds'])}, execution p95 {_duration(one_hour['execution_p95_seconds'])}, fresh changes {one_hour['fresh_external_changes']}, fresh contributing sources/categories {one_hour['fresh_contributing_sources']}/{one_hour['fresh_contributing_categories']}. Public-epoch Evidence integrity: {_pct(epoch_integrity)}.",
                 "",
                 "`benchmarks/data-plane/current.json` owns 1h/6h/24h/7d rolling windows plus chart-ready hourly/category series; `make data-plane-metrics` refreshes the snapshot.",
             ]
@@ -339,7 +339,7 @@ def _enrichment_block() -> str:
         if name.startswith("m3.dimension.") and name.endswith(".precision")
     )
     lines = [
-        "## Current M3 formal evidence (generated)",
+        "## Retained M3 formal evidence (generated)",
         "",
         f"Competition aggregation: TP={_number(metrics['m3.true_positive']['value'])}, FP={_number(metrics['m3.false_positive']['value'])}, FN={_number(metrics['m3.false_negative']['value'])}, micro precision={_pct(metrics['m3.micro_precision']['value'])}, micro recall={_pct(metrics['m3.micro_recall']['value'])}.",
         "",
@@ -392,11 +392,11 @@ def _qa_block() -> str:
 
             return "\n".join(
                 [
-                    "## Current M6 formal evidence (generated)",
+                    "## Retained M6 formal evidence (generated)",
                     "",
                     f"Deployment `{live.get('deployment_revision_id', 'unknown')}`, Knowledge head `knowledge-revision:{live.get('knowledge_revision', 'unknown')}`, resolved model `{provider_probe.get('actual_model') or provider_probe.get('resolved_model_name') or 'unknown'}`.",
                     "",
-                    "| Metric | Current result |",
+                    "| Metric | Retained result |",
                     "| --- | ---: |",
                     f"| Answer accuracy | {metric('m6.answer_accuracy')} |",
                     f"| Groundedness | {metric('m6.groundedness')} |",

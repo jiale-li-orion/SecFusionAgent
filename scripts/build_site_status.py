@@ -23,15 +23,22 @@ def _count_files(root: Path, pattern: str) -> int:
 
 
 def build(repo: Path, wiki: Path | None) -> dict[str, object]:
+    sources = [json.loads(path.read_text()) for path in (repo / "config/sources").glob("*.json")]
+    inventory = json.loads((repo / "config/source-inventory.json").read_text())
     return {
         "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "main_sha": _git_sha(repo),
         "wiki_sha": _git_sha(wiki) if wiki else None,
-        "source_definitions": _count_files(repo / "config/sources", "*.json"),
+        "source_definitions": len(sources),
+        "catalog_entries": len(inventory["entries"]),
+        "scheduled_monitors": sum(
+            (source.get("schedule_policy") or {}).get("enabled", True) is not False
+            for source in sources
+        ),
         "migrations": _count_files(repo / "alembic/versions", "*.py"),
         "test_files": sum(
             1
-            for root in (repo / "packages", repo / "tests")
+            for root in (repo / "apps", repo / "packages", repo / "tests")
             if root.exists()
             for path in root.rglob("test_*.py")
             if path.is_file()
@@ -47,11 +54,11 @@ def build(repo: Path, wiki: Path | None) -> dict[str, object]:
             "M7 Replay / Benchmark / Experience Promotion",
         ],
         "next_evidence_zh": (
-            "补齐 M6 正式 live-model 证据。持续加固 production capability substrate。"
+            "扩大已有正式 QA 的困难问题与外部能力样本。验收历史世界读取、隔离底座与生产恢复。"
         ),
         "next_evidence_en": (
-            "Add formal M6 live-model evidence and continue hardening the production "
-            "capability substrate."
+            "Broaden existing formal QA and external-capability cases; validate historical reads, "
+            "isolation and production recovery."
         ),
     }
 

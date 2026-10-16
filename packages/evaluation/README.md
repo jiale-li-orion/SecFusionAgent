@@ -1,11 +1,11 @@
 # `packages.evaluation`
 
 <!-- BEGIN GENERATED EVALUATION STATUS -->
-## Current formal evaluation evidence (generated)
+## Retained formal evaluation evidence (generated)
 
 This block is rendered from `benchmarks/**/current*.json`. Run `make evidence-doc` after benchmark changes; `make evidence-doc-check` fails when Markdown drifts from structured evidence.
 
-| Finals target | Metric | Observed | Threshold | Status |
+| Retained numeric target | Metric | Observed | Threshold | Status |
 | --- | --- | ---: | ---: | --- |
 | `source_category_coverage` | `m1.source_category_count` | 8 | >= 7 | **pass** |
 | `enrichment_precision` | `m3.micro_precision` | 99.659% | >= 95.000% | **pass** |
@@ -13,7 +13,7 @@ This block is rendered from `benchmarks/**/current*.json`. Run `make evidence-do
 | `qa_accuracy` | `m6.answer_accuracy` | 100.000% | >= 95.000% | **pass** |
 | `qa_interactive_latency` | `m6.interactive_latency_seconds` | 3.655s | <= 5.000s | **pass** |
 
-Current CompetitionReport: `eb0a1c43-a786-434e-904a-fd976d751105` on `deployment:2713f58f83915b2d0d0a9621ed4b7ac7`.
+Retained CompetitionReport: `eb0a1c43-a786-434e-904a-fd976d751105` on `deployment:2713f58f83915b2d0d0a9621ed4b7ac7`, generated `2026-10-08T15:37:32.851706Z`; not a re-evaluation of current HEAD.
 
 M1 fixed window `2026-10-01T10:00:00+00:00` → `2026-10-01T14:02:00+00:00`: 12/12 evaluable samples, p50 357.709s (5.96min), p95 7241.893s (2.01h), within 6h 100.000%; source categories=8.
 

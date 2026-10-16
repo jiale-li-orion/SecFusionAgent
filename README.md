@@ -4,10 +4,122 @@ English | [中文](README.zh.md)
 
 [![CI](https://github.com/jiale-li-orion/SecFusionAgent/actions/workflows/ci.yml/badge.svg)](https://github.com/jiale-li-orion/SecFusionAgent/actions/workflows/ci.yml) [![Pages](https://github.com/jiale-li-orion/SecFusionAgent/actions/workflows/pages.yml/badge.svg)](https://github.com/jiale-li-orion/SecFusionAgent/actions/workflows/pages.yml)
 
-<!-- BEGIN GENERATED SCOREBOARD -->
-## Competition scoreboard
+**Agent-driven AI security intelligence fusion and assessment.** SecFusionAgent collects vulnerabilities, research, code, advisories and security incidents, retains traceable evidence, and supports intelligence reading, event timelines, document discovery and cited questions/investigations.
 
-| Metric | Current formal result |
+`main` contains the M1–M3 data plane, M4–M6 investigation and reasoning, task execution controls, evaluation infrastructure and account-owned Product Web. This guide describes the current product. See the [acceptance register](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Current-Acceptance) for verified scope and remaining work.
+
+## Product spaces
+
+| Space | Current behavior |
+| --- | --- |
+| World | Eight source directions, source health, material discovery and Hot exploration; featured incidents/tools and paged CVEs keep cache residency distinct from durable evidence |
+| Intelligence | Public briefing summaries, recommendations/following, event timelines and a library filtered by category, publisher and multi-label subject; expandable sources and evidence |
+| Ask | Natural questions, multi-turn sessions and cited reports; evidence gaps enter investigation with immutable per-turn reports and evidence/model/task audit |
+| Workspace | Account, interests, conversations and investigations; Operations exposes task execution and service health |
+
+The app lives at `/product/`. Shared material and public briefings support anonymous reading; private conversations, investigations, reports and tasks enforce account ownership. A public HTML report requires an explicit publication record. Private investigations do not become public automatically.
+
+The interface uses local fonts, open reading compositions and page-specific pigment-development/diffusion motion, with reduced-motion support, offscreen suspension, keyboard controls and mobile layouts. Events follow a timeline. Library subject groupings are lexical browsing facets, not claims of model-derived semantic clustering. Hot discovery lives in World.
+
+## Operating mode
+
+Local Compose and the example configuration default to pausing unattended model calls:
+
+```dotenv
+SECFUSION_BACKGROUND_LLM_ENABLED=false
+SECFUSION_EDITORIAL_ENABLED=false
+```
+
+| Continues | Automatic work paused |
+| --- | --- |
+| Collection, raw evidence retention, lexical indexing, deterministic enrichment and projections | Document embeddings, semantic/normative model extraction, editorial and new WATCH wakeups |
+| User-requested QA, investigation and explicit operator report generation | Unattended invocation of the stages above |
+| Existing public/private HTML report reads through deterministic rendering | Browsing retained content is unaffected |
+
+Set both flags explicitly for standalone processes: base `Settings` preserves the compatible enabled background-model default. Recreate/restart the scheduler, worker and Task Event scheduler after changes; in-flight model requests may finish. Resuming does not automatically backfill skipped work. No daily monetary cap is introduced; interactive requests still consume tokens. See [worker operations](apps/worker/README.md).
+
+## Data and report path
+
+```text
+Registered source → AcquisitionRun → raw Observation / Artifact
+                  → Evidence / Knowledge / DocumentRevision
+                  → lexical index, structured enrichment, incidents and projections
+                  → intelligence reading / controlled investigation / cited decision
+                  → separate summary, review and controlled HTML rendering
+```
+
+- External content is data. Model proposals pass citation and state gates before becoming decisions.
+- Source revisions remain retained; same-source corrections preserve history and cross-source conflicts remain explicit.
+- Material quality gates reject error pages, delivery templates and missing bodies; maintenance can reparse retained evidence.
+- Investigation composes local perception, official NVD reads, registered public HTML and exact development records for configured GitHub repositories through policy, budget, acquisition and evidence promotion.
+- Reports lead with a separately cited summary, then sourced prose and analysis. Reviewed structured output feeds a deterministic HTML renderer; reading invokes no model and model output cannot introduce scripts or widen access.
+- Task Runtime owns idempotency, cancellation, events/SSE, delegation, recovery and budget traces. Complete historical-world re-execution remains open.
+
+## Local development
+
+Requires Python 3.12, uv, Node.js 22 and Docker Compose. Inject credentials through the environment or untracked local configuration.
+
+```bash
+uv sync --dev --frozen
+# Configure local values from config/env.example; start PostgreSQL and Redis roles.
+make dev-up
+make migrate
+make sync-sources
+uv run uvicorn apps.api.main:app --reload
+```
+
+In another terminal:
+
+```bash
+cd apps/web
+npm ci
+npm run dev
+```
+
+Vite proxies `/api` to the local API; configure `SECFUSION_API_PROXY` for another port. `make data-plane-up` starts the long-running collection/task stack; inspect it with `make data-plane-status` and `make data-plane-logs`. Volumes and `.local/secfusion-artifacts` retain durable state after the shell closes. `make data-plane-down` stops runtime processes; `make dev-down` stops local services. See [deployment](deploy/PRODUCT-DEPLOY.md) for production contracts.
+
+## Verification
+
+```bash
+make check
+cd apps/web && npm run lint && npm run build
+# Return to the repository root:
+python scripts/check_product_gate.py --static-only
+python scripts/check_product_deploy.py
+make evidence-doc-check
+```
+
+PostgreSQL/Redis and S3-compatible integration use `make integration-core` and `make integration-object-store`. `make source-inventory-check` checks the source catalog. Network probes and paid model evaluations are explicit operations outside these offline gates.
+
+The 2026-10-16 baseline `6654199` passed 890 non-integration tests (12 integration tests excluded), Ruff, mypy, frontend build/deployment gates and remote CI. This does not constitute a fresh model-quality benchmark, production disaster-recovery drill or proof that every provider is reachable today.
+
+## Module guides
+
+| Module | Ownership |
+| --- | --- |
+| [apps/web](apps/web/README.md) | Product Web, components and motion |
+| [apps/api](apps/api/README.md) | HTTP, accounts, SSE and access control |
+| [apps/application](apps/application/README.md) | Question, investigation, intelligence and briefing use cases |
+| [apps/worker](apps/worker/README.md) | Collection/task processes and background-model controls |
+| [packages/sources](packages/sources/README.md) | Source definitions and adapters |
+| [packages/monitoring](packages/monitoring/README.md) | Acquisition scheduling, retries and cursors |
+| [packages/intelligence](packages/intelligence/README.md) | Evidence, knowledge, documents, incidents and projections |
+| [packages/enrichment](packages/enrichment/README.md) | Structured, semantic and normative enrichment |
+| [packages/task_runtime](packages/task_runtime/README.md) | Task, context, event and delegation protocols |
+| [packages/runtime](packages/runtime/README.md) | Policy, budget, execution and model accounting |
+| [packages/investigation](packages/investigation/README.md) | Investigation state, perception, skills and replay |
+| [packages/reasoning](packages/reasoning/README.md) | Cited decisions, summaries, editorial review and HTML |
+| [packages/evaluation](packages/evaluation/README.md) | Frozen cases, evaluation and evidence closure |
+| [packages/shared](packages/shared/README.md) | Configuration, database and infrastructure protocols |
+
+## Retained evaluation and source configuration
+
+`current.json` means the latest saved result, not live health or a new evaluation of HEAD. The following evidence retains its deployment, samples and measurement window; a code update does not rewrite those results.
+
+<!-- BEGIN GENERATED SCOREBOARD -->
+## Retained evaluation and current source configuration
+
+| Metric | Retained formal result |
 | --- | ---: |
 | Source category coverage | **8/8** (target ≥7) |
 | M1 monitoring latency | **p50 357.709s (5.96min) / p95 7241.893s (2.01h) / ≤6h 100.000% (12/12)** |
@@ -15,33 +127,22 @@ English | [中文](README.zh.md)
 | Controlled fault recovery | **100.000% (3/3)** |
 | M6 QA | **Accuracy 100.000% / interactive max 3.655s** |
 
-**Source runtime contract: 106 catalog entries → 71 executable sources → 43 scheduled monitors; 8 product categories, with active scheduled monitoring in 7/8 categories and `assets` intentionally query-time.**
-**Public continuous-monitoring epoch: `2026-10-02T04:19:42+08:00`; scheduled-source health 36 healthy / 1 degraded / 2 blocked; epoch Evidence integrity 100.000%.**
-**Last-1h operations: Run OK 85.714%; provider-boundary fail 14.286%; runtime-owned fail 0.000%; queue p95 102.077s (1.70min); execution p95 108.106s (1.80min).**
+**Current source configuration (not live health): 106 catalog entries → 71 executable sources → 43 scheduled monitors; 8 product categories, with active scheduled monitoring in 7/8 categories and `assets` intentionally query-time.**
+**Saved runtime snapshot: `2026-10-08T19:18:08.614492+00:00`; monitoring epoch: `2026-10-02T04:19:42+08:00`; scheduled-source health 36 healthy / 1 degraded / 2 blocked; epoch Evidence integrity 100.000%.**
+**Hour preceding that snapshot: Run OK 85.714%; provider-boundary fail 14.286%; runtime-owned fail 0.000%; queue p95 102.077s (1.70min); execution p95 108.106s (1.80min).**
 
 Every value above is generated from benchmark/source configuration rather than copied by hand; run/deployment/provenance details remain in the formal evidence section below.
 <!-- END GENERATED SCOREBOARD -->
 
-**Evidence-first AI Security Intelligence System**
-**Agent-driven AI security intelligence fusion and assessment**
-
-SecFusionAgent builds a continuously evolving intelligence system for AI security vulnerabilities, research progress and security incidents. The system continuously acquires new or changed content from public vulnerability databases, project repositories, security advisories, research papers and incident sources, fixes external data as traceable evidence, then performs normalization, correlation, enrichment, incident tracking and follow-up investigation.
-
-The Agent here sits on top of a verifiable data plane. External reads carry acquisition provenance; important conclusions trace back to the original observation / artifact; historical revisions are retained and current views are rebuildable. Agent work then covers investigation, tool calls and reasoning; it does not replace evidence authority.
-
-In the Product Web, QUESTIONS is a full account-owned conversation. A user asks in natural language; the API identifies stable references, constructs bounded evidence queries, and decides whether the current world supports a cited answer or needs a continuing investigation. The page streams the model's draft, then replaces it with the validated, human-readable report and its evidence, context, model and task trace. An object or CVE can be supplied as optional scope; choosing an internal execution mode is not required. Clear investigation requests with a resolved object or carried session target enter InvestigationRole directly. Metadata-only evidence is not sufficient for a relationship or security investigation; reports state uncovered dimensions explicitly.
-When a long investigation exhausts its available local evidence without confirming a fact, M6 commits a plain-language evidence-boundary answer and leaves the Case waiting for new material. A generated direct answer that fails the evidence gate is replaced with a validated boundary answer rather than being published as a factual Decision. The browser keeps the conversation as the main reading surface and opens model/context/tool traces only when requested.
-
-The current Product Web opens into four spaces: World, Intelligence, Ask and My Workspace. World embeds eight selectable source nodes in its material map and opens real processing results in a detail drawer; Intelligence leads with a sourced reading feed and recommendation, following, event and library channels; Hot discovery stays in World; Ask keeps natural-language questions and their cited answers in one conversation; My Workspace connects profile, recent conversations, interests, investigations and operational detail. The October [Product Web module guide](apps/web/README.md) documents navigation and evidence-reading behavior.
-
-[Architecture Views](https://jiale-li-orion.github.io/SecFusionAgent/index.en.html) · [Project Wiki](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Home.en) · [Requirements](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Requirements-SPEC.en) · [Technical Design 1](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design-1.en) · [Technical Design 2](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design-2.en) · Website：[jiale-li-orion.github.io/SecFusionAgent](https://jiale-li-orion.github.io/SecFusionAgent/)
+<details>
+<summary>Evaluation provenance and reproduction</summary>
 
 <!-- BEGIN GENERATED EVALUATION STATUS -->
-## Current formal evaluation evidence (generated)
+## Retained formal evaluation evidence (generated)
 
 This block is rendered from `benchmarks/**/current*.json`. Run `make evidence-doc` after benchmark changes; `make evidence-doc-check` fails when Markdown drifts from structured evidence.
 
-| Finals target | Metric | Observed | Threshold | Status |
+| Retained numeric target | Metric | Observed | Threshold | Status |
 | --- | --- | ---: | ---: | --- |
 | `source_category_coverage` | `m1.source_category_count` | 8 | >= 7 | **pass** |
 | `enrichment_precision` | `m3.micro_precision` | 99.659% | >= 95.000% | **pass** |
@@ -49,7 +150,7 @@ This block is rendered from `benchmarks/**/current*.json`. Run `make evidence-do
 | `qa_accuracy` | `m6.answer_accuracy` | 100.000% | >= 95.000% | **pass** |
 | `qa_interactive_latency` | `m6.interactive_latency_seconds` | 3.655s | <= 5.000s | **pass** |
 
-Current CompetitionReport: `eb0a1c43-a786-434e-904a-fd976d751105` on `deployment:2713f58f83915b2d0d0a9621ed4b7ac7`.
+Retained CompetitionReport: `eb0a1c43-a786-434e-904a-fd976d751105` on `deployment:2713f58f83915b2d0d0a9621ed4b7ac7`, generated `2026-10-08T15:37:32.851706Z`; not a re-evaluation of current HEAD.
 
 M1 fixed window `2026-10-01T10:00:00+00:00` → `2026-10-01T14:02:00+00:00`: 12/12 evaluable samples, p50 357.709s (5.96min), p95 7241.893s (2.01h), within 6h 100.000%; source categories=8.
 
@@ -62,414 +163,16 @@ Across the evaluation infrastructure, 85/87 core metrics have durable observatio
 Query the durable rows with `make benchmark-query METRIC=m3.micro_precision`; reproduce the report projection with `make competition-render-doc`; refresh every maintained evidence projection with `make evidence-doc`; verify without writes with `make evidence-doc-check`.
 <!-- END GENERATED EVALUATION STATUS -->
 
-## Project status
+</details>
 
-SecFusionAgent now has a long-lived **M1–M3 data plane plus executable Agent / QA / evaluation control plane**. Scheduled acquisition, Evidence/Knowledge ingestion, enrichment, projection and indexing can run continuously and accumulate an operational corpus. Above that data plane, the repository contains durable Task Runtime/TaskEvent, M4 Investigation State and Perception, bounded InvestigationRole episodes, Context/Skill/Capability/Policy/Budget/Execution control planes, WATCH wake/resume, typed M6 Decision/Product Question execution, multi-turn Product sessions, Case-read/continuation, durable retrieval-invocation provenance, M7 replay/regression/Experience→Skill promotion gates, and TD3 DeploymentRevision/BenchmarkSuite/Run/MetricObservation/CompetitionReport evidence.
+## Remaining acceptance boundaries
 
-The current formal same-deployment batch now includes M1, structured M3, CSAF/VEX, controlled recovery, Product QA and session QA, with one published CompetitionReport and closed runtime/Evidence provenance for the selected cases. Separate controlled/diagnostic suites cover M2, M5 runtime behavior, long-Investigation measurement, retrieval, security and evaluation-infrastructure closure without being silently mixed into that six-run competition profile. Investigation has production external Capability bindings for official NVD CVE reads, on-demand documents from registered public primary/authority/forensic HTML sources, and exact GitHub development records for registered repositories. GitHub pull request reads include a bounded changed-file patch view; a same-repository commit/release comparison checks whether a fix SHA is in a published release tag's ancestry. Neither a title nor a release tag alone proves a deployed fix. All three paths use Registry → Policy → Broker → Budget → acquisition/run artifact → Evidence promotion; a source-index query that finds no matching document leaves the EvidenceNeed open. Unregistered web search, arbitrary repositories, asset tools, OpenShell/Firecracker substrate acceptance and broader live denominators remain engineering follow-up boundaries. Historical replay still fails closed when an exact old M1–M3 Knowledge world cannot be read; the runtime never substitutes the latest projection for a pinned historical world.
+Complete historical Knowledge reads/Agent re-execution, real OpenShell/Firecracker isolation acceptance, full A2A write/subscription transport, M3 model-budget settlement, production restore/alert drills and broader live difficult-question/external-capability denominators remain open. Email verification, password recovery and OAuth are unimplemented; generic manual resume and semantic non-exact retrieval reuse are not delivered.
 
-The repository quality gate:
+Evidence, closure criteria and priorities are maintained in the [acceptance register](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Current-Acceptance), rather than duplicated as stale TODO lists across README files.
 
-```text
-ruff        lint / import / Python correctness checks
-mypy        static type checking
-pytest      domain, replay, state-transition and contract tests
-```
+## Design and contribution
 
-Repository CI continuously runs `ruff`, `mypy`, and `pytest`; PostgreSQL/Redis and explicit S3-compatibility integration gates remain separate commands. Current competition metrics are never copied into this prose: the generated block above is rendered from benchmark JSON and checked for drift by `make evidence-doc-check`.
+[Wiki](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Home.en) · [PRD](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Requirements-SPEC.en) · [TD1 data plane](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design-1.en) · [TD2 investigation](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design-2.en) · [TD2A application](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design-2A) · [TD3 evaluation](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design-3) · [Engineering portal](https://jiale-li-orion.github.io/SecFusionAgent/)
 
-## Product Web and accounts
-
-The Product Web at `/product/` has four primary spaces: **World / Intelligence / Ask / Workspace**. World exposes eight source directions, live materials, Hot records and evidence formation. Intelligence starts with recommendation and following feeds, with event evolution and the library one level deeper. Ask is a wide conversation with a bottom composer, history drawer and on-demand evidence/model/context/task audit. Workspace connects profile, interests, conversations and investigations; its Operations area contains Agent execution and service observability. Existing investigation, task and observatory deep links remain valid. See [`apps/web/README.md`](apps/web/README.md) and the [current experience contract](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Product-Web-Experience-2026-10).
-
-The 2026-10-15 art update preserves the four-space information structure. Shared typography and open reading surfaces replace nested decorative frames, glass lighting and repeated arrows. Abstract developing-pigment motion is shared across pages. The later typography-based interpretation was rejected and removed; the original pigment and diffusion parameters are restored. Skill/status/source labels use readable names; raw identifiers remain in technical details. See the [Product Web module guide](apps/web/README.md) and [design system](apps/web/design-system/MASTER.md) for implementation and validation scope. Backend data and account permissions are unchanged.
-
-Investigation planning now uses the admitted `agent_turns` limit (up to 64) and records prior logical model requests when resuming a TaskRun. M5 model attempts reserve and settle token/retry budgets through the recorded provider, as M6 decisions already do; M3 semantic extraction and provider monetary cost remain separate open measurement boundaries.
-When a delegated enrichment child fails or blocks, the parent investigation now receives the child status as planner feedback and may inspect retained evidence or choose another permitted source; repeated attempts remain bounded.
-The CVE-only delegation route is selected from bound task targets and validates the target object's vulnerability identity; related evidence objects cannot silently switch a paper or repository investigation into a CVE task.
-M1 recovery now redelivers scheduled acquisition runs stranded in `queued` after a stale delivered outbox event, while keeping pending or recently delivered events single-flight.
-
-QUESTIONS pages through older account conversations and turns. Completed Product questions and Investigations present cited, natural-paragraph research reports generated from the same validated Decision; structured fields and conclusions stay available for audit and evaluation. Earlier decisions without report paragraphs remain readable through their validated conclusions.
-
-The interface uses cold white reading surfaces, navy source maps, blue interactions and Phosphor functional icons. Source-owned shadcn/ui components, Radix menus/tabs/dialogs, local publisher marks and consistent Chinese typography replace improvised controls; page-local styles own the actual compositions. Visual states remain backed by Product read models. Object and incident dossiers now share an explorable relationship network with evidence-backed cross-links, mobile fullscreen controls and explicitly bounded revision playback.
-
-The INTELLIGENCE Vulnerabilities filter shows a bounded live Hot CVE window with its separate resident count. Opening one preserves the Hot coordinate and checks the durable dossier independently, so the catalog no longer implies that an empty recent-document selection means there are no vulnerabilities.
-WORLD's Hot index pages through resident source records, with exact CVE lookup across the entire resident pool. The index no longer caps discovery at its initially loaded ranking window.
-My investigations starts with account-owned records and opens each Case as a report, findings and activity reader. Continue question returns to the existing conversation. Object dossiers separate facts, paged relationships, original sources and enrichment coverage into actual content tabs; technical coordinates remain expandable.
-AGENTS exposes each Task's ContextManifest and model attempts, with navigable input evidence and explicit usage-versus-budget settlement labels.
-AGENTS also pages older owner-checked Task runs from the history column, while keeping the recent topology readable. INTELLIGENCE recommendation reasons link directly to their supporting Evidence, and matching recommendations can be browsed beyond the first six.
-QUESTIONS links its audit rail's Task runs to the full AGENTS dossier and distinguishes active, waiting, resolved and stopped investigations in the conversation.
-QUESTIONS now accepts an ordinary natural-language question without a task-mode selector or required CVE. The backend chooses the initial route, searches the evidence world, and uses a recorded, schema-constrained query plan for comparison and other compound questions. The conversation keeps the answer or investigation status beside its source, query, model and execution trail. When a comparison needs further investigation, its Case can bind multiple canonical objects.
-INTELLIGENCE's curated vulnerability shelf links to WORLD's paged Hot index for broader discovery.
-
-The event library reads durable incident dossiers and evidence-linked timelines. The separate World incident-candidate endpoint retains its candidate watch projection. It displays source headlines and links for conservatively selected security-event signals, while keeping candidate status distinct from a durable Incident. Broad news feeds now screen general headlines before candidate correlation; the product watch read also excludes older unrelated entries still in the Redis working set. A candidate is never presented as independently corroborated or durable.
-
-Managed HTML article parsing prefers the actual body over related-post cards, including research sites that use `.post-content` for the report and `<article>` only for previews. Parser v3 can create a new immutable DocumentRevision from an existing Observation when source bytes are unchanged; current lexical/dense search reads only the latest parsed revision while exact historical chunk references remain replayable. This repaired live Chainalysis research that had been indexed as a related Bitget headline instead of its report body.
-
-Free-text INTELLIGENCE search now resolves the submitted input against the API directly, so rapid typing and Enter cannot open a stale suggestion from a previous query.
-
-Users can register or sign in at `/product/auth`. Server-side sessions use a hashed opaque token in an HttpOnly cookie; write requests use origin and CSRF checks. Account-owned questions, sessions, Cases, Decisions, Tasks, recommendations and feedback are isolated by the server, while shared Evidence and Knowledge stay readable. A user can edit their display name and save interests, browse matching recommendations beyond the first six, open the evidence for each recommendation reason, provide feedback, start an investigation, and resume the same conversation after signing in again. The current implementation does not include email verification, password recovery or OAuth; these are separate account lifecycle work.
-
-Product investigation reports now use the full confirmed evidence state, with cited prose and explicit coverage gaps. Completed episodes always deliver a report; unresolved scope keeps the Case available for follow-up. This fixes metadata-only routing, dropped graph/document citations, hidden planner rejection feedback and report fallback losing relevant earlier findings. Existing conversation answers remain immutable.
-
-Investigation INSPECT now reads documents in eight-chunk pages. When the cited findings are valid but the EvidenceNeed still lacks a required primary or independent source, M4 retains those partial findings without closing the need. Task detail distinguishes these local perception reads from external Capability calls, so the audit does not report an empty tool trail for a task that actually read evidence.
-
-Question and investigation report citations open an Evidence inspector with the fixed source identity, locator and canonical URL. Public managed documents additionally expose bounded passages from the cited Observation's latest parser revision; restricted documents do not expose excerpts.
-Durable Incident dossiers now lead into evidence retrieval with a prefilled event question and a return path to the original dossier. This route uses the existing targetless RETRIEVE contract; it does not claim to have run a target-bound verification against an Incident ID.
-
-Product Question and Investigation writes now accept client `Idempotency-Key` values. The Web keeps the same key while retrying an unfinished submission, so transport retries do not create duplicate Cases, model calls or conversation turns; cancellation also sends the Case revision to reject stale actions. The durable command record is added by migration `20261009_0032`.
-
-Before a RETRIEVE question creates a TaskRun, a failed physical search now leaves a durable failed retrieval attempt with timing and request coordinates. It does not create an empty conversation; successful and reused retrievals keep their existing ContextManifest references. This audit boundary is added by migration `20261009_0033`.
-
-The formal benchmark numbers above describe their recorded deployment and sample, not the current Product's overall accuracy or coverage. The [finals readiness review](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Finals-Readiness-Review-2026-10-08) tracks remaining monitoring breadth, open-dimension enrichment, current-version QA quality and operational acceptance against the competition rubric.
-
-The [production deployment guide](deploy/PRODUCT-DEPLOY.md) defines the private TLS boundary, reboot restart policy, versioned application images, database/artifact backup and schema-aware rollback procedure. Local development and production releases remain separate environments.
-
-## System overview
-
-The public documentation site contains two interactive Archify views generated from the authoritative specifications:
-
-- [Technical Design 1](https://jiale-li-orion.github.io/SecFusionAgent/tech-design.en.html) shows Acquisition, the four `retention_mode` lifecycles, the Evidence boundary, durable state and asynchronous consumers.
-- [Technical Design 2](https://jiale-li-orion.github.io/SecFusionAgent/diagrams/tech-design-lower.en.html) shows task routing, Perception, Investigation State, bounded execution and decision flow.
-- [Requirements](https://jiale-li-orion.github.io/SecFusionAgent/requirements.en.html) shows the M1–M8 product modules, C1–C3 cross-cutting constraints and acceptance semantics.
-
-The system maintains source protocols, runtime lifecycle, canonical knowledge and derived read models separately: provider adapters interpret external protocols; the acquisition runtime records every scheduled / on-demand read; EvidenceIngress fixes the raw revision; canonical knowledge holds long-lived facts and provenance; projections, caches and later retrieval indexes are all rebuildable state.
-
-Product QA and Case-decision model calls reserve token and retry capacity before each attempt, then settle against exact provider usage when available. Unknown usage consumes the configured conservative bound while remaining marked unknown in the audit record. `SECFUSION_MODEL_TOKEN_RESERVATION_PER_ATTEMPT` tunes that bound; monetary provider cost and M3/M5 token settlement are still unavailable.
-
-## Implemented data paths
-
-| Path | Current implementation | Purpose |
-| --- | --- | --- |
-| Hot Bug Stream | NVD + CVE Program/cvelistV5 → provider projection → Redis hot working set → durable canonical promotion | Keep high-frequency vulnerability feeds fresh without copying the full vulnerability history into the local long-term store |
-| Vulnerability Enrichment | OSV / GitHub Global Advisory / CISA KEV → child AcquisitionRun → EvidenceIngress → claims / relations | Add package, fix, KEV and advisory information to vulnerabilities already promoted into durable knowledge |
-| Managed Content | PDF/plain/HTML/XHTML durable document revision/chunks → lexical FTS + provider-neutral dense embedding → evidence-gated semantic extraction | Build a retrieval-ready research corpus whose semantic claims still resolve to a specific source revision and verbatim document span |
-| Structured Source Index | GitHub target repositories + explicit advisory references → Repo / Issue / PullRequest / Commit / Release objects and deterministic relations | Maintain priority AI infrastructure state and a development graph without guessing fix relations from semantic similarity |
-| Incident Watch | RSS / BlockBeats HTML breaking signal → deterministic anchor extraction → candidate correlation → durable incident timeline | Organize breaking reports and later independent evidence into security incidents without treating reprints as corroboration |
-| Current Projection | knowledge / incident change → transactional outbox → vulnerability / affected-version / fix-status / repo-security / incident views | Provide low-cost retrieval-ready current state while preserving underlying history, evidence and conflicts |
-| Internet Asset Observation | on-demand Shodan / Censys / FOFA / ZoomEye → provider-normalized AssetObservation → explicit EvidenceIngress promotion | Preserve query/provider/time provenance without turning volatile asset search results into permanent knowledge by default |
-| Investigation Memory | Case → append-only Trajectory → Experience candidate / version / evaluation | Store evaluable, versioned procedural experience for later Agent investigation |
-| Task / Investigation Runtime | TaskContract → durable TaskRun/TaskEvent → versioned ContextManifest → bounded Role episode → wait/resume/replay | Give Agent work explicit lifecycle, delegation, context and completion semantics instead of an unbounded chat loop |
-| Canonical VERIFY | VerifyFixBoundary Skill + ModelInvestigationPlanner → Perception → Capability/Policy/Budget → Evidence promotion or delegated EnrichmentRole → StatePatch Gate | Verify a fix boundary through durable evidence while keeping model output outside fact authority |
-
-Built-in source definitions live in [`config/sources/`](config/sources/); whether a source enters the hot cache, the durable corpus, the structured index or incident staging is decided explicitly by `SourceDefinition.retention_mode`.
-
-The concrete source commitments projected by the website are tracked in [`config/source-inventory.json`](config/source-inventory.json). Every configured `SourceDefinition` under [`config/sources/`](config/sources/) is synchronized into the real PostgreSQL registry by `make sync-sources`; source counts are derived from those files/runtime state rather than copied into this README. `make source-inventory-check` verifies Chinese-catalog identity plus bilingual catalog structural parity, while `make verify-data-sources` adds deterministic source/runtime ownership tests. `make probe-live-sources` remains a manual reachability report. Lifecycle tests additionally require every configured retention mode to have an executable runtime owner: `time_bounded` sources stay out of the scheduler and have an explicit downstream consumer, every Hot Bug adapter has both hot and durable normalization, and every Incident adapter has a registered signal extractor.
-
-## Evidence and knowledge model
-
-SecFusionAgent stores what a source published separately from the knowledge the system currently treats as usable.
-
-`Observation` describes one acquisition of an external object revision; `EvidenceArtifact` fixes raw content that must be retained long term; `EvidenceLink` connects an object, claim or relation back to its observation/artifact and locator. Long-lived knowledge is expressed as `Object / ExternalIdentifier / Claim / Relation`, and knowledge revisions preserve its evolution history.
-
-A new revision from a snapshot-style provider supersedes the previous current claim / relation from **the same source**; differences from other sources remain side by side, and the current projection exposes conflicts and alternatives. Corrections therefore never overwrite history, and multi-source conflicts are not silently adjudicated during ingest.
-
-Every new external read produced by enrichment re-enters `AcquisitionRun → IngestEnvelope → EvidenceIngress`; a processor never writes an unrecorded HTTP response directly into knowledge.
-
-Canonical enrichment vocabulary is versioned separately from provider-native fields. Deterministic/source-asserted processors must use registered canonical or source-specific terms; unregistered semantic discoveries remain evidence-backed `exploratory` results and do not enter formal enrichment P/R until vocabulary review. `packages/evaluation/m1_m3.py` fixes the eight-category product source taxonomy and coverage contract, monitoring-latency sample semantics and evidence-aware closed-set enrichment scorer for later M7 benchmarks.
-
-## Incident intelligence
-
-Incident Watch uses a separate lifecycle. Breaking sources first enter a short-lived `SignalItem / IncidentCandidate` working set; only incidents that meet promotion conditions enter durable incident storage.
-
-Multi-source confirmation is computed as **independent sources supporting the same verifiable strong anchor**. `upstream_source` identifies reprint dependencies, so several outlets repeating one original report are not wrongly counted as independent corroboration. Current strong anchors include verifiable identifiers such as CVE/GHSA, transaction hash, address, IOC, domain/IP, incident/advisory ID and commit.
-
-Once an incident enters durable state it retains an append-only timeline and source links; later official statements, forensic analysis, fund-flow changes and impact-scope updates are appended rather than repeatedly overwriting a static news record.
-
-## Investigation experience
-
-Investigation is modeled as `Case` plus an append-only `Trajectory`. A trajectory records provider queries, tool calls, evidence references, the experience version in use, outcome, latency and cost, giving later Agent Eval and replay their base data.
-
-Reusable experience enters a separate versioned lifecycle:
-
-```text
-Trajectory
-    ↓ extract
-ExperienceCandidate
-    ↓ evaluation / replay
-validated
-    ↓ activation
-active
-    ↓ superseded or invalidated
- deprecated
-```
-
-Experience stores scope, triggers, recommended actions, evidence expectations, failure modes, stop conditions and fallbacks. It is planning memory and holds no security evidence authority; a later task must still acquire current evidence before forming factual conclusions.
-
-## Repository layout
-
-```text
-SecFusionAgent/
-├── apps/
-│   ├── api/                 # FastAPI application and HTTP routes
-│   ├── application/         # Product use cases and stable application DTOs
-│   └── worker/              # Celery tasks, scheduler and outbox consumers
-│
-├── packages/
-│   ├── sources/             # provider contracts, registry and source adapters
-│   ├── monitoring/          # acquisition lifecycle and retention-mode collectors
-│   ├── intelligence/        # evidence, canonical knowledge, incident and projections
-│   ├── enrichment/          # provider-backed vulnerability enrichment
-│   ├── task_runtime/        # Task/Context/Event/delegation execution protocol
-│   ├── runtime/             # Capability/Policy/Budget/Execution/Sandbox controls
-│   ├── investigation/       # M4 state, Perception, InvestigationRole, Skill/Experience
-│   ├── reasoning/           # typed M6 Decision/QA contracts and validation
-│   ├── evaluation/          # M1-M7/TD3 benchmark, replay and evidence contracts
-│   └── shared/              # configuration, database and generic outbox primitives
-│
-├── config/
-│   ├── sources/             # declarative SourceDefinition registry
-│   └── env.example          # runtime configuration interface
-│
-├── alembic/                 # forward database migration history
-├── deploy/                  # local/runtime deployment definitions
-├── scripts/                 # engineering and probe entry points
-├── tests/                   # repository-level architecture tests and fixtures
-├── .github/                 # repository automation
-├── PRODUCT-REPO-STANDARD.md
-├── PRODUCT-REPO-STANDARD.zh.md
-└── AGENTS.md
-```
-
-Package ownership and dependency direction are repository contracts, not directory conventions. `packages/sources` does not own scheduler state; `packages/monitoring/acquisition` owns durable acquisition lifecycle; `packages/intelligence/knowledge` owns canonical knowledge contracts and writes. [`tests/test_architecture_dependencies.py`](tests/test_architecture_dependencies.py) checks these dependency directions automatically.
-
-Module-level implementation design lives with the code it governs:
-
-- [`packages/sources/README.md`](packages/sources/README.md) — source definitions, adapters, taxonomy/retention mapping, extension checklist;
-- [`packages/monitoring/README.md`](packages/monitoring/README.md) — scheduling, acquisition-run state, cursor/retry/recovery semantics;
-- [`packages/intelligence/README.md`](packages/intelligence/README.md) — Evidence/Knowledge persistence, documents, incidents, projections, artifact storage;
-- [`packages/enrichment/README.md`](packages/enrichment/README.md) — deterministic/semantic M3 processing, provider query composition, processor extension rules;
-- [`packages/task_runtime/README.md`](packages/task_runtime/README.md) — durable Task/Context/Event protocol, delegation and queued-role execution;
-- [`packages/runtime/README.md`](packages/runtime/README.md) — Capability/Policy/Budget/Execution/Sandbox enforcement and runtime provenance;
-- [`packages/investigation/README.md`](packages/investigation/README.md) — M4 state/Perception, bounded InvestigationRole, Skill/Experience and replay coordinates;
-- [`packages/reasoning/README.md`](packages/reasoning/README.md) — typed M6 Decision/Continuation contracts and evidence/citation validation;
-- [`packages/evaluation/README.md`](packages/evaluation/README.md) — M1–M7/TD3 denominators, frozen worlds, runtime metrics, replay and report provenance;
-- [`packages/shared/README.md`](packages/shared/README.md) — common infrastructure contracts, configuration, outbox, model protocol;
-- [`apps/web/README.md`](apps/web/README.md) — four-space Product Web, account shell, visual ownership and local API integration;
-- [`apps/application/README.md`](apps/application/README.md) — Product use-case composition and stable application boundary;
-- [`apps/api/README.md`](apps/api/README.md) — HTTP bootstrap and transport boundary;
-- [`apps/worker/README.md`](apps/worker/README.md) — background-process, outbox-topic, Celery-task composition.
-
-These READMEs refine Technical Design 1/2/3 below the cross-module architecture boundary. Internal implementation changes update the owning module README; changes to cross-module ownership, evidence authority, processing paths, persistence semantics, security boundaries, or evaluation protocol still require the Wiki Technical Design/Requirements to change in the same cycle.
-
-## Development
-
-### Prerequisites
-
-- Python **3.12+**
-- [`uv`](https://docs.astral.sh/uv/)
-- Docker with Compose support for the local PostgreSQL / Redis runtime and optional S3-compatible integration profile
-
-The runtime has no cloud-vendor requirement. Container registry mirrors, proxies and credentials are host-level configuration and are intentionally kept outside the repository contract.
-
-### Install dependencies
-
-```bash
-make sync
-```
-
-Equivalent command:
-
-```bash
-uv sync --dev
-```
-
-### Configure the environment
-
-[`config/env.example`](config/env.example) defines the supported configuration surface. Export the required `SECFUSION_*` variables or load equivalent values through your local environment management.
-
-The default development topology uses separate Redis failure domains:
-
-- `redis-broker`: durable-ish task transport with `noeviction` policy;
-- `redis-cache`: bounded LFU working set for Hot Bug and Incident staging.
-
-API keys are optional for sources that permit unauthenticated access, but provider rate limits may be substantially lower. Secrets must never be committed to the repository.
-
-### Start local infrastructure
-
-```bash
-make dev-up
-make migrate
-make sync-sources
-```
-
-`make dev-up-core` and `make dev-up` start PostgreSQL/pgvector plus the Redis failure domains. The default ArtifactStore is the host-backed content-addressed filesystem under `.local/secfusion-artifacts`; LocalStack is started only by the explicit S3 integration path.
-
-For unattended operation, use `make data-plane-up`. It completes dependency startup, migrations and registry synchronization, then keeps PostgreSQL, Redis, the health-checked API on `127.0.0.1:8001`, the acquisition scheduler, Task Event dispatcher/scheduler, a dedicated collection worker and the general enrichment/investigation/indexing worker under Compose restart policy. PostgreSQL and durable Redis roles use named volumes; Evidence/runtime artifacts live in the host-backed content-addressed filesystem; the hot cache remains intentionally rebuildable. `make data-plane-status` checks both the M1–M3 data path and the TD2 Task Event control plane, `make data-plane-metrics` exports rolling runtime metrics, and `make data-plane-logs` tails runtime processes. Closing the invoking shell does not stop collection, API access or queued Role dispatch, and Docker daemon restart brings these services back under `restart: unless-stopped`. A formal live QA batch briefly quiesces the three Knowledge-writer processes to freeze one Knowledge head, then restores them in `finally`; normal operation remains continuously collecting.
-
-`SECFUSION_UPSTREAM_HTTP_PROXY` is optional for scheduled sources. An empty value routes them directly; malformed proxy configuration terminates the affected AcquisitionRun with a durable failure and normal backoff rather than leaving it stuck in `running`. Provider quota still limits how often mutable repository snapshots can be sampled, so historical missed snapshots are not inferred from later state.
-
-For model-backed formal evaluation, configure an OpenAI-compatible endpoint and probe it before spending benchmark calls:
-
-```bash
-export SECFUSION_MODEL_BASE_URL='https://provider.example/v1'
-export SECFUSION_MODEL_API_KEY='...'
-make model-provider-probe
-make qa-live
-```
-
-If `/models` exposes exactly one plausible chat model, the probe resolves it automatically. Multi-model endpoints require `SECFUSION_MODEL_NAME` so the formal deployment remains deterministic. `make qa-live-preflight` validates the reviewed QA gold against the current Knowledge head without a model call. `make qa-live` freezes one clean DeploymentRevision, runs Product + session QA, reruns the selected M1/M3/fault suites under the same deployment, regenerates `CompetitionReport`, and updates generated evidence blocks. Provider endpoint identity and retry/timeout policy enter the DeploymentRevision digest; the API key does not.
-When the probe reports `response_format_fallback: true`, set `SECFUSION_MODEL_RESPONSE_FORMAT=json_object` for that provider and probe again before running Product QA. This pins the known dialect to one HTTP exchange per recorded attempt; the configured dialect also enters the DeploymentRevision digest.
-
-Stop the local stack with:
-
-```bash
-make dev-down
-```
-
-### Run the API
-
-```bash
-uv run uvicorn apps.api.main:app --reload
-```
-
-Current Product routes include:
-
-```text
-GET  /health/live, /health/ready
-POST /api/v1/auth/register, /api/v1/auth/login, /api/v1/auth/logout
-GET  /api/v1/auth/me
-GET  /api/v1/world/overview, /api/v1/world/stories, /api/v1/world/hot, /api/v1/world/hot/search
-GET  /api/v1/intelligence/objects/{object_id}, /api/v1/intelligence/recommendations
-PUT  /api/v1/intelligence/preferences
-POST /api/v1/intelligence/objects/{object_id}/enrichment/runs
-POST /api/v1/questions
-GET  /api/v1/questions/sessions, /api/v1/decisions/{decision_id}
-GET  /api/v1/investigations, /api/v1/observatory/system
-```
-
-Run `cd apps/web && npm ci && npm run dev` for the Product Web. Vite proxies `/api` to the local API; set `SECFUSION_API_PROXY` when it runs on another port.
-
-The API reads canonical knowledge/current repository state; it does not bypass the ingestion and evidence pipeline to query providers directly.
-
-### Run collection and background workers
-
-Start the scheduler:
-
-```bash
-make scheduler
-```
-
-The current task topology uses separate Celery queues for collection, enrichment, investigation and indexing/projection work. During full local development, use the Make target as the canonical queue subscription:
-
-```bash
-make worker
-```
-
-`make worker` starts the repository's active collection, enrichment, investigation and indexing/projection queues. Use `make worker-collection` when isolating M1 collection behavior.
-
-### Run focused probes
-
-Collect a small NVD modification window into the Hot Bug working set:
-
-```bash
-make probe-nvd
-```
-
-Promote one cached CVE into durable evidence and canonical knowledge:
-
-```bash
-make promote-hot CVE=CVE-YYYY-NNNN
-```
-
-Probes answer bounded integration questions. Stable product behavior belongs in packages, migrations and tests rather than accumulating in scripts.
-
-## Quality gates
-
-Run the fast repository gate while iterating:
-
-```bash
-make check
-```
-
-Run the complete M3 closeout gate before changing the handoff boundary:
-
-```bash
-make verify-m3
-```
-
-Focused infrastructure/source gates are also available:
-
-```bash
-make integration-core
-make integration-object-store
-make source-inventory-check
-make verify-data-sources
-make probe-live-sources
-```
-
-`make probe-live-sources` is a manual point-in-time reachability report. It is not part of `verify-m3` or `verify-data-sources`; anti-bot, regional network, rate-limit and credential conditions are handled during provider hardening.
-
-Individual commands are available when iterating on a focused change:
-
-```bash
-make lint
-make typecheck
-make test
-```
-
-`make check` is the repository-level reproducible gate used during development. Changes to persistence, queues, external adapters or deployment additionally require the relevant integration probe once the corresponding infrastructure is available.
-
-## Engineering invariants
-
-The current implementation is organized around several invariants that should remain visible in code review:
-
-1. Important knowledge remains traceable to evidence.
-2. Raw durable evidence is immutable; derived state is rebuildable.
-3. External content is untrusted input, including content later consumed by an LLM.
-4. New provider reads create observable acquisition state instead of bypassing M1/M2.
-5. Replay and retry rely on stable idempotency keys and versioned state.
-6. Same-source corrections preserve history; cross-source disagreement remains explicit.
-7. Agent trajectories and reusable experience are observable and versioned.
-8. Package dependencies follow ownership direction and remain acyclic.
-
-Task Event scheduling recovers Role runs stranded in `queued` after a lost coarse Celery delivery, and closes orphaned `running` episodes after their absolute execution deadline. Recovery uses the same durable event outbox and run ID; expired work becomes `timed_out` instead of silently retrying or appearing active forever.
-
-The detailed rationale, failure cases and revisit conditions for these decisions are maintained in the project Wiki rather than duplicated into source comments or this README.
-
-## Documentation
-
-The code repository and Wiki have separate ownership:
-
-- **Repository** — executable source, tests, migrations, deployment, scripts, CI and repository governance.
-- **Wiki** — requirements, Technical Design, data-source semantics, security-domain studies, design decisions, probes, runbooks and project evolution.
-
-Start with:
-
-- [Requirements SPEC](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Requirements-SPEC) — product scope, constraints and acceptance semantics.
-- [Technical Design 1](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design-1) — M1–M3 runtime architecture, storage semantics, processing paths and implementation baseline.
-- [Technical Design 2](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design-2) — M4–M6 task routing, Perception, Investigation State, bounded execution and Decision contracts.
-- [Data Sources and Processing](https://github.com/jiale-li-orion/SecFusionAgent/wiki/01-Data-Sources-and-Processing) — source classes, lifecycle and data semantics.
-- [CTI Baseline Reuse and Ownership](https://github.com/jiale-li-orion/SecFusionAgent/wiki/02-CTI-Baseline-Reuse-and-Ownership) — CTI capability boundaries and reuse policy.
-- [Normative Knowledge and Policy](https://github.com/jiale-li-orion/SecFusionAgent/wiki/03-Normative-Knowledge-and-Policy) — standards, policy and normative knowledge.
-- [AI / Model / Data / Agent Security](https://github.com/jiale-li-orion/SecFusionAgent/wiki/04-AI-Model-Data-and-Agent-Application-Security) — AI-specific risk semantics.
-- [Incident & News Intelligence](https://github.com/jiale-li-orion/SecFusionAgent/wiki/05-Incident-News-Intelligence) — incident source roles, correlation and event lifecycle.
-- [`WEB-PRESENTATION-STANDARD.zh.md`](WEB-PRESENTATION-STANDARD.zh.md) — GitHub Pages, Archify, bilingual presentation and CI/CD rules.
-
-Repository organization and contribution rules are defined by [`PRODUCT-REPO-STANDARD.md`](PRODUCT-REPO-STANDARD.md) and [`PRODUCT-REPO-STANDARD.zh.md`](PRODUCT-REPO-STANDARD.zh.md). Agent-assisted changes additionally follow [`AGENTS.md`](AGENTS.md).
-
-## Roadmap
-
-The next engineering boundary starts after the canonical VERIFY closure rather than below M4:
-
-- complete real Sandbox v1 substrate acceptance for filesystem/network/credential isolation, OpenShell containers and Firecracker microVMs;
-- run the TD2 `reference vs summary` context evaluation for token cost, critical-context retention and stale-context failure rate;
-- add a versioned M1–M3 historical read path and connect the M7 replay executor to real Agent re-execution rather than current-projection-only admission;
-- run a frozen live semantic+dense provider E2E and validate deterministic fix-boundary promotion on a real target-repo OSV `GIT fixed` sample;
-- keep provider-access blockers explicit and broaden the existing security regression beyond the frozen v1 production-boundary classes with stronger attack variants and model red-team cases.
-
-Requirements remain the authority for product scope; roadmap ordering follows dependency and integration risk rather than UI completeness.
-
-## October product and information-quality update
-
-The current product combines a public material library, evidence-linked event timelines and reviewed HTML briefings. The library exposes material category, source and multi-label security subjects, full-text filtering and snapshot pagination. Its counts include eligible public retained material only. Subject grouping is deterministic lexical classification, not model-generated confirmation. Curated events retain their original evidence and distinguish event time from acquisition time; World can feature incidents and security tools alongside CVEs.
-
-Public reports start with a separately cited summary, followed by short sourced paragraphs and distinct analysis. Generation, review and at most one revision are recorded. HTML is rendered from a validated report/layout schema: model text cannot execute scripts or expand access. Private reports remain account-owned; public reports require an explicit publication record and current source/revision checks. Reading a report never invokes the model.
-
-**Local Compose now defaults to cost-saving operation:** `SECFUSION_BACKGROUND_LLM_ENABLED=false` and `SECFUSION_EDITORIAL_ENABLED=false`. Collection, evidence storage, lexical indexing, deterministic enrichment and projections continue; automatic semantic/normative extraction, embeddings, editorial and new WATCH wakeups are paused. User-requested QA, investigation and report generation retain their configured model. No daily monetary cap is imposed. Restart/recreate the scheduler and worker after changing these environment settings; resuming does not automatically backfill skipped model stages. See [worker configuration](apps/worker/README.md).
-
-The web uses shared pigment-development/diffusion motion with page-specific composition, locally bundled Chinese typography and open reading surfaces. World story expansion reveals the existing excerpt in place; the Hot panel now sets its own night-theme foreground so titles and actions remain readable in normal, selected and hover states.
-
-Module contracts: [API](apps/api/README.md), [Application](apps/application/README.md), [Web](apps/web/README.md), [Worker](apps/worker/README.md), [Intelligence](packages/intelligence/README.md), [Monitoring](packages/monitoring/README.md), [Sources](packages/sources/README.md), [Enrichment](packages/enrichment/README.md), [Investigation](packages/investigation/README.md), [Reasoning](packages/reasoning/README.md), [model accounting](packages/runtime/model/README.md). Design details are maintained in the Wiki [information-quality and report contract](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Information-Quality-and-Reports-2026-10).
-
-Benchmark figures above remain snapshots for their recorded deployments; new material/source counts and UI changes do not revalidate those benchmarks. Provider-returned token usage is recorded per physical attempt. Price-based cost estimates are separate from actual provider charges; missing usage is unavailable, never zero.
+This repository owns code, tests, migrations, configuration, module contracts and reproducible commands. The Wiki owns requirements, cross-module design, acceptance and historical reviews. Follow the [repository standard](PRODUCT-REPO-STANDARD.md) and [AGENTS](AGENTS.md). Secrets, runtime databases, downloaded corpora and model output stay outside Git.

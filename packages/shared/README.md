@@ -18,6 +18,12 @@ Product account edge settings include an exact JSON list of allowed browser orig
 
 Adding a deployment-varying value requires a typed setting. Security or protocol invariants that should not vary by deployment stay in their owner module instead of becoming environment variables.
 
+## Background model configuration
+
+`Settings.background_llm_enabled` controls unattended document model stages, automatic editorial and new WATCH wakeups at worker composition boundaries. Standalone Settings defaults to `true` for compatibility; `config/env.example` and local Compose explicitly default to `false`. `editorial_enabled` defaults to `false` and must also be true for scheduled public editorial.
+
+This is not a global model-provider disable flag: `model_base_url`, `model_api_key` and `model_name` stay configured for user-requested work. Settings are cached per process; environment changes require recreating the affected scheduler/worker processes. No currency cap or token-to-money conversion is imposed by Settings. Refer to [worker operation](../../apps/worker/README.md) for pause/resume behavior.
+
 ## Database foundation
 
 `db.py` owns the common SQLAlchemy declarative base, async engine creation, async session factory, and generic transaction scope. Domain ORM models remain in their owning packages and are registered by `apps.runtime_models` at process startup.
@@ -53,9 +59,3 @@ then advance only the test dispatch clock. This prevents the production schedule
 test event between fail-once/retry assertions and prevents integration dispatch from draining
 unrelated production outbox rows. Integration isolation follows the same scoped-ID rule as formal
 fault/recovery benchmarks.
-
-## Background model configuration
-
-`Settings.background_llm_enabled` controls unattended document model stages, automatic editorial and new WATCH wakeups at worker composition boundaries. Standalone Settings defaults to `true` for compatibility; `config/env.example` and local Compose explicitly default to `false`. `editorial_enabled` defaults to `false` and must also be true for scheduled public editorial.
-
-This is not a global model-provider disable flag: `model_base_url`, `model_api_key` and `model_name` stay configured for user-requested work. Settings are cached per process; environment changes require recreating the affected scheduler/worker processes. No currency cap or token-to-money conversion is imposed by Settings. Refer to [worker operation](../../apps/worker/README.md) for pause/resume behavior.

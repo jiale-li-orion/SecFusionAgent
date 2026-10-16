@@ -2,6 +2,27 @@
 
 `apps.worker` owns background-process bootstrap and event-to-task wiring across the current TD1 data plane and TD2 Task Event control plane. It does not own collection, enrichment, investigation, indexing, projection, policy, or scheduling semantics; those remain in their domain/runtime packages and are composed here only at process boundaries.
 
+## Background model operating mode
+
+Set `SECFUSION_BACKGROUND_LLM_ENABLED=false` and recreate the acquisition scheduler, Task Event scheduler and general
+worker. The local Compose default is false; standalone `Settings` keeps its
+previous enabled behavior unless explicitly configured. This skips document dense
+embedding and semantic/normative model stages after committing lexical indexes,
+prevents automatic WATCH episode spawning, and blocks editorial at both schedule
+and execution time. Editorial additionally requires `SECFUSION_EDITORIAL_ENABLED=true`;
+the local Compose default for editorial is now false too.
+
+Collection, raw evidence storage, lexical search, deterministic vulnerability
+enrichment, projections, user QA, investigation planning and user-requested report
+generation retain their normal configuration. Do not clear the shared model API key
+or stop the indexing/investigation queues to achieve this mode.
+
+Already running calls finish on graceful worker shutdown. Queued editorial tasks
+return `disabled`; document tasks finish lexical processing without spending model
+tokens. Existing reports and semantic results remain intact. Re-enabling the flag
+affects future processing; skipped document model stages and WATCH triggers are not
+automatically backfilled. Reprocess selected revisions deliberately if needed.
+
 ## Processes
 
 `celery_app.py` configures the Celery application using the dedicated broker Redis and defines queue routing. Current queue families are collection, normalization, enrichment, investigation, and indexing/projection.
@@ -46,6 +67,7 @@ The scheduler currently translates committed topics as follows:
 | `incident.changed` | `secfusion.projection.incident_changed` |
 | `enrichment.requested` | `secfusion.enrichment.vulnerability` |
 | `document.index.requested` | `secfusion.indexing.document_revision` |
+| `editorial.requested` | `secfusion.editorial.run` (both model/editorial flags required) |
 
 Unknown topics fail explicitly instead of being dropped.
 
@@ -57,9 +79,9 @@ Unknown topics fail explicitly instead of being dropped.
 - knowledge/incident change tasks rebuild current projections;
 - vulnerability enrichment creates or resumes a deterministic background Enrichment TaskRun and executes the shared `EnrichmentRole`; provider/graph primitives still use acquisition, EvidenceIngress and Knowledge Writer;
 - delegated EnrichmentRole and queued InvestigationRole execute through `QueuedRoleExecutor`; `apps/enrichment_runtime.py` and `apps/investigation_runtime.py` own their production composition;
-- document indexing builds lexical state first, then optionally builds dense embeddings and semantic/normative extraction when model configuration is present. A typed `DocumentMaterialRejectedError` is a terminal skip: the worker logs the document revision and returns zero without invoking providers. Other processing errors propagate normally.
+- document indexing builds lexical state first, then builds dense embeddings and semantic/normative extraction only when background model work is enabled and providers are configured. A typed `DocumentMaterialRejectedError` is a terminal skip: the worker logs the document revision and returns zero without invoking providers. Other processing errors propagate normally.
 
-Task Event scheduling and Role execution remain separate boundaries: Redis delivery only chooses the coarse Role task; the Celery handler constructs the domain runtime and the Task Runtime executor performs the durable claim. Investigation is local-Perception-first, with one bounded external route: an existing CVE Vulnerability can request the current NVD record. `apps/nvd_observation.py` registers its semantic Capability and provider binding, uses the Broker's Policy/Budget audit, records an investigation acquisition and raw runtime artifact, then promotes the observation through EvidenceIngress and attaches an EvidenceRef to the bound object. Other external targets and sandbox operations remain unavailable rather than bypassing Policy.
+Task Event scheduling and Role execution remain separate boundaries: Redis delivery only chooses the coarse Role task; the Celery handler constructs the domain runtime and the Task Runtime executor performs the durable claim. Investigation composes local Perception with official NVD reads, registered public HTML sources and exact GitHub development records for configured repositories. `apps/nvd_observation.py`, `apps/registered_source_observation.py` and `apps/github_investigation_observation.py` register bounded bindings through the Broker, Policy/Budget, AcquisitionRun, raw runtime artifacts and independent Evidence promotion. Generic web search, arbitrary repositories/assets and sandbox execution remain outside these bindings.
 
 Background vulnerability enrichment no longer constructs executable contracts locally. `_enrich_vulnerability` passes the trigger provenance to `ensure_background_vulnerability_enrichment_run`, which enters the same `TaskIntent → task_admission → TaskContract` path used by other executable work. Any caller that enqueues this Celery task cannot bypass worker-side admission or the M3 Evidence/Knowledge write path.
 
@@ -68,6 +90,27 @@ Celery uses late acknowledgement, reject-on-worker-loss, prefetch 1, and at-leas
 ## Redis separation
 
 `redis_broker_url` is reserved for Celery transport. Hot Bug and Incident transient state use `redis_hot_cache_url`. Task Event delivery uses `redis_task_bus_url` with no-eviction/persistent Stream semantics. Worker composition must not collapse these three failure domains into one Redis role.
+
+## Automatic public editorial
+
+With both `SECFUSION_BACKGROUND_LLM_ENABLED=true` and
+`SECFUSION_EDITORIAL_ENABLED=true`, the existing scheduler reserves one UTC slot
+per `SECFUSION_EDITORIAL_INTERVAL_HOURS` (default 6), writes `editorial.requested` to
+the durable outbox and dispatches `secfusion.editorial.run` to the investigation queue.
+The worker has an 840-second async budget, 870-second soft/900-second hard task limits;
+its 1200-second database lease fences publication and allows scheduler recovery.
+Model calls use the recorded provider and existing independent review gate. Private
+material is never selected. `editorial_runs` retains selection, attempts, status,
+brief identity and error type without secrets. No material is a normal skipped run.
+
+Local Compose disables automatic editorial by default. When explicitly enabled,
+it selects at most four documents from the last 14 days. Editorial defaults off
+in Settings too; the general background-model flag has a compatible enabled
+Settings default and must be set explicitly for standalone processes.
+Setting `SECFUSION_EDITORIAL_ENABLED=false` stops scheduling and new worker claims;
+an already running job may finish. Keep the worker and scheduler on the same config.
+Use `editorial_runs` ordered by `slot_at` to inspect status; published `brief_id` values
+resolve through `/api/v1/intelligence/briefs/{brief_id}/report.html` after visibility checks.
 
 ## Adding background work
 
@@ -79,42 +122,3 @@ A new background behavior should first define its owning package service and dur
 uv run pytest apps/worker/tests -q
 make integration-core
 ```
-
-### Automatic public editorial
-
-With `SECFUSION_EDITORIAL_ENABLED=true`, the existing scheduler reserves one UTC slot
-per `SECFUSION_EDITORIAL_INTERVAL_HOURS` (default 6), writes `editorial.requested` to
-the durable outbox and dispatches `secfusion.editorial.run` to the investigation queue.
-The worker has an 840-second async budget, 870-second soft/900-second hard task limits;
-its 1200-second database lease fences publication and allows scheduler recovery.
-Model calls use the recorded provider and existing independent review gate. Private
-material is never selected. `editorial_runs` retains selection, attempts, status,
-brief identity and error type without secrets. No material is a normal skipped run.
-
-The local Docker development stack enables editorial by default, selecting at most
-four documents from the last 14 days. Other deployments default off in Settings.
-Setting `SECFUSION_EDITORIAL_ENABLED=false` stops scheduling and new worker claims;
-an already running job may finish. Keep the worker and scheduler on the same config.
-Use `editorial_runs` ordered by `slot_at` to inspect status; published `brief_id` values
-resolve through `/api/v1/intelligence/briefs/{brief_id}/report.html` after visibility checks.
-
-### Temporarily pausing unattended model costs
-
-Set `SECFUSION_BACKGROUND_LLM_ENABLED=false` and recreate the scheduler and general
-worker. The local Compose default is false; standalone `Settings` keeps its
-previous enabled behavior unless explicitly configured. This skips document dense
-embedding and semantic/normative model stages after committing lexical indexes,
-prevents automatic WATCH episode spawning, and blocks editorial at both schedule
-and execution time. Editorial additionally requires `SECFUSION_EDITORIAL_ENABLED=true`;
-the local Compose default for editorial is now false too.
-
-Collection, raw evidence storage, lexical search, deterministic vulnerability
-enrichment, projections, user QA, investigation planning and user-requested report
-generation retain their normal configuration. Do not clear the shared model API key
-or stop the indexing/investigation queues to achieve this mode.
-
-Already running calls finish on graceful worker shutdown. Queued editorial tasks
-return `disabled`; document tasks finish lexical processing without spending model
-tokens. Existing reports and semantic results remain intact. Re-enabling the flag
-affects future processing; skipped document model stages and WATCH triggers are not
-automatically backfilled. Reprocess selected revisions deliberately if needed.

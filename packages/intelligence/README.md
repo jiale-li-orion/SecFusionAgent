@@ -103,41 +103,6 @@ Document indexing produces lexical state first. Dense embedding and semantic ext
 
 `retrieval/context.py`, `operators.py`, and `validation.py` form the current M3→M4 read seam. They resolve current Knowledge/Evidence references and validate world revision/freshness for Investigation context. They intentionally remain below Investigation policy: deciding which evidence need to pursue, whether to perform external observation, and how to integrate a Percept belongs to `packages.investigation`.
 
-## Current projections
-
-`projections/CurrentProjectionService` owns rebuildable read models including current vulnerability, affected versions, fix status, repository security state, and incident state. Projection rows carry upstream revision information. PostgreSQL serializes writes for the same deterministic projection identity with a transaction-scoped advisory lock, then performs the monotonic atomic upsert and advances only when the incoming `upstream_revision` is newer. This preserves both the deterministic primary key and the `(projection_type, subject_id)` database uniqueness invariant without allowing concurrent redelivery to deadlock, race through read-then-insert, or regress a current projection; unrelated projection identities remain independently writable. SQLite keeps the simpler deterministic path for fast tests. Projections remain caches/read models, not evidence authority.
-
-## Design → implementation map
-
-TD1 的 M2/M3 information plane 在实现里保持四层分离：`Observation/EvidenceArtifact` 记录“外部实际观察到了什么”；canonical object/claim/relation 记录经 gate 接受的结构化 Knowledge；document/incident/asset 等 workload-specific state 保留各自生命周期；current projection 只负责加速读取。下游 M4/M6 使用的 `evidence:<link_id>` 由 `EvidenceAttachmentService` 绑定到 Observation/Artifact/locator，前端和 Agent 都不能靠一段自然语言把结果升级成事实。
-
-HTTP vulnerability read、Product Intelligence 与 M4 Perception 都复用 `knowledge.read` / retrieval seam，而不是各自直查表。这保证用户看到的 current view 与 Agent 看到的 accepted/superseded/evidence 语义一致。当前唯一刻意未补齐的是 historical Knowledge read：M7 replay 在 pinned revision 不可精确读取时 fail closed，直到 M1–M3 提供 versioned historical reader。
-
-当前 Knowledge read 会批量装载关系目标、外部标识符、证据链接和 Observation。单个 CVE 的查询次数不会随着 claim/relation 数量线性增长；大对象的问答上下文仍保留完整的证据引用与原有排序语义。
-
-## Artifact storage
-
-`storage/artifacts.py` defines the `ArtifactStore` boundary. The default single-host deployment uses `FilesystemArtifactStore`; an explicit S3-compatible implementation remains available for integration/deployment environments. Both are content-addressed by SHA-256, while PostgreSQL stores artifact metadata and URI rather than arbitrary large body bytes. Filesystem writes use a temporary sibling followed by atomic replace and validate the declared content hash; URI resolution is confined to the configured bucket root. `EvidenceIngress` exact replay verifies that the referenced blob still exists and may restore exact content when the same durable backend can recover the bytes. A replay never accepts mismatched content or upgrades missing historical bytes into fabricated evidence.
-
-The public continuous-monitoring epoch is intentionally later than the bootstrap corpus. A LocalStack lifecycle audit found that pre-epoch PostgreSQL artifact metadata outlived its temporary object namespace; those rows remain an internal bootstrap diagnostic and are excluded from public runtime-integrity claims. Since the durable filesystem cutover, `data-plane-metrics` measures distinct referenced EvidenceArtifact URIs against physical objects and reports public-epoch integrity directly.
-
-## Dependency boundary
-
-Allowed package dependencies: `shared`, `sources`, `intelligence`.
-
-This module does not own provider scheduling, LLM selection, Agent policy, or evaluation. It must not import `monitoring`, `enrichment`, `investigation`, `evaluation`, or `apps`.
-
-## Verification
-
-```bash
-uv run pytest packages/intelligence -q
-make integration-core
-make integration-object-store
-make data-plane-status
-```
-
-For changes to evidence or canonical state, prefer a real PostgreSQL integration case when SQLite cannot enforce the same FK/locking/query behavior.
-
 ## Personalized activity feeds
 
 `feed/` owns deterministic activity eligibility, topic matching, ranking, stable content identity and durable item feedback. Repository/product/package identity rows are follow targets, not updates. Pull requests and commits require explicit security text and an accepted, evidence-backed security relationship; release rows require security or documented major/breaking change content. Title/body fields are the topic-matching boundary; opaque metadata is excluded. Only content-bearing activity types enter the stream; extracted controls, attack concepts and placeholder vulnerability identities stay in Knowledge. Generic home, index and dashboard documents are excluded using source URL structure. No extra model calls are made.
@@ -145,7 +110,6 @@ For changes to evidence or canonical state, prefer a real PostgreSQL integration
 Application composition reads current accepted Knowledge and source previews for `/intelligence/feed`. Following is chronological among explicit topics/objects and their evidenced relationships; recommendations prioritize security and relevance and can include other eligible material. The default window is 30 days using the source update/publication time of current meaningful content or security-relation evidence, falling back to observed time; `window=all` includes older content. Cursor pages carry an observation cutoff, Knowledge revision and deterministic rank key. Current projections are read views, so this is not a historical Knowledge replay contract. Items derive their IDs from full meaningful title/body content and canonical security-relation counterparts (with object identity for title-only items), excluding collection metadata/revisions; identical content merges its evidence references across sources.
 
 Activity feedback is principal + activity ID, independently upserted in `intelligence_activity_feedback` (migration 0035). It never changes follow preferences or legacy object feedback. Existing `/recommendations` endpoints retain compatibility semantics; legacy object-level ignores still filter the new feed. These read views currently assemble all eligible current records before ranking; there is no 128-candidate truncation, but large corpora may need a separately benchmarked projection/index implementation.
-
 
 ## Retained document quality maintenance
 
@@ -171,7 +135,7 @@ quality statuses, publication-date coverage, and identities rather than article 
 reads retained artifacts, verifies their hashes through `ObservationEnvelopeLoader`, and never
 refetches external sources. Missing/corrupt artifacts are reported by audit and not reparsed.
 
-### Public corpus and historical incident curation (2026-10)
+## Public corpus and curated events
 
 `incident/curation.py` owns explicit analyst-pinned historical editions. Every
 node pins a retained public document revision and an exact supporting passage.
@@ -209,22 +173,37 @@ units become replacement characters, and the retained raw PDF is unchanged. This
 prevents a single encoding defect from permanently failing a scheduled PDF batch;
 parser-versioned replay remains available for older revisions.
 
-## Material maintenance and event curation
+## Current projections
 
-`documents/quality.py` provides versioned conservative material assessment; rejected delivery/error templates retain raw evidence but do not become searchable chunks or semantic input. `documents/maintenance.py` can replay retained evidence through the current parser without overwriting prior revisions. PDF parsing repairs valid UTF-16 surrogate pairs and replaces isolated surrogates before PostgreSQL text writes; the original PDF remains unchanged.
+`projections/CurrentProjectionService` owns rebuildable read models including current vulnerability, affected versions, fix status, repository security state, and incident state. Projection rows carry upstream revision information. PostgreSQL serializes writes for the same deterministic projection identity with a transaction-scoped advisory lock, then performs the monotonic atomic upsert and advances only when the incoming `upstream_revision` is newer. This preserves both the deterministic primary key and the `(projection_type, subject_id)` database uniqueness invariant without allowing concurrent redelivery to deadlock, race through read-then-insert, or regress a current projection; unrelated projection identities remain independently writable. SQLite keeps the simpler deterministic path for fast tests. Projections remain caches/read models, not evidence authority.
 
-`incident/curation.py` imports explicitly selected, evidence-backed incident dossiers with stable identities, chronology and featured metadata. Curated status does not create independent corroboration; the importer checks source/public access and chronology. Product access filtering remains outside domain storage. Do not commit local manifests containing collected source material.
+## Design → implementation map
 
-Operator entry points (from the repository root):
+TD1 的 M2/M3 information plane 在实现里保持四层分离：`Observation/EvidenceArtifact` 记录“外部实际观察到了什么”；canonical object/claim/relation 记录经 gate 接受的结构化 Knowledge；document/incident/asset 等 workload-specific state 保留各自生命周期；current projection 只负责加速读取。下游 M4/M6 使用的 `evidence:<link_id>` 由 `EvidenceAttachmentService` 绑定到 Observation/Artifact/locator，前端和 Agent 都不能靠一段自然语言把结果升级成事实。
+
+HTTP vulnerability read、Product Intelligence 与 M4 Perception 都复用 `knowledge.read` / retrieval seam，而不是各自直查表。这保证用户看到的 current view 与 Agent 看到的 accepted/superseded/evidence 语义一致。当前唯一刻意未补齐的是 historical Knowledge read：M7 replay 在 pinned revision 不可精确读取时 fail closed，直到 M1–M3 提供 versioned historical reader。
+
+当前 Knowledge read 会批量装载关系目标、外部标识符、证据链接和 Observation。单个 CVE 的查询次数不会随着 claim/relation 数量线性增长；大对象的问答上下文仍保留完整的证据引用与原有排序语义。
+
+## Artifact storage
+
+`storage/artifacts.py` defines the `ArtifactStore` boundary. The default single-host deployment uses `FilesystemArtifactStore`; an explicit S3-compatible implementation remains available for integration/deployment environments. Both are content-addressed by SHA-256, while PostgreSQL stores artifact metadata and URI rather than arbitrary large body bytes. Filesystem writes use a temporary sibling followed by atomic replace and validate the declared content hash; URI resolution is confined to the configured bucket root. `EvidenceIngress` exact replay verifies that the referenced blob still exists and may restore exact content when the same durable backend can recover the bytes. A replay never accepts mismatched content or upgrades missing historical bytes into fabricated evidence.
+
+The public continuous-monitoring epoch is intentionally later than the bootstrap corpus. A LocalStack lifecycle audit found that pre-epoch PostgreSQL artifact metadata outlived its temporary object namespace; those rows remain an internal bootstrap diagnostic and are excluded from public runtime-integrity claims. Since the durable filesystem cutover, `data-plane-metrics` measures distinct referenced EvidenceArtifact URIs against physical objects and reports public-epoch integrity directly.
+
+## Dependency boundary
+
+Allowed package dependencies: `shared`, `sources`, `intelligence`.
+
+This module does not own provider scheduling, LLM selection, Agent policy, or evaluation. It must not import `monitoring`, `enrichment`, `investigation`, `evaluation`, or `apps`.
+
+## Verification
 
 ```bash
-python -m scripts.audit_document_quality --limit 20
-# Explicit mutation: replay selected retained evidence with the current parser.
-python -m scripts.audit_document_quality --document-id DOCUMENT_UUID --reparse
-# Bounded acquisition through registered sources; writes evidence and material.
-python -m scripts.expand_material_library --source-id metr-research --limit 20
-# Import a locally reviewed evidence manifest, not arbitrary generated event prose.
-python -m scripts.import_curated_incidents /path/to/reviewed-manifest.json
+uv run pytest packages/intelligence -q
+make integration-core
+make integration-object-store
+make data-plane-status
 ```
 
-Library subject clusters are Product read-model facets; they do not modify canonical facts or incident membership. Source/article counts are runtime observations and should be queried rather than hard-coded into module documentation.
+For changes to evidence or canonical state, prefer a real PostgreSQL integration case when SQLite cannot enforce the same FK/locking/query behavior.

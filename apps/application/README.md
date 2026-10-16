@@ -2,7 +2,7 @@
 
 `apps.application` is the Product Application layer introduced by Technical Design 2A. It owns stable product use-case orchestration and public read models above TD1/TD2 domain runtime. It may compose multiple package owners, but it does not reimplement their invariants.
 
-## Current slices
+## Product reads and orchestration
 
 Investigation Product API composition remains the durable async path:
 
@@ -38,7 +38,7 @@ World formation reads join processing runs to exact Knowledge revisions and then
 
 `packages/intelligence/incident/relevance.py` applies a conservative reported-security-event screen to the broad Redis incident-signal pool for the public candidate watch read. The collection owner uses the same screen before correlating two broad news feeds, so ordinary market headlines no longer create new Incident candidates. This is selection, not a promotion decision or a replacement for incident correlation. The product shows candidate source coordinates separately from durable Incident dossiers.
 
-TD2A Slice C now adds the Product QA routing seam:
+The Product QA routing seam is:
 
 ```text
 POST /api/v1/questions
@@ -81,6 +81,20 @@ On each investigation Decision commit, Product binds the immutable Decision ID t
 
 Agent task summaries expose their opaque Product request ID from the execution envelope. The Question audit uses it together with parent/predecessor TaskRun links to show the selected turn's work even when several turns share one durable Case.
 
+## Library, curated events and public editorial
+
+`queries/library.py` builds a public, quality-filtered material projection with stable snapshot paging; `library_subjects.py` owns multi-label lexical browsing facets. Facets are presentation metadata, never canonical claims. `queries/featured.py` selects evidence-backed curated incidents/tools for World; `incident_access.py` centralizes public evidence checks. These projections do not generate text with a model.
+
+`public_briefings.py` freezes explicitly selected public material and orchestrates M4 tentative evidence with the M6 briefing generator and independent editorial review. `automatic_editorial.py` adds bounded topic selection, content fingerprints, leases and publication fencing. Public reads revalidate rights and revisions; private Decisions are never implicitly published. `queries/reports.py` resolves source display coordinates for the controlled HTML renderer.
+
+Process bootstrap owns the background-LLM gate. The application keeps user-requested QA, investigation and finalization available when automatic editorial and document-model stages are paused. Cross-module details: [information quality and reports](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Information-Quality-and-Reports-2026-10).
+
+Public document previews require an explicitly public Source and at least one
+retained artifact, with every artifact of the selected Observation public. Missing,
+unclassified or restricted rights suppress the excerpt and its chunk/locator fields.
+Allowed previews are capped at 1,200 characters; document/index metadata remains
+available under its existing read contract.
+
 ## Boundaries
 
 Public command replay is owned by `command_idempotency.py` and persisted in `product_command_records` (migration `20261009_0032`). An authenticated principal, operation and client `Idempotency-Key` identify one normalized request. Repeating it returns the same Question result or existing Case; changing the body with the same key returns `409 idempotency_conflict`. Question commands store the final Product response and do not rerun a model or append another turn on replay. The Case, session turn, task terminal transition and replay result commit together. A synchronous model call has an earlier durable TaskRun and a pending replay record; an interrupted pending command fails closed instead of launching a duplicate run. A failed model call marks its record failed, so a user retry needs a new key. Cancel requires an expected Case revision and compares it under the Case lock.
@@ -100,19 +114,3 @@ uv run pytest apps/api/tests/test_product_questions.py -q
 uv run pytest apps/api/tests/test_product_edge.py -q
 make product-check
 ```
-
-Every finished Product investigation episode now requests a final report from M6, including when M5 has resolved its original EvidenceNeed. Coverage gaps remain Decision unknowns and keep the Case waiting; normal QA continues to allow typed continuation. The existing continuation-to-Need/report branch remains defensive compatibility for providers returning the older response union. No second report-writing model call is added.
-
-## Library, curated events and public editorial
-
-`queries/library.py` builds a public, quality-filtered material projection with stable snapshot paging; `library_subjects.py` owns multi-label lexical browsing facets. Facets are presentation metadata, never canonical claims. `queries/featured.py` selects evidence-backed curated incidents/tools for World; `incident_access.py` centralizes public evidence checks. These projections do not generate text with a model.
-
-`public_briefings.py` freezes explicitly selected public material and orchestrates M4 tentative evidence with the M6 briefing generator and independent editorial review. `automatic_editorial.py` adds bounded topic selection, content fingerprints, leases and publication fencing. Public reads revalidate rights and revisions; private Decisions are never implicitly published. `queries/reports.py` resolves source display coordinates for the controlled HTML renderer.
-
-Process bootstrap owns the background-LLM gate. The application keeps user-requested QA, investigation and finalization available when automatic editorial and document-model stages are paused. Cross-module details: [information quality and reports](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Information-Quality-and-Reports-2026-10).
-
-Public document previews require an explicitly public Source and at least one
-retained artifact, with every artifact of the selected Observation public. Missing,
-unclassified or restricted rights suppress the excerpt and its chunk/locator fields.
-Allowed previews are capped at 1,200 characters; document/index metadata remains
-available under its existing read contract.

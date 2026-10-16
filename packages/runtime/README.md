@@ -6,7 +6,7 @@
 
 `capability/` defines provider-neutral ToolImplementation, CapabilityContract, CapabilityBinding, CapabilityCard/SchemaView, requests, invocation plans/results and EphemeralObservation. Capability visibility is distinct from invocation authorization: a tool can be discoverable for planning while a concrete resource/action invocation is denied later.
 
-`CapabilityRegistry` resolves healthy bindings and detects native schema drift. `CapabilityBroker` revalidates TaskContract/ExecutionEnvelope ceilings and Case identity, invokes the Policy engine, reserves/commits budget, maps canonical arguments to the selected implementation, bounds timeout by the absolute execution deadline and persists `capability_invocations`. Tool output becomes an EphemeralObservation; it does not enter Evidence/Knowledge automatically. Provider SDK schemas stay behind binding/executor adapters. The production NVD adapter in `apps/nvd_observation.py` is the first narrow external binding; it promotes the raw provider response only through the separate EvidenceIngress gate.
+`CapabilityRegistry` resolves healthy bindings and detects native schema drift. `CapabilityBroker` revalidates TaskContract/ExecutionEnvelope ceilings and Case identity, invokes the Policy engine, reserves/commits budget, maps canonical arguments to the selected implementation, bounds timeout by the absolute execution deadline and persists `capability_invocations`. Tool output becomes an EphemeralObservation; it does not enter Evidence/Knowledge automatically. Provider SDK schemas stay behind binding/executor adapters. Production bindings cover NVD, registered public HTML and exact GitHub development records for configured repositories; their composition lives in `apps/nvd_observation.py`, `apps/registered_source_observation.py` and `apps/github_investigation_observation.py`. Raw responses are promoted only through the separate EvidenceIngress gate.
 
 ## Budget and execution
 
@@ -24,7 +24,7 @@
 
 Prompt/Role text cannot bypass PolicyDecision. Side-effect commit, credential issuance, network egress, sandbox selection and child execution remain explicit decision points.
 
-`TASK_ADMISSION` is evaluated after a domain compiler has produced a prospective TaskContract but before any TaskRun exists; its PolicyRequest therefore uses `intent_ref` plus the prospective contract coordinates rather than inventing a fake run ID. `WATCH_RESUME` is enforced before a relevant world change can create a fresh WATCH TaskRun. The production runtime policy catalog is loaded from `config/runtime-policy.json`; policy revision must match the TaskContract revision, implicit deny remains the default for unmatched decision points, and unmet obligations prevent TaskRun creation. NVD CVE read visibility, invocation and observation promotion each have a specific allow rule; other external capabilities remain denied.
+`TASK_ADMISSION` is evaluated after a domain compiler has produced a prospective TaskContract but before any TaskRun exists; its PolicyRequest therefore uses `intent_ref` plus the prospective contract coordinates rather than inventing a fake run ID. `WATCH_RESUME` is enforced before a relevant world change can create a fresh WATCH TaskRun. The production runtime policy catalog is loaded from `config/runtime-policy.json`; policy revision must match the TaskContract revision, implicit deny remains the default for unmatched decision points, and unmet obligations prevent TaskRun creation. Configured NVD, registered-source and GitHub bindings have scoped visibility, invocation and promotion rules. Unmatched actions remain denied.
 
 ## Sandbox
 
@@ -32,7 +32,7 @@ Prompt/Role text cannot bypass PolicyDecision. Side-effect commit, credential is
 
 `SandboxBroker` enforces profile selection, PolicyDecision, network/credential grants, ExecutionEnvelope deadlines, ArtifactRef-only ingress/egress, operation replay and teardown while persisting sandbox instance/execution audit. Backend implementations remain behind the `SandboxBackend` protocol.
 
-Current host probe finds Docker and `/dev/kvm`; OpenShell and Firecracker binaries are not installed. Process/container profiles therefore remain unavailable through production substrate detection until an OpenShell backend is installed/configured. `microvm_untrusted` remains fail-closed unless Firecracker plus KVM are available; it is never downgraded to an OCI container.
+Production substrate availability is detected on the deployment host. An adapter contract or mocked backend test does not certify a real isolation boundary. Process/container profiles remain unavailable until the required OpenShell backend is installed/configured and verified. `microvm_untrusted` remains fail-closed unless Firecracker plus KVM are available; it is never downgraded to an OCI container.
 
 ## Current boundary
 
@@ -42,7 +42,15 @@ Capability/Policy/Budget/Execution/Sandbox control-plane contracts and durable a
 
 TD2 的 capability stack 已有具体实现：`CapabilityRegistry.visible_capabilities/schema_view/resolve_binding` 负责 discovery/binding；`CapabilityBroker.invoke` 做 invocation-time validation、Policy、Budget 与 executor 调用；`BudgetGovernor` 持有 durable reserve/commit/release；`ExecutionRunService` 持有 ExecutionEnvelope lifecycle；`SandboxBroker` 持有 sandbox create/exec/export/destroy 语义；`RetrievalInvocationService` 持有 Product retrieval request/result/reuse 的 operational record。Identity/network/audit 当前作为 ExecutionEnvelope、Policy、Sandbox 和 owner-local audit state 存在，没有为了目录图额外造空 package。
 
-生产组合现已接入受限的 NVD CVE 官方读取，并通过 Registry/Binding/Broker、采集运行记录、临时 Artifact 和 Evidence 提升闭合来源路径。更广的 search/browser/repository/asset capability 和 sandbox 仍未接入；后续继续沿同一控制面扩展。
+Production composition wires NVD, registered public HTML and configured GitHub development records through the same control plane. General search/browser, arbitrary repository/asset actions and real sandbox acceptance remain open; see the Wiki acceptance register.
+
+## Read-only orchestration seam
+
+`read.py` exposes copies of budget limits and counts of logical model requests scoped
+to a task and purpose. Investigation uses these values to preserve its iteration
+window across resumes; it does not import runtime ORM rows or write budget/model
+state. Accounting and mutation remain owned by the budget governor and model recorder.
+The architecture gate permits this explicit read seam, not arbitrary runtime storage.
 
 ## Dependency boundary
 
@@ -55,12 +63,3 @@ uv run pytest tests/test_task_capability_policy_conformance.py -q
 uv run pytest packages/runtime -q
 SECFUSION_RUN_INTEGRATION=1 uv run pytest tests/integration/test_runtime_control_plane.py -q
 ```
-
-
-## Read-only orchestration seam
-
-`read.py` exposes copies of budget limits and counts of logical model requests scoped
-to a task and purpose. Investigation uses these values to preserve its iteration
-window across resumes; it does not import runtime ORM rows or write budget/model
-state. Accounting and mutation remain owned by the budget governor and model recorder.
-The architecture gate permits this explicit read seam, not arbitrary runtime storage.

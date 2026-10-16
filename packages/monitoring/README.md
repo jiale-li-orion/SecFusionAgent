@@ -1,11 +1,11 @@
 # `packages.monitoring`
 
 <!-- BEGIN GENERATED MONITORING STATUS -->
-## Current M1 evidence (generated)
+## Retained M1 evidence (generated)
 
 Suite `m1-monitoring-current@23`, run `5a1f53e7-87ca-466b-bef8-3f7140f36b66`, deployment `deployment:2713f58f83915b2d0d0a9621ed4b7ac7`.
 
-| Measurement | Current result |
+| Measurement | Retained result |
 | --- | ---: |
 | Product source categories | 8 |
 | Raw scheduled candidates | 244 |
@@ -22,24 +22,45 @@ Latency is source event time → earliest Knowledge commit. `monitoring_diagnost
 
 Current diagnostic split: raw=244, eligible=12, excluded=232. Read the complete machine result in `benchmarks/m1/current.json` and reproduce the Markdown projection with `make m1-render-doc`.
 
-### Live data-plane status (generated)
+### Saved data-plane snapshot (generated)
 
-Public continuous-monitoring epoch: `2026-10-02T04:19:42+08:00`. Pre-epoch rows are bootstrap/corpus-prefill and stay outside public runtime throughput.
+Snapshot generated `2026-10-08T19:18:08.614492+00:00`; monitoring epoch `2026-10-02T04:19:42+08:00`. This is retained evidence, not live health. Pre-epoch bootstrap rows stay outside throughput.
 
-Source contract: 101 catalog entries → 66 executable sources → 39 scheduled monitors; 7/8 categories are actively scheduled and `assets` remains query-time.
+Source configuration at snapshot time: 101 catalog entries → 66 executable sources → 39 scheduled monitors; 7/8 categories are actively scheduled and `assets` remains query-time.
 
-Current health: 36 healthy / 1 degraded / 2 blocked / 0 warming. Last-hour runtime: run success 85.714%, queue p95 102.077s (1.70min), execution p95 108.106s (1.80min), fresh changes 25, fresh contributing sources/categories 5/3. Public-epoch Evidence integrity: 100.000%.
+Health at snapshot time: 36 healthy / 1 degraded / 2 blocked / 0 warming. Last-hour runtime: run success 85.714%, queue p95 102.077s (1.70min), execution p95 108.106s (1.80min), fresh changes 25, fresh contributing sources/categories 5/3. Public-epoch Evidence integrity: 100.000%.
 
 `benchmarks/data-plane/current.json` owns 1h/6h/24h/7d rolling windows plus chart-ready hourly/category series; `make data-plane-metrics` refreshes the snapshot.
 <!-- END GENERATED MONITORING STATUS -->
 
 `packages.monitoring` is the implementation owner of M1 acquisition lifecycle and source runtime state. Technical Design 1 defines the processing paths and M1→M2 boundary; this module records how scheduling, acquisition runs, cursors, retries, and query-time acquisition are concretely executed.
 
+## Operation while background models are paused
+
+Acquisition remains scheduled when `SECFUSION_BACKGROUND_LLM_ENABLED=false`: the scheduler continues stale-run recovery, source scheduling and durable outbox delivery. Only automatic editorial scheduling is gated there. Collection retains evidence and triggers ordinary lexical indexing; deterministic enrichment and projections continue.
+
+`synchronize_monitoring_sources` performs definition and schedule-row synchronization in one transaction with PostgreSQL advisory serialization. Existing source cursors, health and backoff are preserved. Managed-content acquisition honors a finite nonnegative per-source `polite_interval_seconds` between article fetches. Provider/network failures remain visible source health, not a reason to reset cursor history or fabricate successful ingestion.
+
 ## Durable state
 
 `SourceStateModel` stores cursor, last attempt/success/change, next due time, failure count, backoff, and rate-limit state. `AcquisitionRunModel` stores one durable collection/query attempt with trigger, parent run, query spec, cursor in/out, status, timestamps, attempt, and error fields.
 
 An external request is not considered a completed acquisition merely because the provider returned bytes. Completion happens after the selected downstream path accepts the data and the run/cursor transition commits.
+
+## Registry startup and polite managed ingestion
+
+`synchronize_monitoring_sources` is the monitoring-owned registry entry point:
+it synchronizes the complete configured SourceDefinitions and ensures scheduling
+rows in one transaction. PostgreSQL synchronization uses a transaction advisory
+lock. The scheduler invokes it once at startup, retries initialization failures,
+and only then schedules work. The source-sync and corpus-backfill CLIs use the
+same contract. Existing cursors, health, backoff and due times are retained;
+explicitly unscheduled definitions retain a null due time.
+
+Managed document collection honors `rate_limit_policy.polite_interval_seconds`
+between article/PDF fetches. The interval must be finite and nonnegative; the
+existing run timeout bounds the entire batch. A failed ingestion does not advance
+the discovery cursor, and already committed evidence remains replayable.
 
 ## Scheduled collection path
 
@@ -150,24 +171,3 @@ make integration-core
 ```
 
 The real core integration exercises PostgreSQL, the separated Redis roles, acquisition state, outbox delivery, and M3 handoff.
-
-### Registry startup and polite managed ingestion
-
-`synchronize_monitoring_sources` is the monitoring-owned registry entry point:
-it synchronizes the complete configured SourceDefinitions and ensures scheduling
-rows in one transaction. PostgreSQL synchronization uses a transaction advisory
-lock. The scheduler invokes it once at startup, retries initialization failures,
-and only then schedules work. The source-sync and corpus-backfill CLIs use the
-same contract. Existing cursors, health, backoff and due times are retained;
-explicitly unscheduled definitions retain a null due time.
-
-Managed document collection honors `rate_limit_policy.polite_interval_seconds`
-between article/PDF fetches. The interval must be finite and nonnegative; the
-existing run timeout bounds the entire batch. A failed ingestion does not advance
-the discovery cursor, and already committed evidence remains replayable.
-
-## Operation while background models are paused
-
-Acquisition remains scheduled when `SECFUSION_BACKGROUND_LLM_ENABLED=false`: the scheduler continues stale-run recovery, source scheduling and durable outbox delivery. Only automatic editorial scheduling is gated there. Collection retains evidence and triggers ordinary lexical indexing; deterministic enrichment and projections continue.
-
-`synchronize_monitoring_sources` performs definition and schedule-row synchronization in one transaction with PostgreSQL advisory serialization. Existing source cursors, health and backoff are preserved. Managed-content acquisition honors a finite nonnegative per-source `polite_interval_seconds` between article fetches. Provider/network failures remain visible source health, not a reason to reset cursor history or fabricate successful ingestion.

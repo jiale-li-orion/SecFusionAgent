@@ -50,6 +50,12 @@ The source inventory also owns the public continuous-monitoring measurement epoc
 
 A product source category counts as executable coverage only when the inventory has an `owned` fixed/grouped owner whose adapter/runtime owner can be constructed. `partial` ownership, `dynamic_resolution`, and a successful point-in-time live probe do not create a new supported category. Live reachability remains an operational snapshot rather than taxonomy/coverage evidence.
 
+## Research and tool discovery additions
+
+Registered source definitions now include CrowdStrike research, Hugging Face security, METR, Transluce and the REA project. Definitions still carry explicit provider hosts, source authority and schedule intent; catalogue presence is not a live reachability guarantee. arXiv discovery uses a six-hour cadence and Transluce discovery uses its actual publication index.
+
+`html_article_metadata.py` extracts article metadata without mixing related-page headlines into the selected article. Publication date-only values remain distinct from timezone-aware timestamps; observation time is never substituted for publication time. Current registry startup and bounded library-import commands synchronize definitions and schedule state through the monitoring owner, preserving existing cursors and backoff.
+
 ## Registry and adapter extension
 
 Declarative definitions live under `config/sources/*.json`; the product source catalog lives in `config/source-inventory.json`. `registry/loader.py` loads source definitions and `registry/sync.py` synchronizes them into PostgreSQL. `adapters/factory.py` is the only adapter-construction switch used by runtime code.
@@ -145,9 +151,3 @@ make data-plane-status
 `make probe-live-sources` is a manual reachability snapshot. It is not a deterministic source-coverage gate.
 
 Cross-module semantics remain authoritative in [Data Sources and Processing](https://github.com/jiale-li-orion/SecFusionAgent/wiki/01-Data-Sources-and-Processing) and [Technical Design 1](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design-1).
-
-## Research and tool discovery additions
-
-Registered source definitions now include CrowdStrike research, Hugging Face security, METR, Transluce and the REA project. Definitions still carry explicit provider hosts, source authority and schedule intent; catalogue presence is not a live reachability guarantee. arXiv discovery uses a six-hour cadence and Transluce discovery uses its actual publication index.
-
-`html_article_metadata.py` extracts article metadata without mixing related-page headlines into the selected article. Publication date-only values remain distinct from timezone-aware timestamps; observation time is never substituted for publication time. Current registry startup and bounded library-import commands synchronize definitions and schedule state through the monitoring owner, preserving existing cursors and backoff.

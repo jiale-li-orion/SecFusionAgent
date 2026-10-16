@@ -43,7 +43,6 @@ The vulnerability route calls `packages.intelligence.knowledge.read.get_vulnerab
 
 `GET /api/v1/a2a/tasks/{task_id}` is the first A2A compatibility transport seam. It maps an existing internal TaskRun/TaskContract/ContextManifest into the A2A 1.0 Task view and returns `application/a2a+json`. `A2A-Version: 1.0` and compatible `1.0.x` requests are accepted. This is intentionally **not** advertised as a complete A2A server yet: SendMessage, SubscribeToTask/SSE, Agent Card discovery, push-registration/authentication and task cancellation remain transport work above the deterministic mapper in `packages.task_runtime.a2a`.
 
-
 ## Product Application boundary
 
 Technical Design 2A separates Product API from A2A transport and domain/runtime owners. Product Investigation routes call `apps.application` use cases/read projections instead of composing domain storage directly. `POST /api/v1/investigations` returns `202 Accepted` plus `Location`, while GET routes return stable `InvestigationView` / cursor-paged `InvestigationPage`. The Application layer reuses the canonical Case/State/Task admission/Budget/Execution owners, while Product DTOs do not expose runtime-internal schema.
@@ -56,7 +55,7 @@ LOOKUP/RETRIEVE model calls use the same recorded provider wrapper as formal QA 
 
 Product Question (including SSE), Investigation creation and cancellation accept `Idempotency-Key`. Application scopes the key to the account, operation and normalized request. A replay returns the prior result (SSE emits the final result only); changed input returns `409 idempotency_conflict`. Cancellation requires a quoted or bare integer Case revision in `If-Match`; stale state returns `409 revision_conflict`. Investigation reads and writes return the current quoted revision in `ETag`. The Product Web supplies both headers and retains a pending key across transport retries.
 
-The Question SSE endpoint emits terminal `error` for a failed command. A rejected model Decision uses `decision_validation_failed` with a safe retry message and the failed TaskRun coordinate in `context.run_id`; deadline errors provide the same coordinate. Unexpected failures are logged with the request ID and sent as `question_failed`; incomplete draft bytes never become a durable Decision. A client can retry after any terminal SSE error with a fresh idempotency key.
+The Question SSE endpoint emits terminal `error` for a failed command, with the TaskRun coordinate where available. A rejected factual proposal is not persisted: the current Question use case can complete with a validated zero-claim boundary Decision carrying `evidence_validation_failed`. That durable result replaces the unvalidated draft. Deadline and other execution failures remain errors. Unexpected failures are logged with the request ID and sent as `question_failed`; incomplete draft bytes never become a durable Decision. A client can retry after any terminal SSE error with a fresh idempotency key.
 
 Account conversation history uses bounded keyset pages: `GET /api/v1/questions/sessions?limit=20&cursor=...` returns `items`, `has_more`, and `next_cursor`; `GET /api/v1/questions/sessions/{session_id}?limit=50&before_turn=...` returns newest-first pages of turns with `has_more` and `next_before_turn`. Both reads enforce session ownership, including cursor access. A final `DecisionView` may include cited `report_paragraphs` for a readable investigation report; the structured `answer`, conclusions, and citations remain the evaluated decision.
 
@@ -69,28 +68,6 @@ Account conversation history uses bounded keyset pages: `GET /api/v1/questions/s
 `routes/authentication.py` issues/revokes a server-owned session in a same-origin HttpOnly cookie. The request context resolves business identity from that cookie, not `X-Principal`; writes check Origin/CSRF. Product Questions, sessions, Cases, Decisions, Tasks, enrichment commands, recommendations, model activity and A2A task reads enforce account ownership. WORLD and shared Evidence/Knowledge remain public. See the Wiki [account contract](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Product-Accounts-and-Personalization) for public system-Case read constraints and the legacy `user:local` boundary.
 
 `routes/health.py` separates liveness from readiness: liveness only means process alive; readiness verifies the database/schema and required runtime-policy configuration. Aggregate `/health` reports optional model-provider absence as disabled/degraded rather than making the whole API unready.
-
-## Retired Runtime Workbench
-
-The former diagnostic route set and static operator console were retired after the Product App gained Product-safe Data Plane, Evidence, Investigation, Agent runtime and Observatory reads. No domain capability was owned by that transport layer; execution remains in the existing Application/domain services and workers.
-
-## Adding routes
-
-A route may validate HTTP input, translate domain errors into HTTP responses, inject request-scoped dependencies, and select a package service. Reusable query, enrichment, evidence, evaluation, or Agent behavior belongs to its capability owner rather than the route module.
-
-Database transactions that change domain state should be owned by the called application/domain service. The API process should not bypass those services with direct ORM writes.
-
-## Configuration
-
-The application uses `packages.shared.config.Settings`. Database engine/session lifecycle is process-owned here; credentials and provider configuration remain environment-backed settings. For model-backed Product QA, `SECFUSION_MODEL_BASE_URL` and `SECFUSION_MODEL_API_KEY` are the common minimum. `make model-provider-probe` may resolve a unique chat model through OpenAI-compatible `/models`; if several plausible chat models are exposed, set `SECFUSION_MODEL_NAME` explicitly so formal runs do not choose a model nondeterministically.
-
-## Verification
-
-API transport tests live under `apps/api/tests`. `test_product_questions.py` covers Investigation session continuation and verifies that session-only LOOKUP without `cve_id/object_id` is accepted by the transport and reaches the model dependency rather than failing schema validation. Domain behavior remains covered by its owning package tests.
-
-Personalized activity APIs (account required): `GET /api/v1/intelligence/follow-resolution?q=...` returns a unique exact identity and/or selectable candidates. Ambiguity is explicit and topic fallback requires the user to choose it. `GET /api/v1/intelligence/feed?mode=following|recommended&window=30d|all&limit=12&cursor=...` returns evidence-backed dynamic items with `activity_id`, source previews, `next_cursor` and `has_more`. `PUT /api/v1/intelligence/feed/{activity_id}/feedback` accepts interested/ignored/neutral independently of object follow state and legacy recommendation feedback.
-
-Task summaries include owner-checked user goals, readable target labels and originating sessions. The same projection backs task archives and details; foreign Case/session context is never joined into another account's task. The web presents result/blocker semantics before technical runtime fields and links back to `/start?session=…`.
 
 ## Public material and report reads
 
@@ -111,3 +88,27 @@ Focused regression commands:
 ```bash
 uv run pytest apps/api/tests/test_library_routes.py apps/api/tests/test_public_brief_routes.py apps/api/tests/test_product_html_report.py -q
 ```
+
+## Personalized feeds and task reads
+
+Personalized activity APIs (account required): `GET /api/v1/intelligence/follow-resolution?q=...` returns a unique exact identity and/or selectable candidates. Ambiguity is explicit and topic fallback requires the user to choose it. `GET /api/v1/intelligence/feed?mode=following|recommended&window=30d|all&limit=12&cursor=...` returns evidence-backed dynamic items with `activity_id`, source previews, `next_cursor` and `has_more`. `PUT /api/v1/intelligence/feed/{activity_id}/feedback` accepts interested/ignored/neutral independently of object follow state and legacy recommendation feedback.
+
+Task summaries include owner-checked user goals, readable target labels and originating sessions. The same projection backs task archives and details; foreign Case/session context is never joined into another account's task. The web presents result/blocker semantics before technical runtime fields and links back to `/start?session=…`.
+
+## Retired Runtime Workbench
+
+The former diagnostic route set and static operator console were retired after the Product App gained Product-safe Data Plane, Evidence, Investigation, Agent runtime and Observatory reads. No domain capability was owned by that transport layer; execution remains in the existing Application/domain services and workers.
+
+## Adding routes
+
+A route may validate HTTP input, translate domain errors into HTTP responses, inject request-scoped dependencies, and select a package service. Reusable query, enrichment, evidence, evaluation, or Agent behavior belongs to its capability owner rather than the route module.
+
+Database transactions that change domain state should be owned by the called application/domain service. The API process should not bypass those services with direct ORM writes.
+
+## Configuration
+
+The application uses `packages.shared.config.Settings`. Database engine/session lifecycle is process-owned here; credentials and provider configuration remain environment-backed settings. For model-backed Product QA, `SECFUSION_MODEL_BASE_URL` and `SECFUSION_MODEL_API_KEY` are the common minimum. `make model-provider-probe` may resolve a unique chat model through OpenAI-compatible `/models`; if several plausible chat models are exposed, set `SECFUSION_MODEL_NAME` explicitly so formal runs do not choose a model nondeterministically.
+
+## Verification
+
+API transport tests live under `apps/api/tests`. `test_product_questions.py` covers Investigation session continuation and verifies that session-only LOOKUP without `cve_id/object_id` is accepted by the transport and reaches the model dependency rather than failing schema validation. Domain behavior remains covered by its owning package tests.

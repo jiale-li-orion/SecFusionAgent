@@ -1,7 +1,7 @@
 # `packages.enrichment`
 
 <!-- BEGIN GENERATED ENRICHMENT STATUS -->
-## Current M3 formal evidence (generated)
+## Retained M3 formal evidence (generated)
 
 Competition aggregation: TP=292, FP=1, FN=1, micro precision=99.659%, micro recall=99.659%.
 
@@ -21,6 +21,12 @@ Inspect exact gold/predictions/missing/extra facts in `benchmarks/m3/current-str
 <!-- END GENERATED ENRICHMENT STATUS -->
 
 `packages.enrichment` is the implementation owner of M3 processing that creates additional security claims/relations from existing or newly acquired evidence. Technical Design 1 freezes enrichment authority, vocabulary boundaries, and the M3→M4 handoff; this module documents processor composition, provider querying, semantic extraction, and extension rules.
+
+## Material quality and unattended model stages
+
+Semantic and normative processors recheck the current document material assessment before provider invocation, including historical records without a stored assessment. Recognized error pages, access walls and unusable bodies raise `DocumentMaterialRejectedError`; no model call or accepted semantic claim is produced from that material. A successful fetch is not a quality verdict.
+
+The worker first commits lexical indexes, then enters optional model stages only when `SECFUSION_BACKGROUND_LLM_ENABLED=true`. The switch is process orchestration, not a change to semantic evidence validation. Deterministic CVE provider enrichment, repository graph association and fix-boundary processing do not require an LLM and continue while the switch is off. Interactive investigation composition retains its provider configuration.
 
 ## Vulnerability enrichment runtime
 
@@ -325,9 +331,3 @@ make integration-core
 - STIX 2.1: https://docs.oasis-open.org/cti/stix/v2.1/
 - OpenCTI connector/enrichment model: https://docs.opencti.io/latest/deployment/connectors/
 - MISP modules: https://misp.github.io/misp-modules/
-
-## Material quality and unattended model stages
-
-Semantic and normative processors recheck the current document material assessment before provider invocation, including historical records without a stored assessment. Recognized error pages, access walls and unusable bodies raise `DocumentMaterialRejectedError`; no model call or accepted semantic claim is produced from that material. A successful fetch is not a quality verdict.
-
-The worker first commits lexical indexes, then enters optional model stages only when `SECFUSION_BACKGROUND_LLM_ENABLED=true`. The switch is process orchestration, not a change to semantic evidence validation. Deterministic CVE provider enrichment, repository graph association and fix-boundary processing do not require an LLM and continue while the switch is off. Interactive investigation composition retains its provider configuration.

@@ -1,11 +1,11 @@
 # M6 QA benchmark assets
 
 <!-- BEGIN GENERATED QA STATUS -->
-## Current M6 formal evidence (generated)
+## Retained M6 formal evidence (generated)
 
 Deployment `deployment:2713f58f83915b2d0d0a9621ed4b7ac7`, Knowledge head `knowledge-revision:3443`, resolved model `deepseek-flash`.
 
-| Metric | Current result |
+| Metric | Retained result |
 | --- | ---: |
 | Answer accuracy | 100.000% |
 | Groundedness | 100.000% |

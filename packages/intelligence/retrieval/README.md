@@ -12,6 +12,16 @@ The local read surface includes exact, structured, lexical, dense, graph and evi
 
 The replay seam exists so runtime/application code can reuse an already-measured retrieval result without duplicating SQL or reconstructing passage payloads from chat/session state. It is not itself a cache and does not decide whether reuse is allowed.
 
+## Quality gates and lexical-only operation
+
+`DocumentIndexService` rejects unusable retained material before indexing or embedding. Old records without an assessment are checked against the same versioned material rules. Existing raw evidence and parser history remain available for audit.
+
+Lexical indexing is independently useful: when worker background model stages are paused, chunks reach `lexical_ready` without an embedding request. Existing dense indexes and semantic results are retained; the switch does not clear them. Re-enabling model stages does not itself enqueue backfill. The worker owns this scheduling choice; retrieval operators continue to use evidence/revision-bound candidates.
+
+`DocumentRetrievalOperator.for_object` reads bounded, ordinal-ordered chunks from each document's latest revision for an exact object ID. It preserves source text, revision and locators, and attaches only an existing object EvidenceLink from that revision's Observation. A current revision with no chunks yields no historical fallback. Investigation INSPECT uses this operator alongside structured projections; reading source text does not create Knowledge or bypass the StatePatch evidence gate.
+
+`DocumentRetrievalOperator.bind_evidence` binds a bounded set of retrieved passages to an already-existing object EvidenceLink from the exact DocumentRevision Observation. Chunk ID, revision and object must all match; a newer document link never repairs an older uncited passage. Perception lexical/dense reads use this seam so the Agent receives source text and its durable citation together. This does not promote the passage or change Product retrieval ranking.
+
 ## Ownership boundary
 
 `packages.runtime.retrieval` records operational invocation/reuse provenance. `apps.application` decides the Product workflow and exact-session reuse policy. `packages.evaluation` measures those durable records. This package remains below all three and depends only on the information plane.
@@ -22,13 +32,3 @@ The replay seam exists so runtime/application code can reuse an already-measured
 uv run pytest packages/intelligence -q
 SECFUSION_RUN_INTEGRATION=1 uv run pytest tests/integration/test_core_infrastructure.py -q
 ```
-
-`DocumentRetrievalOperator.for_object` reads bounded, ordinal-ordered chunks from each document's latest revision for an exact object ID. It preserves source text, revision and locators, and attaches only an existing object EvidenceLink from that revision's Observation. A current revision with no chunks yields no historical fallback. Investigation INSPECT uses this operator alongside structured projections; reading source text does not create Knowledge or bypass the StatePatch evidence gate.
-
-`DocumentRetrievalOperator.bind_evidence` binds a bounded set of retrieved passages to an already-existing object EvidenceLink from the exact DocumentRevision Observation. Chunk ID, revision and object must all match; a newer document link never repairs an older uncited passage. Perception lexical/dense reads use this seam so the Agent receives source text and its durable citation together. This does not promote the passage or change Product retrieval ranking.
-
-## Quality gates and lexical-only operation
-
-`DocumentIndexService` rejects unusable retained material before indexing or embedding. Old records without an assessment are checked against the same versioned material rules. Existing raw evidence and parser history remain available for audit.
-
-Lexical indexing is independently useful: when worker background model stages are paused, chunks reach `lexical_ready` without an embedding request. Existing dense indexes and semantic results are retained; the switch does not clear them. Re-enabling model stages does not itself enqueue backfill. The worker owns this scheduling choice; retrieval operators continue to use evidence/revision-bound candidates.

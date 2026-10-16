@@ -26,6 +26,12 @@ Product AskQuestion 与正式评测调用同一条 M6 runtime/invariant。正式
 
 A finished Product investigation episode uses the final-only `InvestigationReportResponse` schema. The same M6 call selects relevant findings from the whole state and writes a report with uncovered goal dimensions in `unknowns`; a delivered report is not a declaration of evidence sufficiency. Ordinary question/reasoning calls retain typed continuation. This avoids replacing a useful report with a latest-three-facts fallback when the model discovers another gap.
 
+## Runtime defaults and report reads
+
+Automatic jobs require both `SECFUSION_BACKGROUND_LLM_ENABLED=true` and `SECFUSION_EDITORIAL_ENABLED=true`. The current local Compose configuration sets both false. This does not disable explicit operator generation or account-owned question/investigation reports; those actions may still spend model tokens. Existing public and private HTML reads are deterministic and free of model invocation.
+
+Resume affects future eligible slots and model processing. It does not backfill skipped document revisions or historical editorial slots. Provider usage for every recorded generation/review/revision attempt remains distinct from monetary estimates.
+
 ## Public editorial reports and HTML
 
 `editorial_prompt.py` owns the versioned `public-editorial-v5` profile, separate from ordinary research prose: event-based selection, attributed source claims, dates and numeric scope, short paragraphs, separate analysis, useful uncertainty and no runtime vocabulary. `BriefingGenerator` uses the same M6 validation over M4 tentative passages and then a second structured editorial review. Both support and editorial quality must pass; mechanical layout/length/vocabulary checks add publication issues. This is model critique, not an independent truth guarantee. Each stage has a bounded 300-second wall budget and recorded model requests.
@@ -63,9 +69,3 @@ followed by full fresh review. It never loops until accepted or weakens citation
 At most four logical model calls run within the worker's overall budget; the rejected
 review and prior decision coordinate are retained in `revision_history`. An operator
 can revise a retained rejected draft under the new policy without rewriting its record.
-
-## Runtime defaults and report reads
-
-Automatic jobs require both `SECFUSION_BACKGROUND_LLM_ENABLED=true` and `SECFUSION_EDITORIAL_ENABLED=true`. The current local Compose configuration sets both false. This does not disable explicit operator generation or account-owned question/investigation reports; those actions may still spend model tokens. Existing public and private HTML reads are deterministic and free of model invocation.
-
-Resume affects future eligible slots and model processing. It does not backfill skipped document revisions or historical editorial slots. Provider usage for every recorded generation/review/revision attempt remains distinct from monetary estimates.
