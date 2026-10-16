@@ -1,3 +1,4 @@
+import { DevelopingField } from '../ui/developing-field'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Card, CardContent } from '../ui/card'
@@ -16,8 +17,8 @@ import { useI18n } from '../../lib/i18n'
 export function ProfileEditor() {
   const { text } = useI18n()
   const preferences = useQuery({ queryKey: ['intelligence-preferences'], queryFn: getIntelligencePreferences })
-  return <div className="workspace-profile">
-    <header className="workspace-heading"><h1>{text('资料与偏好', 'Profile & preferences')}</h1><p>{text('管理个人资料、关注关键词与对象。', 'Manage your profile, topics, and followed objects.')}</p></header>
+  return <div className="workspace-profile" data-develop-scope>
+    <header className="workspace-heading development-heading"><DevelopingField variant="personal" className="heading-imprint imprint-research"/><h1>{text('资料与偏好', 'Profile & preferences')}</h1><p>{text('管理个人资料、关注关键词与对象。', 'Manage your profile, topics, and followed objects.')}</p></header>
     <IdentityEditor />
     {preferences.isPending ? <p className="empty-block" role="status">{text('正在读取关注设置…', 'Loading interests…')}</p> : preferences.isError ? <div className="error-block" role="alert">{text('无法读取关注设置。', 'Could not load your interests.')}<button onClick={() => void preferences.refetch()}>{text('重试', 'Retry')}</button></div> : <InterestsEditor preferences={preferences.data} />}
   </div>

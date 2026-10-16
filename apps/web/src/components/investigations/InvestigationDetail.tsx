@@ -1,6 +1,7 @@
+import { DevelopingField } from '../ui/developing-field'
+import { productTerm } from '../../lib/productVocabulary'
 import { useEffect, useState } from 'react'
 import {
-  ArrowUpRight,
   BadgeCheck,
   CircleAlert,
   FileQuestion,
@@ -124,8 +125,8 @@ export function InvestigationDetail({
     },
   ]
   return (
-    <div className="research-detail">
-      <header className="research-detail-heading">
+    <div className="research-detail" data-develop-scope>
+      <header className="research-detail-heading development-heading"><DevelopingField variant="research" className="heading-imprint imprint-research"/>
         <div className="research-detail-meta">
           <Badge variant="secondary" className={`research-status status-${item.status}`}>
             {investigationStatusLabel(item.status, text)}
@@ -216,7 +217,7 @@ export function InvestigationDetail({
               </p>
               <Button variant="outline" onClick={() => onFocus('confirmed')}>
                 {text('查看已有发现', 'Read findings')}
-                <ArrowUpRight size={15} />
+
               </Button>
             </div>
           )}
@@ -269,7 +270,7 @@ export function InvestigationDetail({
                       <summary>{text('证据要求', 'Evidence requirements')}</summary>
                       <p>{need.required_source_roles.join(' · ') || '—'}</p>
                       <small>
-                        {text('优先级', 'Priority')} {need.priority} · {need.status}
+                        {text('优先级', 'Priority')} {need.priority} · {productTerm(need.status, text)}
                       </small>
                     </details>
                   </article>
@@ -344,14 +345,14 @@ export function InvestigationDetail({
                       ].includes(event.event_type) && (
                         <Button variant="ghost" size="sm" onClick={() => onEvent(event)}>
                           {text('查看对应内容', 'Related findings')}
-                          <ArrowUpRight size={13} />
+
                         </Button>
                       )}
                       {event.task_run_id && (
                         <Button asChild variant="ghost" size="sm">
                           <Link to={`/agents?${new URLSearchParams({ run: event.task_run_id, from: 'case', caseRef: item.case_id })}`}>
                             {text('任务详情', 'Task details')}
-                            <ArrowUpRight size={13} />
+
                           </Link>
                         </Button>
                       )}
@@ -390,7 +391,7 @@ export function InvestigationDetail({
             <Button asChild variant="outline" size="sm" key={id}>
               <Link to={`/intelligence?${new URLSearchParams({ object: id, from: 'case', caseRef: item.case_id })}`} title={id}>
                 {text(`对象档案 ${index + 1}`, `Object ${index + 1}`)}
-                <ArrowUpRight size={14} />
+
               </Link>
             </Button>
           ))}

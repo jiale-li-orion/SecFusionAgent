@@ -107,3 +107,9 @@ Planner correction context retains the latest StatePatch rejection alongside the
 If the model provider returns HTTP 402 before planning, the Role records `model_provider_payment_required` as its failure reason. This is an execution dependency failure rather than a finding about the investigated object; Product renders a readable service-credit explanation and retains earlier evidence.
 
 The external-perception route now distinguishes required from optional canonical arguments. A bound GitHub Repo/Issue/PR/Commit/Release can be read with only its `object_id`; `query_text` is optional for a specific same-repository URL or the bounded `releases` list. The standard planner already supplied this key as `null`; this contract change also supports direct callers that omit it.
+
+## Public briefing evidence context
+
+`briefing.py` builds a bounded `BriefingPacket` and tentative M4 state from explicitly selected public documents. Each passage retains its exact evidence ref, document revision, source identity and publication coordinates. A period briefing requires timezone-aware publication times within its declared window; source assertions are not silently promoted to confirmed world facts.
+
+The Application layer selects material and M6 generates/reviews reports. HTML rendering and public publication do not belong to Investigation state. When background LLM processing is paused, WorldChange still records deterministic impacts but worker bootstrap does not spawn new automatic WATCH episodes. User-requested investigation and follow-up remain available; skipped WATCH triggers are not automatically replayed on resume.

@@ -1,7 +1,8 @@
+import { DevelopingField } from '../ui/developing-field'
 import { useMemo, useState, type ReactNode } from 'react'
-import { ArrowUpRight, ChevronRight, FileText, GitBranch, Layers, Library, Sparkles } from '../ui/icons'
+import { FileText, GitBranch, Layers, Library, Sparkles } from '../ui/icons'
 import type { getDocumentByObject, IntelligenceEnrichmentState, KnowledgeObject } from '../../lib/api'
-import { evidenceFieldLabel, formatDate, formatValue, groupClaims } from '../../lib/intelligencePresentation'
+import { evidenceFieldLabel, evidenceValueLabel, formatDate, groupClaims } from '../../lib/intelligencePresentation'
 import { sourceIdentity } from '../../lib/source-identity'
 import { useI18n } from '../../lib/i18n'
 import { useAuth } from '../../lib/auth'
@@ -51,7 +52,7 @@ export function DossierHeading({
 }) {
   const { text } = useI18n()
   return (
-    <header className="dossier-reader-heading">
+    <header className="dossier-reader-heading development-heading" data-develop-scope><DevelopingField variant="reading" className="heading-imprint imprint-research"/>
       <div className="dossier-reader-kind">
         <Layers size={16} />
         {kind}
@@ -101,7 +102,7 @@ export function DossierReader(props: Props) {
       >
         <Button onClick={() => props.onMission('INVESTIGATE')}>
           {text('展开调查', 'Investigate')}
-          <ArrowUpRight size={15} />
+
         </Button>
         <Button variant="outline" onClick={() => props.onMission('VERIFY')}>
           {text('核验事实', 'Verify facts')}
@@ -197,7 +198,7 @@ function DossierFacts({ obj, onEvidence }: { obj: KnowledgeObject; onEvidence: (
             {group.claims.map((claim) => (
               <article key={claim.claim_id} className="dossier-fact">
                 <h3>{evidenceFieldLabel(claim.predicate, text)}</h3>
-                <p>{formatValue(claim.value)}</p>
+                <p>{evidenceValueLabel(claim.predicate, claim.value, text)}</p>
                 <div className="dossier-fact-footer">
                   <EvidenceCapsules evidence={claim.evidence} onEvidence={onEvidence} compact />
                   <details>
@@ -226,7 +227,7 @@ function DossierFacts({ obj, onEvidence }: { obj: KnowledgeObject; onEvidence: (
               {[...properties, ...Object.entries(obj.external_identifiers)].map(([key, value]) => (
                 <div key={key}>
                   <dt>{evidenceFieldLabel(key, text)}</dt>
-                  <dd>{formatValue(value)}</dd>
+                  <dd>{evidenceValueLabel(key, value, text)}</dd>
                 </div>
               ))}
             </dl>
@@ -312,7 +313,7 @@ function DossierSources({ obj, onEvidence }: { obj: KnowledgeObject; onEvidence:
                 {ref.external_revision ? ` · ${text('版本', 'Revision')} ${ref.external_revision}` : ''}
               </small>
             </div>
-            <ChevronRight size={16} />
+
           </button>
         ))}
       </div>

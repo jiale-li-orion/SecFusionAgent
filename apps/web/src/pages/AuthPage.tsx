@@ -1,5 +1,6 @@
+import { DevelopingField } from '../components/ui/developing-field'
 import { useEffect, useState, type FormEvent } from 'react'
-import { ArrowRight, Eye, EyeOff, LockKeyhole } from '../components/ui/icons'
+import { Eye, EyeOff, LockKeyhole } from '../components/ui/icons'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -60,8 +61,8 @@ function AccountForm({ mode, returnTo }: { mode: 'login' | 'register'; returnTo:
   }
   const switchUrl = `/auth?${new URLSearchParams({ mode: registering ? 'login' : 'register', returnTo }).toString()}`
 
-  return <main className="auth-page">
-    <section className="auth-art">
+  return <main className="auth-page" data-develop-scope>
+    <section className="auth-art"><DevelopingField variant="welcome" className="auth-developing-field"/>
       <div className="auth-brand"><BrandMark size={34}/><span>SecFusion.</span></div>
       <div className="auth-introduction"><h1>{text('让情报与你的工作相连', 'Connect intelligence to your work')}</h1>
       <p>{text('保存关注范围，继续你的调查，在同一个账户下找回提问与任务。', 'Save your interests, continue investigations, and return to your questions and tasks in one account.')}</p></div><div className="auth-proof"><span>01</span><p>{text('关注与你有关的情报', 'Follow what matters to you')}</p><span>02</span><p>{text('在对话中追问与调查', 'Ask, follow up, and investigate')}</p><span>03</span><p>{text('每个结论都能回到证据', 'Follow conclusions back to evidence')}</p></div>
@@ -86,7 +87,7 @@ function AccountForm({ mode, returnTo }: { mode: 'login' | 'register'; returnTo:
                   <Input id="account-confirm-password" name="password_confirmation" type={visible ? 'text' : 'password'} autoComplete="new-password" required minLength={12} maxLength={128} value={confirmation} disabled={auth.isBusy} onChange={(event) => setConfirmation(event.target.value)} /></label></>}
               {error && <p className="auth-error" role="alert">{text(...(errors[error] ?? errors.request_failed))}</p>}
               <Button type="submit" size="lg" className="auth-submit" disabled={auth.isBusy || auth.loading || (registering && !name.trim())}>
-                {auth.isBusy ? text('正在处理…', 'Please wait…') : registering ? text('注册并继续', 'Create account and continue') : text('登录并继续', 'Sign in and continue')}<ArrowRight size={16} />
+                {auth.isBusy ? text('正在处理…', 'Please wait…') : registering ? text('注册并继续', 'Create account and continue') : text('登录并继续', 'Sign in and continue')}
               </Button>
               <p className="auth-switch">{registering ? text('已有账户？', 'Already have an account?') : text('还没有账户？', 'New to SecFusion?')} <Link to={switchUrl}>{registering ? text('直接登录', 'Sign in') : text('注册账户', 'Create an account')}</Link></p>
               <small className="auth-session-note"><LockKeyhole size={13} />{text('登录后可继续个人关注与调查。', 'Sign in to return to your interests and investigations.')}</small>

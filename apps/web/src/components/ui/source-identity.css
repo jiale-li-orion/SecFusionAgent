@@ -1,8 +1,8 @@
 .source-identity { display:inline-flex; align-items:center; gap:10px; min-width:0; vertical-align:middle; }
-.source-avatar { display:inline-grid; place-items:center; width:30px; height:30px; flex:none; border:1px solid var(--ui-border); border-radius:9px; background:var(--ui-secondary); color:var(--ui-secondary-foreground); font-size:10px; font-weight:750; letter-spacing:-.04em; }
-.source-avatar:has(img) { border-color:transparent; background:#fff; box-shadow:none; }
+.source-avatar { display:inline-grid; place-items:center; width:30px; height:30px; flex:none; border:1px solid var(--ui-border); border-radius:9px; background:var(--ui-control); color:var(--ui-secondary-foreground); font-size:var(--type-meta); font-weight:750; letter-spacing:-.04em; }
+.source-avatar:has(img) { border-color:#e8ebf0; background:#fff; box-shadow:0 1px 2px #121b3308; }
 .source-avatar img { width:21px; height:21px; object-fit:contain; }
-.source-identity-name { font-size:13px; font-weight:590; color:var(--ui-muted-foreground); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.source-identity-name { font-size:13px; font-weight:550; color:var(--ui-secondary-foreground); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .source-anthropic { background:#f7f3ec; }
 .source-arxiv { background:#fff6f5; }
 .source-huggingface { background:#fff9e9; }

@@ -145,3 +145,9 @@ make data-plane-status
 `make probe-live-sources` is a manual reachability snapshot. It is not a deterministic source-coverage gate.
 
 Cross-module semantics remain authoritative in [Data Sources and Processing](https://github.com/jiale-li-orion/SecFusionAgent/wiki/01-Data-Sources-and-Processing) and [Technical Design 1](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design-1).
+
+## Research and tool discovery additions
+
+Registered source definitions now include CrowdStrike research, Hugging Face security, METR, Transluce and the REA project. Definitions still carry explicit provider hosts, source authority and schedule intent; catalogue presence is not a live reachability guarantee. arXiv discovery uses a six-hour cadence and Transluce discovery uses its actual publication index.
+
+`html_article_metadata.py` extracts article metadata without mixing related-page headlines into the selected article. Publication date-only values remain distinct from timezone-aware timestamps; observation time is never substituted for publication time. Current registry startup and bounded library-import commands synchronize definitions and schedule state through the monitoring owner, preserving existing cursors and backoff.

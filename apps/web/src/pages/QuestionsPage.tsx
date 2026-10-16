@@ -1,7 +1,8 @@
+import { DevelopingField } from '../components/ui/developing-field'
 import { useEffect, useRef, useState } from 'react'
 import { useInfiniteQuery, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence } from 'motion/react'
-import { ArrowUp, ArrowUpRight, ChevronRight, CircleHelp, History, Layers, MessageSquarePlus, ScanLine, SlidersHorizontal, Square, X } from '../components/ui/icons'
+import { ArrowUp, ChevronRight, CircleHelp, History, Layers, MessageSquarePlus, ScanLine, SlidersHorizontal, Square, X } from '../components/ui/icons'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -311,7 +312,8 @@ export function QuestionsPage() {
 
   const isNewConversation = !sessionId && !pendingQuestion
 
-  return <UiThemeProvider theme="dark"><section className="qa-workspace ui-night dark">
+  return <UiThemeProvider theme="light"><section className="qa-workspace ui-day" data-develop-scope>
+    {isNewConversation && <DevelopingField className="qa-developing-field" />}
     <header className="qa-heading">
       <Button variant="ghost" className="qa-icon-button" onClick={() => setHistoryOpen(true)} disabled={busy} aria-label={text('历史对话', 'Conversation history')}><History size={20} /></Button>
       <div className="qa-heading-title"><h1>{text('问答', 'Ask SecFusion')}</h1><span>SecFusion</span></div>
@@ -319,7 +321,7 @@ export function QuestionsPage() {
     </header>
     <main className={`qa-dialogue ${isNewConversation ? 'is-new' : 'has-conversation'}`}>
         <div className="qa-transcript" ref={transcriptRef} onScroll={event => { const node = event.currentTarget; followBottomRef.current = node.scrollHeight - node.scrollTop - node.clientHeight < 100 }}><div className="qa-transcript-content">
-          {originPath && <div className="qa-origin"><Layers size={18} /><div><small>{originSpace === 'case' ? text('沿着这次调查继续', 'Continue this investigation') : text('从情报继续探索', 'Continue from intelligence')}</small><strong>{params.get('originTitle') || params.get('targetLabel') || incidentOrigin || origin}</strong></div><Link to={originPath}>{originSpace === 'case' ? text('返回调查', 'Back to investigation') : text('查看来源', 'Source')}<ArrowUpRight size={13} /></Link></div>}
+          {originPath && <div className="qa-origin"><Layers size={18} /><div><small>{originSpace === 'case' ? text('沿着这次调查继续', 'Continue this investigation') : text('从情报继续探索', 'Continue from intelligence')}</small><strong>{params.get('originTitle') || params.get('targetLabel') || incidentOrigin || origin}</strong></div><Link to={originPath}>{originSpace === 'case' ? text('返回调查', 'Back to investigation') : text('查看来源', 'Source')}</Link></div>}
           {history.hasNextPage && <button className="qa-load-more qa-load-turns" onClick={() => void history.fetchNextPage()} disabled={history.isFetchingNextPage}>{history.isFetchingNextPage ? text('正在恢复更早回合…', 'Restoring earlier turns…') : text('查看更早回合', 'Load earlier turns')}</button>}
           {history.isFetchNextPageError && <button className="qa-retry" onClick={() => void history.fetchNextPage()}>{text('重试恢复更早回合', 'Retry earlier turns')}</button>}
           {history.isLoading && <p className="qa-muted">{text('恢复完整会话…', 'Restoring conversation…')}</p>}
@@ -340,7 +342,7 @@ export function QuestionsPage() {
                   {!sessionId && <label className="qa-target"><span>{text('限定对象（可选）', 'Focus on an object (optional)')}</span><Input value={visibleTarget} onChange={event => { setTarget(event.target.value); setTargetLabel('') }} disabled={busy} placeholder={text('搜索对象或输入 CVE', 'Search an object or enter a CVE')} aria-label={text('查找调查对象', 'Find a question target')} /></label>}
                   {targetSearch.isFetching && <p role="status">{text('正在查找情报对象…', 'Finding objects…')}</p>}
                   {targetSearch.isError && <button className="qa-retry" onClick={() => void targetSearch.refetch()}>{text('重试对象检索', 'Retry target search')}</button>}
-                  {targetSearch.data && !targetLabel && searchTarget === target.trim() && <div className="qa-target-results">{targetSearch.data.items.map(item => <button key={item.object_id} onClick={() => { setTarget(`object:${item.object_id}`); setTargetLabel(item.label) }}><Layers size={16} /><span>{item.label}</span><ArrowUpRight size={13} /></button>)}{!targetSearch.data.items.length && <p>{text('未找到匹配对象。', 'No matching objects.')}</p>}</div>}
+                  {targetSearch.data && !targetLabel && searchTarget === target.trim() && <div className="qa-target-results">{targetSearch.data.items.map(item => <button key={item.object_id} onClick={() => { setTarget(`object:${item.object_id}`); setTargetLabel(item.label) }}><Layers size={16} /><span>{item.label}</span></button>)}{!targetSearch.data.items.length && <p>{text('未找到匹配对象。', 'No matching objects.')}</p>}</div>}
                 </div>
               </details>
               <span className="qa-composer-hint">{busy ? text('正在探索证据', 'Exploring the evidence') : text('Enter 发送 · Shift + Enter 换行', 'Enter to send · Shift + Enter for a new line')}</span>

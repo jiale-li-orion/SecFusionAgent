@@ -83,6 +83,7 @@ async def test_incident_associations_use_incident_history_and_real_refs(session)
     )
     await session.commit()
     result = await get_incident_network(session, "incident")
+    assert result is not None
     assert result.revision_domain == "incident"
     assert result.snapshot_revision == 11
     assert {node.object_type for node in result.nodes} == {"Incident", "IncidentEvent", "Evidence"}
@@ -92,6 +93,7 @@ async def test_incident_associations_use_incident_history_and_real_refs(session)
         focus_id="event:event",
         existing_ids=[node.object_id for node in result.nodes],
     )
+    assert expanded is not None
     claim = next(node for node in expanded.nodes if node.object_type == "Claim")
     assert claim.canonical_object_id == "root"
     assert claim.created_revision == 11
@@ -105,9 +107,11 @@ async def test_incident_associations_use_incident_history_and_real_refs(session)
         "references_claim",
     }
     historical = await get_incident_network(session, "incident", revision=10)
+    assert historical is not None
     assert {node.object_type for node in historical.nodes} == {"Incident", "Evidence"}
     assert historical.nodes[1].created_revision == 10
     first = await get_incident_network(session, "incident", limit=2)
+    assert first is not None
     assert len(first.nodes) == 2
     assert first.remaining_count == 1
     second = await get_incident_network(
@@ -117,6 +121,7 @@ async def test_incident_associations_use_incident_history_and_real_refs(session)
         cursor=first.next_cursor,
         existing_ids=[node.object_id for node in first.nodes],
     )
+    assert second is not None
     assert second.next_cursor is None
     assert len(second.nodes) == 3
     assert any(edge.relation_type == "references_evidence" for edge in second.edges)
@@ -142,6 +147,7 @@ async def test_incident_associations_use_incident_history_and_real_refs(session)
     )
     await session.commit()
     corrected = await get_incident_network(session, "incident")
+    assert corrected is not None
     old_edge = next(edge for edge in corrected.edges if edge.relation_id == "incident-event:event")
     assert old_edge.superseded_revision == 12
     assert old_edge.superseded_at is not None
@@ -186,12 +192,14 @@ async def test_incident_expansion_enforces_total_node_cap(session):  # noqa: F81
     await session.commit()
     existing = [f"event:event-{index:03}" for index in range(196)]
     result = await get_incident_network(session, "incident", existing_ids=existing)
+    assert result is not None
     assert len(result.nodes) == 200
     assert result.remaining_count == 1
     assert result.next_cursor is None
     repeat = await get_incident_network(
         session, "incident", existing_ids=[node.object_id for node in result.nodes]
     )
+    assert repeat is not None
     assert len(repeat.nodes) == 200
     assert repeat.remaining_count == 1
     assert repeat.next_cursor is None

@@ -146,12 +146,12 @@ def _static_product_gate(results: list[GateResult]) -> None:
         relative_path="apps/web/src/components/world/WorldScene.tsx",
         needles=(
             "<EvidenceAtlas",
-            "ew-foreground",
+            "world-focus-panel",
             "onFocus(story)",
-            "useReducedMotion",
-            "ew-inspector",
+            "<WorldSourceInspector",
+            "<WorldStoryCard",
         ),
-        detail="DOM story and SVG spatial focus remain readable without WebGL",
+        detail="DOM story and source inspector remain independent of WebGL",
     )
     _require_source(
         results,
@@ -171,12 +171,12 @@ def _static_product_gate(results: list[GateResult]) -> None:
         name="world-hot-boundary",
         relative_path="apps/web/src/pages/WorldPage.tsx",
         needles=(
-            "getHotWorld(64)",
+            "getHotWorld(vulnerabilityLimit, vulnerabilityOffset)",
             "getHotWorldItem",
             "enabled: Boolean(hotCoordinate?.length",
             "evidence: null",
         ),
-        detail="Hot remains replaceable source state and cannot masquerade as durable evidence",
+        detail="Hot uses real pagination and remains distinct from durable evidence",
     )
     _require_source(
         results,
@@ -199,8 +199,8 @@ def _static_product_gate(results: list[GateResult]) -> None:
         results,
         name="reduced-motion",
         relative_path="apps/web/src/product-foundation.css",
-        needles=("@media (prefers-reduced-motion:reduce)",),
-        detail="semantic motion has reduced-motion seam",
+        needles=("prefers-reduced-motion:reduce",),
+        detail="shared motion honors reduced-motion preference",
     )
     _require_source(
         results,
@@ -232,28 +232,20 @@ def _static_product_gate(results: list[GateResult]) -> None:
     _require_source(
         results,
         name="evidence-drilldown",
-        relative_path="apps/web/src/components/investigations/CaseSurfaces.tsx",
-        needles=("EvidenceOverlay", "getEvidence(", "EvidenceButtons"),
-        detail="Case findings drill into Evidence",
+        relative_path="apps/web/src/components/investigations/InvestigationDetail.tsx",
+        needles=("FindingEvidence", "onEvidence(ref)", "<InvestigationReport"),
+        detail="findings and report citations open their exact evidence",
     )
     _require_source(
         results,
         name="case-task-injection",
-        relative_path="apps/web/src/components/investigations/CaseSurfaces.tsx",
+        relative_path="apps/web/src/components/investigations/InvestigationDetail.tsx",
         needles=(
-            "const continuationKind = continuationTaskKind",
-            "askQuestion({ question, sessionId, taskKind: continuationKind })",
-            "CONTINUE THIS INVESTIGATION",
-            "CONTINUE THE SAME CASE",
-            (
-                "This follow-up continues the current durable Case "
-                "while preserving its targets, evidence, and state."
-            ),
+            "if (sessionId) followUp.set('session', sessionId)",
+            "origin: `case:${item.case_id}`",
+            "<Link to={`/start?${followUp}`}>",
         ),
-        detail=(
-            "Case follow-up is presented as a same-session next episode injection, "
-            "while persisted ProductEvent/SSE remains the state authority"
-        ),
+        detail="Case follow-up returns to the owned conversation with target provenance",
     )
     _require_source(
         results,
@@ -277,19 +269,21 @@ def _static_product_gate(results: list[GateResult]) -> None:
             "params.get('evidence')",
             "continuation_session_id",
             "normalizeCaseFocus",
-            "<CaseWorkspace",
+            "<InvestigationDetail",
         ),
-        detail=(
-            "Case focus/evidence survive direct URL entry and owned sessions "
-            "resume the durable Case"
-        ),
+        detail="Case focus/evidence and owned continuation session survive URL entry",
     )
     _require_source(
         results,
         name="memory-deep-link",
         relative_path="apps/web/src/pages/AgentsPage.tsx",
-        needles=("params.get('section')", "agent-memory-field", "scrollIntoView"),
-        detail="Agent memory route resolves to Skill / Experience field",
+        needles=(
+            "params.get('section')",
+            "sectionParam === 'memory'",
+            "agent-memory-field",
+            "enabled: memoryOpen",
+        ),
+        detail="memory deep link opens the Skill / Experience surface and its data reads",
     )
     _require_source(
         results,
@@ -307,11 +301,7 @@ def _static_product_gate(results: list[GateResult]) -> None:
         results,
         name="intelligence-view-deep-link",
         relative_path="apps/web/src/pages/IntelligencePage.tsx",
-        needles=(
-            "params.get('view')",
-            "function selectReadingMode",
-            "next.set('evidence', evidence)",
-        ),
+        needles=("params.get('view')", "function selectReadingMode", "next.set('evidence', ref)"),
         detail="Intelligence dossier / graph / evidence view is URL-addressable",
     )
     _require_source(
@@ -321,10 +311,10 @@ def _static_product_gate(results: list[GateResult]) -> None:
         needles=(
             "params.get('run')",
             "params.get('role')",
-            "function selectTask(runId: string)",
-            "nextParams.set('run', runId)",
+            "function selectTask(run: string)",
+            "next.set('run', run)",
         ),
-        detail="Agent Task and Role state survive direct URL entry",
+        detail="Agent Task and Role state survive URL entry",
     )
     for path, forbidden in (
         ("apps/web/src/components/Shell.tsx", ("guided-story", "getCompetitionProof")),
@@ -367,9 +357,23 @@ def _static_product_gate(results: list[GateResult]) -> None:
     _require_source(
         results,
         name="semantic-tabs",
-        relative_path="apps/web/src/pages/IntelligencePage.tsx",
-        needles=('role="tab"', "aria-selected"),
-        detail="Intelligence reading modes expose tab semantics",
+        relative_path="apps/web/src/components/intelligence/IntelligenceHome.tsx",
+        needles=("<Tabs value={channel}", "<TabsTrigger", "<TabsContent"),
+        detail="Intelligence channels use the shared accessible Tabs primitive",
+    )
+    _require_source(
+        results,
+        name="atlas-reduced-motion",
+        relative_path="apps/web/src/components/world/EvidenceAtlas.tsx",
+        needles=("useReducedMotion", "reducedMotion ? 0", "world-graph-nodes"),
+        detail="atlas motion has a static reduced-motion path and DOM controls",
+    )
+    _require_source(
+        results,
+        name="tabs-accessibility-owner",
+        relative_path="apps/web/src/components/ui/tabs.tsx",
+        needles=("@radix-ui/react-tabs", "TabsPrimitive.Trigger", "TabsPrimitive.Content"),
+        detail="Radix owns keyboard and ARIA tab semantics",
     )
     dist = REPO_ROOT / "apps/web/dist"
     if dist.is_dir():

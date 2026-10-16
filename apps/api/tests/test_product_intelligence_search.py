@@ -212,9 +212,7 @@ async def test_product_intelligence_search_resolves_names_and_external_ids() -> 
             by_name = await client.get("/api/v1/intelligence/search", params={"q": "vLLM"})
             by_id = await client.get("/api/v1/intelligence/search", params={"q": "42424"})
             document = await client.get("/api/v1/documents/by-object/object-document")
-            object_alias = await client.get(
-                "/api/v1/intelligence/objects/object-vulnerability"
-            )
+            object_alias = await client.get("/api/v1/intelligence/objects/object-vulnerability")
             graph = await client.get(
                 "/api/v1/intelligence/objects/object-vulnerability/graph",
                 params={"limit": 1},
@@ -247,9 +245,7 @@ async def test_product_intelligence_search_resolves_names_and_external_ids() -> 
         enrichment_body = enrichment.json()
         assert enrichment_body["vocabulary_revision"] == "enrichment-v1"
         assert len(enrichment_body["dimensions"]) == 12
-        dimensions = {
-            item["dimension"]: item for item in enrichment_body["dimensions"]
-        }
+        dimensions = {item["dimension"]: item for item in enrichment_body["dimensions"]}
         assert dimensions["identity"]["status"] == "resolved"
         assert dimensions["severity"]["status"] == "conflict"
         assert len(dimensions["severity"]["conflict_refs"]) == 2
@@ -266,5 +262,59 @@ async def test_product_intelligence_search_resolves_names_and_external_ids() -> 
         assert document_body["sections"] == ["Remediation", "Summary"]
         assert document_body["insight"]["promotion_state"] == "candidate"
         assert "SECRET DOCUMENT BODY" not in document.text
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.parametrize(
+    ("source_classification", "artifact_classifications", "visible"),
+    [
+        ("public", ["public"], True),
+        ("restricted", ["public"], False),
+        ("public", ["restricted"], False),
+        ("public", ["public", "restricted"], False),
+        ("public", [], False),
+        ("public", [None], False),
+    ],
+)
+async def test_document_excerpt_requires_public_source_and_artifacts(
+    source_classification, artifact_classifications, visible
+):
+    from pathlib import Path
+
+    from apps.application.queries.intelligence import get_product_document
+    from packages.intelligence.storage.evidence_models import EvidenceArtifactModel
+    from packages.sources.registry.loader import load_source_definitions
+    from packages.sources.registry.service import sync_source_definitions
+
+    engine, factory = await _database()
+    try:
+        source = load_source_definitions(Path("config/sources"))[0].model_copy(
+            update={
+                "source_id": "vendor-source",
+                "access_rights": {"classification": source_classification},
+            }
+        )
+        async with factory() as session, session.begin():
+            await sync_source_definitions(session, [source])
+            for index, classification in enumerate(artifact_classifications):
+                session.add(
+                    EvidenceArtifactModel(
+                        artifact_id=f"artifact-{index}",
+                        observation_id="observation-document-1",
+                        storage_uri=f"memory://artifact-{index}",
+                        media_type="text/plain",
+                        content_hash=f"hash-{index}",
+                        access_rights={"classification": classification},
+                        created_at=NOW,
+                    )
+                )
+        async with factory() as session:
+            view = await get_product_document(session, document_id="document-1")
+            assert view is not None
+            assert bool(view.source_excerpt) is visible
+            assert bool(view.excerpt_chunk_id) is visible
+            assert bool(view.excerpt_locator) is visible
+            assert view.chunk_count == 2
     finally:
         await engine.dispose()

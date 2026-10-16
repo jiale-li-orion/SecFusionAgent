@@ -90,7 +90,7 @@ async def test_model_decision_planner_enables_report_only_for_durable_investigat
         _state(), citation_sources=[], include_report=True
     )
     assert isinstance(result, DecisionDraft)
-    assert result.model_prompt_revision == "decision-model-v6"
+    assert result.model_prompt_revision == "decision-model-v7"
     assert result.report_paragraphs[0].text == "The release contains the confirmed fix."
     assert "research report for a security analyst" in provider.requests[0].system_instruction
 

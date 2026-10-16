@@ -15,7 +15,7 @@
 | Controlled fault recovery | **100.000%（3/3）** |
 | M6 QA | **Accuracy 100.000% / interactive max 3.655s** |
 
-**来源运行口径：101 个 catalog entries → 66 个 executable sources → 39 个 scheduled monitors；8 类产品覆盖，其中 7/8 类存在主动定时监测，`assets` 保持按需查询。**
+**来源运行口径：106 个 catalog entries → 71 个 executable sources → 43 个 scheduled monitors；8 类产品覆盖，其中 7/8 类存在主动定时监测，`assets` 保持按需查询。**
 **持续监测记账起点：`2026-10-02T04:19:42+08:00`；当前 scheduled source 健康状态 36 healthy / 1 degraded / 2 blocked；epoch 内 Evidence 物理完整性 100.000%。**
 **最近 1h 运行面：Run OK 85.714%；Provider-boundary fail 14.286%；Runtime-owned fail 0.000%；Queue p95 102.077s (1.70min)；Execution p95 108.106s (1.80min)。**
 
@@ -77,6 +77,8 @@ pytest      领域、重放、状态迁移与契约测试
 
 Product Web 的一级导航收敛为 **世界 / 情报 / 问答 / 我的**。世界提供八类来源、材料聚焦、Hot 索引与知识形成；情报默认进入推荐流，并提供关注、事件与资料库；问答采用宽松对话、底部输入、历史抽屉与按需审计；我的汇集资料、兴趣、会话和调查，其运行工作台承接智能体与系统观测。既有调查、任务和观测深链接继续有效。详见 [`apps/web/README.md`](apps/web/README.md) 与 [本轮体验规范](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Product-Web-Experience-2026-10)。
 
+2026-10-15 美术更新保留四入口与现有信息结构，改用开放式阅读区域与统一字体，并在各页部署抽象颗粒显影与扩散动效（后续加入的文字显影已被否定并撤回），去掉嵌套装饰框、玻璃光影与重复尾箭头。技能、状态与来源类别使用可读名称；原始标识保留在明确的技术详情中。实现与验证范围见 [Product Web 模块说明](apps/web/README.md) 和 [设计系统](apps/web/design-system/MASTER.md)。后端数据与账户权限不变。
+
 问答页可继续加载更早的账户会话和回合。调查完成后，页面展示由同一份已验证 Decision 生成、带证据引用的自然段落研究报告；结构化回答与结论仍用于审计和评测。
 调查页按游标继续加载更早的账户 Case；从链接直接打开旧 Case 时，当前 Case 也会出现在调查列表中。
 AGENTS 的 Task 详情展示持久化 ContextManifest 与每次模型调用；输入证据和对象可进入情报档案，提供方真实用量与预算结算分开标记。
@@ -84,12 +86,12 @@ AGENTS 的 Task 详情展示持久化 ContextManifest 与每次模型调用；�
 调查的外部读取现覆盖三条受控路径：CVE 对象读取官方 NVD；已绑定对象可按需读取登记过的公开原始、权威或取证类 HTML 来源；已登记仓库中的 GitHub 对象可按精确链接读取 issue、PR、提交和版本。PR 读取包含有界的改动文件和补丁片段，不能只凭标题认定修复。三条路径均保存采集运行和原始产物，再经 Policy/EvidenceIngress 提升为可引用证据。来源目录没有命中时不推断事实不存在；任意网页、未登记仓库与资产工具仍是后续能力边界。
 情报页的漏洞精选架直接通往 WORLD 的分页热区索引，方便继续发现更多驻留记录。
 
-视觉基础改为冷白阅读面、墨蓝场景与钴蓝交互；功能图标统一 Phosphor，基础控件、账户菜单和频道切换采用源码归项目所有的 shadcn/ui 与 Radix，并使用本地来源品牌标识与中文字体，具体页面由就近样式文件维护。界面不制造虚假的来源活动或执行状态。
+视觉基础采用暖灰纸面、炭绿来源场景与石墨色交互；功能图标统一 Phosphor，基础控件、账户菜单和频道切换采用源码归项目所有的 shadcn/ui 与 Radix，并使用本地来源品牌标识与中文字体，具体页面由就近样式文件维护。界面不制造虚假的来源活动或执行状态。
 
 情报页的“漏洞”筛选现读取真实 Hot CVE 窗口，并分别显示载入条数和驻留总量。打开漏洞时保留 Hot 坐标，持久档案独立核验；不会再把近期原文精选窗口为空误呈现为系统没有漏洞。
 WORLD 热区索引按页浏览驻留来源记录，完整 CVE 编号可跨当前页面检索整个驻留池，不再受首次载入窗口限制。
 
-“事件”筛选读取独立的候选观察投影，展示经过保守安全事件筛选的来源标题和原文链接，并明确标记候选状态。宽泛新闻源现在先筛掉普通新闻再关联候选；Redis 工作集中较早的无关条目也会在产品读取时排除。候选不会被说成已获独立佐证或持久事件档案。
+事件库读取持久事件档案与证据时间线。独立的世界事件候选接口保留候选观察投影，展示经过保守安全事件筛选的来源标题和原文链接，并明确标记候选状态。宽泛新闻源现在先筛掉普通新闻再关联候选；Redis 工作集中较早的无关条目也会在产品读取时排除。候选不会被说成已获独立佐证或持久事件档案。
 
 托管 HTML 文章解析现优先读取正文容器，避免把“相关文章”卡片误配给文章标题。真实 Product 中发现的微软安全博客标题/摘要错配，已通过新的按需 Observation 与解析器 v2 文档版本修复；历史原文仍保留用于审计。
 
@@ -431,3 +433,17 @@ GitHub Pages、Archify、双语展示与 CI/CD 发布规则见 [`WEB-PRESENTATIO
 - 继续显式维护 provider blocker，并在现有 frozen v1 production-boundary security suite 之上增加更强攻击变体与 model red-team case。
 
 Requirements-SPEC 仍是产品范围的权威；路线图排序依据依赖与集成风险，而不是 UI 完成度。
+
+## 十月产品与信息质量更新
+
+当前版本提供公开资料库、带证据的事件时间线与经过审校的 HTML 情报研报。资料库按材料类型、来源和多标签安全主题组织，支持全文筛选与固定快照分页；数量只统计符合公开权限和质量门槛的留存材料。主题分组是确定性关键词分类，不把分组结果视为模型确认的事实。人工整理的事件保留原始证据，分别记录事件发生与材料采集时间；首页重点可包含安全事件、工具和 CVE。
+
+研报先生成独立带引用的摘要，再展开事实、来源归因和分析。生成、审校与最多一次修订均记录模型调用。HTML 由经过验证的报告和有限布局结构渲染，不执行模型脚本，不扩大阅读权限。私人报告沿用账户隔离；公开报告必须有明确发布记录，并在读取时复核来源权限和材料版本。浏览报告不触发模型生成。
+
+**本地 Compose 默认采用节省调用模式：** `SECFUSION_BACKGROUND_LLM_ENABLED=false`，`SECFUSION_EDITORIAL_ENABLED=false`。采集、证据留存、普通全文索引、确定性富化和投影继续运行；暂停自动语义/规范提取、向量生成、编研和新增 WATCH 唤醒。用户主动问答、调查与报告仍使用已配置模型，不设置每日金额硬上限。修改环境配置后需要重建 scheduler 和 worker；恢复开关不会自动补跑暂停期间的模型阶段，详见 [Worker README](apps/worker/README.md)。
+
+前端使用统一的颗粒显影与扩散动效，并针对页面内容设置不同构图；中文字体本地提供，阅读区域去除重复装饰框。世界页展开材料时在原摘要位置显示全文，避免重复展示；热点深色区域显式使用夜间文字色，普通、选中和悬停状态均保持清晰。
+
+模块说明：[API](apps/api/README.md)、[Application](apps/application/README.md)、[前端](apps/web/README.md)、[Worker](apps/worker/README.md)、[情报](packages/intelligence/README.md)、[监测](packages/monitoring/README.md)、[来源](packages/sources/README.md)、[富化](packages/enrichment/README.md)、[调查](packages/investigation/README.md)、[推理](packages/reasoning/README.md)、[模型记账](packages/runtime/model/README.md)。跨模块设计见 Wiki [信息质量与研报](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Information-Quality-and-Reports-2026-10)。
+
+上方 benchmark 数字仍属于其记录的部署与样本；新增来源、资料与界面功能不代表重新通过相同评测。模型用量按物理请求记录，公开单价估算不等于实际账单；失败请求未返回的用量不能视为零。

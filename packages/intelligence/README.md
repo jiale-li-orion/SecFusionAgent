@@ -145,3 +145,86 @@ For changes to evidence or canonical state, prefer a real PostgreSQL integration
 Application composition reads current accepted Knowledge and source previews for `/intelligence/feed`. Following is chronological among explicit topics/objects and their evidenced relationships; recommendations prioritize security and relevance and can include other eligible material. The default window is 30 days using the source update/publication time of current meaningful content or security-relation evidence, falling back to observed time; `window=all` includes older content. Cursor pages carry an observation cutoff, Knowledge revision and deterministic rank key. Current projections are read views, so this is not a historical Knowledge replay contract. Items derive their IDs from full meaningful title/body content and canonical security-relation counterparts (with object identity for title-only items), excluding collection metadata/revisions; identical content merges its evidence references across sources.
 
 Activity feedback is principal + activity ID, independently upserted in `intelligence_activity_feedback` (migration 0035). It never changes follow preferences or legacy object feedback. Existing `/recommendations` endpoints retain compatibility semantics; legacy object-level ignores still filter the new feed. These read views currently assemble all eligible current records before ranking; there is no 128-candidate truncation, but large corpora may need a separately benchmarked projection/index implementation.
+
+
+## Retained document quality maintenance
+
+`documents/quality.py` owns deterministic material acceptance. Rejected delivery templates remain
+Evidence but do not create new chunks or indexing requests. Indexing, generic semantic extraction,
+and normative extraction also check historical chunks before model/provider work.
+
+`DocumentQualityMaintenance` audits retained documents without writes and can explicitly replay
+verified original Observation envelopes through the current managed parser. A reparse creates a
+new parser-version revision when needed; an already-current revision is an idempotent replay.
+Observation identity, original bytes, old revisions, and old chunks remain intact. New usable
+revisions emit ordinary indexing outbox events, which configured workers can subsequently consume.
+
+From the repository root:
+
+```bash
+.venv/bin/python -m scripts.audit_document_quality --limit 20
+.venv/bin/python -m scripts.audit_document_quality --document-id DOCUMENT_ID --reparse
+```
+
+The default is read-only. `--document-id` is repeatable, and `--limit` must be 1–100. Output contains
+quality statuses, publication-date coverage, and identities rather than article bodies. Reparse
+reads retained artifacts, verifies their hashes through `ObservationEnvelopeLoader`, and never
+refetches external sources. Missing/corrupt artifacts are reported by audit and not reparsed.
+
+### Public corpus and historical incident curation (2026-10)
+
+`incident/curation.py` owns explicit analyst-pinned historical editions. Every
+node pins a retained public document revision and an exact supporting passage.
+Publication/observation time bases must equal retained timestamps; reported dates
+remain analyst-reviewed source assertions. `created_at` and `observed_at` are never
+backdated. Stable edition/node IDs, a transaction and PostgreSQL advisory lock make
+replays idempotent; changed content under the same edition key is rejected.
+
+`scripts/import_curated_incidents.py <local-manifest.json>` imports 1–50 reviewed
+editions. Real manifests and downloaded evidence remain outside version control.
+Tool/research milestones have explicit display kinds and do not assert that an
+attack occurred. Optional editorial focus and analysis are separate from factual
+summaries. Public list/detail/world projections recheck curated source/artifact
+rights and omit internal supporting-passage maps from transport.
+
+`scripts/expand_material_library.py --source-id arxiv-ai-security --limit 300`
+performs bounded corpus backfill through existing adapters and managed ingestion,
+skipping existing document identities without moving scheduled cursors. HTML
+sources also accept explicitly scoped `--url` entries. No model is called. Each
+run retains acquisition provenance and reports additions, skips and failures;
+raw document counts are not interchangeable with usable public library totals.
+HTML parser v7 prefers explicit blog-body containers and stops at their boundary,
+preventing adjacent comments and navigation from becoming publisher evidence.
+
+Operator backfills carry `execution_driver=operator` and own their lifecycle;
+stale Celery recovery does not requeue them. `--max-seconds` (default 600) limits
+work per source between fetches. Interruptions preserve completed evidence and
+record an incomplete terminal run. Failed/partial batches use `internal_error`
+with per-item counts, rather than inventing an acquisition state. Public corpus
+quality v2 excludes known CrowdStrike category indexes as article material.
+
+PDF parser v3 repairs UTF-16 surrogate pairs emitted by PDF character maps before
+chunking/persistence. Valid non-BMP characters remain intact, isolated surrogate
+units become replacement characters, and the retained raw PDF is unchanged. This
+prevents a single encoding defect from permanently failing a scheduled PDF batch;
+parser-versioned replay remains available for older revisions.
+
+## Material maintenance and event curation
+
+`documents/quality.py` provides versioned conservative material assessment; rejected delivery/error templates retain raw evidence but do not become searchable chunks or semantic input. `documents/maintenance.py` can replay retained evidence through the current parser without overwriting prior revisions. PDF parsing repairs valid UTF-16 surrogate pairs and replaces isolated surrogates before PostgreSQL text writes; the original PDF remains unchanged.
+
+`incident/curation.py` imports explicitly selected, evidence-backed incident dossiers with stable identities, chronology and featured metadata. Curated status does not create independent corroboration; the importer checks source/public access and chronology. Product access filtering remains outside domain storage. Do not commit local manifests containing collected source material.
+
+Operator entry points (from the repository root):
+
+```bash
+python -m scripts.audit_document_quality --limit 20
+# Explicit mutation: replay selected retained evidence with the current parser.
+python -m scripts.audit_document_quality --document-id DOCUMENT_UUID --reparse
+# Bounded acquisition through registered sources; writes evidence and material.
+python -m scripts.expand_material_library --source-id metr-research --limit 20
+# Import a locally reviewed evidence manifest, not arbitrary generated event prose.
+python -m scripts.import_curated_incidents /path/to/reviewed-manifest.json
+```
+
+Library subject clusters are Product read-model facets; they do not modify canonical facts or incident membership. Source/article counts are runtime observations and should be queried rather than hard-coded into module documentation.

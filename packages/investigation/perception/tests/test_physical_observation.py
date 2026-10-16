@@ -185,7 +185,13 @@ async def test_trace_preserves_incoming_edge_and_fetches_its_real_evidence() -> 
             )]
 
     runtime = PerceptionRuntime()
-    runtime._graph, runtime._evidence = Graph(), Evidence()
+    from unittest.mock import patch
+
+    with patch.object(runtime, "_graph", Graph()), patch.object(runtime, "_evidence", Evidence()):
+        return await _check_trace(runtime)
+
+
+async def _check_trace(runtime: PerceptionRuntime) -> None:
     request = PerceptionRequest(
         request_id="trace-with-evidence", operation=PerceptionOperation.TRACE,
         target=PerceptionTarget(object_id="repo"),

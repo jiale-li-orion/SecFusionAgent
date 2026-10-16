@@ -316,6 +316,31 @@ async def _main(*, strict: bool, json_output: bool) -> int:
                 lambda: probe_html_managed("openai-research"),
             ),
             (
+                "huggingface-security",
+                "discover+fetch",
+                lambda: probe_html_managed("huggingface-security"),
+            ),
+            (
+                "crowdstrike-research",
+                "discover+fetch",
+                lambda: probe_html_managed("crowdstrike-research"),
+            ),
+            (
+                "metr-research",
+                "discover+fetch",
+                lambda: probe_html_managed("metr-research"),
+            ),
+            (
+                "transluce-research",
+                "discover+fetch",
+                lambda: probe_html_managed("transluce-research"),
+            ),
+            (
+                "rea-project",
+                "discover+fetch",
+                lambda: probe_html_managed("rea-project"),
+            ),
+            (
                 "openai-safety",
                 "discover+fetch",
                 lambda: probe_html_managed("openai-safety"),

@@ -1,0 +1,42 @@
+{
+  "source_id": "transluce-research",
+  "adapter_type": "html_index",
+  "source_class": "independent_security_research",
+  "authority_scope": [
+    "agent_evaluation",
+    "interpretability",
+    "incident_response"
+  ],
+  "source_role": "forensic",
+  "source_family": "transluce",
+  "access_mode": "html_index",
+  "update_semantics": "mutable_research_article",
+  "discovery_method": {
+    "index_url": "https://transluce.org/",
+    "link_selector": "a[href='/us-canada-gov'], a[href='/embedded-evaluations']",
+    "allowed_hosts": [
+      "transluce.org"
+    ],
+    "max_items": 40
+  },
+  "time_semantics": {
+    "observed_at": "collector_clock",
+    "published_at": "article_metadata_when_explicit"
+  },
+  "identity_semantics": {
+    "external_object_id": "canonical article URL"
+  },
+  "rate_limit_policy": {
+    "provider": "transluce",
+    "polite_interval_seconds": 3
+  },
+  "access_rights": {
+    "classification": "public"
+  },
+  "retention_mode": "durable_managed",
+  "schedule_policy": {
+    "enabled": true,
+    "interval_seconds": 21600
+  },
+  "schema_version": "1"
+}

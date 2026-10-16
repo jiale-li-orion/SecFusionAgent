@@ -3,6 +3,7 @@ from __future__ import annotations
 from sqlalchemy import distinct, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.application.queries.incident_access import curated_visibility_clause
 from apps.application.views.incidents import (
     IncidentDetailView,
     IncidentListView,
@@ -25,6 +26,7 @@ async def list_product_incidents(
     incidents = list(
         await session.scalars(
             select(SecurityIncidentModel)
+            .where(curated_visibility_clause())
             .order_by(SecurityIncidentModel.updated_at.desc())
             .limit(limit)
         )
@@ -57,8 +59,7 @@ async def list_product_incidents(
         )
     ).all()
     source_counts = {
-        incident_id: (int(count), int(diversity))
-        for incident_id, count, diversity in source_rows
+        incident_id: (int(count), int(diversity)) for incident_id, count, diversity in source_rows
     }
     return IncidentListView(
         items=[
@@ -77,7 +78,11 @@ async def get_product_incident(
     session: AsyncSession,
     incident_id: str,
 ) -> IncidentDetailView | None:
-    incident = await session.get(SecurityIncidentModel, incident_id)
+    incident = await session.scalar(
+        select(SecurityIncidentModel).where(
+            SecurityIncidentModel.incident_id == incident_id, curated_visibility_clause()
+        )
+    )
     if incident is None:
         return None
     timeline = list(
@@ -100,6 +105,8 @@ async def get_product_incident(
             )
         )
     )
+    time_bases = incident.watch_state.get("timeline_time_basis", {})
+    time_bases = time_bases if isinstance(time_bases, dict) else {}
     return IncidentDetailView(
         incident=_summary(
             incident,
@@ -112,6 +119,7 @@ async def get_product_incident(
                 event_id=item.event_id,
                 signal_id=item.signal_id,
                 event_time=item.event_time,
+                time_basis=time_bases.get(item.event_id, "unspecified"),
                 observed_at=item.observed_at,
                 event_type=item.event_type,
                 summary=item.summary,
@@ -153,7 +161,11 @@ def _summary(
         lifecycle=incident.lifecycle,
         promotion_reason=incident.promotion_reason,
         current_summary=incident.current_summary,
-        watch_state=dict(incident.watch_state),
+        watch_state={
+            key: value
+            for key, value in incident.watch_state.items()
+            if key not in {"timeline_evidence", "curation_fingerprint"}
+        },
         current_revision=incident.current_revision,
         timeline_event_count=timeline_event_count,
         source_link_count=source_link_count,

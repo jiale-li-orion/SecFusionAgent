@@ -37,7 +37,8 @@
       "kvcache-ai/Mooncake",
       "ai-dynamo/dynamo",
       "kserve/kserve",
-      "safetensors/safetensors"
+      "safetensors/safetensors",
+      "morluto/rea"
     ]
   },
   "time_semantics": {

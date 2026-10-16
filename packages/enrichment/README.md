@@ -325,3 +325,9 @@ make integration-core
 - STIX 2.1: https://docs.oasis-open.org/cti/stix/v2.1/
 - OpenCTI connector/enrichment model: https://docs.opencti.io/latest/deployment/connectors/
 - MISP modules: https://misp.github.io/misp-modules/
+
+## Material quality and unattended model stages
+
+Semantic and normative processors recheck the current document material assessment before provider invocation, including historical records without a stored assessment. Recognized error pages, access walls and unusable bodies raise `DocumentMaterialRejectedError`; no model call or accepted semantic claim is produced from that material. A successful fetch is not a quality verdict.
+
+The worker first commits lexical indexes, then enters optional model stages only when `SECFUSION_BACKGROUND_LLM_ENABLED=true`. The switch is process orchestration, not a change to semantic evidence validation. Deterministic CVE provider enrichment, repository graph association and fix-boundary processing do not require an LLM and continue while the switch is off. Interactive investigation composition retains its provider configuration.

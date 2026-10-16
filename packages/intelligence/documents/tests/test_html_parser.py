@@ -93,3 +93,95 @@ def test_html_parser_prefers_post_content_over_related_article_cards() -> None:
     assert "Investigators traced the theft" in text
     assert "suspended withdrawals" in text
     assert "This preview is not part" not in text
+
+
+def test_html_parser_prefers_article_over_main_chrome_and_removes_injected_banner() -> None:
+    body = b"""<main><div role="navigation">Home Login</div>
+    <div class="w-richtext"><h2>Webflow Input Enhancer</h2>
+    <p>For the best experience, this project uses the Webflow Input Enhancer extension.
+    We highly recommend installing it.</p>
+    <a href="/install">Click here to download</a></div>
+    <article><header><h1>Security findings</h1></header><p>The attacker exploited the endpoint.</p>
+    <h2>Evidence</h2><p>The proof of concept uses a CAPTCHA bypass.</p></article>
+    <div class="related-posts"><p>Other resources</p></div></main>"""
+    sections = HTMLDocumentParser().parse(body)
+    text = "\n".join(section.text for section in sections)
+    assert "Webflow Input Enhancer" not in text
+    assert "Other resources" not in text
+    assert "The attacker exploited" in text
+    assert sections[0].section == "Security findings"
+
+
+def test_html_parser_cleans_banner_and_navigation_without_article_wrapper() -> None:
+    body = b"""<body><div><h2>Webflow Input Enhancer</h2>
+    <p>For the best experience, this project uses the Webflow Input Enhancer extension.
+    We highly recommend installing it.</p>
+    <a>Click here to download</a></div><div role="navigation"><p>Home Login</p></div>
+    <div><h1>Research</h1><p>Researchers documented an exploit.</p>
+    <p>The Webflow Input Enhancer extension itself is discussed as evidence.</p></div></body>"""
+    text = "\n".join(section.text for section in HTMLDocumentParser().parse(body))
+    assert "recommend installing" not in text
+    assert "Home Login" not in text
+    assert "Researchers documented" in text
+    assert "discussed as evidence" in text
+
+
+def test_html_parser_prefers_full_article_over_a_related_article_card() -> None:
+    sections = HTMLDocumentParser().parse(b"""<main>
+    <article class="card"><h2>Related story</h2><p>Unrelated preview</p></article>
+    <article><header><h1>Research findings</h1></header>
+    <div><p>Detailed attack evidence and mitigation.</p></div></article></main>""")
+    assert sections[0].section == "Research findings"
+    assert "Unrelated preview" not in "\n".join(section.text for section in sections)
+
+
+def test_html_parser_preserves_leaf_div_notice_labels_for_quality_assessment() -> None:
+    from packages.intelligence.documents.quality import assess_document_quality
+
+    # Reduced DOM from the retained European Commission multilingual outage page:
+    # notice titles are ordinary divs; only the apology is marked as a paragraph.
+    body = """<main>
+    <div><div>Der Server ist vorübergehend nicht verfügbar</div>
+    <p>Wir entschuldigen uns für etwaige Unannehmlichkeiten.</p></div>
+    <div><div>The server is temporarily unavailable</div>
+    <p>We apologise for any inconvenience. Please try again later.</p></div>
+    <div><div>Le serveur est temporairement indisponible</div>
+    <p>Veuillez nous excuser pour ce désagrément.</p></div>
+    </main>""".encode()
+    sections = HTMLDocumentParser().parse(body)
+    text = "\n".join(section.text for section in sections)
+    assert "The server is temporarily unavailable" in text
+    assert text.count("Please try again later") == 1
+    assert not assess_document_quality(text).usable
+
+
+def test_html_parser_keeps_leaf_div_evidence_but_not_navigation_or_widget() -> None:
+    body = b"""<main><nav><div>Navigation home</div></nav>
+    <div role="navigation"><div>Account login</div></div>
+    <div><h2>Webflow Input Enhancer</h2>
+    <p>This project uses the Webflow Input Enhancer extension. We recommend installing it.</p>
+    </div><article><h1>Research findings</h1>
+    <div>Direct evidence with <strong>inline emphasis</strong>.</div>
+    <div><p>A nested paragraph should appear once.</p></div></article></main>"""
+    text = "\n".join(section.text for section in HTMLDocumentParser().parse(body))
+    assert "Direct evidence with inline emphasis" in text
+    assert text.count("A nested paragraph should appear once") == 1
+    assert "Navigation home" not in text
+    assert "Account login" not in text
+    assert "recommend installing" not in text
+
+
+def test_explicit_blog_body_excludes_navigation_and_community_comments():
+    parser = HTMLDocumentParser()
+    for cls in ("text--blog-content", "blog-content prose"):
+        sections = parser.parse(
+            f"""<main><div>Vendor navigation and product catalog</div>
+            <div class="{cls}"><h1>Agent intrusion</h1>
+            <p>The agent reached an external production system.</p></div>
+            <div class="prose">Community speculation is not the publisher report.</div>
+            </main>""".encode()
+        )
+        body = "\n".join(section.text for section in sections)
+        assert "external production system" in body
+        assert "Vendor navigation" not in body
+        assert "Community speculation" not in body

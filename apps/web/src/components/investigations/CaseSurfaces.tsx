@@ -39,7 +39,7 @@ export function EvidenceOverlay({ evidenceRef, onClose }: { evidenceRef: string;
         <div><small>{text('来源证据', 'Source evidence')}</small>{item ? <SourceIdentity source={item.source.source_id} url={item.observation.canonical_url}/> : <strong>{text('读取中…', 'Loading…')}</strong>}</div>
         <Dialog.Close asChild><Button variant="ghost" size="icon" aria-label={text('关闭证据', 'Close evidence')}><X/></Button></Dialog.Close>
       </div>
-      {item ? <EvidenceTrace item={item} /> : <div className="inspector-empty"><Orbit size={30} />{query.isError ? <><strong>{text('证据读取失败', 'Evidence read failed')}</strong><p>{String(query.error.message)}</p><button className="evidence-read-retry" onClick={() => void query.refetch()}>{text('重新读取', 'Retry')}</button></> : text('解析 Evidence…', 'resolving evidence…')}</div>}
+      {item ? <EvidenceTrace item={item} /> : <div className="inspector-empty"><Orbit size={30} />{query.isError ? <><strong>{text('证据读取失败', 'Evidence read failed')}</strong><p>{String(query.error.message)}</p><button className="evidence-read-retry" onClick={() => void query.refetch()}>{text('重新读取', 'Retry')}</button></> : text('正在读取原始证据…', 'Reading original evidence…')}</div>}
     </motion.aside></Dialog.Content>
   </Dialog.Portal></Dialog.Root>
 }

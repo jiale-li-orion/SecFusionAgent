@@ -19,15 +19,18 @@ export function WorldPage() {
     queryFn: () => getHotWorldItem(hotCoordinate![0], hotCoordinate!.slice(1).join(':')),
     enabled: Boolean(hotCoordinate?.length && hotCoordinate.length > 1), retry: false,
   })
-  const workingSet = useQuery({ queryKey: ['world-working-set', hotPage], queryFn: () => getHotWorld(hotPageSize, hotPage * hotPageSize),
+  const featured = (query.data?.items ?? []).filter(story => Number(story.facts.featured_priority ?? 0) > 0)
+  const vulnerabilityLimit = hotPage === 0 ? hotPageSize - featured.length : hotPageSize
+  const vulnerabilityOffset = Math.max(0, hotPage * hotPageSize - featured.length)
+  const workingSet = useQuery({ queryKey: ['world-working-set', hotPage, featured.length], queryFn: () => getHotWorld(vulnerabilityLimit, vulnerabilityOffset),
     refetchInterval: 30_000 })
   const candidateSet = useQuery({ queryKey: ['world-incident-candidates', 32], queryFn: () => getWorldIncidentCandidates(32), refetchInterval: 30_000 })
   const overview = useQuery({ queryKey: ['world-overview'], queryFn: getWorldOverview, refetchInterval: 30_000 })
   const formation = useQuery({ queryKey: ['world-formation'], queryFn: getWorldFormation, refetchInterval: 15_000 })
   const changes = useQuery({ queryKey: ['world-knowledge-changes'], queryFn: () => getWorldKnowledgeChanges(6), refetchInterval: 15_000 })
   const hotStory = hot.data ? projectHot(hot.data) : null
-  const hotStories = (workingSet.data?.items ?? []).map(projectHot)
-  const stories = [ ...(query.data?.items ?? []), ...hotStories, ...(candidateSet.data?.items ?? []).map(projectCandidate) ]
+  const hotStories = [...(hotPage === 0 ? featured : []), ...(workingSet.data?.items ?? []).map(projectHot)]
+  const stories = [...new Map([ ...(query.data?.items ?? []), ...hotStories, ...(candidateSet.data?.items ?? []).map(projectCandidate) ].map(story => [story.story_id, story])).values()]
   if (hotStory && !stories.some(s => s.story_id === hotStory.story_id)) stories.push(hotStory)
 
   function focus(story: WorldStory) {
@@ -39,7 +42,9 @@ export function WorldPage() {
     setParams(next, { replace: true })
   }
   function openHotFromAtlas(story: WorldStory) {
-    setParams(new URLSearchParams({ view: 'hot', story: story.story_id, hot: story.story_id.slice(4) }), { replace: true })
+    const next = new URLSearchParams({ view: 'hot', story: story.story_id })
+    if (story.kind === 'HotVulnerability') next.set('hot', story.story_id.slice(4))
+    setParams(next, { replace: true })
   }
   function open(story: WorldStory) {
     const context = { from: 'world', worldRef: story.story_id }
@@ -61,7 +66,7 @@ export function WorldPage() {
   return <WorldScene stories={stories} hotStories={hotStories} focusedId={params.get('story') ?? hotStory?.story_id ?? null}
     region={params.get('source')} onRegion={source => { setParams(current => { const next = new URLSearchParams(current); if (source) { next.set('source', source); next.set('view', 'stories'); next.delete('story'); next.delete('hot') } else next.delete('source'); return next }, { replace: true }) }}
     onHotRetry={() => void workingSet.refetch()} view={params.get('view') ?? (hotCoordinate ? 'hot' : 'stories')} onView={view => { const next = new URLSearchParams(params); next.set('view', view); next.delete('story'); next.delete('hot'); next.delete('source'); setParams(next, { replace: true }) }}
-    changes={changes.data?.items ?? []} changesPending={changes.isPending} changesFailed={changes.isError} onChangesRetry={() => void changes.refetch()} overview={overview.data} overviewFailed={overview.isError} onOverviewRetry={() => void overview.refetch()} formation={formation.data} formationFailed={formation.isError} onFormationRetry={() => void formation.refetch()} hotTotal={workingSet.data?.resident_total} hotFailed={workingSet.isError} hotPending={workingSet.isPending} hotPage={hotPage} hotPageSize={hotPageSize}
+    changes={changes.data?.items ?? []} changesPending={changes.isPending} changesFailed={changes.isError} onChangesRetry={() => void changes.refetch()} overview={overview.data} overviewFailed={overview.isError} onOverviewRetry={() => void overview.refetch()} formation={formation.data} formationFailed={formation.isError} onFormationRetry={() => void formation.refetch()} hotTotal={workingSet.data ? workingSet.data.resident_total + featured.length : undefined} hotFailed={workingSet.isError} hotPending={workingSet.isPending} hotPage={hotPage} hotPageSize={hotPageSize}
     onHotPage={page => { setHotPage(page); setParams(current => { const next = new URLSearchParams(current); next.delete('story'); next.delete('hot'); return next }, { replace: true }) }}
     pending={query.isPending} failed={query.isError} candidatePending={candidateSet.isPending} candidateFailed={candidateSet.isError}
     onFocus={focus} onHotFromAtlas={openHotFromAtlas} onOpen={open} onInvestigate={investigate} onRetry={() => void query.refetch()}

@@ -1,7 +1,7 @@
-.investigation-report { container:case-report / inline-size; min-width:0; color:var(--ink); background:#fff; border:1px solid var(--line); border-radius:10px; }
+.investigation-report { container:case-report / inline-size; min-width:0; color:var(--ink); background:#fdfcf8; border:1px solid var(--line); border-radius:2px; border-color:transparent; box-shadow:inset 3px 0 0 #b9a887; }
 .investigation-report h2,.investigation-report p { margin:0; }
 .report-masthead { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; padding:32px 42px 18px; }
-.report-masthead small { display:flex; align-items:center; gap:7px; color:#73809a; font-size:12px; font-weight:500; }
+.report-masthead small { display:flex; align-items:center; gap:7px; color:#83785f; font-size:12px; font-weight:500; }
 .report-masthead h2 { margin-top:16px; font-size:clamp(21px,2vw,27px); line-height:1.5; font-weight:700; letter-spacing:-.035em; overflow-wrap:anywhere; }
 .report-masthead>span { display:inline-flex; align-items:center; gap:7px; flex:none; margin-top:2px; color:#518775; font-size:12px; }
 .report-byline { display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px 24px; padding:0 42px 24px; border-bottom:1px solid var(--line); color:var(--muted); font-size:12px; }
@@ -11,8 +11,8 @@
 .report-paragraph:first-of-type p { font-weight:500; }
 .report-finding-label { display:block; margin-bottom:10px; color:#7a86a0; font-size:12px; }
 .report-evidence { display:flex; align-items:center; flex-wrap:wrap; gap:7px; margin-top:13px; }
-.report-evidence>[data-slot=button] { height:28px; color:#5370a9; font-size:12px; padding-inline:9px; }
-.investigation-report .report-archive-note { margin-bottom:27px; padding:13px 16px; border-left:2px solid #b6c6ed; background:#f8faff; color:#697b97; font-size:12px; line-height:1.8; }
+.report-evidence>[data-slot=button] { height:28px; color:#61786b; font-size:12px; padding-inline:9px; border-color:transparent; background:transparent; text-decoration:underline; text-underline-offset:4px; }
+.investigation-report .report-archive-note { margin-bottom:27px; padding:13px 16px; border-left:2px solid #b6c6ed; background:#f4f0e6; color:#746a56; font-size:12px; line-height:1.8; border-left-color:#b8aa8a; }
 .report-empty { color:var(--muted); font-size:14px; line-height:1.8; }
 .report-boundary { margin-top:30px; padding-top:24px; border-top:1px solid var(--line); }
 .report-boundary h3 { margin:0 0 14px; font-size:16px; font-weight:600; }
@@ -22,7 +22,7 @@
 .report-audit>summary,.report-sources>summary { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:22px 0; cursor:pointer; color:#66738b; font-size:13px; }
 .report-audit>summary:after,.report-sources>summary:after { content:'+'; color:#929aac; margin-left:auto; }
 .report-audit[open]>summary:after,.report-sources[open]>summary:after { content:'−'; }
-.report-audit>summary span,.report-sources>summary span { color:#8f9ab0; font-size:11px; }
+.report-audit>summary span,.report-sources>summary span { color:#8f9ab0; font-size:var(--type-meta); }
 .report-audit .decision-report { border-top:1px solid var(--line); padding-bottom:24px; color:var(--ink); }
 .report-audit .decision-report-conclusions article p { color:var(--ink); }
 .report-sources>div { padding:0 0 20px; }
@@ -42,7 +42,7 @@
 @container case-report (max-width:400px) {
  .report-masthead { padding:23px 19px 15px; }
  .report-masthead h2 { font-size:21px; }
- .report-byline { padding:0 19px 19px; font-size:11px; }
+ .report-byline { padding:0 19px 19px; font-size:var(--type-meta); }
  .report-body { padding:24px 19px 28px; }
  .report-paragraph p { font-size:15px; line-height:1.9; }
  .report-audit,.report-sources { padding:0 19px; }

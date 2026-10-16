@@ -47,7 +47,15 @@ class DecisionResultStore:
         session: AsyncSession,
         decision: DecisionResult,
     ) -> StoredDecisionResult:
-        payload = decision.model_dump(mode="json")
+        # Absent optional presentation fields preserve historical payloads and hashes.
+        payload = decision.model_dump(
+            mode="json",
+            exclude={
+                name
+                for name in ("report_layout", "report_summary")
+                if getattr(decision, name) is None
+            },
+        )
         digest = _digest(payload)
         existing = await session.get(DecisionResultModel, decision.decision_id)
         if existing is not None:

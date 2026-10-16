@@ -7,7 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from apps.application.queries.world import list_world_stories
 from apps.runtime_models import register_runtime_models
-from packages.intelligence.storage.document_models import DocumentModel, DocumentRevisionModel
+from packages.intelligence.storage.document_models import (
+    DocumentChunkModel,
+    DocumentModel,
+    DocumentRevisionModel,
+)
 from packages.intelligence.storage.knowledge_models import (
     KnowledgeRevisionModel,
     ObjectModel,
@@ -16,6 +20,54 @@ from packages.intelligence.storage.knowledge_models import (
 from packages.shared.db import Base
 
 NOW = datetime(2026, 10, 8, tzinfo=UTC)
+
+
+@pytest.mark.parametrize("separate_heading", [False, True])
+async def test_world_rejects_legacy_outage_body_and_fills_from_valid_candidates(
+    database, separate_heading
+):
+    async with database() as session, session.begin():
+        bad, _, _ = await document(session, "eu-ai-act", title="AI obligations", summary=None)
+        session.add(
+            DocumentChunkModel(
+                chunk_id=str(uuid4()),
+                document_revision_id=bad.document_revision_id,
+                ordinal=0,
+                section="The server is temporarily unavailable" if separate_heading else None,
+                text="Please try again later."
+                if separate_heading
+                else "The server is temporarily unavailable\nPlease try again later.",
+                metadata_json={},
+                locator={},
+                content_hash="c" * 64,
+                chunker_version="1",
+            )
+        )
+        await document(session, "eu-ai-act", title="Valid obligations", summary="Article content.")
+        await session.flush()
+        result = await list_world_stories(session, limit=2)
+        assert [item.headline for item in result.items] == ["Valid obligations"]
+
+
+async def test_world_rejected_revision_cannot_escape_via_valid_metadata_summary(database):
+    async with database() as session, session.begin():
+        revision, _, _ = await document(session, "eu-ai-act", title="AI obligations")
+        revision.metadata_json = {
+            **revision.metadata_json,
+            "content_quality": {"status": "rejected", "usable": False},
+        }
+        await session.flush()
+        assert not (await list_world_stories(session)).items
+
+
+async def test_world_does_not_replace_publication_time_with_http_modification(database):
+    async with database() as session, session.begin():
+        revision, _, _ = await document(session, "arxiv-ai-security")
+        revision.updated_at = NOW
+        await session.flush()
+        story = (await list_world_stories(session)).items[0]
+        assert story.happened_at == story.published_at
+        assert story.model_dump()["time_basis"] == "published"
 
 
 @pytest.fixture
@@ -228,51 +280,97 @@ async def test_processing_success_is_not_automatically_a_knowledge_commit(databa
     from packages.intelligence.storage.models import ProcessingRunModel
 
     async with database() as session, session.begin():
-        session.add_all([
-            ProcessingRunModel(run_id='done', processor_type='enrichment',
-                               processor_name='managed-document-semantic', processor_version='1',
-                               status='success', started_at=NOW, finished_at=NOW),
-            ProcessingRunModel(run_id='active', processor_type='enrichment',
-                               processor_name='github-reference-graph', processor_version='1',
-                               status='running', started_at=NOW),
-        ])
+        session.add_all(
+            [
+                ProcessingRunModel(
+                    run_id="done",
+                    processor_type="enrichment",
+                    processor_name="managed-document-semantic",
+                    processor_version="1",
+                    status="success",
+                    started_at=NOW,
+                    finished_at=NOW,
+                ),
+                ProcessingRunModel(
+                    run_id="active",
+                    processor_type="enrichment",
+                    processor_name="github-reference-graph",
+                    processor_version="1",
+                    status="running",
+                    started_at=NOW,
+                ),
+            ]
+        )
         await session.flush()
         first = await read_world_formation(session)
-        assert first.processing[0].status == 'running'
+        assert first.processing[0].status == "running"
         assert all(item.committed_at is None for item in first.processing)
-        session.add(KnowledgeRevisionModel(cause_processing_run_id='done', committed_at=NOW))
+        session.add(KnowledgeRevisionModel(cause_processing_run_id="done", committed_at=NOW))
         await session.flush()
         second = await read_world_formation(session)
-        done = next(item for item in second.processing if item.run_id == 'done')
+        done = next(item for item in second.processing if item.run_id == "done")
         assert done.committed_at is not None
         assert done.revision is not None
 
 
 async def test_product_document_reads_excerpt_from_current_revision_only(database):
+    from pathlib import Path
+
     from apps.application.queries.intelligence import get_product_document
     from packages.intelligence.storage.document_models import DocumentChunkModel
+    from packages.intelligence.storage.evidence_models import EvidenceArtifactModel
+    from packages.sources.registry.loader import load_source_definitions
+    from packages.sources.registry.service import sync_source_definitions
 
     async with database() as session, session.begin():
-        old, object_id, _ = await document(session, 'arxiv-ai-security')
+        source = next(
+            s
+            for s in load_source_definitions(Path("config/sources"))
+            if s.source_id == "arxiv-ai-security"
+        )
+        await sync_source_definitions(session, [source])
+        old, object_id, _ = await document(session, "arxiv-ai-security")
         new = DocumentRevisionModel(
-            document_revision_id=str(uuid4()), document_id=old.document_id,
-            observation_id=str(uuid4()), title='Current title',
-            created_at=NOW + timedelta(hours=1), content_hash='b' * 64,
-            parser_name='source', parser_version='1',
+            document_revision_id=str(uuid4()),
+            document_id=old.document_id,
+            observation_id=str(uuid4()),
+            title="Current title",
+            created_at=NOW + timedelta(hours=1),
+            content_hash="b" * 64,
+            parser_name="source",
+            parser_version="1",
         )
         session.add(new)
         await session.flush()
-        for revision, content in [(old, 'Old text'), (new, 'Exact current source paragraph.')]:
-            session.add(DocumentChunkModel(
-                chunk_id=str(uuid4()), document_revision_id=revision.document_revision_id,
-                ordinal=0, text=content, locator={'section': 'abstract'},
-                content_hash='c' * 64, chunker_version='1',
-            ))
+        for revision, content in [(old, "Old text"), (new, "Exact current source paragraph.")]:
+            session.add(
+                DocumentChunkModel(
+                    chunk_id=str(uuid4()),
+                    document_revision_id=revision.document_revision_id,
+                    ordinal=0,
+                    text=content,
+                    locator={"section": "abstract"},
+                    content_hash="c" * 64,
+                    chunker_version="1",
+                )
+            )
+        await session.flush()
+        session.add(
+            EvidenceArtifactModel(
+                artifact_id=str(uuid4()),
+                observation_id=new.observation_id,
+                media_type="text/plain",
+                storage_uri="memory://current-public-article",
+                content_hash="b" * 64,
+                access_rights={"classification": "public"},
+                created_at=NOW,
+            )
+        )
         await session.flush()
         view = await get_product_document(session, object_id=object_id)
         assert view is not None
         assert view.current_revision is not None
-        assert view.source_excerpt == 'Exact current source paragraph.'
+        assert view.source_excerpt == "Exact current source paragraph."
         assert view.current_revision.document_revision_id == new.document_revision_id
         assert view.excerpt_chunk_id is not None
-        assert view.excerpt_locator == {'section': 'abstract'}
+        assert view.excerpt_locator == {"section": "abstract"}

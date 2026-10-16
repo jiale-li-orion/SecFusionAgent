@@ -932,6 +932,51 @@
         "github-target-repos"
       ],
       "dynamic_owner": "github_incident_followup_resolver"
+    },
+    {
+      "category": "vendor",
+      "name": "Hugging Face Security",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "huggingface-security"
+      ]
+    },
+    {
+      "category": "independent",
+      "name": "CrowdStrike Intelligence",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "crowdstrike-research"
+      ]
+    },
+    {
+      "category": "independent",
+      "name": "METR Research",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "metr-research"
+      ]
+    },
+    {
+      "category": "independent",
+      "name": "Transluce Research",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "transluce-research"
+      ]
+    },
+    {
+      "category": "development",
+      "name": "REA · Reverse Engineer Anything",
+      "mode": "fixed_provider",
+      "coverage": "owned",
+      "source_ids": [
+        "rea-project"
+      ]
     }
   ],
   "measurement_category_overrides": {

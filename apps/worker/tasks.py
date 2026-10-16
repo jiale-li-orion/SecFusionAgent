@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from math import ceil
 from pathlib import Path
 
@@ -21,6 +22,7 @@ from packages.enrichment.providers.factory import create_configured_ai_provider
 from packages.enrichment.runtime.state_models import EnrichmentAttemptModel
 from packages.enrichment.runtime.tasks import ensure_background_vulnerability_enrichment_run
 from packages.enrichment.semantic.documents import DocumentSemanticService
+from packages.intelligence.documents.quality import DocumentMaterialRejectedError
 from packages.intelligence.projections.service import CurrentProjectionService
 from packages.intelligence.retrieval.indexing import DocumentIndexService
 from packages.intelligence.storage.document_models import DocumentRevisionModel
@@ -38,6 +40,8 @@ from packages.sources.registry.loader import load_source_definitions
 from packages.task_runtime.contracts.models import TERMINAL_TASK_RUN_STATUSES, TaskRunStatus
 from packages.task_runtime.scheduler import QueuedRoleExecutor
 from packages.task_runtime.storage.service import get_task_run
+
+logger = logging.getLogger(__name__)
 
 
 @celery_app.task(name="secfusion.collection.run")
@@ -243,12 +247,13 @@ async def _rebuild_knowledge_projections(payload: dict[str, object]) -> int:
                     relation_ids=normalized_relation_ids,
                 ),
             )
-            for impact in impacts:
-                await watch_wake.spawn_for_world_change(
-                    session,
-                    impact=impact,
-                    trigger_ref=f"knowledge-revision:{revision}",
-                )
+            if settings.background_llm_enabled:
+                for impact in impacts:
+                    await watch_wake.spawn_for_world_change(
+                        session,
+                        impact=impact,
+                        trigger_ref=f"knowledge-revision:{revision}",
+                    )
         return changed
     finally:
         await engine.dispose()
@@ -316,7 +321,13 @@ async def _index_document_revision(payload: dict[str, object]) -> int:
             lexical = await DocumentIndexService().build_lexical_index(
                 session, document_revision_id=document_revision_id
             )
-        if not settings.model_base_url:
+        if not settings.background_llm_enabled or not settings.model_base_url:
+            if not settings.background_llm_enabled:
+                logger.info(
+                    "document_model_stages_paused document_revision_id=%s lexical_chunks=%s",
+                    document_revision_id,
+                    len(lexical.indexed_chunk_ids),
+                )
             return len(lexical.indexed_chunk_ids)
 
         async with httpx.AsyncClient(timeout=settings.model_timeout_seconds) as client:
@@ -381,6 +392,12 @@ async def _index_document_revision(payload: dict[str, object]) -> int:
                             inferred=inferred,
                         )
         return len(lexical.indexed_chunk_ids)
+    except DocumentMaterialRejectedError:
+        logger.info(
+            "document_index_skipped document_revision_id=%s reason=material_quality_rejected",
+            document_revision_id,
+        )
+        return 0
     finally:
         await engine.dispose()
 

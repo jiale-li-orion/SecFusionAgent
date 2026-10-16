@@ -489,7 +489,7 @@ async def test_lookup_question_runs_read_only_decision_without_durable_case() ->
         assert metadata["execution_id"]
         assert metadata["case_id"] is None
         assert metadata["product_request_id"] == "question-direct-1"
-        assert metadata["prompt_revision"] == "decision-model-v6"
+        assert metadata["prompt_revision"] == "decision-model-v7"
     finally:
         await engine.dispose()
 

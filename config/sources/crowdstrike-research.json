@@ -1,0 +1,42 @@
+{
+  "source_id": "crowdstrike-research",
+  "adapter_type": "html_index",
+  "source_class": "independent_security_research",
+  "authority_scope": [
+    "incident_response",
+    "threat_actor",
+    "ai_security"
+  ],
+  "source_role": "forensic",
+  "source_family": "crowdstrike",
+  "access_mode": "html_index",
+  "update_semantics": "mutable_research_article",
+  "discovery_method": {
+    "index_url": "https://www.crowdstrike.com/en-us/blog/",
+    "link_selector": ".blog_featured_single_text a[href*='/en-us/blog/'], .vertical_dropdown_element.securing-ai dd a[href*='/en-us/blog/'], .vertical_dropdown_element.counter-adversary-operations dd a[href*='/en-us/blog/']",
+    "allowed_hosts": [
+      "www.crowdstrike.com"
+    ],
+    "max_items": 40
+  },
+  "time_semantics": {
+    "observed_at": "collector_clock",
+    "published_at": "article_metadata_when_explicit"
+  },
+  "identity_semantics": {
+    "external_object_id": "canonical article URL"
+  },
+  "rate_limit_policy": {
+    "provider": "crowdstrike",
+    "polite_interval_seconds": 3
+  },
+  "access_rights": {
+    "classification": "public"
+  },
+  "retention_mode": "durable_managed",
+  "schedule_policy": {
+    "enabled": true,
+    "interval_seconds": 21600
+  },
+  "schema_version": "1"
+}

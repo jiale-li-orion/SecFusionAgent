@@ -1,3 +1,5 @@
+import { productTerm } from '../../lib/productVocabulary'
+import { sourceIdentity } from '../../lib/source-identity'
 import { BookOpenText, ExternalLink, FileSearch } from '../ui/icons'
 
 import { getDocumentByObject, type HotBug, type IncidentDetail } from '../../lib/api'
@@ -8,15 +10,17 @@ import { IncidentEvolution } from './IncidentEvolution'
 export function IncidentDossier({ incident, onEvidence }: { incident: IncidentDetail; onEvidence: (ref: string) => void }) {
   const { text } = useI18n()
   return <section className="incident-dossier">
+    {incident.incident.current_summary && <p className="incident-editorial-summary">{incident.incident.current_summary}</p>}
+    {typeof incident.incident.watch_state.editorial_angle === 'string' && <aside className="incident-editorial-angle"><strong>{text('为什么关注', 'Why it matters')}</strong><p>{incident.incident.watch_state.editorial_angle}</p></aside>}
     <IncidentEvolution key={incident.incident.incident_id} incident={incident} onEvidence={onEvidence}/>
-    <section className="intel-retained-sources"><header><h2>{text('已保留的来源', 'Retained sources')}</h2><span>{text(`${incident.incident.source_diversity_count} 个独立来源`, `${incident.incident.source_diversity_count} independent sources`)}</span></header><p>{text('来源链接没有独立的发现时间，不参与时间回放。', 'Source links do not have individual discovery timestamps and are not placed on the playback timeline.')}</p><div>{incident.sources.map(source => <article key={source.source_link_id}><span><FileSearch size={17}/></span><div><strong>{source.source_id}</strong><small>{source.source_family} · {source.source_role}</small><p>{source.upstream_source ?? text('直接来源', 'Direct source')}</p></div></article>)}</div>{!incident.sources.length && <p>{text('当前档案没有保留的来源链接。', 'There are no retained source links in this dossier.')}</p>}</section>
-    <details className="intel-incident-details"><summary>{text('事件状态与技术详情', 'Event status and technical details')}</summary><dl><div><dt>{text('状态', 'State')}</dt><dd>{incident.incident.lifecycle}</dd></div><div><dt>{text('建立原因', 'Promotion reason')}</dt><dd>{humanize(incident.incident.promotion_reason)}</dd></div><div><dt>{text('档案建立于', 'Dossier created')}</dt><dd>{formatDate(incident.incident.created_at)}</dd></div><div><dt>{text('更新于', 'Updated')}</dt><dd>{formatDate(incident.incident.updated_at)}</dd></div></dl><p className="mono">{incident.incident.incident_id} · REV {incident.incident.current_revision}</p>{Object.entries(incident.incident.watch_state).map(([key, value]) => <p key={key}>{humanize(key)} · {formatValue(value)}</p>)}</details>
+    <section className="intel-retained-sources"><header><h2>{text('已保留的来源', 'Retained sources')}</h2><span>{text(`${incident.incident.source_diversity_count} 个独立来源`, `${incident.incident.source_diversity_count} independent sources`)}</span></header><p>{text('来源链接没有独立的发现时间，不参与时间回放。', 'Source links do not have individual discovery timestamps and are not placed on the playback timeline.')}</p><div>{incident.sources.map(source => <article key={source.source_link_id}><span><FileSearch size={17}/></span><div><strong>{sourceIdentity(source.source_id).name}</strong><small>{productTerm(source.source_family, text)} · {productTerm(source.source_role, text)}</small><p>{source.upstream_source ?? text('直接来源', 'Direct source')}</p></div></article>)}</div>{!incident.sources.length && <p>{text('当前档案没有保留的来源链接。', 'There are no retained source links in this dossier.')}</p>}</section>
+    <details className="intel-incident-details"><summary>{text('事件状态与技术详情', 'Event status and technical details')}</summary><dl><div><dt>{text('状态', 'State')}</dt><dd>{incident.incident.lifecycle}</dd></div><div><dt>{text('建立原因', 'Promotion reason')}</dt><dd>{humanize(incident.incident.promotion_reason)}</dd></div><div><dt>{text('档案建立于', 'Dossier created')}</dt><dd>{formatDate(incident.incident.created_at)}</dd></div><div><dt>{text('更新于', 'Updated')}</dt><dd>{formatDate(incident.incident.updated_at)}</dd></div></dl><p className="mono">{incident.incident.incident_id} · REV {incident.incident.current_revision}</p>{Object.entries(incident.incident.watch_state).filter(([key]) => !['title', 'editorial_angle', 'timeline_time_basis', 'timeline_start', 'display_kind', 'featured_priority', 'historical_backfill'].includes(key)).map(([key, value]) => <p key={key}>{humanize(key)} · {formatValue(value)}</p>)}</details>
   </section>
 }
 
 export function IntelligenceArchiveBlueprint({ target }: { target?: string }) {
   const { text } = useI18n()
-  return <section className="intel-empty-reading"><BookOpenText size={32} /><h2>{target ? text('正在打开对象', 'Opening object') : text('找到你要理解的对象。', 'Find the object you want to understand.')}</h2><p>{target ? target : text('输入论文标题、项目名、漏洞编号或资产名称，查看已有事实、关系与来源。也可以从世界动态进入一份档案。', 'Search a paper, project, vulnerability or asset to read its facts, relationships and sources.')}</p></section>
+  return <section className="intel-empty-reading"><BookOpenText size={32} /><h2>{target ? text('正在打开对象', 'Opening object') : text('找到你要理解的对象。', 'Find the object you want to understand.')}</h2><p>{target ? text('正在读取所选对象的事实与来源。', 'Reading facts and sources for the selected object.') : text('输入论文标题、项目名、漏洞编号或资产名称，查看已有事实、关系与来源。也可以从世界动态进入一份档案。', 'Search a paper, project, vulnerability or asset to read its facts, relationships and sources.')}</p></section>
 }
 
 export function HotWorkingSetPanel({ item }: { item: HotBug }) {
@@ -59,16 +63,16 @@ export function DocumentIndexDossier({
         </div>
         <div>
           <small>{text('来源', 'SOURCE')}</small>
-          <strong>{document.source_id}</strong>
-          <span>{revision ? `${revision.parser_name}@${revision.parser_version}` : text('无 revision', 'no revision')}</span>
+          <strong>{sourceIdentity(document.source_id).name}</strong>
+          <span>{text('已保留原始材料', 'Original material retained')}</span>
         </div>
       </div>
       {document.source_excerpt && <div className="document-source-excerpt"><small>{text("正文节选", "SOURCE EXCERPT")}</small><p>{document.source_excerpt}</p></div>}
-      <details className="document-index-details"><summary>{text("修订、索引与来源坐标", "Revision, index and provenance")}</summary>
-      <div className="document-index-measures">
+      <details className="document-index-details"><summary>{text("修订、索引与来源详情", "Revision, index and provenance")}</summary>
+      <p>{text("解析方式", "Parser")}: {revision ? `${revision.parser_name}@${revision.parser_version}` : text("未记录", "Not recorded")}</p><div className="document-index-measures">
         <div><small>CHUNKS</small><strong>{document.chunk_count}</strong><span>{text('来源分段', 'Source chunks')}</span></div>
-        <div><small>EMBEDDED</small><strong>{document.embedded_chunk_count}</strong><span>{document.embedding_models.join(' · ') || text('未记录 embedding model', 'no embedding model recorded')}</span></div>
-        <div><small>INDEX STATE</small><strong>{indexed.map(([status, count]) => `${count} ${status}`).join(' · ') || '—'}</strong><span>{text('持久 chunk 状态', 'persisted chunk state')}</span></div>
+        <div><small>EMBEDDED</small><strong>{document.embedded_chunk_count}</strong><span>{document.embedding_models.join(' · ') || text('未记录向量模型', 'No embedding model recorded')}</span></div>
+        <div><small>INDEX STATE</small><strong>{indexed.map(([status, count]) => `${count} ${status}`).join(' · ') || '—'}</strong><span>{text('已保存的分段状态', 'persisted chunk state')}</span></div>
         <div><small>SECTIONS</small><strong>{document.sections.length}</strong><span>{document.sections.slice(0, 3).join(' · ') || '—'}</span></div>
       </div>
       <div className="document-index-provenance">
@@ -85,7 +89,7 @@ export function DocumentIndexDossier({
         <div>
           <small>INSIGHT CANDIDATE</small>
           <strong>{document.insight?.promotion_state ?? '—'}</strong>
-          <span>{document.insight ? `${humanize(document.insight.change_type)} · ${humanize(document.insight.evidence_maturity)}` : text('未持久化 InsightCandidate', 'no persisted InsightCandidate')}</span>
+          <span>{document.insight ? `${humanize(document.insight.change_type)} · ${humanize(document.insight.evidence_maturity)}` : text('尚无已保存的候选线索', 'no persisted InsightCandidate')}</span>
         </div>
       </div>
       <p className="mono">{document.excerpt_chunk_id} · {JSON.stringify(document.excerpt_locator)}</p></details>

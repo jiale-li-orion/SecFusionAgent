@@ -24,10 +24,12 @@ from packages.intelligence.storage.document_models import (
     DocumentRevisionModel,
     InsightCandidateModel,
 )
+from packages.intelligence.storage.evidence_models import EvidenceArtifactModel
 from packages.intelligence.storage.knowledge_models import (
     ExternalIdentifierModel,
     ObjectModel,
 )
+from packages.sources.storage.models import SourceModel
 
 
 async def search_product_intelligence(
@@ -70,9 +72,7 @@ async def search_product_intelligence(
     identifiers: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
     rows = list(
         await session.scalars(
-            select(ExternalIdentifierModel).where(
-                ExternalIdentifierModel.object_id.in_(object_ids)
-            )
+            select(ExternalIdentifierModel).where(ExternalIdentifierModel.object_id.in_(object_ids))
         )
     )
     for row in rows:
@@ -211,9 +211,7 @@ def _search_rank(
 ) -> tuple[int, int, str]:
     canonical = item.canonical_key.casefold()
     values = [
-        value.casefold()
-        for namespace_values in identifiers.values()
-        for value in namespace_values
+        value.casefold() for namespace_values in identifiers.values() for value in namespace_values
     ]
     label = _object_label(item, identifiers).casefold()
     if needle == canonical or needle in values or needle == label:
@@ -258,19 +256,29 @@ async def get_product_document(
         chunks = list(
             await session.scalars(
                 select(DocumentChunkModel)
-                .where(
-                    DocumentChunkModel.document_revision_id
-                    == revision.document_revision_id
-                )
+                .where(DocumentChunkModel.document_revision_id == revision.document_revision_id)
                 .order_by(DocumentChunkModel.ordinal)
             )
         )
         insight = await session.scalar(
             select(InsightCandidateModel).where(
-                InsightCandidateModel.document_revision_id
-                == revision.document_revision_id
+                InsightCandidateModel.document_revision_id == revision.document_revision_id
             )
         )
+    # Body previews require affirmative public rights on both the source and
+    # every retained artifact; metadata-only or unclassified records fail closed.
+    excerpt = None
+    source = await session.get(SourceModel, document.source_id)
+    if chunks and revision and source and source.access_rights.get("classification") == "public":
+        artifacts = list(
+            await session.scalars(
+                select(EvidenceArtifactModel).where(
+                    EvidenceArtifactModel.observation_id == revision.observation_id
+                )
+            )
+        )
+        if artifacts and all(a.access_rights.get("classification") == "public" for a in artifacts):
+            excerpt = chunks[0]
     index_counts = Counter(item.index_status for item in chunks)
     return ProductDocumentView(
         document_id=document.document_id,
@@ -285,12 +293,8 @@ async def get_product_document(
                 observation_id=revision.observation_id,
                 external_revision=revision.external_revision,
                 title=revision.title,
-                published_at=revision.published_at.isoformat()
-                if revision.published_at
-                else None,
-                updated_at=revision.updated_at.isoformat()
-                if revision.updated_at
-                else None,
+                published_at=revision.published_at.isoformat() if revision.published_at else None,
+                updated_at=revision.updated_at.isoformat() if revision.updated_at else None,
                 content_hash=revision.content_hash,
                 parser_name=revision.parser_name,
                 parser_version=revision.parser_version,
@@ -299,26 +303,14 @@ async def get_product_document(
             if revision is not None
             else None
         ),
-        source_excerpt=chunks[0].text if chunks else None,
-        excerpt_chunk_id=chunks[0].chunk_id if chunks else None,
-        excerpt_locator=chunks[0].locator if chunks else {},
+        source_excerpt=excerpt.text[:1200] if excerpt else None,
+        excerpt_chunk_id=excerpt.chunk_id if excerpt else None,
+        excerpt_locator=excerpt.locator if excerpt else {},
         chunk_count=len(chunks),
         index_status_counts=dict(sorted(index_counts.items())),
         embedded_chunk_count=sum(1 for item in chunks if item.embedding is not None),
-        embedding_models=sorted(
-            {
-                item.embedding_model
-                for item in chunks
-                if item.embedding_model
-            }
-        ),
-        sections=sorted(
-            {
-                item.section
-                for item in chunks
-                if item.section
-            }
-        ),
+        embedding_models=sorted({item.embedding_model for item in chunks if item.embedding_model}),
+        sections=sorted({item.section for item in chunks if item.section}),
         insight=(
             ProductDocumentInsightView(
                 insight_candidate_id=insight.insight_candidate_id,

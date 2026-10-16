@@ -23,7 +23,7 @@ export function NetworkCanvas({ nodes, edges, centerId, revision, category, sele
         { selector: 'node', style: {
           width: 22, height: 22, 'background-color': 'data(color)', 'border-width': 5,
           'border-color': '#ffffff', label: 'data(label)', color: '#344054', 'font-size': 12,
-          'font-family': 'Inter, system-ui, sans-serif', 'text-valign': 'bottom', 'text-margin-y': 9,
+          'font-family': "Manrope, 'Noto Sans SC UI', sans-serif", 'text-valign': 'bottom', 'text-margin-y': 9,
           'text-wrap': 'ellipsis', 'text-max-width': '125px', 'text-background-color': '#fbfcff',
           'text-background-opacity': .9, 'text-background-padding': '3px', 'overlay-opacity': 0,
         } },

@@ -1,3 +1,4 @@
+import { productTerm } from '../../lib/productVocabulary'
 import { useMemo, useState } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useNavigate } from 'react-router-dom'
@@ -8,7 +9,7 @@ import { useI18n } from '../../lib/i18n'
 import { useAuth } from '../../lib/auth'
 import { AccountLoginPrompt } from '../auth/RequireAccount'
 import { bytes, compactNumber, linePath, pct, seconds, snapshotAge, type ObservatoryWindow } from '../../lib/observatoryPresentation'
-import { dominantRuntimeName, rankRuntimeCounts, runtimeToken } from '../../lib/runtimePresentation'
+import { dominantRuntimeName, rankRuntimeCounts } from '../../lib/runtimePresentation'
 import { PanelHead } from './ObservatoryPrimitives'
 import { WorkerHealth } from './WorkerHealth'
 
@@ -22,26 +23,26 @@ function AgentLiveInstrument({ runtime }: { runtime: Awaited<ReturnType<typeof g
   return (
     <div className="agent-live-instrument">
       <div className="agent-live-instrument-head">
-        <div><small>MODEL / CONTROL RUNTIME</small><strong>{text('最近持久执行样本', 'RECENT PERSISTED SAMPLE')}</strong></div>
-        <span>{model.scope.replaceAll('_', ' ')}</span>
+        <div><small>{text("模型与执行", "Models & execution")}</small><strong>{text('最近持久执行样本', 'RECENT PERSISTED SAMPLE')}</strong></div>
+        <span>{text("最近执行窗口", "Recent execution window")}</span>
       </div>
       <div className="agent-live-signal">
-        <div><small>REQUEST</small><strong>{model.request_count}</strong><span>{model.attempt_count} attempts</span></div>
-        <div><small>RETRY</small><strong>{model.retry_attempt_count}</strong><span>{model.retry_scheduled_count} scheduled</span></div>
-        <div><small>FAIL</small><strong>{model.failed_attempt_count}</strong><span>{model.unknown_after_dispatch_count} unknown</span></div>
-        <div><small>MODEL P95</small><strong>{model.p95_latency_ms == null ? '—' : `${model.p95_latency_ms}ms`}</strong><span>{topProvider ?? 'provider not recorded'}</span></div>
+        <div><small>{text("请求", "Requests")}</small><strong>{model.request_count}</strong><span>{text(`${model.attempt_count} 次调用`, `${model.attempt_count} attempts`)}</span></div>
+        <div><small>{text("重试", "Retries")}</small><strong>{model.retry_attempt_count}</strong><span>{text(`${model.retry_scheduled_count} 次已安排`, `${model.retry_scheduled_count} scheduled`)}</span></div>
+        <div><small>{text("失败", "Failures")}</small><strong>{model.failed_attempt_count}</strong><span>{text(`${model.unknown_after_dispatch_count} 次结果待确认`, `${model.unknown_after_dispatch_count} unknown results`)}</span></div>
+        <div><small>{text("模型耗时 P95", "Model latency P95")}</small><strong>{model.p95_latency_ms == null ? '—' : `${model.p95_latency_ms}ms`}</strong><span>{topProvider ?? text('未记录提供方', 'Provider not recorded')}</span></div>
       </div>
       <div className="agent-live-coordinate">
-        <div><BrainCircuit size={12} /><span>{topModel ?? text('没有持久 ModelAttempt', 'no persisted ModelAttempt')}</span></div>
-        <div><Waypoints size={12} /><span>{control.dependency_wake_count} wakes · {control.waiting_event_count} waits</span></div>
-        <div><Clock3 size={12} /><span>{text('WAKE LATENCY 未测量', 'WAKE LATENCY UNMEASURED')}</span></div>
+        <div><BrainCircuit size={12} /><span>{topModel ?? text('暂无模型调用记录', 'No recorded model calls')}</span></div>
+        <div><Waypoints size={12} /><span>{text(`${control.dependency_wake_count} 次唤醒 · ${control.waiting_event_count} 次等待`, `${control.dependency_wake_count} wakes · ${control.waiting_event_count} waits`)}</span></div>
+        <div><Clock3 size={12} /><span>{text('唤醒延迟未测量', 'Wake latency not measured')}</span></div>
       </div>
       <div className="agent-stop-reasons">
-        <small>RECENT STOP REASONS</small>
+        <small>{text("最近停止原因", "Recent stop reasons")}</small>
         <div>
           {stopReasons.length
-            ? stopReasons.map(([reason, count]) => <span key={reason}><b>{count}</b>{runtimeToken(reason)}</span>)
-            : <span>{text('当前读取窗口没有 stop reason', 'no stop reason in current read window')}</span>}
+            ? stopReasons.map(([reason, count]) => <span key={reason}><b>{count}</b>{productTerm(reason, text)}</span>)
+            : <span>{text('当前窗口未记录停止原因', 'no stop reason in current read window')}</span>}
         </div>
       </div>
     </div>
@@ -104,14 +105,14 @@ export function LiveObservatory({ world, agents, system, failures, windowKey }: 
           <div className="spectrum-list">
             {(world?.categories ?? []).map((category) => {
               const total = category.healthy + category.degraded + category.blocked
-              return <motion.button type="button" key={category.category} className="spectrum-row spectrum-link" initial={false} animate={{ opacity: 1, x: 0 }} onClick={() => navigate(`/?source=${encodeURIComponent(category.category)}`)}>
-                <div className="spectrum-label"><strong>{category.category}</strong><span>{total}</span></div>
+              return <motion.button type="button" key={productTerm(category.category, text)} className="spectrum-row spectrum-link" initial={false} animate={{ opacity: 1, x: 0 }} onClick={() => navigate(`/?source=${encodeURIComponent(category.category)}`)}>
+                <div className="spectrum-label"><strong>{productTerm(category.category, text)}</strong><span>{total}</span></div>
                 <div className="spectrum-track">
                   <span className="healthy" style={{ width: total ? `${category.healthy / total * 100}%` : '0%' }} />
                   <span className="degraded" style={{ width: total ? `${category.degraded / total * 100}%` : '0%' }} />
                   <span className="blocked" style={{ width: total ? `${category.blocked / total * 100}%` : '0%' }} />
                 </div>
-                <small>{category.healthy} H · {category.degraded} D · {category.blocked} B</small>
+                <small>{text(`正常 ${category.healthy} · 降级 ${category.degraded} · 受阻 ${category.blocked}`, `Healthy ${category.healthy} · Degraded ${category.degraded} · Blocked ${category.blocked}`)}</small>
               </motion.button>
             })}
             {!world && (failures.world ? <p className="observatory-read-fault">{text('来源健康读数暂时不可用。', 'Source health readings are unavailable.')}</p> : <SourceSpectrumBlueprint />)}
@@ -120,19 +121,19 @@ export function LiveObservatory({ world, agents, system, failures, windowKey }: 
 
         {focus === 'agents' && !authenticated && <AccountLoginPrompt title={text('查看你的任务运行', 'Inspect your task activity')} description={text('登录后查看任务、模型调用与执行结果。', 'Sign in to inspect your tasks, model calls and execution outcomes.')} />}
         {focus === 'agents' && authenticated && <section className={`telemetry-panel agent-spectrum ${focus === 'agents' ? 'focus-selected' : focus ? 'focus-dimmed' : ''}`}>
-          <PanelHead eyebrow="AGENT RUNTIME" title={text('ROLE 活动', 'ROLE ACTIVITY')} meta={text('实时 + durable 历史', 'live + durable history')} icon={Sparkles} />
+          <PanelHead eyebrow="AGENT RUNTIME" title={text('协作角色', 'Agent roles')} meta={text('当前状态与执行历史', 'Current state & history')} icon={Sparkles} />
           <div className="agent-spectrum-list">
             {(agents?.roles ?? []).map((role) => {
-              const alias = role.role_id === 'DecisionRole' ? 'ORACLE' : role.role_id === 'InvestigationRole' ? 'ARGUS' : 'ALCHEMIST'
+              const alias = productTerm(role.role_id, text)
               return <button type="button" key={role.role_id} className={`agent-spectrum-row agent-spectrum-link ${role.active_tasks ? 'live' : ''}`} onClick={() => navigate(`/agents?role=${encodeURIComponent(role.role_id)}`)}>
                 <div className="agent-spectrum-icon"><CircleGauge size={18} /></div>
-                <div><small>{role.role_id}@{role.version}</small><strong>{alias}</strong><span>{role.active_tasks ? text(`${role.active_tasks} 个活动 Task`, `${role.active_tasks} active`) : text('空闲', 'idle')} · {text(`${role.total_tasks} 个 durable runs`, `${role.total_tasks} durable runs`)}</span></div>
+                <div><small>{text("版本", "Version")} {role.version}</small><strong>{alias}</strong><span>{role.active_tasks ? text(`${role.active_tasks} 个进行中的任务`, `${role.active_tasks} active`) : text('空闲', 'idle')} · {text(`${role.total_tasks} 次已保存的执行`, `${role.total_tasks} durable runs`)}</span></div>
                 <RoleBars counts={role.status_counts} />
               </button>
             })}
             {!agents && (failures.agents ? <p className="observatory-read-fault">{text('Agent 运行读数暂时不可用。', 'Agent runtime readings are unavailable.')}</p> : <AgentSpectrumBlueprint />)}
           </div>
-          <div className="capability-activity-summary"><Binary size={13} /><span>{text('持久化 CapabilityInvocation', 'Persisted CapabilityInvocation')}</span><strong>{agents ? agents.recent_capabilities.length : '—'}</strong></div>
+          <div className="capability-activity-summary"><Binary size={13} /><span>{text('已记录的能力调用', 'Recorded capability calls')}</span><strong>{agents ? agents.recent_capabilities.length : '—'}</strong></div>
           {agents && <AgentLiveInstrument runtime={agents} />}
         </section>}
 
@@ -143,14 +144,14 @@ export function LiveObservatory({ world, agents, system, failures, windowKey }: 
           <div className="system-status-grid">
             <SystemFact icon={Boxes} label="OUTBOX DELIVERED" value={world ? compactNumber(world.outbox_delivered) : '—'} />
             <SystemFact icon={Eye} label="LEXICAL READY" value={world ? compactNumber(world.lexical_ready_documents) : '—'} />
-            <SystemFact icon={ShieldCheck} label="ARTIFACT STORE" value={world?.artifact_store_status ?? '—'} />
+            <SystemFact icon={ShieldCheck} label="ARTIFACT STORE" value={world?.artifact_store_status ? productTerm(world.artifact_store_status, text) : '—'} />
             <SystemFact icon={Fingerprint} label="ARTIFACT INTEGRITY" value={world?.public_epoch_artifact_integrity_rate != null ? pct(world.public_epoch_artifact_integrity_rate) : '—'} />
           </div>
           <div className="system-dependency-mesh">
             {(system?.dependencies ?? []).map((dependency) => (
               <div key={dependency.component} className={`system-dependency status-${dependency.status}`}>
                 {dependency.component === 'postgresql' ? <DatabaseZap size={13} /> : <RadioTower size={13} />}
-                <div><small>{runtimeToken(dependency.component)}</small><strong>{runtimeToken(dependency.status)}</strong></div>
+                <div><small>{productTerm(dependency.component, text)}</small><strong>{productTerm(dependency.status, text)}</strong></div>
                 <span>{dependency.latency_ms == null ? '—' : `${dependency.latency_ms.toFixed(1)}ms`}</span>
               </div>
             ))}
@@ -160,7 +161,7 @@ export function LiveObservatory({ world, agents, system, failures, windowKey }: 
             <SystemBacklog label="OUTBOX PENDING" value={system?.outbox.pending_count} oldest={system?.outbox.oldest_pending_at ?? null} />
             <SystemBacklog label="TASK DELIVERY" value={system?.task_event_delivery.pending_count} oldest={system?.task_event_delivery.oldest_pending_at ?? null} />
             <SystemBacklog label="STREAM UNACKED" value={system?.task_event_stream_pending} />
-            <SystemBacklog label="RUNTIME POLICY" value={system ? runtimeToken(system.runtime_policy_status) : null} />
+            <SystemBacklog label="RUNTIME POLICY" value={system ? productTerm(system.runtime_policy_status, text) : null} />
           </div>
           <WorkerHealth probe={system?.worker_probe ?? null} />
         </section>}
@@ -180,7 +181,7 @@ function TelemetryChart({ title, series, lines, failed }: { title: string; serie
   const paths = lines.map((line) => ({ ...line, d: linePath(series.map((item) => sampleValue(item[line.key])), width, height, max) }))
   const lastSample = series.at(-1)
   const revision = String(lastSample?.hour ?? lastSample?.timestamp ?? lastSample?.generated_at ?? series.length)
-  return <div className={`telemetry-chart ${series.length ? '' : 'chart-unresolved'}`}><div className="chart-head"><strong>{title}</strong><div>{lines.map((line) => <span key={line.key} className={`tone-${line.tone}`}><i />{line.label} · {sampleValue(lastSample?.[line.key]) == null ? '—' : line.key.endsWith('_seconds') ? seconds(sampleValue(lastSample?.[line.key])) : compactNumber(sampleValue(lastSample?.[line.key])!)}</span>)}</div></div><div className="chart-canvas"><svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none"><defs><linearGradient id={`fade-${title.replaceAll(' ', '-')}`} x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="currentColor" stopOpacity=".16"/><stop offset="1" stopColor="currentColor" stopOpacity="0"/></linearGradient></defs>{[.25,.5,.75].map((part) => <line key={part} x1="0" x2={width} y1={height * part} y2={height * part} className="chart-gridline" />)}{paths.map((path) => <motion.path key={`${path.key}:${revision}`} className={`chart-line tone-${path.tone}`} d={path.d} fill="none" initial={reduceMotion ? false : { pathLength: 0, opacity: .28 }} animate={{ pathLength: 1, opacity: 1 }} transition={{ duration: reduceMotion ? 0 : .58, ease: [0.22, 1, 0.36, 1] }} />)}{series.length === 1 && lines.map(line => {
+  return <div className={`telemetry-chart ${series.length ? '' : 'chart-unresolved'}`}><div className="chart-head"><strong>{productTerm(title, text)}</strong><div>{lines.map((line) => <span key={line.key} className={`tone-${line.tone}`}><i />{productTerm(line.label, text)} · {sampleValue(lastSample?.[line.key]) == null ? '—' : line.key.endsWith('_seconds') ? seconds(sampleValue(lastSample?.[line.key])) : compactNumber(sampleValue(lastSample?.[line.key])!)}</span>)}</div></div><div className="chart-canvas"><svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none"><defs><linearGradient id={`fade-${title.replaceAll(' ', '-')}`} x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="currentColor" stopOpacity=".16"/><stop offset="1" stopColor="currentColor" stopOpacity="0"/></linearGradient></defs>{[.25,.5,.75].map((part) => <line key={part} x1="0" x2={width} y1={height * part} y2={height * part} className="chart-gridline" />)}{paths.map((path) => <motion.path key={`${path.key}:${revision}`} className={`chart-line tone-${path.tone}`} d={path.d} fill="none" initial={reduceMotion ? false : { pathLength: 0, opacity: .28 }} animate={{ pathLength: 1, opacity: 1 }} transition={{ duration: reduceMotion ? 0 : .58, ease: [0.22, 1, 0.36, 1] }} />)}{series.length === 1 && lines.map(line => {
       const value = sampleValue(series[0][line.key])
       return value == null ? null : <circle key={line.key} className={`chart-sample tone-${line.tone}`} cx={width / 2} cy={height - Math.min(value / max, 1) * (height - 10) - 5} r="4" />
     })}</svg>{series.length === 0 && <div className="chart-await"><ScanLine size={16}/><strong>{failed ? text('运行样本不可用', 'OPERATIONAL SAMPLES UNAVAILABLE') : text('等待运行样本', 'AWAITING OPERATIONAL SAMPLES')}</strong><small>{failed ? text('可通过顶部按钮重新读取', 'Retry from the status control above') : text('数据到达后显示趋势', 'Trends appear when samples arrive')}</small></div>}<div className="chart-scanline" /></div></div>
@@ -192,7 +193,7 @@ function SourceSpectrumBlueprint() {
     <>
       {['vulnerability','development','academic','vendor','independent','normative','assets','incidents'].map((label) => (
         <div key={label} className="spectrum-row spectrum-blueprint">
-          <div className="spectrum-label"><strong>{label}</strong><span>—</span></div>
+          <div className="spectrum-label"><strong>{productTerm(label, text)}</strong><span>—</span></div>
           <div className="spectrum-track"><i /></div>
           <small>{text('未解析', 'UNRESOLVED')}</small>
         </div>
@@ -209,10 +210,10 @@ function AgentSpectrumBlueprint() {
         ['DecisionRole@1','ORACLE','DIRECT / RETRIEVE'],
         ['InvestigationRole@1','ARGUS','VERIFY / INVESTIGATE / WATCH'],
         ['EnrichmentRole@1','ALCHEMIST','ENRICHMENT'],
-      ].map(([role, alias, profile]) => (
+      ].map(([role]) => (
         <div key={role} className="agent-spectrum-row agent-spectrum-blueprint">
           <div className="agent-spectrum-icon"><CircleGauge size={18} /></div>
-          <div><small>{role}</small><strong>{alias}</strong><span>{profile}</span></div>
+          <div><small>{text("协作角色", "Agent role")}</small><strong>{productTerm(role.split("@")[0], text)}</strong><span>{text("等待运行读数", "Waiting for activity")}</span></div>
           <div className="agent-spectrum-offline">{text('运行数据尚未载入', 'Runtime data not loaded')}</div>
         </div>
       ))}
@@ -221,10 +222,10 @@ function AgentSpectrumBlueprint() {
 }
 
 
-function SystemFact({ icon: Icon, label, value }: { icon: typeof Boxes; label: string; value: string }) { return <div className="system-fact"><Icon size={16} /><small>{label}</small><strong>{value}</strong></div> }
+function SystemFact({ icon: Icon, label, value }: { icon: typeof Boxes; label: string; value: string }) { const { text } = useI18n(); return <div className="system-fact"><Icon size={16} /><small>{productTerm(label, text)}</small><strong>{value}</strong></div> }
 
-function MeasurementFact({ label, value }: { label: string; value: string }) { return <div><small>{label}</small><strong>{value}</strong></div> }
+function MeasurementFact({ label, value }: { label: string; value: string }) { const { text } = useI18n(); return <div><small>{productTerm(label, text)}</small><strong>{value}</strong></div> }
 
-function SystemBacklog({ label, value, oldest = null }: { label: string; value: number | string | null | undefined; oldest?: string | null }) { return <div><small>{label}</small><strong>{value == null ? '—' : typeof value === 'number' ? compactNumber(value) : value}</strong>{oldest && <span>{snapshotAge(oldest)}</span>}</div> }
+function SystemBacklog({ label, value, oldest = null }: { label: string; value: number | string | null | undefined; oldest?: string | null }) { const { text } = useI18n(); return <div><small>{productTerm(label, text)}</small><strong>{value == null ? '—' : typeof value === 'number' ? compactNumber(value) : value}</strong>{oldest && <span>{snapshotAge(oldest)}</span>}</div> }
 
 function RoleBars({ counts }: { counts: Record<string, number> }) { const total = Object.values(counts).reduce((sum, value) => sum + value, 0) || 1; return <div className="role-bars"><span className="done" style={{ width: `${((counts.completed ?? 0) / total) * 100}%` }} /><span className="live" style={{ width: `${(((counts.running ?? 0) + (counts.queued ?? 0)) / total) * 100}%` }} /><span className="fail" style={{ width: `${(((counts.failed ?? 0) + (counts.blocked ?? 0)) / total) * 100}%` }} /></div> }

@@ -1,3 +1,4 @@
+import { DevelopingField } from '../components/ui/developing-field'
 import { IntelligenceHome, type IntelligenceChannel } from '../components/intelligence/IntelligenceHome'
 import '../components/intelligence/intelligence.css'
 import { useDeferredValue, useState } from 'react'
@@ -8,7 +9,7 @@ import {
   FileSearch,
   Search,
 } from '../components/ui/icons'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   getDocumentByObject,
   getHotWorld,
@@ -45,9 +46,9 @@ export function IntelligencePage() {
   const paramEvidence = params.get('evidence')
   const paramIncident = params.get('incident') ?? ''
   const paramView = params.get('view')
-  const channel: IntelligenceChannel = ['following', 'hot', 'events', 'library'].includes(params.get('channel') ?? '') ? params.get('channel') as IntelligenceChannel : 'recommended'
+  const channel: IntelligenceChannel = ['following', 'events', 'library'].includes(params.get('channel') ?? '') ? params.get('channel') as IntelligenceChannel : 'recommended'
   const hasSelection = Boolean(paramObject || paramIncident || paramCve || paramEvidence)
-  function destination(values: Record<string, string>) { return { channel, ...(params.get('category') ? { category: params.get('category')! } : {}), ...values } }
+  function destination(values: Record<string, string>) { return { channel, ...Object.fromEntries(['category', 'librarySource', 'subject', 'libraryQuery', 'libraryOffset', 'libraryAsOf'].flatMap(key => params.get(key) ? [[key, params.get(key)!]] : [])), ...values } }
   const [inputOverride, setInputOverride] = useState<string | null>(null)
   const [searchError, setSearchError] = useState('')
   const [searchBusy, setSearchBusy] = useState(false)
@@ -71,7 +72,7 @@ export function IntelligencePage() {
   })
 
   const selectedCve = paramObject || paramIncident || paramQuery ? '' : paramCve
-  const entryQuery = useQuery({ queryKey: ['intelligence-recent-sources', 18], queryFn: () => getWorldStories(18), enabled: !selectedCve && !paramObject && !paramIncident, staleTime: 30_000 })
+  const entryQuery = useQuery({ queryKey: ['intelligence-recent-sources', 18], queryFn: () => getWorldStories(18), enabled: channel !== 'library' && !selectedCve && !paramObject && !paramIncident, staleTime: 30_000 })
   const selectedObjectId = paramIncident ? '' : paramObject
   const hotCoordinate = params.get('hot')?.split(':')
   const hotDetail = useQuery({ queryKey: ['intelligence-hot-detail', ...(hotCoordinate ?? [])], queryFn: () => getHotWorldItem(hotCoordinate![0], hotCoordinate!.slice(1).join(':')), enabled: Boolean(hotCoordinate && hotCoordinate.length > 1), retry: false })
@@ -106,7 +107,7 @@ export function IntelligencePage() {
   const incident = incidentQuery.data
   const displayName = documentQuery.data?.current_revision?.title ?? [obj?.properties.display_name, obj?.properties.title, obj?.properties.full_name, obj?.properties.name, obj?.properties.ip].find((v) => typeof v === 'string' && v)
   const headline = presentationTitle(incident
-    ? incident.incident.current_summary || humanize(incident.incident.incident_type)
+    ? (typeof incident.incident.watch_state.title === 'string' ? incident.incident.watch_state.title : incident.incident.current_summary) || humanize(incident.incident.incident_type)
     : (typeof displayName === 'string' && displayName) || obj?.external_identifiers.cve?.[0] || obj?.canonical_key || selectedCve || selectedObjectId || text('选择一个对象', 'SELECT AN OBJECT'))
 
   async function submitSearch(event: React.FormEvent) {
@@ -186,9 +187,11 @@ export function IntelligencePage() {
     navigate(`/start?${mission.toString()}`)
   }
 
+  if (params.get('channel') === 'hot' && !hasSelection) return <Navigate to="/?view=hot" replace/>
+
   return (
-    <section className={`intel-experience ${hasSelection ? 'has-dossier' : 'intel-home'}`}>
-      <header className="intel-page-heading"><div>{hasSelection && <button className="intel-back" onClick={() => { setInputOverride(null); setParams(destination({})) }}><ArrowLeft size={15}/>{text('返回情报', 'Back to intelligence')}</button>}{!hasSelection && <><span className="intel-page-kicker">SECFUSION / INTELLIGENCE</span><h1>{text('情报', 'Intelligence')}</h1><p>{text('跟进值得关注的变化，沿证据读懂它的来龙去脉。', 'Follow what matters and trace each story to its evidence.')}</p></>}</div>
+    <section className={`intel-experience ${hasSelection ? 'has-dossier' : 'intel-home'}`} data-develop-scope>
+      <header className="intel-page-heading development-heading">{!hasSelection && <DevelopingField variant={channel} className="heading-imprint imprint-reading"/>}<div>{hasSelection && <button className="intel-back" onClick={() => { setInputOverride(null); setParams(destination({})) }}><ArrowLeft size={15}/>{text('返回情报', 'Back to intelligence')}</button>}{!hasSelection && <><h1>{text('情报', 'Intelligence')}</h1><p>{text('跟进值得关注的变化，沿证据读懂它的来龙去脉。', 'Follow what matters and trace each story to its evidence.')}</p></>}</div>
         {!hasSelection && <form className="intel-search intel-discovery-search" onSubmit={submitSearch}>
           <Search size={15} />
           <Input value={input} onChange={(event) => setInputOverride(event.target.value)} aria-label={text("查找情报对象", "Find an intelligence object")} placeholder={text("论文、项目、漏洞编号或资产名称", "Paper, project, vulnerability or asset")} />
@@ -231,14 +234,14 @@ export function IntelligencePage() {
         stories={entryQuery.data?.items ?? []} hot={hotQuery.data?.items ?? []} hotTotal={hotQuery.data?.resident_total ?? 0} candidates={candidateQuery.data?.items ?? []} candidateTotal={candidateQuery.data?.total ?? 0}
         loading={entryQuery.isPending} hotLoading={hotQuery.isPending} candidateLoading={candidateQuery.isPending} error={entryQuery.isError ? String(entryQuery.error.message) : null} hotError={hotQuery.isError ? String(hotQuery.error.message) : null} candidateError={candidateQuery.isError ? String(candidateQuery.error.message) : null}
         onSelect={item => { if (item.object_id) openSearchResult(item.object_id); else if (item.incident_id) setParams(destination({ incident: item.incident_id })) }} onHotSelect={item => setParams(destination({ cve: item.cve_id ?? item.external_object_id, hot: `${item.source_id}:${item.external_object_id}` }))} onCandidateSelect={item => navigate(`/?${new URLSearchParams({ view: 'stories', source: 'incidents', story: `candidate:${item.candidate_id}` })}`)}
-        incidents={incidentListQuery.data?.items ?? []} incidentsLoading={incidentListQuery.isPending} incidentsError={incidentListQuery.isError} onRetryIncidents={() => void incidentListQuery.refetch()} onIncident={id => setParams(destination({ incident: id }))}/>}
+        onRetryCandidates={() => void candidateQuery.refetch()} incidents={incidentListQuery.data?.items ?? []} incidentsLoading={incidentListQuery.isPending} incidentsError={incidentListQuery.isError} onRetryIncidents={() => void incidentListQuery.refetch()} onIncident={id => setParams(destination({ incident: id }))}/>}
 
       {hasSelection && <motion.div className="dossier-reading-content" initial={reduceMotion ? false : { opacity:0, y:6 }} animate={{ opacity:1,y:0 }} transition={{duration:.18}}>
         {obj && <DossierReader obj={obj} headline={headline} cveId={obj.external_identifiers.cve?.[0] || selectedCve || headline} view={readingMode} onView={selectReadingMode} onEvidence={openEvidence} onMission={openMission}
           onOpenTarget={openSearchResult}
           enrichment={enrichmentQuery.data ?? null} enrichmentLoading={enrichmentQuery.isLoading} enrichmentError={enrichmentQuery.isError} retryEnrichment={() => void enrichmentQuery.refetch()} refresh={refreshDossier}
           document={documentQuery.data ?? null} documentLoading={documentQuery.isLoading} documentError={documentQuery.isError ? String(documentQuery.error.message) : null}/>}
-        {incident && <><DossierHeading title={headline} kind={text('事件档案', 'Event dossier')} coordinate={incident.incident.incident_id} stats={[
+        {incident && <><DossierHeading title={headline} kind={incident.incident.watch_state.display_kind === 'Tool' ? text('工具能力档案', 'Tool capability dossier') : text('事件档案', 'Event dossier')} coordinate={incident.incident.incident_id} stats={[
           {label:text('条记录', 'records'),value:incident.incident.timeline_event_count}, {label:text('个来源', 'sources'),value:incident.incident.source_link_count}, {label:text('个独立来源', 'independent sources'),value:incident.incident.source_diversity_count},
         ]}><Button onClick={() => openMission('RETRIEVE')}><FileSearch size={15}/>{text('检索事件证据', 'Search incident evidence')}</Button></DossierHeading><IncidentDossier incident={incident} onEvidence={openEvidence}/></>}
         {knowledgeQuery.isError && !hotMatch && <div className="intel-state error-block" role="alert"><span>{text('这份档案暂时无法读取。', 'This dossier could not be loaded.')}</span><Button variant="outline" onClick={() => void knowledgeQuery.refetch()}>{text('重新读取', 'Retry')}</Button></div>}

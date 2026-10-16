@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from typing import cast
 from uuid import uuid4
 
 import pytest
@@ -25,6 +26,7 @@ from packages.investigation.perception.contracts import (
     PerceptionRequest,
     PerceptionTarget,
 )
+from packages.investigation.perception.runtime import PerceptionRuntime
 from packages.investigation.runtime.contracts import (
     DelegationAction,
     DelegationResult,
@@ -402,11 +404,13 @@ class _RepeatedInspectPlanner:
 
     async def next_action(self, frame: InvestigationFrame):
         self.calls += 1
-        return PerceptionAction(request=PerceptionRequest(
-            request_id=f"inspect:{frame.iteration}",
-            operation=PerceptionOperation.INSPECT,
-            target=PerceptionTarget(object_id=self.object_id),
-        ))
+        return PerceptionAction(
+            request=PerceptionRequest(
+                request_id=f"inspect:{frame.iteration}",
+                operation=PerceptionOperation.INSPECT,
+                target=PerceptionTarget(object_id=self.object_id),
+            )
+        )
 
 
 @pytest.mark.asyncio
@@ -416,12 +420,19 @@ async def test_investigation_role_honors_admitted_turn_budget_above_eight() -> N
         async with factory() as session, session.begin():
             case_id, object_id, need_id, _ = await _seed_case_need_and_evidence(session)
             run_id = await _create_run(
-                session, case_id=case_id, object_id=object_id, need_id=need_id,
+                session,
+                case_id=case_id,
+                object_id=object_id,
+                need_id=need_id,
                 agent_turns=10,
             )
         planner = _RepeatedInspectPlanner(object_id)
         outcome = await InvestigationRoleRuntime(
-            factory, planner, no_progress_limit=20, stream_name=STREAM, now=lambda: NOW,
+            factory,
+            planner,
+            no_progress_limit=20,
+            stream_name=STREAM,
+            now=lambda: NOW,
         ).run(run_id)
         assert planner.calls == 10
         assert outcome.run_status is TaskRunStatus.BLOCKED
@@ -529,9 +540,7 @@ class _DelegateFailureFallbackPlanner(_PerceiveThenPatchPlanner):
         if "delegated_enrichment_failed" in frame.last_percept.unresolved:
             assert frame.selected_need is not None
             assert "child_stop_reason:source_unavailable" in frame.last_percept.unresolved
-            assert frame.last_percept.target_refs == [
-                frame.selected_need.target_objects[0]
-            ]
+            assert frame.last_percept.target_refs == [frame.selected_need.target_objects[0]]
             return await _PerceiveThenPatchPlanner().next_action(
                 frame.model_copy(update={"last_percept": None})
             )
@@ -611,10 +620,12 @@ async def test_resolution_contract_failure_preserves_source_supported_findings()
                         request_id="read-reference",
                         operation=PerceptionOperation.INSPECT,
                         target=PerceptionTarget(
-                            evidence_targets=[EvidenceTarget(
-                                target_kind="object",
-                                target_id=frame.state.targets[0],
-                            )]
+                            evidence_targets=[
+                                EvidenceTarget(
+                                    target_kind="object",
+                                    target_id=frame.state.targets[0],
+                                )
+                            ]
                         ),
                     )
                 )
@@ -624,13 +635,15 @@ async def test_resolution_contract_failure_preserves_source_supported_findings()
                     case_id=frame.state.case_id,
                     base_case_revision=frame.state.case_revision,
                     producer="InvestigationRole:test-planner",
-                    operations=[StatePatchOperation(
-                        proposition="The reference document reports a possible fix.",
-                        target_ref=f"object:{frame.state.targets[0]}",
-                        proposed_state=ProposedState.CONFIRMED,
-                        evidence_refs=list(frame.last_percept.evidence_handles),
-                        resolves_need_id=frame.selected_need.need_id,
-                    )],
+                    operations=[
+                        StatePatchOperation(
+                            proposition="The reference document reports a possible fix.",
+                            target_ref=f"object:{frame.state.targets[0]}",
+                            proposed_state=ProposedState.CONFIRMED,
+                            evidence_refs=list(frame.last_percept.evidence_handles),
+                            resolves_need_id=frame.selected_need.need_id,
+                        )
+                    ],
                 )
             )
 
@@ -657,8 +670,7 @@ async def test_resolution_contract_failure_preserves_source_supported_findings()
             TaskEventType.INVESTIGATION_STATE_CHANGED
         ) == 1
         assert any(
-            event.payload_ref.startswith("evidence-need-resolution-deferred:")
-            for event in events
+            event.payload_ref.startswith("evidence-need-resolution-deferred:") for event in events
         )
     finally:
         await engine.dispose()
@@ -675,9 +687,9 @@ async def test_repeating_unmet_source_contract_stops_with_specific_reason() -> N
                         request_id="read-reference-once",
                         operation=PerceptionOperation.INSPECT,
                         target=PerceptionTarget(
-                            evidence_targets=[EvidenceTarget(
-                                target_kind="object", target_id=object_id
-                            )]
+                            evidence_targets=[
+                                EvidenceTarget(target_kind="object", target_id=object_id)
+                            ]
                         ),
                     )
                 )
@@ -687,13 +699,15 @@ async def test_repeating_unmet_source_contract_stops_with_specific_reason() -> N
                     case_id=case_id,
                     base_case_revision=frame.state.case_revision,
                     producer="InvestigationRole:test-planner",
-                    operations=[StatePatchOperation(
-                        proposition="The reference document reports a possible fix.",
-                        target_ref=f"object:{object_id}",
-                        proposed_state=ProposedState.CONFIRMED,
-                        evidence_refs=[evidence_id],
-                        resolves_need_id=need_id,
-                    )],
+                    operations=[
+                        StatePatchOperation(
+                            proposition="The reference document reports a possible fix.",
+                            target_ref=f"object:{object_id}",
+                            proposed_state=ProposedState.CONFIRMED,
+                            evidence_refs=[evidence_id],
+                            resolves_need_id=need_id,
+                        )
+                    ],
                 )
             )
 
@@ -730,21 +744,21 @@ async def test_reasserting_same_finding_is_not_investigation_progress() -> None:
                     case_id=frame.state.case_id,
                     base_case_revision=frame.state.case_revision,
                     producer="InvestigationRole:test-planner",
-                    operations=[StatePatchOperation(
-                        proposition="The advisory reports a fixed release.",
-                        target_ref=f"object:{object_id}",
-                        proposed_state=ProposedState.CONFIRMED,
-                        evidence_refs=[evidence_id],
-                    )],
+                    operations=[
+                        StatePatchOperation(
+                            proposition="The advisory reports a fixed release.",
+                            target_ref=f"object:{object_id}",
+                            proposed_state=ProposedState.CONFIRMED,
+                            evidence_refs=[evidence_id],
+                        )
+                    ],
                 )
             )
 
     engine, factory = await _database()
     try:
         async with factory() as session, session.begin():
-            case_id, object_id, need_id, evidence_id = await _seed_case_need_and_evidence(
-                session
-            )
+            case_id, object_id, need_id, evidence_id = await _seed_case_need_and_evidence(session)
             run_id = await _create_run(
                 session, case_id=case_id, object_id=object_id, need_id=need_id
             )
@@ -775,13 +789,16 @@ async def test_investigation_role_keeps_distinct_percepts_available_to_later_pla
     class TwoSourcePlanner:
         async def next_action(self, frame: InvestigationFrame):
             if frame.iteration <= 2:
-                return PerceptionAction(request=PerceptionRequest(
-                    request_id=f"test:{frame.iteration}",
-                    operation=PerceptionOperation.INSPECT,
-                    target=PerceptionTarget(object_id=frame.state.targets[0]),
-                ))
+                return PerceptionAction(
+                    request=PerceptionRequest(
+                        request_id=f"test:{frame.iteration}",
+                        operation=PerceptionOperation.INSPECT,
+                        target=PerceptionTarget(object_id=frame.state.targets[0]),
+                    )
+                )
             assert [item.evidence_handles for item in frame.recent_percepts] == [
-                ["evidence-1"], ["evidence-2"],
+                ["evidence-1"],
+                ["evidence-2"],
             ]
             return StopAction(reason="sources_inspected")
 
@@ -790,11 +807,17 @@ async def test_investigation_role_keeps_distinct_percepts_available_to_later_pla
         async with factory() as session, session.begin():
             case_id, object_id, need_id, _ = await _seed_case_need_and_evidence(session)
             run_id = await _create_run(
-                session, case_id=case_id, object_id=object_id, need_id=need_id,
+                session,
+                case_id=case_id,
+                object_id=object_id,
+                need_id=need_id,
             )
         outcome = await InvestigationRoleRuntime(
-            factory, TwoSourcePlanner(), perception_runtime=TwoSourcePerception(),
-            stream_name=STREAM, now=lambda: NOW,
+            factory,
+            TwoSourcePlanner(),
+            perception_runtime=cast(PerceptionRuntime, TwoSourcePerception()),
+            stream_name=STREAM,
+            now=lambda: NOW,
         ).run(run_id)
         assert outcome.run_status is TaskRunStatus.BLOCKED
         assert outcome.result.stop_reason == "sources_inspected"

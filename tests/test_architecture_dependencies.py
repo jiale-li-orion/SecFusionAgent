@@ -8,6 +8,8 @@ ALLOWED_CROSS_PACKAGE_PREFIXES = {
         "packages.intelligence.retrieval",
         # A delegation names M3's canonical dimension contract, never its storage or writers.
         "packages.intelligence.knowledge.vocabulary",
+        # Value-only budget/request-count reads; runtime ORM storage stays private.
+        "packages.runtime.read",
     ),
 }
 

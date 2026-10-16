@@ -14,7 +14,6 @@ import { getKnowledgeNetwork, type KnowledgeNetwork as NetworkData } from '../..
 import { evidenceFieldLabel, formatValue } from '../../lib/intelligencePresentation'
 import { useI18n } from '../../lib/i18n'
 import { Button } from '../ui/button'
-import { ActionIndicator } from '../ui/action-indicator'
 import { Sheet, SheetContent, SheetTitle, SheetDescription, SheetHeader } from '../ui/sheet'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem } from '../ui/dropdown-menu'
 import { EvidenceCapsules } from './KnowledgeSurfaces'
@@ -138,7 +137,7 @@ function KnowledgeNetworkExplorer({ objectId, onEvidence, onOpenTarget, incident
     </footer>}
     {data && <div className="network-reading-footer">
       <span>{query.data?.remaining_count ? text(`中心对象还有 ${[...pages].reverse().find(page => page.focus === objectId && page.data.snapshot_revision === data.snapshot_revision)?.data.remaining_count ?? query.data.remaining_count} 个关联对象可展开`, 'More connections are available from the center object') : text('当前显示已加载对象的局部关联网络', 'Showing the loaded local network')}</span>
-      <details className="network-accessible-list"><summary>{text('用列表探索对象与关系', 'Explore objects and connections as a list')}</summary><div className="network-node-list">{data.nodes.filter(node => visibleIds.has(node.object_id)).map(node => <Button key={node.object_id} size="sm" variant="outline" onClick={() => setSelection({ kind: 'node', id: node.object_id })}>{node.label}</Button>)}</div>{visibleEdges.map(edge => <button key={edge.relation_id} onClick={() => setSelection({ kind: 'edge', id: edge.relation_id })}><span>{labels.get(edge.source_id)}</span><small>{evidenceFieldLabel(edge.relation_type, text)}<ArrowRight size={15} aria-hidden="true"/></small><span>{labels.get(edge.target_id)}</span><ActionIndicator /></button>)}</details>
+      <details className="network-accessible-list"><summary>{text('用列表探索对象与关系', 'Explore objects and connections as a list')}</summary><div className="network-node-list">{data.nodes.filter(node => visibleIds.has(node.object_id)).map(node => <Button key={node.object_id} size="sm" variant="outline" onClick={() => setSelection({ kind: 'node', id: node.object_id })}>{node.label}</Button>)}</div>{visibleEdges.map(edge => <button key={edge.relation_id} onClick={() => setSelection({ kind: 'edge', id: edge.relation_id })}><span>{labels.get(edge.source_id)}</span><small>{evidenceFieldLabel(edge.relation_type, text)}<ArrowRight size={15} aria-hidden="true"/></small><span>{labels.get(edge.target_id)}</span></button>)}</details>
     </div>}
   </div>
   return <section className="knowledge-network">

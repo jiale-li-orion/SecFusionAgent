@@ -2,14 +2,18 @@
   "source_id": "arxiv-ai-security",
   "adapter_type": "arxiv",
   "source_class": "research_insight",
-  "authority_scope": ["paper_metadata", "paper_revision", "research_content"],
+  "authority_scope": [
+    "paper_metadata",
+    "paper_revision",
+    "research_content"
+  ],
   "source_role": "reference",
   "source_family": "arxiv",
   "access_mode": "atom_api_pdf",
   "update_semantics": "versioned_document",
   "discovery_method": {
     "base_url": "https://export.arxiv.org/api/query",
-    "search_query": "all:\"AI security\" OR all:\"prompt injection\" OR all:\"agent security\"",
+    "search_query": "all:\"AI security\" OR all:\"prompt injection\" OR all:\"agent security\" OR all:\"LLM security\" OR all:\"AI red teaming\" OR all:\"AI governance\" OR all:\"model extraction\" OR all:\"data poisoning\"",
     "page_size": 50,
     "initial_limit": 50
   },
@@ -31,7 +35,7 @@
   "retention_mode": "durable_managed",
   "schedule_policy": {
     "enabled": true,
-    "interval_seconds": 86400
+    "interval_seconds": 21600
   },
   "schema_version": "1"
 }

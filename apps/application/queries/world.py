@@ -7,6 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
+from apps.application.queries.featured import curated_world_stories
 from apps.application.views.world import (
     WorldKnowledgeChangeListView,
     WorldKnowledgeChangeView,
@@ -14,6 +15,7 @@ from apps.application.views.world import (
     WorldStoryListView,
     WorldStoryView,
 )
+from packages.intelligence.documents.quality import assess_document_quality
 from packages.intelligence.storage.document_models import (
     DocumentChunkModel,
     DocumentModel,
@@ -129,12 +131,29 @@ async def list_world_stories(session: AsyncSession, *, limit: int = 10) -> World
                 DocumentRevisionModel.document_id == DocumentModel.document_id,
             )
             .join(ranked, ranked.c.revision_id == DocumentRevisionModel.document_revision_id)
-            .where(ranked.c.source_position <= limit)
+            .where(ranked.c.source_position <= min(54, limit * 3))
         )
     ).all()
+    # Inspect a bounded first passage before selecting the visible set. This also
+    # protects readers from historical revisions predating the ingestion quality gate.
+    first_chunks = {
+        chunk.document_revision_id: chunk
+        for chunk in await session.scalars(
+            select(DocumentChunkModel).where(
+                DocumentChunkModel.document_revision_id.in_(
+                    [revision.document_revision_id for _, revision in document_rows]
+                ),
+                DocumentChunkModel.ordinal == 0,
+            )
+        )
+    }
     candidates: list[WorldStoryView] = []
-    revisions: dict[str, DocumentRevisionModel] = {}
     for document, revision in document_rows:
+        quality = revision.metadata_json.get("content_quality")
+        if isinstance(quality, dict) and (
+            quality.get("status") == "rejected" or quality.get("usable") is False
+        ):
+            continue
         title = (
             revision.title
             or _string(revision.metadata_json, "subject")
@@ -142,16 +161,30 @@ async def list_world_stories(session: AsyncSession, *, limit: int = 10) -> World
         )
         if not title or title.strip().casefold().strip(" .:/—-") in _LANDING_TITLES:
             continue
+        chunk = first_chunks.get(revision.document_revision_id)
+        summary = _string(revision.metadata_json, "summary")
+        excerpt = summary or (chunk.text if chunk else None)
+        if not assess_document_quality(
+            excerpt or "", title, canonical_url=document.canonical_url
+        ).usable:
+            continue
+        if (
+            chunk is not None
+            and not assess_document_quality(f"{chunk.section or ''}\n{chunk.text}", title).usable
+        ):
+            continue
         story = WorldStoryView(
             story_id=f"document:{document.document_id}",
             category=categories[document.source_id],
             kind="document",
             headline=title,
-            happened_at=revision.updated_at or revision.published_at or revision.created_at,
+            happened_at=revision.published_at or revision.created_at,
+            time_basis="published" if revision.published_at else "observed",
             published_at=revision.published_at,
+            published_date=_string(revision.metadata_json, "published_date"),
             observed_at=revision.created_at,
-            excerpt=_string(revision.metadata_json, "summary"),
-            excerpt_origin="source_summary" if _string(revision.metadata_json, "summary") else None,
+            excerpt=excerpt,
+            excerpt_origin="source_summary" if summary else "source_excerpt",
             source_id=document.source_id,
             source_name=names.get(document.source_id),
             object_id=document.object_id,
@@ -160,11 +193,13 @@ async def list_world_stories(session: AsyncSession, *, limit: int = 10) -> World
                 observation_id=revision.observation_id,
                 document_revision_id=revision.document_revision_id,
                 external_revision=revision.external_revision,
-                locator={"kind": "document_metadata", "field": "summary"},
+                locator={"kind": "document_metadata", "field": "summary"}
+                if summary or chunk is None
+                else chunk.locator,
+                chunk_id=chunk.chunk_id if not summary and chunk is not None else None,
             ),
         )
         candidates.append(story)
-        revisions[story.story_id] = revision
 
     object_rows = (
         await session.execute(
@@ -234,25 +269,21 @@ async def list_world_stories(session: AsyncSession, *, limit: int = 10) -> World
                 )
             )
 
-    selected = _interleave(candidates, limit)
-    missing = {
-        revisions[item.story_id].document_revision_id: item
-        for item in selected
-        if item.story_id in revisions and not item.excerpt
-    }
-    if missing:
-        for chunk in await session.scalars(
-            select(DocumentChunkModel).where(
-                DocumentChunkModel.document_revision_id.in_(missing),
-                DocumentChunkModel.ordinal == 0,
+    curated = await curated_world_stories(session, limit=limit)
+    curated_ids = {story.story_id for story in curated}
+    # Dedicated curated projection owns privacy and evidence checks for these rows.
+    historical_ids = {
+        f"incident:{item.incident_id}"
+        for item in await session.scalars(
+            select(SecurityIncidentModel).where(
+                SecurityIncidentModel.watch_state["historical_backfill"].as_boolean().is_(True)
             )
-        ):
-            story = missing[chunk.document_revision_id]
-            story.excerpt = chunk.text
-            story.excerpt_origin = "source_excerpt"
-            if story.evidence is not None:
-                story.evidence.locator = chunk.locator
-                story.evidence.chunk_id = chunk.chunk_id
+        )
+    }
+    regular = [story for story in candidates if story.story_id not in historical_ids | curated_ids]
+    featured = [story for story in curated if story.facts.get("featured_priority", 0)]
+    remaining = [story for story in curated if not story.facts.get("featured_priority", 0)]
+    selected = featured[:limit] + _interleave(remaining + regular, max(0, limit - len(featured)))
     return WorldStoryListView(items=selected)
 
 

@@ -1,9 +1,12 @@
 import { Component, Suspense, lazy, type ErrorInfo, type ReactNode } from 'react'
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { AnimatePresence, LazyMotion, useReducedMotion } from 'motion/react'
+import * as motion from 'motion/react-m'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { Shell } from './components/Shell'
 import { useI18n } from './lib/i18n'
 import { RequireAccount } from './components/auth/RequireAccount'
+
+const loadMotionFeatures = () => import('./lib/motionFeatures').then(module => module.default)
 
 const WorldPage = lazy(() => import('./pages/WorldPage').then((module) => ({ default: module.WorldPage })))
 const QuestionsPage = lazy(() => import('./pages/QuestionsPage').then((module) => ({ default: module.QuestionsPage })))
@@ -24,6 +27,7 @@ export default function App() {
 
   return (
     <ProductErrorBoundary key={location.pathname}>
+      <LazyMotion features={loadMotionFeatures}>
       <Shell>
         <Suspense fallback={<ProductSpaceLoader space={routeSpace} />}>
           <AnimatePresence mode="wait" initial={false}>
@@ -50,6 +54,7 @@ export default function App() {
           </AnimatePresence>
         </Suspense>
       </Shell>
+      </LazyMotion>
     </ProductErrorBoundary>
   )
 }

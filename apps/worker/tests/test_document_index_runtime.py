@@ -66,10 +66,12 @@ class FakeRuntimeAIProvider:
         )
 
 
+@pytest.mark.parametrize("background_enabled", [True, False])
 @pytest.mark.asyncio
 async def test_document_index_worker_runs_dense_and_semantic_when_configured(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    background_enabled: bool,
 ) -> None:
     db_path = tmp_path / "worker-runtime.sqlite3"
     database_url = f"sqlite+aiosqlite:///{db_path}"
@@ -124,15 +126,17 @@ async def test_document_index_worker_runs_dense_and_semantic_when_configured(
         database_url=database_url,
         model_base_url="https://provider.invalid/v1",
         model_name="runtime-chat",
+        background_llm_enabled=background_enabled,
         embedding_model_name="runtime-embedding",
         embedding_dimensions=3,
     )
     monkeypatch.setattr(worker_tasks, "get_settings", lambda: settings)
-    monkeypatch.setattr(
-        worker_tasks,
-        "create_configured_ai_provider",
-        lambda settings, client: FakeRuntimeAIProvider(),
-    )
+
+    def provider_factory(settings, client):
+        assert background_enabled, "paused indexing must not construct any model provider"
+        return FakeRuntimeAIProvider()
+
+    monkeypatch.setattr(worker_tasks, "create_configured_ai_provider", provider_factory)
 
     indexed = await worker_tasks._index_document_revision(
         {"document_revision_id": managed.document_revision_id}
@@ -151,7 +155,14 @@ async def test_document_index_worker_runs_dense_and_semantic_when_configured(
                 )
             )
             assert chunks
-            assert {item.index_status for item in chunks} == {"retrieval_ready"}
+            expected_status = "retrieval_ready" if background_enabled else "lexical_ready"
+            assert {item.index_status for item in chunks} == {expected_status}
+            if not background_enabled:
+                assert all(item.embedding_model is None for item in chunks)
+                insights = list(await session.scalars(select(InsightCandidateModel)))
+                assert all(item.evidence_maturity != "semantic_extracted" for item in insights)
+                assert all(not item.related_claim_ids for item in insights)
+                return
             assert all(item.embedding_model == "runtime-embedding" for item in chunks)
             insight = await session.scalar(
                 select(InsightCandidateModel).where(
@@ -163,3 +174,49 @@ async def test_document_index_worker_runs_dense_and_semantic_when_configured(
             assert insight.related_claim_ids
     finally:
         await verify_engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_document_worker_terminally_skips_material_rejection(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    from packages.intelligence.documents.quality import DocumentMaterialRejectedError
+
+    class RejectedIndex:
+        async def build_lexical_index(self, session, *, document_revision_id):
+            raise DocumentMaterialRejectedError("document rejected by material quality assessment")
+
+    settings = Settings(
+        database_url=f"sqlite+aiosqlite:///{tmp_path / 'skip.sqlite3'}",
+        model_base_url="https://provider.invalid/v1",
+        model_name="fake",
+    )
+    monkeypatch.setattr(worker_tasks, "get_settings", lambda: settings)
+    monkeypatch.setattr(worker_tasks, "DocumentIndexService", RejectedIndex)
+    monkeypatch.setattr(
+        worker_tasks,
+        "create_configured_ai_provider",
+        lambda *args: pytest.fail("rejected material must not create a model"),
+    )
+    with caplog.at_level("INFO"):
+        assert await worker_tasks._index_document_revision({"document_revision_id": "bad"}) == 0
+    assert "document_index_skipped" in caplog.text
+    assert "bad" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_document_worker_does_not_swallow_genuine_processing_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class BrokenIndex:
+        async def build_lexical_index(self, session, *, document_revision_id):
+            raise ValueError("corrupt indexing state")
+
+    settings = Settings(database_url=f"sqlite+aiosqlite:///{tmp_path / 'error.sqlite3'}")
+    monkeypatch.setattr(worker_tasks, "get_settings", lambda: settings)
+    monkeypatch.setattr(worker_tasks, "DocumentIndexService", BrokenIndex)
+    with pytest.raises(ValueError, match="corrupt indexing state"):
+        await worker_tasks._index_document_revision({"document_revision_id": "broken"})

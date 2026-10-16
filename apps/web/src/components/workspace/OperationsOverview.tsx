@@ -1,7 +1,8 @@
+import { DevelopingField } from '../ui/developing-field'
 import { Button } from '../ui/button'
 import { Card, CardContent } from '../ui/card'
 import { useQuery } from '@tanstack/react-query'
-import { Activity, ArrowRight, ArrowUpRight, CheckCircle2, CircleAlert, Database, Network, RefreshCw, Workflow } from '../ui/icons'
+import { Activity, CheckCircle2, CircleAlert, Database, Network, RefreshCw, Workflow } from '../ui/icons'
 import { Link } from 'react-router-dom'
 import { getAgentRuntime } from '../../lib/api/agents'
 import { getSystemOverview } from '../../lib/api/system'
@@ -25,8 +26,8 @@ export function OperationsOverview() {
     redis_task_bus: ['任务事件通道', 'Task event channel'],
   }
   return (
-    <div className="operations-overview">
-      <header className="workspace-heading">
+    <div className="operations-overview" data-develop-scope>
+      <header className="workspace-heading development-heading"><DevelopingField variant="runtime" className="heading-imprint imprint-runtime"/>
         <div>
           <h1>{text('运行工作台', 'Operations')}</h1>
           <p>{text('任务进展、智能体协作与服务状态。', 'Tasks, agent collaboration, and service health.')}</p>
@@ -64,7 +65,7 @@ export function OperationsOverview() {
               </strong>
               <small>
                 {text('数据、服务与队列', 'Data, services and queues')}
-                <ArrowUpRight size={14} />
+
               </small>
             </CardContent>
           </Card>
@@ -79,7 +80,7 @@ export function OperationsOverview() {
               <strong>{runtime.isError ? '—' : (active ?? '—')}</strong>
               <small>
                 {text('当前账户可见任务', 'Tasks visible to your account')}
-                <ArrowUpRight size={14} />
+
               </small>
             </CardContent>
           </Card>
@@ -94,7 +95,7 @@ export function OperationsOverview() {
               <strong>{runtime.isError ? '—' : (runtime.data?.roles.length ?? '—')}</strong>
               <small>
                 {text('研判、调查与富化', 'Reasoning, investigation, enrichment')}
-                <ArrowUpRight size={14} />
+
               </small>
             </CardContent>
           </Card>
@@ -111,7 +112,7 @@ export function OperationsOverview() {
               </strong>
               <small>
                 {text('持久事件队列', 'Durable event delivery')}
-                <ArrowUpRight size={14} />
+
               </small>
             </CardContent>
           </Card>
@@ -126,12 +127,12 @@ export function OperationsOverview() {
               </div>
               <Link to="/agents">
                 {text('查看任务', 'View tasks')}
-                <ArrowUpRight size={14} />
+
               </Link>
             </header>
             <div className="operations-role-list">
               {recentTasks.map(task => <Link to={`/agents?run=${encodeURIComponent(task.run_id)}`} key={task.run_id}>
-                <div><strong>{taskTitle(task, text)}</strong><small>{task.target_label || text('未记录具体对象', 'No specific target recorded')} · {taskOutcome(task, text)}</small></div><ArrowRight size={16} />
+                <div><strong>{taskTitle(task, text)}</strong><small>{task.target_label?.replace(/^cve:(CVE-\d{4}-\d+)$/i, '$1') || text('未记录具体对象', 'No specific target recorded')} · {taskOutcome(task, text)}</small></div>
               </Link>)}
               {!runtime.isPending && !runtime.isError && !recentTasks.length && <p className="empty-block">{text('暂无任务记录。', 'No task records yet.')}</p>}
             </div>
@@ -142,7 +143,7 @@ export function OperationsOverview() {
             )}
             <Link className="operations-memory" to="/agents?section=memory">
               {text('探索技能与经验库', 'Explore skills and experience')}
-              <ArrowRight size={16} />
+
             </Link>
           </CardContent>
         </Card>
@@ -177,7 +178,7 @@ export function OperationsOverview() {
                       <strong>{text('系统状态需要进一步检查', 'Review the system status')}</strong>
                       <small>{system.data?.overall ?? text('部分状态不可用', 'Some readings are unavailable')}</small>
                     </div>
-                    <ArrowUpRight size={14} />
+
                   </Link>
                 )}
                 {issues.slice(0, 3).map((item) => (
@@ -189,14 +190,14 @@ export function OperationsOverview() {
                         {item.status === 'degraded' ? text('运行降级，查看服务详情', 'Degraded; review service details') : text('连接异常，查看服务详情', 'Connection issue; review service details')}
                       </small>
                     </div>
-                    <ArrowUpRight size={14} />
+
                   </Link>
                 ))}
                 {attention.slice(0, 4).map(group => (
                   <Link key={group.key} to={`/agents?run=${encodeURIComponent(group.task.run_id)}`}>
                     <span className={`workspace-status ${group.kind === 'failure' ? 'status-failed' : 'status-waiting'}`} />
                     <div><strong>{taskTitle(group.task, text)}</strong><small>{taskOutcome(group.task, text)} · {group.count > 1 ? text(`${group.count} 个关联执行 · `, `${group.count} related runs · `) : ''}{taskResult(group.task, text)}</small></div>
-                    <ArrowUpRight size={14} />
+
                   </Link>
                 ))}
               </div>

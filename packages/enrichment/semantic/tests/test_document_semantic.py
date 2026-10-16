@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from packages.enrichment.semantic.documents import DocumentSemanticService
 from packages.intelligence.documents.parsers import PlainTextDocumentParser
+from packages.intelligence.documents.quality import DocumentMaterialRejectedError
 from packages.intelligence.documents.service import ManagedDocumentResult, ManagedDocumentService
 from packages.intelligence.ingestion.evidence import EvidenceIngress
 from packages.intelligence.knowledge.read import get_object_by_id
@@ -291,3 +292,37 @@ async def _seed_document(
     )
     async with factory() as session, session.begin():
         return await service.ingest(session, SOURCE, envelope)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("legacy", [False, True])
+async def test_semantic_rejects_unusable_material_before_model_call(legacy: bool) -> None:
+    from packages.intelligence.storage.document_models import DocumentRevisionModel
+
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    provider = FakeModelProvider()
+    try:
+        result = await _seed_document(factory)
+        async with factory() as session, session.begin():
+            revision = await session.get(DocumentRevisionModel, result.document_revision_id)
+            assert revision is not None
+            if legacy:
+                revision.metadata_json = {}
+                chunk = await session.scalar(select(DocumentChunkModel))
+                assert chunk is not None
+                chunk.text = "The server is temporarily unavailable\nPlease try again later."
+            else:
+                revision.metadata_json = {"content_quality": {"usable": False}}
+        async with factory() as session:
+            with pytest.raises(DocumentMaterialRejectedError, match="material quality"):
+                await DocumentSemanticService(provider).extract(
+                    session,
+                    source=SOURCE,
+                    document_revision_id=result.document_revision_id,
+                )
+        assert not provider.requests
+    finally:
+        await engine.dispose()

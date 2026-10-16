@@ -26,7 +26,7 @@ from packages.investigation.skills.contracts import SkillDisclosureLevel
 from packages.investigation.skills.materialize import materialize_skill_selection
 from packages.investigation.skills.resolver import SkillResolutionContext, SkillResolver
 from packages.investigation.skills.service import SkillStore
-from packages.runtime.storage.models import BudgetAccountModel
+from packages.runtime.read import budget_limits
 from packages.shared.model_provider import ModelProvider
 from packages.task_runtime.context.contracts import ContextRefresh
 from packages.task_runtime.context.materializer import (
@@ -236,10 +236,10 @@ class ModelInvestigationPlanner:
         )
         async with self._session_factory() as session, session.begin():
             manifest = await get_task_context(session, frame.task_run_id)
-            account = await session.get(BudgetAccountModel, manifest.budget_ref)
+            limits = await budget_limits(session, manifest.budget_ref)
             model_budget_available = (
-                account is not None
-                and int(account.limits.get("model_tokens", "0"))
+                limits is not None
+                and int(limits.get("model_tokens", "0"))
                 >= self._model_token_reservation_per_attempt
             )
             context_fragments = await materialize_investigation_context_fragments(
@@ -328,8 +328,7 @@ class ModelInvestigationPlanner:
                 runtime_disclosure_refs=(
                     capability_context.runtime_disclosure_refs
                     | ({_SOURCE_EVIDENCE_GUIDANCE.source_ref} if source_task else set())
-                    | ({_DELEGATION_RECOVERY_GUIDANCE.source_ref}
-                       if delegation_failed else set())
+                    | ({_DELEGATION_RECOVERY_GUIDANCE.source_ref} if delegation_failed else set())
                 ),
                 percept_refs=[item.source_ref for item in ephemeral],
                 execution_profile_revision=capability_context.execution_profile_revision,
@@ -356,9 +355,13 @@ class ModelInvestigationPlanner:
                     "case_id": frame.state.case_id,
                     "prompt_assembly_id": assembly.assembly_id,
                     "budget_ref": manifest.budget_ref,
-                    **({
-                        "model_token_reservation": self._model_token_reservation_per_attempt,
-                    } if model_budget_available else {}),
+                    **(
+                        {
+                            "model_token_reservation": self._model_token_reservation_per_attempt,
+                        }
+                        if model_budget_available
+                        else {}
+                    ),
                     "planner": prompt_revision,
                     "iteration": frame.iteration,
                     "selected_need_id": (

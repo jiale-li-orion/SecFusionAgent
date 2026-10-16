@@ -150,3 +150,24 @@ make integration-core
 ```
 
 The real core integration exercises PostgreSQL, the separated Redis roles, acquisition state, outbox delivery, and M3 handoff.
+
+### Registry startup and polite managed ingestion
+
+`synchronize_monitoring_sources` is the monitoring-owned registry entry point:
+it synchronizes the complete configured SourceDefinitions and ensures scheduling
+rows in one transaction. PostgreSQL synchronization uses a transaction advisory
+lock. The scheduler invokes it once at startup, retries initialization failures,
+and only then schedules work. The source-sync and corpus-backfill CLIs use the
+same contract. Existing cursors, health, backoff and due times are retained;
+explicitly unscheduled definitions retain a null due time.
+
+Managed document collection honors `rate_limit_policy.polite_interval_seconds`
+between article/PDF fetches. The interval must be finite and nonnegative; the
+existing run timeout bounds the entire batch. A failed ingestion does not advance
+the discovery cursor, and already committed evidence remains replayable.
+
+## Operation while background models are paused
+
+Acquisition remains scheduled when `SECFUSION_BACKGROUND_LLM_ENABLED=false`: the scheduler continues stale-run recovery, source scheduling and durable outbox delivery. Only automatic editorial scheduling is gated there. Collection retains evidence and triggers ordinary lexical indexing; deterministic enrichment and projections continue.
+
+`synchronize_monitoring_sources` performs definition and schedule-row synchronization in one transaction with PostgreSQL advisory serialization. Existing source cursors, health and backoff are preserved. Managed-content acquisition honors a finite nonnegative per-source `polite_interval_seconds` between article fetches. Provider/network failures remain visible source health, not a reason to reset cursor history or fabricate successful ingestion.

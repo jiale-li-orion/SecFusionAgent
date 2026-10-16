@@ -1,5 +1,6 @@
+import { DevelopingField } from '../ui/developing-field'
 import { useEffect, useState } from 'react'
-import { ArrowRight, FileText, Plus, Search, Telescope } from '../ui/icons'
+import { FileText, Plus, Search, Telescope } from '../ui/icons'
 import { Link } from 'react-router-dom'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
@@ -63,8 +64,8 @@ export function InvestigationIndex({
     return matches && `${item.goal} ${item.case_id}`.toLowerCase().includes(search.draft.trim().toLowerCase())
   })
   return (
-    <div className="research-index">
-      <header className="research-heading">
+    <div className="research-index" data-develop-scope>
+      <header className="research-heading development-heading"><DevelopingField variant="research" className="heading-imprint imprint-research"/>
         <div>
           <h1>{text('调查记录', 'Investigations')}</h1>
           <p>
@@ -132,7 +133,7 @@ export function InvestigationIndex({
                 <Button asChild variant="outline">
                   <Link to="/start">
                     {text('提出第一个问题', 'Ask your first question')}
-                    <ArrowRight size={15} />
+
                   </Link>
                 </Button>
               )}
@@ -170,7 +171,7 @@ export function InvestigationIndex({
                       <span>{item.latest_decision ? text('报告可读', 'Report available') : text('尚未形成报告', 'Report pending')}</span>
                     </span>
                   </span>
-                  <ArrowRight className="research-record-arrow" size={18} />
+
                 </button>
               ))}
             </div>

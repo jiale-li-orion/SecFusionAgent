@@ -203,6 +203,7 @@ export type IncidentSummary = {
 }
 
 export type IncidentTimelineEvent = {
+  time_basis?: string
   event_id: string
   signal_id: string
   event_time: string

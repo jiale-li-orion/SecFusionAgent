@@ -285,6 +285,10 @@ async def recover_stale_acquisition_runs(
     statement = (
         select(AcquisitionRunModel)
         .where(
+            # Operator backfills own their lifecycle and have no Celery consumer.
+            # Requeueing one would overlap its ingestion and lose its query semantics.
+            func.coalesce(AcquisitionRunModel.query_spec["execution_driver"].as_string(), "worker")
+            != "operator",
             or_(
                 (
                     (AcquisitionRunModel.status == "running")

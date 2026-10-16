@@ -9,7 +9,7 @@ settings = get_settings()
 celery_app = Celery(
     "secfusionagent",
     broker=settings.redis_broker_url,
-    include=["apps.worker.tasks"],
+    include=["apps.worker.tasks", "apps.worker.editorial"],
 )
 celery_app.conf.update(
     task_serializer="json",
@@ -19,6 +19,7 @@ celery_app.conf.update(
     task_reject_on_worker_lost=True,
     worker_prefetch_multiplier=1,
     task_routes={
+        "secfusion.editorial.*": {"queue": "investigation"},
         "secfusion.collection.*": {"queue": "collection"},
         "secfusion.normalization.*": {"queue": "normalization"},
         "secfusion.enrichment.*": {"queue": "enrichment"},

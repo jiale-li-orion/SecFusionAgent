@@ -11,6 +11,11 @@ from packages.investigation.state.continuation import ContinuationRequest
 from packages.investigation.state.contracts import EvidenceNeedContract, InvestigationState
 from packages.reasoning.citation import CitationSource
 from packages.reasoning.decision import DecisionConclusion, DecisionDraft, DecisionReportParagraph
+from packages.reasoning.editorial_prompt import (
+    PUBLIC_BRIEFING_INSTRUCTION,
+    PUBLIC_BRIEFING_PROMPT_REVISION,
+)
+from packages.reasoning.report_layout import ReportLayout
 from packages.shared.model_provider import ModelProvider, StructuredModelRequest
 
 
@@ -26,7 +31,9 @@ class FinalDecisionProposal(BaseModel):
     unknowns: list[str] = Field(default_factory=list)
     assumptions: list[str] = Field(default_factory=list)
     answer_payload: dict[str, JsonValue] = Field(default_factory=dict)
+    report_summary: DecisionReportParagraph | None = None
     report_paragraphs: list[DecisionReportParagraph] = Field(default_factory=list)
+    report_layout: ReportLayout | None = None
     stop_reason: str = Field(min_length=1, max_length=128)
 
 
@@ -61,8 +68,9 @@ class InvestigationReportResponse(DecisionPlannerResponse):
 REPORT_INSTRUCTION = (
     "After deciding the structured answer_payload and conclusions, write "
     "report_paragraphs as a concise research report for a security analyst in "
-    "the language of the user's question. Write one to four coherent prose "
-    "paragraphs, each with complete subject-predicate sentences. Start with "
+    "the language of the user's question. A focused answer usually needs one to four "
+    "coherent prose paragraphs; a multi-event briefing may use up to three paragraphs "
+    "per event, at most 24 overall. Use complete subject-predicate sentences. Start with "
     "the direct answer and scope; explain why the cited source material "
     "supports the answer; then describe material uncertainty or a next step "
     "only when justified. Scale the length to what the evidence actually answers; "
@@ -88,12 +96,24 @@ REPORT_INSTRUCTION = (
     "conclusions; use an empty list for a paragraph containing only an "
     "uncited uncertainty or recommendation. The report is presentation text; "
     "answer_payload and conclusions remain the decision authority. "
+    "Optionally supply report_layout with a concise title and meaningful sections referring "
+    "to zero-based paragraph_indices. Include every paragraph exactly once when using sections. "
+    "Use editorial style for a focused investigation, briefing for multiple related findings. "
+    "Titles and headings must not introduce new claims or exaggerate certainty. "
+    "Do not generate HTML, CSS, scripts, external assets or Markdown tables inside text fields. "
+    "The trusted renderer will produce HTML with responsive typography and source notes. "
+    "For intelligence briefings, explain who did what, when and within what conditions; "
+    "preserve vendor self-report, experimental scope and source attribution. Separate a "
+    "supported implication from an observed fact. Do not force an opinion or generic next-step "
+    "paragraph when the evidence adds none. Publication time, event time and collection time "
+    "are different; missing event/publication dates must remain unknown. Repeated reporting "
+    "of one upstream announcement is not independent corroboration. "
 )
 
 
 class ModelDecisionPlanner:
     PROMPT_REVISION = "decision-model-v6-core"
-    REPORT_PROMPT_REVISION = "decision-model-v6"
+    REPORT_PROMPT_REVISION = "decision-model-v7"
     METHODOLOGY_PROMPT_REVISION = "decision-methodology-v1"
 
     def __init__(self, provider: ModelProvider) -> None:
@@ -109,10 +129,16 @@ class ModelDecisionPlanner:
         include_report: bool = False,
         prefer_partial_final: bool = False,
         methodology_mode: bool = False,
+        public_briefing: bool = False,
     ) -> DecisionDraft | ContinuationRequest:
         prompt_revision = (
-            self.METHODOLOGY_PROMPT_REVISION if methodology_mode else
-            self.REPORT_PROMPT_REVISION if include_report else self.PROMPT_REVISION
+            PUBLIC_BRIEFING_PROMPT_REVISION
+            if public_briefing and include_report
+            else self.METHODOLOGY_PROMPT_REVISION
+            if methodology_mode
+            else self.REPORT_PROMPT_REVISION
+            if include_report
+            else self.PROMPT_REVISION
         )
         metadata: dict[str, JsonValue] = {
             "model_purpose": "m6.decision",
@@ -125,6 +151,12 @@ class ModelDecisionPlanner:
         }
         if runtime_metadata:
             metadata.update(runtime_metadata)
+        partial_report_instruction = (
+            "Return a final report with supported, clearly attributed source assertions and "
+            "inferences. Keep tentative claims attributed; the strict FACT rule remains. "
+            if public_briefing
+            else "Return a final report with only the confirmed facts "
+        )
         request = StructuredModelRequest(
             system_instruction=(
                 "You are the M6 Decision Runtime. Read only the supplied M4 InvestigationState. "
@@ -143,7 +175,8 @@ class ModelDecisionPlanner:
                 "evidence_sufficient. Empty state lists do not prove the absence of conflicts "
                 "or unknowns. When a partial final is required, record uncovered requested "
                 "dimensions in unknowns and clearly limit the answer to the observed scope. "
-                f"{REPORT_INSTRUCTION if include_report else ''}"
+                f"{REPORT_INSTRUCTION if include_report and not public_briefing else ''}"
+                f"{PUBLIC_BRIEFING_INSTRUCTION if public_briefing and include_report else ''}"
                 "If you request continuation for a targetless retrieval question, select the "
                 "relevant durable target_objects only from InvestigationState.targets; do not "
                 "use chunk IDs, URLs, or invented object IDs as targets. "
@@ -155,7 +188,7 @@ class ModelDecisionPlanner:
                 "their support. If the current state cannot support a defensible answer, return a "
                 "continuation proposal describing the evidence gap instead of guessing. "
                 "If prefer_partial_final is true, the current investigation episode has ended. "
-                "Return a final report with only the confirmed facts "
+                f"{partial_report_instruction}"
                 "that answer the question and state the remaining uncertainty in natural prose; "
                 "record uncovered parts of the goal in unknowns instead of requesting another "
                 "continuation. A final report does not mean the investigation is complete: "
@@ -174,7 +207,8 @@ class ModelDecisionPlanner:
                     "that any specific version is fixed, or invent a source, result, or citation. "
                     "Set answer_payload to a compact methodology summary and stop_reason "
                     "to methodology_guidance."
-                    if methodology_mode else ""
+                    if methodology_mode
+                    else ""
                 )
             ),
             data={
@@ -191,7 +225,8 @@ class ModelDecisionPlanner:
         )
         response_model = (
             InvestigationReportResponse
-            if prefer_partial_final or methodology_mode else DecisionPlannerResponse
+            if prefer_partial_final or methodology_mode
+            else DecisionPlannerResponse
         )
         response = await self._provider.generate_structured(request, response_model)
         action = response.action
@@ -205,6 +240,8 @@ class ModelDecisionPlanner:
                 assumptions=action.assumptions,
                 answer_payload=action.answer_payload,
                 report_paragraphs=action.report_paragraphs if include_report else [],
+                report_layout=action.report_layout if include_report else None,
+                report_summary=action.report_summary if include_report else None,
                 stop_reason=action.stop_reason,
                 model_prompt_revision=prompt_revision,
             )

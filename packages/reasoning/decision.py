@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, JsonValue, model_validator
 from packages.investigation.state.continuation import ContinuationRequest
 from packages.investigation.state.contracts import InvestigationState
 from packages.reasoning.citation import CitationBinder, CitationSource, DecisionCitation
+from packages.reasoning.report_layout import ReportLayout
 
 
 class ConclusionType(StrEnum):
@@ -49,7 +50,9 @@ class DecisionDraft(BaseModel):
     unknowns: list[str] = Field(default_factory=list)
     assumptions: list[str] = Field(default_factory=list)
     answer_payload: dict[str, JsonValue] = Field(default_factory=dict)
+    report_summary: DecisionReportParagraph | None = None
     report_paragraphs: list[DecisionReportParagraph] = Field(default_factory=list)
+    report_layout: ReportLayout | None = None
     stop_reason: str = Field(min_length=1, max_length=128)
     model_prompt_revision: str
 
@@ -72,7 +75,9 @@ class DecisionResult(BaseModel):
     assumptions: list[str] = Field(default_factory=list)
     citations: list[DecisionCitation] = Field(default_factory=list)
     answer_payload: dict[str, JsonValue] = Field(default_factory=dict)
+    report_summary: DecisionReportParagraph | None = None
     report_paragraphs: list[DecisionReportParagraph] = Field(default_factory=list)
+    report_layout: ReportLayout | None = None
     stop_reason: str = Field(min_length=1, max_length=128)
     model_prompt_revision: str
 
@@ -123,8 +128,7 @@ class DecisionService:
                 if not refs <= confirmed_evidence:
                     raise ValueError("fact conclusion cites evidence outside confirmed M4 state")
                 if not any(
-                    item.proposition == conclusion.statement
-                    and refs <= set(item.evidence_refs)
+                    item.proposition == conclusion.statement and refs <= set(item.evidence_refs)
                     for item in state.confirmed
                 ):
                     raise ValueError(
@@ -134,12 +138,17 @@ class DecisionService:
             if conclusion.type is ConclusionType.INFERENCE and not refs <= state_evidence:
                 raise ValueError("inference conclusion cites evidence outside M4 state")
 
-        cited_refs = {
-            ref for conclusion in draft.conclusions for ref in conclusion.evidence_refs
-        }
-        for paragraph in draft.report_paragraphs:
+        cited_refs = {ref for conclusion in draft.conclusions for ref in conclusion.evidence_refs}
+        narrative = draft.report_paragraphs + (
+            [draft.report_summary] if draft.report_summary else []
+        )
+        for paragraph in narrative:
             if not set(paragraph.evidence_refs) <= cited_refs:
                 raise ValueError("report paragraph cites evidence outside decision conclusions")
+        if draft.report_layout is not None and not draft.report_layout.covers(
+            len(draft.report_paragraphs)
+        ):
+            raise ValueError("report layout must include every report paragraph exactly once")
 
         citations = self._citations.bind(
             [item.evidence_refs for item in draft.conclusions],
@@ -148,6 +157,10 @@ class DecisionService:
         payload = draft.model_dump(mode="json")
         if not draft.report_paragraphs:
             payload.pop("report_paragraphs", None)
+        if draft.report_layout is None:
+            payload.pop("report_layout", None)
+        if draft.report_summary is None:
+            payload.pop("report_summary", None)
         decision_id = _decision_id(payload)
         return DecisionResult(
             decision_id=decision_id,
@@ -160,6 +173,8 @@ class DecisionService:
             citations=citations,
             answer_payload=draft.answer_payload,
             report_paragraphs=draft.report_paragraphs,
+            report_layout=draft.report_layout,
+            report_summary=draft.report_summary,
             stop_reason=draft.stop_reason,
             model_prompt_revision=draft.model_prompt_revision,
         )

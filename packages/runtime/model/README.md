@@ -77,3 +77,11 @@ make model-provider-probe
 If `/models` exposes several chat models, also set `SECFUSION_MODEL_NAME`. A successful probe checks authentication, model resolution, `/chat/completions`, structured JSON output, schema validation, actual-model identity and provider metadata before any formal QA run spends its denominator.
 
 After the probe succeeds, `make qa-live` is the formal measurement entry point. The model name (explicit or uniquely discovered), endpoint digest, timeout and retry policy are included in `DeploymentRevision`; the API key is never persisted in that identity.
+
+## Editorial usage and operating-cost interpretation
+
+Recorded request purposes now also cover public briefing generation, editorial review and one bounded revision (`m6.public_briefing`, `m6.editorial_review`, `m6.editorial_revision`). Physical attempts, including retries, are the unit for usage aggregation. Provider `reasoning_tokens` are a breakdown of output usage, not additional tokens to add a second time; cache hits are a subset of input usage.
+
+Missing usage on failed or unfinished attempts remains unavailable. A calculation using public model prices and time-of-day rates is an operator estimate, not `provider_cost`, and must not be stored or presented as the exact monetary metric. Project attempt rows also do not include the developer's separate coding-assistant subscription or other applications using the same account.
+
+Background suspension is enforced before provider construction in worker bootstrap; this recorder and the interactive provider remain enabled. No daily monetary limit is configured by this change.

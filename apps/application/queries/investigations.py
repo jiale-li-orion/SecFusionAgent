@@ -295,6 +295,12 @@ def decision_view(
             for item in decision.report_paragraphs
         ],
         stop_reason=decision.stop_reason,
+        report_layout=decision.report_layout,
+        report_summary=DecisionReportParagraphView.model_validate(
+            decision.report_summary.model_dump()
+        )
+        if decision.report_summary
+        else None,
         created_at=created_at,
     )
 

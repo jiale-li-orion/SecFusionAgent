@@ -1,0 +1,40 @@
+{
+  "source_id": "rea-project",
+  "adapter_type": "html_index",
+  "source_class": "vendor_security_material",
+  "authority_scope": [
+    "project_documentation",
+    "reverse_engineering_tools"
+  ],
+  "source_role": "primary",
+  "source_family": "rea",
+  "access_mode": "html_index",
+  "update_semantics": "mutable_research_article",
+  "discovery_method": {
+    "index_url": "https://github.com/morluto/rea",
+    "allowed_hosts": [
+      "github.com"
+    ],
+    "link_selector": "a[href='/morluto/rea/blob/main/README.md']",
+    "max_items": 1
+  },
+  "time_semantics": {
+    "observed_at": "collector_clock",
+    "published_at": "article_metadata_when_explicit"
+  },
+  "identity_semantics": {
+    "external_object_id": "canonical article URL"
+  },
+  "rate_limit_policy": {
+    "provider": "huggingface",
+    "polite_interval_seconds": 3
+  },
+  "access_rights": {
+    "classification": "public"
+  },
+  "retention_mode": "durable_managed",
+  "schedule_policy": {
+    "enabled": false
+  },
+  "schema_version": "1"
+}

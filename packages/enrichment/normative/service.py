@@ -16,6 +16,10 @@ from packages.enrichment.normative.contracts import (
     NormativeExtractionResult,
     NormativeRequirementProposal,
 )
+from packages.intelligence.documents.quality import (
+    DocumentMaterialRejectedError,
+    assess_document_quality,
+)
 from packages.intelligence.storage.document_models import (
     DocumentChunkModel,
     DocumentModel,
@@ -74,6 +78,9 @@ class NormativeKnowledgeService:
         revision = await session.get(DocumentRevisionModel, document_revision_id)
         if revision is None:
             raise LookupError(f"document revision not found: {document_revision_id}")
+        quality = revision.metadata_json.get("content_quality")
+        if isinstance(quality, dict) and quality.get("usable") is False:
+            raise DocumentMaterialRejectedError("document rejected by material quality assessment")
         document = await session.get(DocumentModel, revision.document_id)
         if document is None:
             raise RuntimeError("document revision exists without document")
@@ -88,6 +95,12 @@ class NormativeKnowledgeService:
         )
         if not chunks:
             raise LookupError(f"document revision has no chunks: {document_revision_id}")
+
+        if not assess_document_quality(
+            "\n".join("\n".join(filter(None, (chunk.section, chunk.text))) for chunk in chunks),
+            title=revision.title,
+        ).usable:
+            raise DocumentMaterialRejectedError("document rejected by material quality assessment")
 
         processor_version = (
             f"prompt-{self.PROMPT_VERSION}:{self._provider.name}:{self._provider.version}"

@@ -197,3 +197,38 @@ async def test_html_index_can_fetch_configured_pdf_document() -> None:
         )
     assert envelope.media_type == "application/pdf"
     assert envelope.body == b"%PDF-1.7 fixture"
+
+
+@pytest.mark.asyncio
+async def test_html_fetch_replaces_discovery_title_with_article_metadata() -> None:
+    from packages.sources.contracts import DiscoveredRef
+
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(
+                200,
+                text=(
+                    "<h1>Original research title</h1>"
+                    '<meta property="article:published_time" content="2025-05-14T09:00:00Z">'
+                ),
+                headers={
+                    "content-type": "text/html",
+                    "last-modified": "Thu, 15 Oct 2026 00:00:00 GMT",
+                },
+            )
+        )
+    ) as client:
+        result = await HTMLIndexAdapter(client).fetch(
+            SOURCE,
+            DiscoveredRef(
+                external_object_id="old-article",
+                canonical_url="https://security.example.test/research/2026-10-15",
+                locator={"title": "Read more Marketing category"},
+            ),
+            acquisition_run_id=str(uuid4()),
+            trigger=AcquisitionTrigger.SCHEDULED,
+        )
+    assert result.request_metadata["title"] == "Original research title"
+    assert result.request_metadata["discovery_title"] == "Read more Marketing category"
+    assert result.request_metadata["title_origin"] == "html:h1"
+    assert result.published_at == datetime(2025, 5, 14, 9, tzinfo=UTC)

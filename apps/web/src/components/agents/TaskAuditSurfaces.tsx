@@ -1,4 +1,4 @@
-import { ArrowUpRight, BrainCircuit, Braces, Link2, Waypoints } from '../ui/icons'
+import { BrainCircuit, Braces, Link2, Waypoints } from '../ui/icons'
 import { useNavigate } from 'react-router-dom'
 import type { AgentTaskDetail } from '../../lib/api/agents'
 import { useI18n } from '../../lib/i18n'
@@ -14,12 +14,12 @@ export function TaskContextLedger({ context }: { context: TaskContext }) {
     {context ? <section className="task-context-ledger">
       <details><summary>{text('上下文版本与执行角色', 'Context version and role')}</summary><div className="task-context-head"><small>{text('版本', 'Revision')} {context.context_revision}</small><strong className="mono">{context.context_id}</strong><span>{text('知识版本', 'Knowledge revision')} {context.knowledge_revision ?? '—'} · {context.role_ref}</span></div></details>
       <div className="task-context-metrics"><span><b>{context.evidence_refs.length}</b> {text('证据', 'evidence')}</span><span><b>{context.object_refs.length}</b> {text('对象', 'objects')}</span><span><b>{context.relation_refs.length}</b> {text('关系', 'relations')}</span><span><b>{context.retrieval_invocation_refs.length}</b> {text('检索', 'retrievals')}</span></div>
-      {context.evidence_refs.length > 0 && <details><summary><Link2 size={12} />{text('打开输入证据', 'Open input evidence')}<span>{context.evidence_refs.length}</span></summary><div className="task-context-refs">{context.evidence_refs.map(ref => <button key={ref} onClick={() => navigate(`/intelligence?${new URLSearchParams({ evidence: ref })}`)}><span className="mono">{ref}</span><ArrowUpRight size={12} /></button>)}</div></details>}
-      {context.object_refs.length > 0 && <details><summary><Braces size={12} />{text('打开上下文对象', 'Open context objects')}<span>{context.object_refs.length}</span></summary><div className="task-context-refs">{context.object_refs.map(ref => <button key={ref} onClick={() => navigate(`/intelligence?${new URLSearchParams({ object: ref })}`)}><span className="mono">{ref}</span><ArrowUpRight size={12} /></button>)}</div></details>}
+      {context.evidence_refs.length > 0 && <details><summary><Link2 size={12} />{text('打开输入证据', 'Open input evidence')}<span>{context.evidence_refs.length}</span></summary><div className="task-context-refs">{context.evidence_refs.map(ref => <button key={ref} onClick={() => navigate(`/intelligence?${new URLSearchParams({ evidence: ref })}`)}><span className="mono">{ref}</span></button>)}</div></details>}
+      {context.object_refs.length > 0 && <details><summary><Braces size={12} />{text('打开上下文对象', 'Open context objects')}<span>{context.object_refs.length}</span></summary><div className="task-context-refs">{context.object_refs.map(ref => <button key={ref} onClick={() => navigate(`/intelligence?${new URLSearchParams({ object: ref })}`)}><span className="mono">{ref}</span></button>)}</div></details>}
       {context.relation_refs.length > 0 && <details><summary><Waypoints size={12} />{text('关系坐标', 'Relation coordinates')}<span>{context.relation_refs.length}</span></summary><div className="task-context-refs">{context.relation_refs.map(ref => <span className="mono" key={ref}>{ref}</span>)}</div></details>}
       {context.retrieval_invocation_refs.length > 0 && <details><summary><Waypoints size={12} />{text('检索调用坐标', 'Retrieval invocations')}<span>{context.retrieval_invocation_refs.length}</span></summary><div className="task-context-refs">{context.retrieval_invocation_refs.map(ref => <span className="mono" key={ref}>{ref}</span>)}</div></details>}
       <details className="task-context-technical"><summary>{text('策略与能力边界', 'Policy & capability boundary')}</summary><div className="task-context-refs"><span className="mono">{context.policy_context_ref}</span><span className="mono">{context.capability_envelope_ref}</span><span className="mono">{context.budget_ref}</span>{context.parent_context_id && <span className="mono">{text('父上下文', 'Parent context')} · {context.parent_context_id}</span>}</div></details>
-    </section> : <div className="capability-empty">{text('当前 Task 没有可读取的 ContextManifest。', 'No ContextManifest is available for this Task.')}</div>}
+    </section> : <div className="capability-empty">{text('当前任务暂无可读取的上下文记录。', 'No ContextManifest is available for this Task.')}</div>}
   </>
 }
 
@@ -34,7 +34,7 @@ export function TaskModelLedger({ attempts }: { attempts: ModelAttempt[] }) {
       <div className="task-model-breakdown"><span>{item.input_tokens ?? '—'} in</span><span>{item.output_tokens ?? '—'} out</span>{item.reasoning_tokens != null && <span>{item.reasoning_tokens} reasoning</span>}<span>{item.latency_ms == null ? '—' : `${item.latency_ms} ms`}</span></div>
       <p className="task-model-settlement">{settlementLabel(item, text)}</p>
       <details><summary>{text('查看调用坐标', 'Inspect call coordinates')}</summary><div className="task-model-coordinates mono"><span>{item.status} · {item.purpose}</span><span>{item.model_request_id}</span><span>{item.model_attempt_id}</span><span>{item.prompt_revision}</span><time dateTime={item.started_at}>{new Date(item.started_at).toLocaleString()}</time></div></details>
-    </article>)}</div> : <div className="capability-empty">{text('当前 Task 没有持久化模型调用。', 'No persisted model attempt for this Task.')}</div>}
+    </article>)}</div> : <div className="capability-empty">{text('当前任务暂无已保存的模型调用。', 'No persisted model attempt for this Task.')}</div>}
   </>
 }
 

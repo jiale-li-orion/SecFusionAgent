@@ -158,6 +158,8 @@ class WorldStoryView(BaseModel):
     happened_at: datetime
     observed_at: datetime
     published_at: datetime | None = None
+    published_date: str | None = None
+    time_basis: str = "observed"
     headline: str
     excerpt: str | None = None
     excerpt_origin: str | None = None

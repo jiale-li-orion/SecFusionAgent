@@ -2,13 +2,17 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import UTC, datetime
 
 from apps.worker.celery_app import celery_app
+from packages.monitoring.registration import synchronize_monitoring_sources
 from packages.monitoring.run_service import recover_stale_acquisition_runs
 from packages.monitoring.scheduler.service import schedule_due_sources
+from packages.reasoning.editorial import schedule_editorial
 from packages.shared.config import get_settings
 from packages.shared.db import create_engine, create_session_factory
 from packages.shared.outbox.service import dispatch_pending_events
+from packages.sources.registry.loader import load_source_definitions
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +26,11 @@ async def _publish(topic: str, payload: dict[str, object]) -> None:
             raise ValueError("collection.requested payload requires run_id")
         task_name = "secfusion.collection.run"
         args = [run_id]
+    elif topic == "editorial.requested":
+        run_id = payload.get("run_id")
+        if not isinstance(run_id, str) or not run_id:
+            raise ValueError("editorial.requested requires run_id")
+        task_name, args = "secfusion.editorial.run", [run_id]
     elif topic == "knowledge.changed":
         task_name = "secfusion.projection.knowledge_changed"
         args = [payload]
@@ -54,6 +63,10 @@ async def tick() -> tuple[int, int, int]:
                 timeout_seconds=settings.collection_run_timeout_seconds,
             )
             scheduled = await schedule_due_sources(session)
+            if settings.background_llm_enabled and settings.editorial_enabled:
+                await schedule_editorial(
+                    session, now=datetime.now(UTC), interval_hours=settings.editorial_interval_hours
+                )
         async with factory() as session, session.begin():
             delivered = await dispatch_pending_events(session, _publish)
         return len(scheduled), len(recovered), delivered
@@ -61,10 +74,27 @@ async def tick() -> tuple[int, int, int]:
         await engine.dispose()
 
 
+async def initialize_sources() -> None:
+    settings = get_settings()
+    definitions = load_source_definitions(settings.source_registry_path)
+    engine = create_engine(settings.database_url)
+    factory = create_session_factory(engine)
+    try:
+        async with factory() as session, session.begin():
+            await synchronize_monitoring_sources(session, definitions)
+        logger.info("scheduler registered %d source definitions", len(definitions))
+    finally:
+        await engine.dispose()
+
+
 async def run_forever() -> None:
     settings = get_settings()
+    initialized = False
     while True:
         try:
+            if not initialized:
+                await initialize_sources()
+                initialized = True
             scheduled, recovered, delivered = await tick()
             if scheduled or recovered or delivered:
                 logger.info(

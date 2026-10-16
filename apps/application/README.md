@@ -102,3 +102,17 @@ make product-check
 ```
 
 Every finished Product investigation episode now requests a final report from M6, including when M5 has resolved its original EvidenceNeed. Coverage gaps remain Decision unknowns and keep the Case waiting; normal QA continues to allow typed continuation. The existing continuation-to-Need/report branch remains defensive compatibility for providers returning the older response union. No second report-writing model call is added.
+
+## Library, curated events and public editorial
+
+`queries/library.py` builds a public, quality-filtered material projection with stable snapshot paging; `library_subjects.py` owns multi-label lexical browsing facets. Facets are presentation metadata, never canonical claims. `queries/featured.py` selects evidence-backed curated incidents/tools for World; `incident_access.py` centralizes public evidence checks. These projections do not generate text with a model.
+
+`public_briefings.py` freezes explicitly selected public material and orchestrates M4 tentative evidence with the M6 briefing generator and independent editorial review. `automatic_editorial.py` adds bounded topic selection, content fingerprints, leases and publication fencing. Public reads revalidate rights and revisions; private Decisions are never implicitly published. `queries/reports.py` resolves source display coordinates for the controlled HTML renderer.
+
+Process bootstrap owns the background-LLM gate. The application keeps user-requested QA, investigation and finalization available when automatic editorial and document-model stages are paused. Cross-module details: [information quality and reports](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Information-Quality-and-Reports-2026-10).
+
+Public document previews require an explicitly public Source and at least one
+retained artifact, with every artifact of the selected Observation public. Missing,
+unclassified or restricted rights suppress the excerpt and its chunk/locator fields.
+Allowed previews are capped at 1,200 characters; document/index metadata remains
+available under its existing read contract.

@@ -89,6 +89,8 @@ export type WorldStory = {
   happened_at: string
   observed_at: string
   published_at: string | null
+  published_date?: string | null
+  time_basis?: 'published' | 'observed'
   headline: string
   excerpt: string | null
   excerpt_origin: string | null

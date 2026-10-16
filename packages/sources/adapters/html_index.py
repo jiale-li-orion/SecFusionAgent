@@ -10,6 +10,7 @@ import httpx
 from pydantic import JsonValue
 from selectolax.parser import HTMLParser, Node
 
+from packages.sources.adapters.html_article_metadata import extract_article_metadata
 from packages.sources.contracts import (
     AcquisitionTrigger,
     DiscoveredRef,
@@ -156,14 +157,20 @@ class HTMLIndexAdapter:
                 updated_at = None
         revision = etag or last_modified or ref.external_revision
         metadata: dict[str, JsonValue] = dict(ref.locator)
-        if effective_media_type in {"text/html", "application/xhtml+xml"} and not metadata.get(
-            "title"
-        ):
-            heading = HTMLParser(response.content.decode("utf-8", errors="replace")).css_first("h1")
-            if heading is not None:
-                title = " ".join(heading.text(separator=" ", strip=True).split())
-                if 1 <= len(title) <= 250:
-                    metadata["title"] = title
+        published_at = ref.published_at
+        if effective_media_type in {"text/html", "application/xhtml+xml"}:
+            article = extract_article_metadata(response.content, page_url=str(response.url))
+            if metadata.get("title"):
+                metadata["discovery_title"] = metadata["title"]
+            if article.title:
+                metadata["title"] = article.title
+            elif metadata.get("title"):
+                metadata["title_origin"] = "discovery:title"
+            metadata.update(article.metadata)
+            if "published_at_origin" in article.metadata:
+                published_at = article.published_at
+        if published_at is not None and "published_at_origin" not in metadata:
+            metadata["published_at_origin"] = "discovery:published_at"
         if etag:
             metadata["etag"] = etag
         if last_modified:
@@ -177,7 +184,7 @@ class HTMLIndexAdapter:
             body=response.content,
             media_type=effective_media_type,
             canonical_url=str(response.url),
-            published_at=ref.published_at,
+            published_at=published_at,
             updated_at=updated_at or ref.updated_at,
             external_revision=revision,
             request_metadata=metadata,

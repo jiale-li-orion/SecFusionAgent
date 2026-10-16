@@ -31,6 +31,8 @@ export function DecisionReport({ decision, onEvidence, dialogue = false }: { dec
   </article>
   return (
     <div className="decision-report">
+      <div className="decision-report-citations"><a href={`/api/v1/decisions/${encodeURIComponent(decision.decision_id)}/report.html`} target="_blank" rel="noopener noreferrer">{text('打开完整报告', 'Open full report')}</a></div>
+      {decision.report_summary && <section className="decision-report-narrative" aria-label={text('摘要', 'Summary')}><p>{decision.report_summary.text}</p><div className="decision-report-citations">{decision.report_summary.evidence_refs.map(ref => <button type="button" key={ref} onClick={() => onEvidence(ref)}>{text('证据', 'Evidence')} {refs.indexOf(ref) + 1}</button>)}</div></section>}
       {paragraphs.length > 0 && <section className="decision-report-narrative" aria-label={evidenceBoundary ? text('证据边界说明', 'Evidence boundary') : text('研究报告', 'Research report')}>
         <small>{evidenceBoundary ? text('证据边界 · 暂无可核验结论', 'EVIDENCE BOUNDARY · NO VERIFIED CONCLUSION') : text('研究报告 · 基于可追溯证据', 'RESEARCH REPORT · TRACEABLE EVIDENCE')}</small>
         {paragraphs.map((paragraph, index) => <div className="decision-report-paragraph" key={`${index}:${paragraph.text}`}>

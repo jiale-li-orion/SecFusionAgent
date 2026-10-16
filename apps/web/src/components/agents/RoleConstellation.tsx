@@ -1,4 +1,5 @@
-import { BrainCircuit, Radar, Sparkles, ArrowUpRight } from '../ui/icons'
+import { IconTile } from '../ui/icon-tile'
+import { BrainCircuit, Radar, Sparkles } from '../ui/icons'
 import { Card } from '../ui/card'
 import { Badge } from '../ui/badge'
 import type { AgentRoleRuntime } from '../../lib/api'
@@ -19,8 +20,8 @@ export function RoleConstellation({ runtime, selected, focused, onFocus }: { run
       const state = runtime?.find(role => role.role_id === id)
       return <Card key={id} className={`agent-role-card role-${id} ${focused === id ? 'is-focused' : ''}`}>
         <button className="agent-role-select" onClick={() => onFocus(focused === id ? null : id)} aria-pressed={focused === id}>
-          <span className="agent-role-symbol"><Icon size={25}/></span>
-          <span className="agent-role-identity"><small>{rolePresentation[id].alias}</small><strong>{text(zh,en)}</strong></span><ArrowUpRight size={16}/>
+          <IconTile tone={id === 'InvestigationRole' ? 'violet' : id === 'EnrichmentRole' ? 'teal' : 'cobalt'}><Icon size={25} weight="duotone"/></IconTile>
+          <span className="agent-role-identity"><small>{rolePresentation[id].alias}</small><strong>{text(zh,en)}</strong></span>
           <p>{text(detail[0], detail[1])}</p>
           <span className="agent-role-readout">{state ? <><Badge variant={state.active_tasks ? 'default' : 'secondary'}>{state.active_tasks ? text(`${state.active_tasks} 个执行中`, `${state.active_tasks} active`) : text('空闲', 'Idle')}</Badge><span>{state.total_tasks} {text('次运行', 'runs')}</span></> : <span>{text('读取状态中…', 'Loading state…')}</span>}{selected === id && <em>{text('当前任务', 'Selected task')}</em>}</span>
         </button>

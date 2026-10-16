@@ -22,6 +22,8 @@ _MODEL_MODULES = (
     "packages.runtime.model.storage",
     "packages.runtime.retrieval.storage",
     "packages.reasoning.storage",
+    "packages.reasoning.briefing_store",
+    "packages.reasoning.editorial",
     "apps.application.question_sessions",
     "apps.application.intelligence_preferences",
     "apps.application.authentication",

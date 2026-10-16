@@ -5,6 +5,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, JsonValue
 
+from packages.reasoning.report_layout import ReportLayout
+
 InvestigationOriginScope = Literal["product", "benchmark", "system", "unknown"]
 
 
@@ -60,7 +62,9 @@ class DecisionView(BaseModel):
     unknowns: list[str] = Field(default_factory=list)
     assumptions: list[str] = Field(default_factory=list)
     answer: dict[str, JsonValue] = Field(default_factory=dict)
+    report_summary: DecisionReportParagraphView | None = None
     report_paragraphs: list[DecisionReportParagraphView] = Field(default_factory=list)
+    report_layout: ReportLayout | None = None
     stop_reason: str
     created_at: datetime
 

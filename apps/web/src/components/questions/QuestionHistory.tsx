@@ -1,5 +1,5 @@
 import { useInfiniteQuery } from '@tanstack/react-query'
-import { ChevronRight, MessageSquarePlus, ShieldCheck } from '../ui/icons'
+import { MessageSquarePlus, ShieldCheck } from '../ui/icons'
 import { Button } from '../ui/button'
 import { Link } from 'react-router-dom'
 import { listAccountConversations } from '../../lib/api/investigations'
@@ -24,7 +24,7 @@ export function QuestionHistory({ sessionId, onSelect, onNew }: {
   const items = conversations.data?.pages.flatMap(page => page.items) ?? []
   return <div className="qa-history">
     <Button className="qa-history-new" onClick={onNew}><MessageSquarePlus size={18} />{text('开始新对话', 'Start a new conversation')}</Button>
-    {!authenticated && <div className="qa-history-empty"><p>{text('登录后，你的对话会在这里保存。', 'Sign in to keep your conversations here.')}</p><Link to="/auth?returnTo=%2Fstart" onClick={onSelect}>{text('登录账户', 'Sign in')}<ChevronRight size={14} /></Link></div>}
+    {!authenticated && <div className="qa-history-empty"><p>{text('登录后，你的对话会在这里保存。', 'Sign in to keep your conversations here.')}</p><Link to="/auth?returnTo=%2Fstart" onClick={onSelect}>{text('登录账户', 'Sign in')}</Link></div>}
     {authenticated && conversations.isLoading && <p className="qa-muted" role="status">{text('正在读取对话…', 'Loading conversations…')}</p>}
     {conversations.isError && <div className="qa-error"><span>{text('暂时无法读取历史对话。', 'History is temporarily unavailable.')}</span><button onClick={() => void conversations.refetch()}>{text('重试', 'Retry')}</button></div>}
     {authenticated && !conversations.isLoading && !conversations.isError && !items.length && <p className="qa-history-empty">{text('从第一个问题开始。下次回来，可以接着聊。', 'Start with your first question. Pick up here whenever you return.')}</p>}
@@ -36,7 +36,7 @@ export function QuestionHistory({ sessionId, onSelect, onNew }: {
       return <div key={item.session_id}>
         {day !== previousDay && <h3>{day}</h3>}
         <Link to={`/start?${params}`} className={current ? 'current' : ''} aria-current={current ? 'page' : undefined} onClick={onSelect}>
-          <span>{item.latest_turn.question}</span><ChevronRight size={15} />
+          <span>{item.latest_turn.question}</span>
         </Link>
       </div>
     })}</nav>

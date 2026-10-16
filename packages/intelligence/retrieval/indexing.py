@@ -4,8 +4,12 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from packages.intelligence.documents.quality import (
+    DocumentMaterialRejectedError,
+    assess_document_quality,
+)
 from packages.intelligence.retrieval.contracts import EmbeddingProvider
-from packages.intelligence.storage.document_models import DocumentChunkModel
+from packages.intelligence.storage.document_models import DocumentChunkModel, DocumentRevisionModel
 
 
 class DocumentIndexBuildResult(BaseModel):
@@ -116,6 +120,12 @@ async def _chunks(
     session: AsyncSession,
     document_revision_id: str,
 ) -> list[DocumentChunkModel]:
+    revision = await session.get(DocumentRevisionModel, document_revision_id)
+    if revision is None:
+        raise LookupError(f"document revision not found: {document_revision_id}")
+    quality = revision.metadata_json.get("content_quality")
+    if isinstance(quality, dict) and quality.get("usable") is False:
+        raise DocumentMaterialRejectedError("document rejected by material quality assessment")
     chunks = list(
         await session.scalars(
             select(DocumentChunkModel)
@@ -125,6 +135,11 @@ async def _chunks(
     )
     if not chunks:
         raise LookupError(f"document revision has no chunks: {document_revision_id}")
+    if not assess_document_quality(
+        "\n".join("\n".join(filter(None, (chunk.section, chunk.text))) for chunk in chunks),
+        title=revision.title,
+    ).usable:
+        raise DocumentMaterialRejectedError("document rejected by material quality assessment")
     return chunks
 
 

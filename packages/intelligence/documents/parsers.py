@@ -25,13 +25,20 @@ class ManagedDocumentParser(Protocol):
 
 class PDFDocumentParser:
     NAME = "pypdf"
-    VERSION = "1"
+    VERSION = "3"
 
     def parse(self, body: bytes) -> list[ParsedSection]:
         reader = PdfReader(BytesIO(body))
         sections: list[ParsedSection] = []
         for index, page in enumerate(reader.pages, start=1):
-            text = _normalize_text(page.extract_text() or "")
+            extracted = page.extract_text() or ""
+            # Some PDF character maps emit UTF-16 surrogate code units instead
+            # of Unicode scalars. Recombine valid pairs, mark isolated units,
+            # and retain the original PDF as the evidence authority.
+            safe_text = extracted.encode("utf-16-le", errors="surrogatepass").decode(
+                "utf-16-le", errors="replace"
+            )
+            text = _normalize_text(safe_text)
             if text:
                 sections.append(ParsedSection(text=text, page_number=index))
         return sections
@@ -39,15 +46,20 @@ class PDFDocumentParser:
 
 class HTMLDocumentParser:
     NAME = "selectolax-html"
-    VERSION = "3"
+    VERSION = "7"
 
-    _DROP_SELECTOR = "script,style,noscript,nav,header,footer,aside,form,svg,canvas"
+    _DROP_SELECTOR = (
+        "script,style,noscript,nav,footer,aside,form,svg,canvas,"
+        "[role=navigation],[role=banner],.related-posts"
+    )
     _CONTENT_SELECTORS = (
+        ".text--blog-content",
+        ".blog-content",
         ".entry-content",
         ".post-content",
+        "article",
         "main",
         "[role=main]",
-        "article",
     )
     _BLOCK_TAGS: ClassVar[frozenset[str]] = frozenset(
         {"p", "li", "pre", "blockquote", "tr", "dt", "dd"}
@@ -59,11 +71,34 @@ class HTMLDocumentParser:
         for node in tree.css(self._DROP_SELECTOR):
             node.decompose()
 
+        for node in tree.css("header"):
+            parent = node.parent
+            while parent is not None and parent.tag not in {"article", "main"}:
+                parent = parent.parent
+            if parent is None:
+                node.decompose()
+        # Remove only the small, explicit extension-install widget. Never remove
+        # an article merely for mentioning the extension in research prose.
+        for node in reversed(tree.css("div,section")):
+            value = " ".join(node.text(separator=" ", strip=True).split()).casefold()
+            if (
+                len(value) < 500
+                and value.startswith("webflow input enhancer")
+                and "this project uses the webflow input enhancer extension" in value
+                and "recommend installing it" in value
+            ):
+                node.decompose()
+
         # Selector groups follow document order, which can choose a related-post
         # card before the actual article body. Prefer the known content container.
         root: Node | None = None
         for selector in self._CONTENT_SELECTORS:
-            root = tree.css_first(selector)
+            candidates = tree.css(selector)
+            root = max(
+                candidates,
+                key=lambda node: (node.css_first("h1") is not None, len(node.text(strip=True))),
+                default=None,
+            )
             if root is not None:
                 break
         if root is None:
@@ -116,7 +151,13 @@ class HTMLDocumentParser:
             section_index += 1
 
         last_block: str | None = None
-        for node in root.iter(include_text=False):
+        for node in root.traverse(include_text=False):
+            # selectolax traversal can continue into the selected root's siblings.
+            ancestor: Node | None = node
+            while ancestor is not None and ancestor != root:
+                ancestor = ancestor.parent
+            if ancestor is None:
+                break
             tag = node.tag.lower() if isinstance(node.tag, str) else ""
             if tag in self._HEADING_TAGS:
                 flush()
@@ -124,7 +165,26 @@ class HTMLDocumentParser:
                 current_heading = heading or current_heading
                 last_block = None
                 continue
-            if tag not in self._BLOCK_TAGS:
+            if tag not in self._BLOCK_TAGS and tag != "div":
+                continue
+            if tag == "div":
+                # Some sources place evidence/notice labels in leaf divs next to
+                # paragraphs. Preserve those, but never flatten enclosing layout
+                # containers (which would duplicate text and lose headings).
+                structural = ",".join(self._BLOCK_TAGS | self._HEADING_TAGS | {"div", "section"})
+                if any(
+                    child.css_first(structural) is not None
+                    for child in node.iter(include_text=False)
+                ):
+                    continue
+            parent = node.parent
+            nested_block = False
+            while parent is not None and parent != root:
+                if parent.tag in self._BLOCK_TAGS:
+                    nested_block = True
+                    break
+                parent = parent.parent
+            if nested_block:
                 continue
             value = _normalize_text(node.text(separator=" ", strip=True))
             if not value or value == last_block:
@@ -150,7 +210,7 @@ class HTMLDocumentParser:
 
 class PlainTextDocumentParser:
     NAME = "plain-text"
-    VERSION = "1"
+    VERSION = "2"
 
     def parse(self, body: bytes) -> list[ParsedSection]:
         text = _normalize_text(body.decode("utf-8"))

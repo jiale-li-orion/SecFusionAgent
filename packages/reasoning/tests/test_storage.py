@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from apps.runtime_models import register_runtime_models
 from packages.reasoning.decision import DecisionResult
-from packages.reasoning.storage import DecisionResultStore
+from packages.reasoning.storage import DecisionResultModel, DecisionResultStore, _digest
 from packages.shared.db import Base
 
 NOW = datetime(2026, 9, 29, 9, 0, tzinfo=UTC)
@@ -45,5 +45,41 @@ async def test_decision_result_store_is_immutable_and_replay_safe() -> None:
         async with factory() as session, session.begin():
             with pytest.raises(ValueError, match="identity is immutable"):
                 await store.persist(session, changed)
+    finally:
+        await engine.dispose()
+
+
+async def test_legacy_decision_without_layout_replays_without_rewriting_history():
+    register_runtime_models()
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    decision = DecisionResult(
+        decision_id="decision:legacy",
+        case_id="question:legacy",
+        case_revision=0,
+        stop_reason="complete",
+        model_prompt_revision="legacy",
+    )
+    legacy = decision.model_dump(mode="json", exclude={"report_layout", "report_summary"})
+    digest = _digest(legacy)
+    try:
+        async with factory() as session, session.begin():
+            session.add(
+                DecisionResultModel(
+                    decision_id=decision.decision_id,
+                    case_id=decision.case_id,
+                    case_revision=0,
+                    decision_json=legacy,
+                    content_hash=digest,
+                    created_at=NOW,
+                )
+            )
+        async with factory() as session, session.begin():
+            assert (await DecisionResultStore().persist(session, decision)).report_layout is None
+            row = await session.get(DecisionResultModel, decision.decision_id)
+            assert row is not None
+            assert row.decision_json == legacy and row.content_hash == digest
     finally:
         await engine.dispose()

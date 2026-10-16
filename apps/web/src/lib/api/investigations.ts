@@ -58,7 +58,9 @@ export type DecisionView = {
   unknowns: string[]
   assumptions: string[]
   answer: Record<string, unknown>
+  report_summary?: { text: string; evidence_refs: string[] } | null
   report_paragraphs: Array<{ text: string; evidence_refs: string[] }>
+  report_layout?: { title: string; style: 'editorial' | 'briefing'; sections: Array<{ heading: string; paragraph_indices: number[] }> } | null
   stop_reason: string
   created_at: string
 }

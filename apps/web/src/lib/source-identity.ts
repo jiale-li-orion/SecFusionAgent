@@ -1,9 +1,14 @@
 type Identity = { key: string; name: string; initials: string }
 const publishers: Array<Identity & { sources: string[]; hosts: string[] }> = [
+  { key: 'crowdstrike', name: 'CrowdStrike', initials: 'CS', sources: ['crowdstrike-research'], hosts: ['crowdstrike.com'] },
+  { key: 'metr', name: 'METR', initials: 'M', sources: ['metr-research'], hosts: ['metr.org'] },
+  { key: 'transluce', name: 'Transluce', initials: 'T', sources: ['transluce-research'], hosts: ['transluce.org'] },
+  { key: 'rea', name: 'REA', initials: 'RE', sources: ['rea-project'], hosts: ['rea.tools'] },
+  { key: 'cve', name: 'CVE Program', initials: 'CV', sources: ['cve-program-cvelist-v5'], hosts: ['cve.org'] },
   { key: 'github', name: 'GitHub', initials: 'GH', sources: ['github', 'ghsa', 'github-advisory-database', 'github-global-advisories', 'github-target-repos'], hosts: ['github.com'] },
   { key: 'arxiv', name: 'arXiv', initials: 'ar', sources: ['arxiv', 'arxiv-ai-security'], hosts: ['arxiv.org'] },
   { key: 'anthropic', name: 'Anthropic', initials: 'A', sources: ['anthropic', 'anthropic-news', 'anthropic-research', 'anthropic-system-cards'], hosts: ['anthropic.com'] },
-  { key: 'huggingface', name: 'Hugging Face', initials: 'HF', sources: ['huggingface', 'hugging-face'], hosts: ['huggingface.co'] },
+  { key: 'huggingface', name: 'Hugging Face', initials: 'HF', sources: ['huggingface', 'hugging-face', 'huggingface-security'], hosts: ['huggingface.co'] },
   { key: 'microsoft', name: 'Microsoft Security', initials: 'M', sources: ['microsoft', 'msrc', 'microsoft-security', 'microsoft-security-ai'], hosts: ['microsoft.com'] },
   { key: 'cisco', name: 'Cisco Talos', initials: 'T', sources: ['talos', 'cisco', 'cisco-talos', 'talos-research'], hosts: ['talosintelligence.com', 'cisco.com'] },
   { key: 'paloalto', name: 'Unit 42', initials: '42', sources: ['paloalto', 'palo-alto-networks', 'unit42', 'unit-42', 'unit42-research'], hosts: ['paloaltonetworks.com'] },

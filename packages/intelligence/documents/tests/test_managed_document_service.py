@@ -5,7 +5,8 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from packages.intelligence.documents.parsers import PlainTextDocumentParser
+from packages.intelligence.documents.parsers import HTMLDocumentParser, PlainTextDocumentParser
+from packages.intelligence.documents.quality import DocumentMaterialRejectedError
 from packages.intelligence.documents.service import ManagedDocumentService
 from packages.intelligence.ingestion.evidence import EvidenceIngress
 from packages.intelligence.retrieval.contracts import EmbeddingBatch
@@ -218,7 +219,7 @@ async def test_managed_document_versions_are_durable_and_chunked() -> None:
             assert replay_dense.changed is False
 
         class RevisedPlainTextParser(PlainTextDocumentParser):
-            VERSION = "2"
+            VERSION = "3"
 
         revised_service = ManagedDocumentService(
             EvidenceIngress(artifact_store, now=lambda: NOW),
@@ -248,3 +249,117 @@ async def test_managed_document_versions_are_durable_and_chunked() -> None:
 async def _count(session: AsyncSession, model: type[object]) -> int:
     value = await session.scalar(select(func.count()).select_from(model))
     return int(value or 0)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "media_type,body",
+    [
+        ("text/plain", b"The server is temporarily unavailable\nPlease try again later."),
+        (
+            "text/html",
+            b"<article><h1>The server is temporarily unavailable</h1><p>Please try"
+            b" again later.</p></article>",
+        ),
+    ],
+)
+async def test_rejected_material_retains_evidence_without_chunks_or_index_work(
+    media_type: str,
+    body: bytes,
+) -> None:
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    store = MemoryArtifactStore()
+    service = ManagedDocumentService(
+        EvidenceIngress(store, now=lambda: NOW),
+        {"text/plain": PlainTextDocumentParser(), "text/html": HTMLDocumentParser()},
+        now=lambda: NOW,
+    )
+    envelope = IngestEnvelope.for_binary_payload(
+        acquisition_run_id="rejected-run",
+        trigger=AcquisitionTrigger.SCHEDULED,
+        source_id=SOURCE.source_id,
+        external_object_id="unavailable",
+        body=body,
+        media_type=media_type,
+        canonical_url="https://example.test/unavailable",
+        published_at=None,
+        updated_at=None,
+        external_revision=None,
+        request_metadata={"title": "Security research"},
+        observed_at=NOW,
+    )
+    try:
+        async with factory() as session, session.begin():
+            await sync_source_definitions(session, [SOURCE])
+            session.add(
+                AcquisitionRunModel(
+                    run_id="rejected-run",
+                    source_id=SOURCE.source_id,
+                    trigger="scheduled",
+                    query_spec={},
+                    status="success",
+                    cursor_in={},
+                    cursor_out={},
+                    attempt=1,
+                    created_at=NOW,
+                    started_at=NOW,
+                    finished_at=NOW,
+                )
+            )
+        async with factory() as session, session.begin():
+            result = await service.ingest(session, SOURCE, envelope)
+            assert result.chunk_count == 0
+            revision = await session.get(DocumentRevisionModel, result.document_revision_id)
+            assert revision is not None
+            quality = revision.metadata_json["content_quality"]
+            assert isinstance(quality, dict)
+            assert quality["usable"] is False
+            assert quality["reasons"] == ["error_page"]
+            insight = await session.get(InsightCandidateModel, result.insight_candidate_id)
+            assert insight is not None
+            assert insight.promotion_state == "rejected"
+            assert insight.evidence_maturity == "material_rejected"
+            assert await _count(session, ObservationModel) == 1
+            assert await _count(session, DocumentChunkModel) == 0
+            topics = list(await session.scalars(select(OutboxEventModel.topic)))
+            assert topics == ["knowledge.changed"]
+            replay = await service.ingest(session, SOURCE, envelope)
+            assert replay.replay and replay.document_revision_id == result.document_revision_id
+
+            class MustNotEmbed:
+                async def embed(self, texts: list[str]) -> EmbeddingBatch:
+                    raise AssertionError("rejected material reached embedding provider")
+
+            for legacy in (False, True):
+                if legacy:
+                    revision.metadata_json = {}
+                    session.add(
+                        DocumentChunkModel(
+                            chunk_id="legacy-error",
+                            document_revision_id=result.document_revision_id,
+                            ordinal=0,
+                            text="404 Not Found\nnginx",
+                            metadata_json={},
+                            locator={},
+                            content_hash="legacy",
+                            chunker_version="1",
+                            index_status="pending",
+                        )
+                    )
+                    await session.flush()
+                with pytest.raises(DocumentMaterialRejectedError, match="material quality"):
+                    await DocumentIndexService().build_lexical_index(
+                        session,
+                        document_revision_id=result.document_revision_id,
+                    )
+                with pytest.raises(DocumentMaterialRejectedError, match="material quality"):
+                    await DocumentIndexService().build_dense_index(
+                        session,
+                        document_revision_id=result.document_revision_id,
+                        provider=MustNotEmbed(),
+                    )
+    finally:
+        await engine.dispose()

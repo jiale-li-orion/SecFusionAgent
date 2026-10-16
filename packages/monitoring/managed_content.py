@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import asyncio
+from math import isfinite
+
 from pydantic import BaseModel, Field, JsonValue
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -38,9 +41,17 @@ class ManagedContentCollector:
         acquisition_run_id: str,
         trigger: AcquisitionTrigger = AcquisitionTrigger.SCHEDULED,
     ) -> ManagedContentCollectionResult:
+        raw_interval = source.rate_limit_policy.get("polite_interval_seconds", 0)
+        if isinstance(raw_interval, bool) or not isinstance(raw_interval, (int, float, str)):
+            raise ValueError("polite_interval_seconds must be a nonnegative number")
+        interval = float(raw_interval)
+        if not isfinite(interval) or interval < 0:
+            raise ValueError("polite_interval_seconds must be a finite nonnegative number")
         batch = await self._adapter.discover(source, state)
         accepted: list[ManagedDocumentResult] = []
-        for ref in batch.items:
+        for index, ref in enumerate(batch.items):
+            if index and interval:
+                await asyncio.sleep(interval)
             envelope = await self._adapter.fetch(
                 source,
                 ref,

@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.intelligence.documents.chunking import chunk_sections
 from packages.intelligence.documents.parsers import ManagedDocumentParser
+from packages.intelligence.documents.quality import assess_document_quality
 from packages.intelligence.ingestion.evidence import EvidenceIngress
 from packages.intelligence.storage.document_models import (
     DocumentChunkModel,
@@ -187,6 +188,14 @@ class ManagedDocumentService:
             f"document-revision:{document_id}:{observation.observation_id}:"
             f"{parser.NAME}:{parser.VERSION}"
         )
+        sections = parser.parse(envelope.content_bytes())
+        quality = assess_document_quality(
+            "\n".join(
+                "\n".join(filter(None, (section.section, section.text))) for section in sections
+            ),
+            title=_metadata_text(envelope, "title"),
+            canonical_url=envelope.canonical_url,
+        )
         session.add(
             DocumentRevisionModel(
                 document_revision_id=document_revision_id,
@@ -194,7 +203,10 @@ class ManagedDocumentService:
                 observation_id=observation.observation_id,
                 external_revision=envelope.external_revision,
                 title=_metadata_text(envelope, "title"),
-                metadata_json=dict(envelope.request_metadata),
+                metadata_json={
+                    **envelope.request_metadata,
+                    "content_quality": quality.to_metadata(),
+                },
                 published_at=envelope.published_at,
                 updated_at=envelope.updated_at,
                 content_hash=envelope.content_hash,
@@ -204,8 +216,7 @@ class ManagedDocumentService:
             )
         )
         await session.flush()
-        sections = parser.parse(envelope.content_bytes())
-        chunks = chunk_sections(sections)
+        chunks = chunk_sections(sections) if quality.usable else []
         chunk_ids: list[str] = []
         for chunk in chunks:
             chunk_id = _stable_id(
@@ -282,8 +293,8 @@ class ManagedDocumentService:
                 insight_candidate_id=insight_candidate_id,
                 document_revision_id=document_revision_id,
                 change_type=change_type,
-                evidence_maturity="raw_managed",
-                promotion_state="candidate",
+                evidence_maturity="raw_managed" if quality.usable else "material_rejected",
+                promotion_state="candidate" if quality.usable else "rejected",
                 related_object_ids=[object_id],
                 related_claim_ids=[],
                 related_relation_ids=[],
@@ -315,21 +326,22 @@ class ManagedDocumentService:
                 available_at=now,
             )
         )
-        session.add(
-            OutboxEventModel(
-                event_id=_stable_id(f"outbox:document.index.requested:{run_id}"),
-                topic="document.index.requested",
-                aggregate_id=document_revision_id,
-                payload={
-                    "document_revision_id": document_revision_id,
-                    "chunk_ids": chunk_ids,
-                    "knowledge_revision": revision.revision,
-                },
-                status="pending",
-                attempts=0,
-                available_at=now,
+        if quality.usable:
+            session.add(
+                OutboxEventModel(
+                    event_id=_stable_id(f"outbox:document.index.requested:{run_id}"),
+                    topic="document.index.requested",
+                    aggregate_id=document_revision_id,
+                    payload={
+                        "document_revision_id": document_revision_id,
+                        "chunk_ids": chunk_ids,
+                        "knowledge_revision": revision.revision,
+                    },
+                    status="pending",
+                    attempts=0,
+                    available_at=now,
+                )
             )
-        )
         run = await session.get(ProcessingRunModel, run_id)
         if run is None:
             raise RuntimeError("managed document processing run disappeared")

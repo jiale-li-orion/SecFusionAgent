@@ -12,6 +12,10 @@ from packages.enrichment.semantic.profiles import (
     authority_instruction,
     semantic_profile_for_source,
 )
+from packages.intelligence.documents.quality import (
+    DocumentMaterialRejectedError,
+    assess_document_quality,
+)
 from packages.intelligence.knowledge.contracts import (
     ClaimCandidate,
     EnrichmentCandidate,
@@ -151,6 +155,9 @@ class DocumentSemanticService:
         revision = await session.get(DocumentRevisionModel, document_revision_id)
         if revision is None:
             raise LookupError(f"document revision not found: {document_revision_id}")
+        quality = revision.metadata_json.get("content_quality")
+        if isinstance(quality, dict) and quality.get("usable") is False:
+            raise DocumentMaterialRejectedError("document rejected by material quality assessment")
         document = await session.get(DocumentModel, revision.document_id)
         if document is None:
             raise RuntimeError("document revision exists without document")
@@ -173,6 +180,11 @@ class DocumentSemanticService:
                 .order_by(DocumentChunkModel.ordinal, DocumentChunkModel.chunk_id)
             )
         )
+        if not assess_document_quality(
+            "\n".join("\n".join(filter(None, (chunk.section, chunk.text))) for chunk in chunks),
+            title=revision.title,
+        ).usable:
+            raise DocumentMaterialRejectedError("document rejected by material quality assessment")
         if not chunks:
             raise LookupError(f"document revision has no chunks: {document_revision_id}")
         return PreparedDocumentSemantic(

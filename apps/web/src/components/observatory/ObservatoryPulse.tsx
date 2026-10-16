@@ -1,3 +1,4 @@
+import { productTerm } from '../../lib/productVocabulary'
 import { useNavigate } from 'react-router-dom'
 import { Activity, Database, RadioTower } from '../ui/icons'
 import type { WorldOverview } from '../../lib/api/world'
@@ -28,7 +29,7 @@ export function ObservatoryPulse({ world, windowKey, failed }: { world: WorldOve
             <div className="observatory-sparkline">
               {values.length ? <svg viewBox="0 0 320 72" preserveAspectRatio="none" role="img" aria-label={text(`${label}，${series.length} 个小时样本`, `${label}, ${series.length} hourly samples`)}>
                 <path className="observatory-chart-baseline" d="M0 67H320"/>
-                <path className="observatory-chart-line" d={linePath(values, 320, 72, peak)}/>
+                <path key={`${windowKey}-${key}`} pathLength={1} className="observatory-chart-line" d={linePath(values, 320, 72, peak)}/>
                 {values.length === 1 && values[0] !== null && <circle cx="160" cy={72 - Math.min(values[0] / peak, 1) * 62 - 5} r="3" fill="currentColor"/>}
               </svg> : <span>{failed ? text('读数暂不可用', 'Readings unavailable') : text('等待小时样本', 'Awaiting hourly samples')}</span>}
             </div>
@@ -39,7 +40,7 @@ export function ObservatoryPulse({ world, windowKey, failed }: { world: WorldOve
       <Card className="observatory-summary-card summary-health">
         <CardHeader><CardTitle><RadioTower size={16}/>{text('来源健康', 'Source health')}</CardTitle></CardHeader>
         <CardContent><strong className="observatory-summary-value">{health?.healthy ?? '—'}<small>/ {count ?? '—'}</small></strong>
-          <div className="observatory-source-grid">{world?.sources.map(source => <button key={source.source_id} className={`health-${source.health}`} aria-label={`${source.source_name ?? source.source_id} · ${source.health}`} title={`${source.source_name ?? source.source_id} · ${source.health}`} onClick={() => navigate(`/?source=${encodeURIComponent(source.measurement_category)}`)}/>)}</div>
+          <div className="observatory-source-grid">{world?.sources.map(source => <button key={source.source_id} className={`health-${source.health}`} aria-label={`${source.source_name ?? source.source_id} · ${productTerm(source.health, text)}`} title={`${source.source_name ?? source.source_id} · ${productTerm(source.health, text)}`} onClick={() => navigate(`/?source=${encodeURIComponent(source.measurement_category)}`)}/>)}</div>
           <div className="observatory-health-legend"><span><i className="health-healthy"/>{text('健康', 'Healthy')} {health?.healthy ?? '—'}</span><span><i className="health-degraded"/>{text('降级', 'Degraded')} {health?.degraded ?? '—'}</span><span><i className="health-blocked"/>{text('阻塞', 'Blocked')} {health?.blocked ?? '—'}</span></div>
         </CardContent>
       </Card>

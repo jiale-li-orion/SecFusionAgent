@@ -1,3 +1,4 @@
+import { DevelopingField } from '../components/ui/developing-field'
 import { ObservatoryPulse } from '../components/observatory/ObservatoryPulse'
 import { Button } from '../components/ui/button'
 import { useState } from 'react'
@@ -19,8 +20,8 @@ export function ObservatoryPage() {
   const refresh = () => void Promise.all([worldQuery.refetch(), ...(auth.authenticated ? [agentsQuery.refetch()] : []), systemQuery.refetch()])
   const fetching = worldQuery.isFetching || agentsQuery.isFetching || systemQuery.isFetching
   return (
-    <section className="observatory-space studio-observatory observatory-page observatory-live">
-      <header className="observatory-page-header"><div><h1>{text('数据与服务', 'Data & services')}</h1><p>{text('来源健康、数据变化与服务运行状态。', 'Source health, data activity, and service status.')}</p></div>
+    <section className="observatory-space studio-observatory observatory-page observatory-live" data-develop-scope>
+      <header className="observatory-page-header development-heading"><DevelopingField variant="observatory" className="heading-imprint"/><div><h1>{text('数据与服务', 'Data & services')}</h1><p>{text('来源健康、数据变化与服务运行状态。', 'Source health, data activity, and service status.')}</p></div>
         <div className="observatory-page-actions"><div className="window-switch" aria-label={text('观测时间范围', 'Observation window')}>{observatoryWindows.map(item => <button key={item} className={windowKey === item ? 'active' : ''} aria-pressed={windowKey === item} onClick={() => setWindowKey(item)}>{item === '168h' ? '7d' : item}</button>)}</div><Button variant="outline" disabled={fetching} onClick={refresh}><RefreshCw size={15}/>{fetching ? text('更新中', 'Updating') : text('刷新', 'Refresh')}</Button></div>
       </header>
       <div className="observatory-live observatory-live-stage">

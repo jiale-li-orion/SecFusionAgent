@@ -67,10 +67,12 @@ async def test_bidirectional_induced_history_and_snapshot(session):
     assert {e.relation_id for e in result.edges} == {"inbound", "outbound", "cross", "old"}
     old = next(e for e in result.edges if e.relation_id == "old")
     assert old.superseded_revision == 3
+    assert old.superseded_at is not None
     assert old.superseded_at.day == 3
     assert old.created_at.day == 1
     assert result.snapshot_revision == 3
     historical = await get_object_network(session, "root", revision=1)
+    assert historical is not None
     assert {n.object_id for n in historical.nodes} == {"root", "a"}
     assert {e.relation_id for e in historical.edges} == {"inbound", "old"}
     assert await get_object_network(session, "future", revision=3) is None
@@ -78,12 +80,14 @@ async def test_bidirectional_induced_history_and_snapshot(session):
 
 async def test_cursor_and_expansion_preserve_center_and_cross_edges(session):
     first = await get_object_network(session, "root", limit=2, revision=3)
+    assert first is not None
     assert [n.object_id for n in first.nodes] == ["root", "b"]
     assert first.remaining_count == 1
     assert first.next_cursor
     second = await get_object_network(
         session, "root", limit=2, cursor=first.next_cursor, existing_ids=["b"]
     )
+    assert second is not None
     assert second.snapshot_revision == 3
     assert {n.object_id for n in second.nodes} == {"root", "a", "b"}
     assert "cross" in {e.relation_id for e in second.edges}
@@ -91,6 +95,7 @@ async def test_cursor_and_expansion_preserve_center_and_cross_edges(session):
     expanded = await get_object_network(
         session, "root", focus_id="b", existing_ids=["a", "b"], revision=3
     )
+    assert expanded is not None
     assert expanded.center_id == "root"
     assert {n.object_id for n in expanded.nodes} == {"root", "a", "b", "c"}
     assert "expand" in {e.relation_id for e in expanded.edges}
@@ -127,6 +132,7 @@ async def test_evidence_count_precedes_newness_and_evidence_is_preserved(session
     )
     await session.commit()
     result = await get_object_network(session, "root", limit=2, revision=3)
+    assert result is not None
     assert [node.object_id for node in result.nodes] == ["root", "a"]
     edge = next(edge for edge in result.edges if edge.relation_id == "inbound")
     assert edge.evidence[0].evidence_ref == "evidence:ev"
@@ -136,6 +142,7 @@ async def test_evidence_count_precedes_newness_and_evidence_is_preserved(session
     second = await get_object_network(
         session, "root", limit=2, cursor=result.next_cursor, existing_ids=["a"]
     )
+    assert second is not None
     assert {node.object_id for node in second.nodes} == {"root", "a", "b"}
     assert second.remaining_count == 0
 
@@ -184,6 +191,7 @@ async def test_default_page_cap_and_nonaccepted_edges(session):
     )
     await session.commit()
     result = await get_object_network(session, "root")
+    assert result is not None
     assert len(result.nodes) == 40
     assert result.remaining_count == 9
     assert "candidate" not in {edge.relation_id for edge in result.edges}
@@ -229,16 +237,19 @@ async def test_expansion_enforces_total_node_cap_and_readable_identity_labels(se
         )
     await session.commit()
     result = await get_object_network(session, "root", existing_ids=existing)
+    assert result is not None
     assert len(result.nodes) == 200
     assert result.remaining_count == 40
     assert result.next_cursor is None
     assert next(n for n in result.nodes if n.object_id == existing[0]).label == "owner/repo-0"
     full = [node.object_id for node in result.nodes]
     repeat = await get_object_network(session, "root", existing_ids=full)
+    assert repeat is not None
     assert len(repeat.nodes) == 200
     assert repeat.remaining_count == 40
     assert repeat.next_cursor is None
     with pytest.raises(ValueError, match="200"):
         await get_object_network(session, "root", existing_ids=[*existing, "a", "b", "c", "future"])
     labels = await get_object_network(session, "next-00")
+    assert labels is not None
     assert labels.nodes[0].label == "Article 0"

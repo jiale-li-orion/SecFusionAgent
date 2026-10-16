@@ -12,6 +12,7 @@ from apps.api.product_web import ProductStaticFiles
 from apps.api.routes.a2a import router as a2a_router
 from apps.api.routes.agents import router as agents_router
 from apps.api.routes.authentication import router as authentication_router
+from apps.api.routes.briefings import router as briefings_router
 from apps.api.routes.decisions import router as decisions_router
 from apps.api.routes.enrichment import router as enrichment_router
 from apps.api.routes.evidence import router as evidence_router
@@ -19,9 +20,11 @@ from apps.api.routes.health import router as health_router
 from apps.api.routes.incidents import router as incidents_router
 from apps.api.routes.investigations import router as investigations_router
 from apps.api.routes.knowledge import router as knowledge_router
+from apps.api.routes.library import router as library_router
 from apps.api.routes.observatory import router as observatory_router
 from apps.api.routes.questions import router as questions_router
 from apps.api.routes.recommendations import router as recommendations_router
+from apps.api.routes.reports import router as reports_router
 from apps.api.routes.world import router as world_router
 from apps.application.queries.world_reader import WorldStoryReader
 from apps.runtime_models import register_runtime_models
@@ -94,9 +97,12 @@ def create_app() -> FastAPI:
     app.include_router(investigations_router)
     app.include_router(incidents_router)
     app.include_router(decisions_router)
+    app.include_router(briefings_router)
+    app.include_router(reports_router)
     app.include_router(evidence_router)
     app.include_router(questions_router)
     app.include_router(knowledge_router)
+    app.include_router(library_router)
     app.include_router(recommendations_router)
     app.include_router(enrichment_router)
     app.include_router(world_router)

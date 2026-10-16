@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from packages.enrichment.normative.service import NormativeKnowledgeService
 from packages.intelligence.documents.parsers import PlainTextDocumentParser
+from packages.intelligence.documents.quality import DocumentMaterialRejectedError
 from packages.intelligence.documents.service import ManagedDocumentResult, ManagedDocumentService
 from packages.intelligence.ingestion.evidence import EvidenceIngress
 from packages.intelligence.storage.artifacts import MemoryArtifactStore
@@ -310,3 +311,40 @@ async def _seed_document(
 async def _count(session: AsyncSession, model: type[Base]) -> int:
     value = await session.scalar(select(func.count()).select_from(model))
     return int(value or 0)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("legacy", [False, True])
+async def test_normative_rejects_unusable_material_before_model(legacy: bool) -> None:
+    from packages.intelligence.storage.document_models import (
+        DocumentChunkModel,
+        DocumentRevisionModel,
+    )
+
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    provider = FakeNormativeProvider()
+    try:
+        result = await _seed_document(factory)
+        async with factory() as session, session.begin():
+            revision = await session.get(DocumentRevisionModel, result.document_revision_id)
+            assert revision is not None
+            if legacy:
+                revision.metadata_json = {}
+                chunk = await session.scalar(select(DocumentChunkModel))
+                assert chunk is not None
+                chunk.text = "404 Not Found\nnginx"
+            else:
+                revision.metadata_json = {"content_quality": {"usable": False}}
+        async with factory() as session:
+            with pytest.raises(DocumentMaterialRejectedError, match="material quality"):
+                await NormativeKnowledgeService(provider).extract(
+                    session,
+                    source=SOURCE,
+                    document_revision_id=result.document_revision_id,
+                )
+        assert not provider.requests
+    finally:
+        await engine.dispose()

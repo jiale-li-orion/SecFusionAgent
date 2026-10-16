@@ -1,4 +1,4 @@
-import { ActionIndicator } from "../ui/action-indicator"
+import { productTerm } from '../../lib/productVocabulary'
 import { GitBranch } from "@phosphor-icons/react/dist/csr/GitBranch"
 import { Clock } from "@phosphor-icons/react/dist/csr/Clock"
 import { Terminal } from "@phosphor-icons/react/dist/csr/Terminal"
@@ -14,10 +14,10 @@ import { TaskContextLedger, TaskModelLedger } from './TaskAuditSurfaces'
 export function TaskCard({ task, selected, onSelect }: { task: AgentTaskSummary; selected: boolean; onSelect: (runId: string) => void }) {
   const { text, language } = useI18n()
   return <button className={`ops-task-row ${selected ? 'selected' : ''}`} onClick={() => onSelect(task.run_id)}>
-    <span className="ops-task-subject"><strong>{taskTitle(task, text)}</strong><small>{runtimeTaskLabel(task.task_kind, text)} · {task.target_label || text('未记录具体对象', 'No specific target recorded')}</small></span>
+    <span className="ops-task-subject"><strong>{taskTitle(task, text)}</strong><small>{runtimeTaskLabel(task.task_kind, text)} · {task.target_label?.replace(/^cve:(CVE-\d{4}-\d+)$/i, '$1') || text('未记录具体对象', 'No specific target recorded')}</small></span>
     <span className={`ops-task-outcome outcome-${task.status}`}>{taskOutcome(task, text)}</span>
     <time dateTime={task.updated_at}>{new Date(task.updated_at).toLocaleString(language === 'zh' ? 'zh-CN' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</time>
-    <ActionIndicator />
+
   </button>
 }
 
@@ -69,12 +69,12 @@ export function TaskDossier({ detail, onSkillSelect, onTaskSelect }: { detail: A
   const task = detail.task
   return <article className="ops-task-detail">
     <header><span className={`ops-task-outcome outcome-${task.status}`}>{taskOutcome(task, text)}</span><h2>{taskTitle(task, text)}</h2>
-      {task.target_label && <p>{task.target_label}</p>}
+      {task.target_label && <p>{task.target_label.replace(/^cve:(CVE-\d{4}-\d+)$/i, '$1')}</p>}
       <p className="ops-task-result" data-status={task.status}>{taskResult(task, text)}</p>
       <div className="ops-task-links">
-        {task.session_id && <Link to={`/start?session=${encodeURIComponent(task.session_id)}`}>{text('打开原始会话', 'Open conversation')}<ActionIndicator /></Link>}
-        {task.case_id && <Link to={`/investigations?case=${encodeURIComponent(task.case_id)}&from=task&run=${encodeURIComponent(task.run_id)}`}>{text('查看调查结果', 'Open investigation')}<ActionIndicator /></Link>}
-        {task.target_refs?.find(ref => ref.startsWith('object:')) && <Link to={`/intelligence?object=${encodeURIComponent(task.target_refs.find(ref => ref.startsWith('object:'))!.slice(7))}`}>{text('查看对象', 'Open target')}<ActionIndicator /></Link>}
+        {task.session_id && <Link to={`/start?session=${encodeURIComponent(task.session_id)}`}>{text('打开原始会话', 'Open conversation')}</Link>}
+        {task.case_id && <Link to={`/investigations?case=${encodeURIComponent(task.case_id)}&from=task&run=${encodeURIComponent(task.run_id)}`}>{text('查看调查结果', 'Open investigation')}</Link>}
+        {task.target_refs?.find(ref => ref.startsWith('object:')) && <Link to={`/intelligence?object=${encodeURIComponent(task.target_refs.find(ref => ref.startsWith('object:'))!.slice(7))}`}>{text('查看对象', 'Open target')}</Link>}
       </div>
       <small className="ops-task-time"><Clock size={14} />{text('更新于', 'Updated')} {new Date(task.updated_at).toLocaleString()}</small>
     </header>
@@ -93,17 +93,17 @@ export function TaskDossier({ detail, onSkillSelect, onTaskSelect }: { detail: A
       <TabsContent value="calls">
         <h3><Terminal size={17} />{text('感知与检索', 'Perception and retrieval')}</h3>
         {detail.perceptions.length ? <div className="ops-tool-list">{detail.perceptions.map(item => <details key={item.perception_event_id}>
-          <summary><strong>{perceptionLabel(item.operation, text)}</strong><span>{item.evidence_refs.length ? text(`${item.evidence_refs.length} 条证据引用`, `${item.evidence_refs.length} evidence references`) : text('未取得可引用证据', 'No citable evidence')} · {item.status}</span></summary>
+          <summary><strong>{perceptionLabel(item.operation, text)}</strong><span>{item.evidence_refs.length ? text(`${item.evidence_refs.length} 条证据引用`, `${item.evidence_refs.length} evidence references`) : text('未取得可引用证据', 'No citable evidence')} · {productTerm(item.status, text)}</span></summary>
           <p>{item.query_text || (item.target_object_id && task.target_refs?.some(ref => ref === item.target_object_id || ref === `object:${item.target_object_id}`) ? task.target_label : item.target_object_id) || task.target_label || text('未记录目标', 'Target not recorded')}</p>
-          <p>{text('实际读取', 'Operators')}: {item.operators.join(' · ') || '—'}</p>
-          {item.failure_class && <p role="status" className="ops-call-failure">{item.failure_class}</p>}
+          <p>{text('实际读取', 'Operators')}: {item.operators.map(value => productTerm(value, text)).join(' · ') || '—'}</p>
+          {item.failure_class && <p role="status" className="ops-call-failure">{productTerm(item.failure_class, text)}</p>}
           <details><summary>{text('证据引用', 'Evidence references')}</summary><p className="ops-perception-refs">{item.evidence_refs.join(' · ') || text('没有可引用的证据', 'No citable evidence')}</p></details>
         </details>)}</div> : <p className="ops-empty">{text('本次任务尚无已记录的感知或检索。', 'No perception or retrieval has been recorded for this task.')}</p>}
         <h3><Terminal size={17} />{text('外部能力调用', 'External capability calls')}</h3>
         {detail.capabilities.length ? <div className="ops-tool-list">{detail.capabilities.map(item => <details key={item.invocation_id} open={Boolean(item.failure_code || item.failure_detail)}>
-          <summary><strong>{item.capability_id}</strong><span>{['failed', 'blocked'].includes(item.status) ? text('调用失败或受阻', 'Failed or blocked') : item.status === 'succeeded' || item.status === 'completed' ? text('已完成', 'Completed') : text('查看调用状态', 'Review call state')}</span></summary>
+          <summary><strong>{productTerm(item.capability_id, text)}</strong><span>{['failed', 'blocked'].includes(item.status) ? text('调用失败或受阻', 'Failed or blocked') : item.status === 'succeeded' || item.status === 'completed' ? text('已完成', 'Completed') : text('查看调用状态', 'Review call state')}</span></summary>
           {(item.failure_code || item.failure_detail) && <p role="status" className="ops-call-failure">{item.failure_detail || item.failure_code}</p>}
-          <dl><dt>{text('实现', 'Implementation')}</dt><dd>{item.tool_impl_id}</dd><dt>{text('状态', 'Status')}</dt><dd>{item.status}</dd><dt>{text('调用标识', 'Invocation')}</dt><dd>{item.invocation_id}</dd><dt>{text('输出', 'Output')}</dt><dd>{item.canonical_output_ref || '—'}</dd><dt>{text('错误代码', 'Failure code')}</dt><dd>{item.failure_code || '—'}</dd><dt>{text('策略', 'Policy')}</dt><dd>{item.policy_decision_ref || '—'}</dd><dt>{text('原始材料', 'Raw artifact')}</dt><dd>{item.raw_artifact_ref || '—'}</dd><dt>{text('操作回执', 'Effect receipt')}</dt><dd>{item.effect_receipt_ref || '—'}</dd><dt>{text('观测类型', 'Observation class')}</dt><dd>{item.observation_class || '—'}</dd></dl>
+          <dl><dt>{text('实现', 'Implementation')}</dt><dd>{item.tool_impl_id}</dd><dt>{text('状态', 'Status')}</dt><dd>{productTerm(item.status, text)}</dd><dt>{text('调用标识', 'Invocation')}</dt><dd>{item.invocation_id}</dd><dt>{text('输出', 'Output')}</dt><dd>{item.canonical_output_ref || '—'}</dd><dt>{text('错误代码', 'Failure code')}</dt><dd>{item.failure_code || '—'}</dd><dt>{text('策略', 'Policy')}</dt><dd>{item.policy_decision_ref || '—'}</dd><dt>{text('原始材料', 'Raw artifact')}</dt><dd>{item.raw_artifact_ref || '—'}</dd><dt>{text('操作回执', 'Effect receipt')}</dt><dd>{item.effect_receipt_ref || '—'}</dd><dt>{text('观测类型', 'Observation class')}</dt><dd>{item.observation_class || '—'}</dd></dl>
         </details>)}</div> : <p className="ops-empty">{text('本次任务没有外部能力调用；本地读取见上方记录。', 'No external capability calls; local reads are shown above.')}</p>}
         <TaskModelLedger attempts={detail.model_attempts} />
         <details className="ops-technical"><summary>{text('预算与用量', 'Budget and usage')}</summary>{detail.budget ? <dl>{Object.entries(detail.budget.limits).map(([resource, limit]) => <div key={resource}><dt>{resource}</dt><dd>{text('已用', 'Used')} {detail.budget!.committed[resource] ?? 0} / {limit} · {text('预留', 'Reserved')} {detail.budget!.reserved[resource] ?? 0} · {text('剩余', 'Remaining')} {detail.budget!.remaining[resource] ?? '—'}</dd></div>)}</dl> : <p>{text('未记录预算账户。', 'No budget account recorded.')}</p>}</details>

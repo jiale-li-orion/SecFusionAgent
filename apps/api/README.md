@@ -91,3 +91,23 @@ API transport tests live under `apps/api/tests`. `test_product_questions.py` cov
 Personalized activity APIs (account required): `GET /api/v1/intelligence/follow-resolution?q=...` returns a unique exact identity and/or selectable candidates. Ambiguity is explicit and topic fallback requires the user to choose it. `GET /api/v1/intelligence/feed?mode=following|recommended&window=30d|all&limit=12&cursor=...` returns evidence-backed dynamic items with `activity_id`, source previews, `next_cursor` and `has_more`. `PUT /api/v1/intelligence/feed/{activity_id}/feedback` accepts interested/ignored/neutral independently of object follow state and legacy recommendation feedback.
 
 Task summaries include owner-checked user goals, readable target labels and originating sessions. The same projection backs task archives and details; foreign Case/session context is never joined into another account's task. The web presents result/blocker semantics before technical runtime fields and links back to `/start?session=…`.
+
+## Public material and report reads
+
+The current read surface additionally includes:
+
+| Route | Access and behavior |
+| --- | --- |
+| `GET /api/v1/intelligence/library` | Eligible public retained material; category/source/subject/query filters, `as_of` snapshot and bounded offset pagination |
+| `GET /api/v1/intelligence/briefs` | Published, currently visible briefings with independent summary and HTML URL |
+| `GET /api/v1/intelligence/briefs/{brief_id}/report.html` | Explicitly published report; source rights and revisions checked again |
+| `GET /api/v1/decisions/{decision_id}/report.html` | Account-owned private report; ordinary Decision authorization applies |
+| `GET /api/v1/reports/fonts/{regular|bold}.woff2` | Bundled local Chinese report fonts |
+
+HTML reads use the deterministic renderer, escaped text, restricted links and a script-denying CSP. They do not call an LLM. Shared event reads also pass public evidence/access checks; a curated event is not permission to reveal private material. Background model suspension does not remove API provider configuration or disable user QA.
+
+Focused regression commands:
+
+```bash
+uv run pytest apps/api/tests/test_library_routes.py apps/api/tests/test_public_brief_routes.py apps/api/tests/test_product_html_report.py -q
+```

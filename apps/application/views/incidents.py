@@ -24,6 +24,7 @@ class IncidentSummaryView(BaseModel):
 class IncidentTimelineEventView(BaseModel):
     event_id: str
     signal_id: str
+    time_basis: str = "unspecified"
     event_time: datetime
     observed_at: datetime
     event_type: str

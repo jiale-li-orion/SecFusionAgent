@@ -55,3 +55,12 @@ uv run pytest tests/test_task_capability_policy_conformance.py -q
 uv run pytest packages/runtime -q
 SECFUSION_RUN_INTEGRATION=1 uv run pytest tests/integration/test_runtime_control_plane.py -q
 ```
+
+
+## Read-only orchestration seam
+
+`read.py` exposes copies of budget limits and counts of logical model requests scoped
+to a task and purpose. Investigation uses these values to preserve its iteration
+window across resumes; it does not import runtime ORM rows or write budget/model
+state. Accounting and mutation remain owned by the budget governor and model recorder.
+The architecture gate permits this explicit read seam, not arbitrary runtime storage.

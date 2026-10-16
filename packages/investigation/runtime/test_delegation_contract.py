@@ -82,13 +82,16 @@ def test_model_stop_and_wait_reasons_fit_task_storage_contract() -> None:
     frame = InvestigationFrame.model_construct(task_run_id="parent-run", iteration=3)
 
     def normalize(action: StopAction | WaitAction) -> StopAction | WaitAction:
-        return _normalize_action(
+        normalized = _normalize_action(
             action,
             frame=frame,
             assembly_hash="prompt-hash",
             provider_ref="provider@1",
             budget_ref="budget:parent-run",
         )
+
+        assert isinstance(normalized, (StopAction, WaitAction))
+        return normalized
 
     assert normalize(StopAction(reason="evidence_sufficient")).reason == "evidence_sufficient"
     assert (

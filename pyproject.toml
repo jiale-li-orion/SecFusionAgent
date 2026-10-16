@@ -69,3 +69,8 @@ disallow_any_generics = true
 [[tool.mypy.overrides]]
 module = ["boto3", "botocore.*", "celery", "celery.*"]
 ignore_missing_imports = true
+
+# Optional local font-maintenance tool; not part of the runtime dependency set.
+[[tool.mypy.overrides]]
+module = ["fontTools", "fontTools.*"]
+ignore_missing_imports = true

@@ -1,0 +1,8 @@
+.intel-card-excerpt.public-brief-summary {
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+  font-size: 16px;
+  line-height: 1.85;
+  text-wrap: pretty;
+}

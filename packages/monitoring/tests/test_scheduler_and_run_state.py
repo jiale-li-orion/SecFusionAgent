@@ -58,7 +58,8 @@ async def test_invalid_collection_proxy_finishes_durable_run(tmp_path: Path) -> 
         async with engine.begin() as connection:
             await connection.run_sync(Base.metadata.create_all)
         definition = next(
-            item for item in load_source_definitions(Path("config/sources"))
+            item
+            for item in load_source_definitions(Path("config/sources"))
             if item.source_id == source_id
         )
         async with factory() as session, session.begin():
@@ -578,8 +579,9 @@ async def test_scheduler_can_select_explicit_due_source_subset() -> None:
         await engine.dispose()
 
 
+@pytest.mark.parametrize("operator_owned", [False, True])
 @pytest.mark.asyncio
-async def test_stale_running_run_is_requeued_with_new_outbox_event() -> None:
+async def test_stale_running_run_is_requeued_with_new_outbox_event(operator_owned: bool) -> None:
     engine, factory = await _database()
     now = datetime(2026, 9, 25, 5, 0, tzinfo=UTC)
     definitions = load_source_definitions(Path("config/sources"))
@@ -595,7 +597,7 @@ async def test_stale_running_run_is_requeued_with_new_outbox_event() -> None:
                     source_id=source.source_id,
                     trigger="scheduled",
                     parent_run_id=None,
-                    query_spec={},
+                    query_spec={"execution_driver": "operator"} if operator_owned else {},
                     status="running",
                     cursor_in={},
                     cursor_out={},
@@ -612,7 +614,7 @@ async def test_stale_running_run_is_requeued_with_new_outbox_event() -> None:
                 timeout_seconds=15 * 60,
                 run_ids={"stale-run"},
             )
-        assert recovered == ["stale-run"]
+        assert recovered == ([] if operator_owned else ["stale-run"])
         async with factory() as session:
             run = await session.get(AcquisitionRunModel, "stale-run")
             events = list(
@@ -620,9 +622,10 @@ async def test_stale_running_run_is_requeued_with_new_outbox_event() -> None:
                     select(OutboxEventModel).where(OutboxEventModel.aggregate_id == "stale-run")
                 )
             )
-            assert run is not None and run.status == "queued"
-            assert run.started_at is None
-            assert len(events) == 1
+            assert run is not None
+            assert run.status == ("running" if operator_owned else "queued")
+            assert (run.started_at is not None) == operator_owned
+            assert len(events) == (0 if operator_owned else 1)
     finally:
         await engine.dispose()
 
@@ -665,15 +668,18 @@ async def test_stale_queued_run_is_redelivered_once_without_duplicate_pending_ev
             )
         assert recovered == ["stale-queued"]
         async with factory() as session, session.begin():
-            assert await recover_stale_acquisition_runs(
-                session, now=now + timedelta(minutes=1), timeout_seconds=15 * 60
-            ) == []
-        async with factory() as session:
-            events = list(await session.scalars(
-                select(OutboxEventModel).where(
-                    OutboxEventModel.aggregate_id == "stale-queued"
+            assert (
+                await recover_stale_acquisition_runs(
+                    session, now=now + timedelta(minutes=1), timeout_seconds=15 * 60
                 )
-            ))
+                == []
+            )
+        async with factory() as session:
+            events = list(
+                await session.scalars(
+                    select(OutboxEventModel).where(OutboxEventModel.aggregate_id == "stale-queued")
+                )
+            )
         assert len(events) == 2
         assert sorted(event.status for event in events) == ["delivered", "pending"]
     finally:
@@ -738,9 +744,10 @@ async def test_queued_recovery_waits_for_existing_pending_delivery() -> None:
                 )
             )
         async with factory() as session, session.begin():
-            assert await recover_stale_acquisition_runs(
-                session, now=now, timeout_seconds=15 * 60
-            ) == []
+            assert (
+                await recover_stale_acquisition_runs(session, now=now, timeout_seconds=15 * 60)
+                == []
+            )
     finally:
         await engine.dispose()
 

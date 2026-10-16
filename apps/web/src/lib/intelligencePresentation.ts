@@ -54,6 +54,7 @@ export function formatValue(value: unknown): string {
 }
 
 const evidenceFields: Record<string, [string, string]> = {
+  title: ['标题', 'Title'],
   description_en: ['漏洞说明（英文）', 'Description (English)'], cvss_vector: ['CVSS 攻击向量', 'CVSS vector'], cvss_severity: ['严重等级', 'Severity'], cvss_version: ['CVSS 版本', 'CVSS version'], cvss_score: ['CVSS 评分', 'CVSS score'],
   cwes: ['漏洞类型', 'Weaknesses'], exploit_references: ['利用相关参考', 'Exploitation references'], last_modified: ['最近修改', 'Last modified'], status: ['发布状态', 'Publication status'], published: ['发布时间', 'Published'],
   github_cwes: ['GitHub 漏洞类型', 'GitHub weaknesses'], github_summary: ['GitHub 公告摘要', 'GitHub advisory summary'], github_references: ['GitHub 参考资料', 'GitHub references'], github_description: ['GitHub 公告说明', 'GitHub advisory description'], github_severity: ['GitHub 严重等级', 'GitHub severity'], github_published_at: ['GitHub 发布时间', 'GitHub published'], github_updated_at: ['GitHub 更新时间', 'GitHub updated'],
@@ -70,4 +71,16 @@ const evidenceFields: Record<string, [string, string]> = {
 
 export function evidenceFieldLabel(label: string, text: (zh: string, en: string) => string) {
   return evidenceFields[label] ? text(...evidenceFields[label]) : label.replaceAll('_', ' ')
+}
+
+/** Translate known publication enums only; source prose and unknown values remain verbatim. */
+export function evidenceValueLabel(predicate: string, value: unknown, text: (zh: string, en: string) => string) {
+  if (predicate === 'status' && typeof value === 'string') {
+    const labels: Record<string, [string, string]> = {
+      PUBLISHED: ['已发布', 'Published'], RESERVED: ['编号已预留', 'Reserved'], REJECTED: ['已拒绝', 'Rejected'],
+    }
+    const label = labels[value]
+    if (label) return text(...label)
+  }
+  return formatValue(value)
 }

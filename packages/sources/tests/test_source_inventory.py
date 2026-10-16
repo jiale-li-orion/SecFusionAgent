@@ -12,7 +12,7 @@ from packages.sources.resolver_registry import create_dynamic_source_resolvers
 
 def test_source_inventory_has_explicit_owner_for_every_concrete_commitment() -> None:
     inventory = load_source_inventory()
-    assert len(inventory.entries) == 101
+    assert len(inventory.entries) == 106
     assert inventory.monitoring_measurement.public_epoch == datetime(
         2026, 10, 1, 20, 19, 42, tzinfo=UTC
     )
@@ -76,13 +76,13 @@ def test_scheduled_monitor_set_has_one_frozen_runtime_semantics() -> None:
     }
     scheduled_categories = {inventory.measurement_category(source_id) for source_id in scheduled}
 
-    assert len(definitions) == 66
-    assert len(scheduled) == 39
+    assert len(definitions) == 71
+    assert len(scheduled) == 43
     assert len(scheduled_categories) == 7
     assert "assets" not in {item.value for item in scheduled_categories}
 
     arxiv = next(item for item in definitions if item.source_id == "arxiv-ai-security")
-    assert arxiv.schedule_policy["interval_seconds"] == 24 * 60 * 60
+    assert arxiv.schedule_policy["interval_seconds"] == 6 * 60 * 60
 
 
 def test_every_source_definition_has_a_live_probe_owner() -> None:
