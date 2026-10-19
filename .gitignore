@@ -30,3 +30,23 @@ logs/
 # Local long-running execution worker pool (machine-local, never versioned)
 /worker_pool/
 deploy/secrets/
+
+# Local delivery materials (reports, slides, videos and source bundles)
+/重要/
+/交付成果/
+/交付材料/
+/deliverables/
+*.doc
+*.docx
+*.ppt
+*.pptx
+*.pdf
+*.mp4
+*.mov
+*.mkv
+*.avi
+*.webm
+*.zip
+*.7z
+*.rar
+*.tar.gz
