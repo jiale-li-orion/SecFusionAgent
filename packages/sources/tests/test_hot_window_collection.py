@@ -3,11 +3,15 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from packages.intelligence.hot_cache.contracts import HotBugCacheEntry, HotBugRecord
 from packages.intelligence.normalization.hot_bug import HotBugIngress
 from packages.intelligence.normalization.nvd import NVDHotBugNormalizer
+from packages.monitoring.hot_admission import HotAdmissionReceiptService
 from packages.monitoring.hot_window import HotWindowCollector
+from packages.monitoring.storage.models import AcquisitionRunModel, HotAdmissionReceiptModel
+from packages.shared.db import Base
 from packages.sources.contracts import (
     AcquisitionTrigger,
     DiscoveredRef,
@@ -18,6 +22,46 @@ from packages.sources.contracts import (
     SourceState,
 )
 from packages.sources.registry.loader import load_source_definitions
+from packages.sources.registry.service import sync_source_definitions
+from packages.sources.storage.models import SourceModel
+
+
+@pytest.fixture
+async def receipts(tmp_path: Path):
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'receipts.db'}")
+    async with engine.begin() as connection:
+        await connection.run_sync(
+            lambda connection: Base.metadata.create_all(
+                connection,
+                tables=[
+                    Base.metadata.tables[SourceModel.__tablename__],
+                    Base.metadata.tables[AcquisitionRunModel.__tablename__],
+                    Base.metadata.tables[HotAdmissionReceiptModel.__tablename__],
+                ],
+            )
+        )
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    source = next(
+        item
+        for item in load_source_definitions(Path("config/sources"))
+        if item.source_id == "nvd-cves-2"
+    )
+    async with factory() as session, session.begin():
+        await sync_source_definitions(session, [source])
+        for run_id in ("r1", "r2"):
+            session.add(
+                AcquisitionRunModel(
+                    run_id=run_id,
+                    source_id=source.source_id,
+                    trigger="scheduled",
+                    status="running",
+                    created_at=datetime.now(UTC),
+                )
+            )
+    try:
+        yield HotAdmissionReceiptService(factory)
+    finally:
+        await engine.dispose()
 
 
 class MemoryCache:
@@ -123,7 +167,7 @@ def _payload(cve_id: str, modified: str) -> dict[str, Any]:
 
 
 @pytest.mark.asyncio
-async def test_checkpoint_cursor_is_returned_only_after_full_batch_succeeds() -> None:
+async def test_checkpoint_cursor_is_returned_only_after_full_batch_succeeds(receipts) -> None:
     source = next(
         item
         for item in load_source_definitions(Path("config/sources"))
@@ -141,7 +185,7 @@ async def test_checkpoint_cursor_is_returned_only_after_full_batch_succeeds() ->
         _payload("CVE-2026-40002", "2026-09-25T02:00:00+00:00"),
     ]
 
-    failing = HotWindowCollector(StubAdapter(payloads, fail_on=1), ingress)
+    failing = HotWindowCollector(StubAdapter(payloads, fail_on=1), ingress, receipts)
     with pytest.raises(RuntimeError, match="synthetic fetch failure"):
         await failing.collect(
             source,
@@ -151,7 +195,7 @@ async def test_checkpoint_cursor_is_returned_only_after_full_batch_succeeds() ->
     assert (source.source_id, "CVE-2026-40001") in cache.records
     assert (source.source_id, "CVE-2026-40002") not in cache.records
 
-    replay = HotWindowCollector(StubAdapter(payloads), ingress)
+    replay = HotWindowCollector(StubAdapter(payloads), ingress, receipts)
     result = await replay.collect(
         source,
         SourceState(cursor={"last_modified": "old"}),

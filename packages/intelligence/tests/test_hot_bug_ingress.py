@@ -108,3 +108,31 @@ async def test_hot_ingress_detects_new_and_material_update() -> None:
     assert "critical_severity" not in second.priority_signals
     assert {"cvss_score", "last_modified"}.issubset(second.changed_fields)
     assert cache.ttls[(source.source_id, "CVE-2026-42424")] == 600
+
+
+@pytest.mark.asyncio
+async def test_available_at_is_measured_after_cache_admission_completes() -> None:
+    before = datetime(2026, 9, 25, 2, 0, tzinfo=UTC)
+    completed = datetime(2026, 9, 25, 2, 1, tzinfo=UTC)
+    clock = [before]
+
+    class DelayedCache(FakeHotBugCache):
+        async def admit(self, record: HotBugRecord, *, ttl_seconds: int) -> None:
+            await super().admit(record, ttl_seconds=ttl_seconds)
+            clock[0] = completed
+
+    source = next(
+        item
+        for item in load_source_definitions(Path("config/sources"))
+        if item.source_id == "nvd-cves-2"
+    )
+    ingress = HotBugIngress(
+        DelayedCache(),
+        {"nvd": NVDHotBugNormalizer()},
+        ttl_seconds=600,
+        now=lambda: clock[0],
+    )
+    result = await ingress.accept(
+        source, _envelope(PAGE["vulnerabilities"][0], "2026-09-25T01:45:00+00:00")
+    )
+    assert result.available_at == completed

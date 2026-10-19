@@ -27,6 +27,7 @@ from packages.intelligence.normalization.hot_bug import HotBugIngress
 from packages.intelligence.storage.factory import create_artifact_store
 from packages.intelligence.structured.github_repo import GitHubRepoMapper
 from packages.intelligence.structured.service import StructuredIndexService
+from packages.monitoring.hot_admission import HotAdmissionReceiptService
 from packages.monitoring.hot_window import HotWindowCollector
 from packages.monitoring.incident_signal import IncidentSignalCollector
 from packages.monitoring.managed_content import ManagedContentCollector
@@ -93,7 +94,9 @@ async def execute_collection_run(run_id: str, settings: Settings) -> str:
                             {context.source.adapter_type: normalizer},
                             ttl_seconds=settings.hot_cache_ttl_seconds,
                         )
-                        hot_result = await HotWindowCollector(adapter, ingress).collect(
+                        hot_result = await HotWindowCollector(
+                            adapter, ingress, HotAdmissionReceiptService(factory)
+                        ).collect(
                             context.source,
                             context.state,
                             acquisition_run_id=context.run_id,

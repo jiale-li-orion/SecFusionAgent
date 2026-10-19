@@ -102,6 +102,63 @@ Without an independent expected-event manifest, `m1.source_delivery_coverage` re
 
 ## Commands
 
+### Prospective NVD publication window
+
+`scripts/export_monitoring_window.py` exports separate prospective evidence from durable
+`hot_admission_receipts`. Database reads belong to the exporter;
+`packages.evaluation.monitoring_window` validates and scores frozen values without importing
+monitoring storage. The export does not rewrite the canonical M1 result above. Declare a source and
+UTC publication window before it opens; the cohort is independently published CVEs in
+`[window_start, window_end)`. After closure, freeze the expected population from a separate NVD
+publication query, including every response page and its SHA-256. Never generate expected records
+from collected receipts.
+
+```json
+{
+  "schema_version": "secfusion-monitoring-window-v1",
+  "source_id": "nvd-cves-2",
+  "window_start": "2026-10-17T13:00:00Z",
+  "window_end": "2026-10-17T13:15:00Z",
+  "declared_at": "2026-10-17T12:49:00Z",
+  "provider_retrieved_at": null,
+  "provider_snapshot": null,
+  "records": null
+}
+```
+
+Preserve the original declaration and its digest. In a separate frozen manifest, replace the three
+null fields with the retrieval timestamp, `{"source_url": "https://services.nvd.nist.gov/rest/json/cves/2.0?pubStartDate=2026-10-17T13:00:00Z&pubEndDate=2026-10-17T13:15:00Z",
+"raw_content_sha256": "<64 lowercase hex characters>"}`, and records shaped as
+`{"external_object_id": "CVE-2026-12345", "published_at": "2026-10-17T13:01:00Z"}`.
+The raw provider file is one complete NVD API response or a JSON array of consecutive page responses.
+The exporter verifies its hash, pagination completeness, and exact expected identities/publication
+times within the window. The source URL must use the exact declared publication bounds and may
+only add `resultsPerPage` and `startIndex=0`; CVE, keyword, CVSS, and all other narrowing filters are
+rejected. Declared counts are never used as denominators.
+
+```bash
+uv run python -m scripts.export_monitoring_window \
+  --manifest /path/to/frozen-window.json \
+  --provider-snapshot /path/to/nvd-pages.json \
+  --output /path/to/new-prospective-evidence.json
+```
+
+For an open window, pass the declaration and omit `--provider-snapshot`. The PostgreSQL transaction
+uses a repeatable read, read-only snapshot; it exports source health, overlapping acquisition-run
+status/failure counts, and receipt rows without creating benchmark database records. Output paths
+must be new, so subsequent checks retain earlier evidence.
+
+For each expected object, latency is publication to earliest **recorded** successful cache admission
+across revisions. Fresh publications admitted during backfill still count; old backlog is outside
+the declared publication cohort. Missing objects stay pending until their publication plus six
+hours, then count as misses. The whole window remains pending until closure, independent expected
+population freeze, and maturity of the window's six-hour deadlines. Empty populations have no rate.
+Final `within_6h_rate` includes every expected record; accepted-only p50/p95/max and rate have explicit
+counts, and pending output includes rate bounds. A recorded timestamp proves that admission's
+completion, not first-ever collection: history before receipt instrumentation remains left-censored.
+
+### Canonical M1 commands
+
 Latency/source taxonomy only:
 
 ```bash

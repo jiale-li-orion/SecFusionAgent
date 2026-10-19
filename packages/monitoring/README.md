@@ -47,6 +47,36 @@ Acquisition remains scheduled when `SECFUSION_BACKGROUND_LLM_ENABLED=false`: the
 
 An external request is not considered a completed acquisition merely because the provider returned bytes. Completion happens after the selected downstream path accepts the data and the run/cursor transition commits.
 
+### Durable hot-admission receipts
+
+`hot_admission.py` retains lightweight monitoring metadata in
+`hot_admission_receipts` (migration `20261017_0038`). Each receipt identifies one
+source/object/version: an explicit provider revision takes precedence, otherwise
+the content hash supplies the identity. Revision and hash identities use distinct
+namespaces. The primary key is a SHA-256 digest of this canonical tuple; atomic
+conflict-ignore preserves the first committed receipt during replay and concurrent
+collection. A replay never overwrites its original timestamps, run, or source
+definition hash, and later revisions receive separate receipts.
+
+The receipt stores provider publication/update time, fetch time, `available_at`
+measured **after** awaited Redis admission, content hash, originating run/trigger,
+source definition hash, and separate input/output `backfill_pending` flags. The
+output flag describes the discovered batch's proposed cursor, even if a later
+item fails and the run never commits that cursor. These flags describe acquisition
+context; measurement policy belongs to evaluation. Timestamps must carry a timezone
+and are stored in UTC. No raw payload, normalized projection, Observation, Evidence,
+or durable Knowledge is created by this service.
+
+The collector commits each receipt before fetching the next item. A later fetch,
+cache write, receipt write, or run failure cannot roll back prior receipts. Receipt
+commit failure prevents cursor advancement; the already-written Redis item may be
+replayed. Run failure does not invalidate a successfully recorded admission. A crash
+between Redis acceptance and PostgreSQL commit can leave an unrecorded admission;
+replay records its new actual completion time without inventing the missing time.
+`available_at` is the first **recorded** admission for that version, not a claim of
+first-ever observation, provider completeness, or continued cache residency. No
+historical timestamps are backfilled when this telemetry is deployed.
+
 ## Registry startup and polite managed ingestion
 
 `synchronize_monitoring_sources` is the monitoring-owned registry entry point:

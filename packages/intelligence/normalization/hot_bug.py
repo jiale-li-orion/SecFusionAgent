@@ -52,7 +52,6 @@ class HotBugIngress:
             projection,
         )
         priority_signals = _priority_signals(projection, previous is None, changed_fields)
-        available_at = self._now()
         record = HotBugRecord(
             acquisition_run_id=envelope.acquisition_run_id,
             source_id=source.source_id,
@@ -69,6 +68,7 @@ class HotBugIngress:
             priority_signals=priority_signals,
         )
         await self._cache.admit(record, ttl_seconds=self._ttl_seconds)
+        available_at = self._now()
         return HotNormalizationResult(
             source_id=record.source_id,
             external_object_id=record.external_object_id,

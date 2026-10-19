@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from packages.shared.db import Base
@@ -46,3 +46,35 @@ class AcquisitionRunModel(Base):
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     error_code: Mapped[str | None] = mapped_column(String(128))
     error_detail: Mapped[str | None] = mapped_column(Text)
+
+
+class HotAdmissionReceiptModel(Base):
+    """First recorded cache admission of a source object version, not Evidence."""
+
+    __tablename__ = "hot_admission_receipts"
+    __table_args__ = (
+        Index("ix_hot_admission_source_publication", "source_id", "published_at", "available_at"),
+        Index("ix_hot_admission_source_update", "source_id", "updated_at", "available_at"),
+    )
+
+    receipt_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    source_id: Mapped[str] = mapped_column(
+        String(128), ForeignKey("sources.source_id", ondelete="RESTRICT"), nullable=False
+    )
+    external_object_id: Mapped[str] = mapped_column(Text, nullable=False)
+    external_revision: Mapped[str | None] = mapped_column(Text)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    available_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    acquisition_run_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("acquisition_runs.run_id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    trigger: Mapped[str] = mapped_column(String(32), nullable=False)
+    source_definition_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    input_backfill_pending: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    output_backfill_pending: Mapped[bool] = mapped_column(Boolean, nullable=False)
