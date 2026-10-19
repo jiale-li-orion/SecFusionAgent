@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from pydantic import JsonValue
@@ -16,7 +17,7 @@ from packages.sources.errors import SourceSchemaChanged
 
 class GitHubRepoMapper:
     PROCESSOR_NAME = "github-structured-normalizer"
-    PROCESSOR_VERSION = "2"
+    PROCESSOR_VERSION = "3"
 
     def map(self, envelope: IngestEnvelope) -> EnrichmentCandidate:
         object_type, repo_full_name, repo_locator = _development_context(envelope)
@@ -152,7 +153,8 @@ def _map_pull_request(
             claims.append(_claim(predicate, value, f"$.{field}"))
     relations = [_belongs_to_repo(full_name, repo_locator)]
     merge_sha = payload.get("merge_commit_sha")
-    if isinstance(merge_sha, str) and merge_sha:
+    # Before a PR is merged, GitHub may expose a synthetic test-merge SHA here.
+    if _has_confirmed_merge(payload) and isinstance(merge_sha, str) and merge_sha:
         relations.append(
             RelationCandidate(
                 relation_type="merged-as",
@@ -178,6 +180,16 @@ def _map_pull_request(
         replace_predicates=[item.predicate for item in claims],
         replace_relation_types=["belongs-to-repo", "merged-as", "head-commit"],
     )
+
+
+def _has_confirmed_merge(payload: dict[str, Any]) -> bool:
+    merged_at = payload.get("merged_at")
+    if payload.get("merged") is not True or not isinstance(merged_at, str):
+        return False
+    try:
+        return datetime.fromisoformat(merged_at).tzinfo is not None
+    except ValueError:
+        return False
 
 
 def _map_commit(

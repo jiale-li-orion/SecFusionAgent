@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from packages.intelligence.ingestion.evidence import EvidenceIngress
+from packages.intelligence.knowledge.contracts import ObjectCandidate, RelationCandidate
 from packages.intelligence.knowledge.read import get_object_by_identifier
 from packages.intelligence.knowledge.write import EvidenceBackedKnowledgeWriter
 from packages.intelligence.projections.service import (
@@ -61,6 +62,130 @@ def _envelope(
             "repo_full_name": "vllm-project/vllm",
         },
     )
+
+
+@pytest.mark.parametrize(
+    ("merged", "merged_at"),
+    [
+        (False, None),
+        (False, "2026-09-24T10:00:00Z"),
+        (None, "2026-09-24T10:00:00Z"),
+        ("true", "2026-09-24T10:00:00Z"),
+        (True, None),
+        (True, ""),
+        (True, "not-a-timestamp"),
+        (True, "2026-09-24"),
+        (True, "2026-09-24T10:00:00"),
+    ],
+)
+@pytest.mark.parametrize("state", ["open", "closed"])
+def test_pull_request_without_confirmed_merge_ignores_test_merge_sha(
+    state: str, merged: object, merged_at: object
+) -> None:
+    payload = _fixture("github_pull_request")
+    payload.update(state=state, merged=merged, merged_at=merged_at)
+    candidate = GitHubRepoMapper().map(
+        _envelope("pr-run", "pull_request", payload, "vllm-project/vllm#pull-9123")
+    )
+
+    assert {relation.relation_type for relation in candidate.relations} == {
+        "belongs-to-repo",
+        "head-commit",
+    }
+    head = next(item for item in candidate.relations if item.relation_type == "head-commit")
+    assert head.target.identifiers["git_commit_sha"] == ["b" * 40]
+    assert "merged-as" in candidate.replace_relation_types
+
+
+def test_confirmed_merged_pull_request_maps_actual_merge_commit() -> None:
+    candidate = GitHubRepoMapper().map(
+        _envelope(
+            "pr-run", "pull_request", _fixture("github_pull_request"), "vllm-project/vllm#pull-9123"
+        )
+    )
+
+    merged = next(item for item in candidate.relations if item.relation_type == "merged-as")
+    assert merged.target.identifiers["git_commit_sha"] == ["a" * 40]
+    assert merged.locator == {"kind": "jsonpath", "path": "$.merge_commit_sha"}
+
+
+@pytest.mark.asyncio
+async def test_processor_refresh_supersedes_legacy_test_merge_relation() -> None:
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    ingress = EvidenceIngress(MemoryArtifactStore(), now=lambda: NOW)
+    writer = EvidenceBackedKnowledgeWriter(now=lambda: NOW)
+    service = StructuredIndexService(ingress, writer, {"github_repo": GitHubRepoMapper()})
+    payload = _fixture("github_pull_request")
+    payload.update(state="open", merged=False, merged_at=None, closed_at=None)
+    envelope = _envelope("pr-run", "pull_request", payload, "vllm-project/vllm#pull-9123")
+    legacy_candidate = GitHubRepoMapper().map(envelope)
+    # Reproduce v2's erroneous durable edge from the retained, unmerged source payload.
+    legacy_candidate.relations = [
+        item for item in legacy_candidate.relations if item.relation_type != "merged-as"
+    ] + [
+        RelationCandidate(
+            relation_type="merged-as",
+            target=ObjectCandidate(
+                object_type="Commit",
+                canonical_key=f"git:commit:{'a' * 40}",
+                identifiers={"git_commit_sha": ["a" * 40]},
+            ),
+            locator={"kind": "jsonpath", "path": "$.merge_commit_sha"},
+        )
+    ]
+    try:
+        async with factory() as session, session.begin():
+            await sync_source_definitions(session, [SOURCE])
+            session.add(
+                AcquisitionRunModel(
+                    run_id="pr-run",
+                    source_id=SOURCE.source_id,
+                    trigger="on_demand",
+                    parent_run_id=None,
+                    query_spec={},
+                    status="success",
+                    cursor_in={},
+                    cursor_out={},
+                    attempt=1,
+                    created_at=NOW,
+                    started_at=NOW,
+                    finished_at=NOW,
+                )
+            )
+        async with factory() as session, session.begin():
+            observation = await ingress.accept(session, SOURCE, envelope)
+            legacy = await writer.apply(
+                session,
+                source=SOURCE,
+                observation=observation,
+                candidate=legacy_candidate,
+                processor_name=GitHubRepoMapper.PROCESSOR_NAME,
+                processor_version="2",
+            )
+        async with factory() as session, session.begin():
+            repaired = await service.ingest(session, SOURCE, envelope)
+        assert repaired.replay is True
+        assert repaired.observation_id == observation.observation_id
+        assert repaired.normalization.knowledge_revision > legacy.knowledge_revision
+
+        async with factory() as session:
+            relations = list(await session.scalars(select(RelationModel)))
+            old_merge = next(item for item in relations if item.relation_type == "merged-as")
+            assert old_merge.superseded_revision == repaired.normalization.knowledge_revision
+            assert {
+                item.relation_type for item in relations if item.superseded_revision is None
+            } == {
+                "belongs-to-repo",
+                "head-commit",
+            }
+        async with factory() as session, session.begin():
+            replay = await service.ingest(session, SOURCE, envelope)
+        assert replay.normalization.knowledge_revision == repaired.normalization.knowledge_revision
+    finally:
+        await engine.dispose()
 
 
 @pytest.mark.asyncio
