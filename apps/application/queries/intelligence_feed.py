@@ -122,39 +122,36 @@ async def read_intelligence_feed(
     )
     targets = set(preferences.target_object_ids)
     labels = {item.object_id: item.label for item in preferences.target_objects}
-    objects = list(
-        await session.scalars(
-            select(ObjectModel).where(
-                ObjectModel.superseded_revision.is_(None), ObjectModel.created_revision <= revision
-            )
-        )
+    current_objects = select(ObjectModel).where(
+        ObjectModel.superseded_revision.is_(None), ObjectModel.created_revision <= revision
     )
+    objects = list(await session.scalars(current_objects))
     object_types = {obj.object_id: obj.object_type for obj in objects}
     canonical_keys = {obj.object_id: obj.canonical_key for obj in objects}
     objects = [obj for obj in objects if obj.object_type in ACTIVITY_TYPES]
-    ids = [obj.object_id for obj in objects]
-    if not ids:
+    if not objects:
         return response
-    claims = list(
-        await session.scalars(
-            select(ClaimModel).where(
-                ClaimModel.subject_id.in_(ids),
-                ClaimModel.lifecycle == "accepted",
-                ClaimModel.superseded_revision.is_(None),
-                ClaimModel.created_revision <= revision,
-            )
-        )
+    activity_ids = current_objects.with_only_columns(ObjectModel.object_id).where(
+        ObjectModel.object_type.in_(ACTIVITY_TYPES)
     )
-    relations = list(
-        await session.scalars(
-            select(RelationModel).where(
-                RelationModel.lifecycle == "accepted",
-                RelationModel.superseded_revision.is_(None),
-                RelationModel.created_revision <= revision,
-            )
-        )
+    accepted_claims = select(ClaimModel).where(
+        ClaimModel.subject_id.in_(activity_ids),
+        ClaimModel.lifecycle == "accepted",
+        ClaimModel.superseded_revision.is_(None),
+        ClaimModel.created_revision <= revision,
     )
-    fact_ids = [row.claim_id for row in claims] + [row.relation_id for row in relations]
+    accepted_relations = select(RelationModel).where(
+        RelationModel.lifecycle == "accepted",
+        RelationModel.superseded_revision.is_(None),
+        RelationModel.created_revision <= revision,
+    )
+    claims = list(await session.scalars(accepted_claims))
+    relations = list(await session.scalars(accepted_relations))
+    # Keep identities inside SQL: expanding the growing fact set into parameters
+    # exceeds asyncpg's 32,767-argument limit and breaks both feed modes.
+    fact_ids = accepted_claims.with_only_columns(ClaimModel.claim_id).union_all(
+        accepted_relations.with_only_columns(RelationModel.relation_id)
+    )
     links = (
         await session.execute(
             select(EvidenceLinkModel, ObservationModel)

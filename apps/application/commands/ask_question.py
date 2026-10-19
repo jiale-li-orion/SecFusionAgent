@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import logging
+import re
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from hashlib import sha256
 from pathlib import Path
 from typing import cast
 from uuid import uuid4
@@ -53,7 +55,10 @@ from packages.intelligence.knowledge.read import (
     get_vulnerability_by_cve,
 )
 from packages.intelligence.retrieval.contracts import RetrievedCandidate
-from packages.intelligence.retrieval.operators import LexicalRetrievalOperator
+from packages.intelligence.retrieval.operators import (
+    DocumentRetrievalOperator,
+    LexicalRetrievalOperator,
+)
 from packages.intelligence.storage.knowledge_models import KnowledgeRevisionModel
 from packages.investigation.state.contracts import InvestigationState, InvestigationStateItem
 from packages.investigation.state.service import InvestigationStateService
@@ -1188,6 +1193,12 @@ class AskQuestionUseCase:
         revision: int,
         query_intent: QueryIntent | None = None,
     ) -> tuple[list[RetrievedCandidate], list[str]]:
+        carried = await self._cited_source_followup(
+            session, command, session_context=session_context,
+            turn_index=turn_index, revision=revision,
+        )
+        if carried is not None:
+            return carried
         found: dict[str, RetrievedCandidate] = {}
         invocation_refs: list[str] = []
         if query_intent is not None:
@@ -1230,6 +1241,75 @@ class AskQuestionUseCase:
             if found:
                 break
         return list(found.values())[:command.retrieval_limit], invocation_refs
+
+    async def _cited_source_followup(
+        self, session: AsyncSession, command: AskQuestionCommand, *,
+        session_context: QuestionSessionContext, turn_index: int, revision: int,
+    ) -> tuple[list[RetrievedCandidate], list[str]] | None:
+        """Re-read one explicitly referenced source, never promote chat text to evidence."""
+        reference = re.search(
+            r"(?:同一|这|该)(?:篇|份)([^：:，,。；;]{0,24}?)(?:报道|报告|文章|文档|材料)",  # noqa: RUF001
+            command.question,
+        )
+        if (
+            command.cve_id is not None
+            or reference is None or needs_semantic_query(command.question)
+            or len(lexical_queries(command.question)) != 1
+            or re.search(r"另一|其他|其它|换成|改为", command.question)
+        ):
+            return None
+        # resolve() already checks ownership and limits the history to four turns.
+        # A failed, uncited turn may intervene; an actual new outcome is a boundary.
+        for turn in reversed(session_context.turns):
+            if turn.investigation_ref is not None or turn.decision_ref is None:
+                return None
+            decision = await self._decisions.get_optional(session, turn.decision_ref)
+            if decision is None:
+                return None
+            if not decision.citations:
+                if decision.stop_reason in {
+                    "no_bound_investigation_target", "evidence_validation_failed",
+                }:
+                    continue
+                return None
+            qualifier = reference.group(1).strip()
+            if qualifier and qualifier not in turn.question:
+                return None
+            refs = _stable_unique([item.evidence_ref for item in decision.citations])
+            sources = {item.source_ref for item in decision.citations}
+            if (
+                len(sources) != 1 or None in sources
+                or not 1 <= len(refs) <= command.retrieval_limit
+                or any(not ref.startswith("document-chunk:") for ref in refs)
+            ):
+                return None
+            candidates = await self._retrieval.by_chunk_refs(session, refs=refs)
+            targets = {item.object_id for item in candidates}
+            if len(candidates) != len(refs) or len(targets) != 1 or None in targets:
+                return None
+            target = candidates[0].object_id
+            assert target is not None
+            if command.object_id is not None and command.object_id != target:
+                return None
+            current = await DocumentRetrievalOperator().for_object(
+                session, object_id=target, limit=100,
+            )
+            current_refs = {_document_chunk_ref(item) for item in current}
+            if not set(refs).issubset(current_refs):
+                return None
+            invocation = await self._retrieval_invocations.record(
+                session, request_owner_ref=f"product-request:{command.request_id}",
+                product_session_id=session_context.session_id, product_turn_index=turn_index,
+                request=RetrievalRequestCoordinate(
+                    operator="document_chunk_refs", operator_revision="decision-cited-current-v1",
+                    query_digest=sha256("\n".join(refs).encode()).hexdigest(),
+                    knowledge_revision=revision, limit=command.retrieval_limit,
+                    source_ids=sorted({item.source_id for item in candidates if item.source_id}),
+                ),
+                result_refs=refs, disposition=RetrievalDisposition.EXECUTED,
+            )
+            return candidates, [invocation.ref]
+        return None
 
     async def _retrieve_query(
         self,

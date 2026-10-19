@@ -1,7 +1,7 @@
 # ruff: noqa: RUF001
 """Versioned public editorial contract; source content never supplies instructions."""
 
-PUBLIC_BRIEFING_PROMPT_REVISION = "public-editorial-v5"
+PUBLIC_BRIEFING_PROMPT_REVISION = "public-editorial-v7"
 
 PUBLIC_BRIEFING_INSTRUCTION = """
 本次交付是中文公开情报编研，读者是安全研究与决策人员。以下编辑规范专门约束

@@ -4,6 +4,8 @@
 
 ## Product reads and orchestration
 
+`queries/intelligence_feed.py` keeps accepted object, claim and relation identities in SQL subqueries when resolving source references. Feed growth therefore does not expand those identities into one bind parameter per fact or exceed the database driver's parameter limit. The query retains the same revision, observation-time, lifecycle and principal-specific filtering for recommended and following feeds.
+
 Investigation Product API composition remains the durable async path:
 
 ```text

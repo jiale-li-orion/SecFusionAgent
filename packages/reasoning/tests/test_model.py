@@ -5,13 +5,14 @@ from datetime import UTC, datetime
 import pytest
 
 from packages.investigation.state.continuation import ContinuationRequest
-from packages.investigation.state.contracts import InvestigationState
+from packages.investigation.state.contracts import InvestigationState, InvestigationStateItem
 from packages.reasoning.citation import CitationSource
 from packages.reasoning.decision import (
     ConclusionType,
     DecisionConclusion,
     DecisionDraft,
     DecisionReportParagraph,
+    DecisionService,
 )
 from packages.reasoning.model import (
     ContinuationProposal,
@@ -36,7 +37,8 @@ class _Provider:
     async def generate_structured(self, request, response_model):
         assert response_model is (
             InvestigationReportResponse
-            if request.data["prefer_partial_final"] else DecisionPlannerResponse
+            if request.data["prefer_partial_final"] or request.data["methodology_mode"]
+            else DecisionPlannerResponse
         )
         self.requests.append(request)
         return response_model.model_validate(self.response.model_dump())
@@ -68,7 +70,7 @@ async def test_model_decision_planner_forces_case_identity_from_state() -> None:
     assert isinstance(result, DecisionDraft)
     assert result.case_id == "case-1"
     assert result.case_revision == 7
-    assert result.model_prompt_revision == "decision-model-v6-core"
+    assert result.model_prompt_revision == "decision-model-v9-core"
     assert provider.requests[0].metadata["case_revision"] == 7
     assert "minimal sufficient answer" in provider.requests[0].system_instruction
     assert "research report for a security analyst" not in provider.requests[0].system_instruction
@@ -90,9 +92,103 @@ async def test_model_decision_planner_enables_report_only_for_durable_investigat
         _state(), citation_sources=[], include_report=True
     )
     assert isinstance(result, DecisionDraft)
-    assert result.model_prompt_revision == "decision-model-v7"
+    assert result.model_prompt_revision == "decision-model-v9"
     assert result.report_paragraphs[0].text == "The release contains the confirmed fix."
     assert "research report for a security analyst" in provider.requests[0].system_instruction
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("options", "revision"),
+    [
+        ({}, "decision-model-v9-core"),
+        ({"include_report": True}, "decision-model-v9"),
+        ({"methodology_mode": True}, "decision-methodology-v3"),
+        ({"include_report": True, "public_briefing": True}, "public-editorial-v7"),
+    ],
+)
+async def test_answer_contract_is_versioned_for_every_planner_profile(options, revision) -> None:
+    provider = _Provider(DecisionPlannerResponse(action=FinalDecisionProposal(
+        stop_reason="partial_evidence",
+    )))
+    result = await ModelDecisionPlanner(provider).plan(_state(), citation_sources=[], **options)
+    request = provider.requests[0]
+    assert isinstance(result, DecisionDraft)
+    assert result.model_prompt_revision == revision
+    assert request.metadata["prompt_revision"] == revision
+    # The shared contract must reach all profiles, including editorial and methodology.
+    assert "Source-record lookup:" in request.system_instruction
+    assert "Analytical investigation:" in request.system_instruction
+    assert "Apply sorting and tie-breaking internally" in request.system_instruction
+    assert "including any semantics= suffix" in request.system_instruction
+    assert "same state item" in request.system_instruction
+    assert "inference" in request.system_instruction
+    assert "report_summary and report_paragraphs" in request.system_instruction
+    assert "Do not add conclusions to authorize extra report citations" in (
+        request.system_instruction
+    )
+    assert "Return a final report with only the confirmed facts" not in request.system_instruction
+    if not options.get("public_briefing"):
+        # Keep the contract smaller than the v7 report prompt (5,868 characters).
+        assert len(request.system_instruction) < 5868
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("analytical", [False, True])
+async def test_record_lookup_and_partial_analysis_preserve_distinct_valid_outcomes(
+    analytical,
+) -> None:
+    state = _state()
+    state.goal = (
+        "Assess deployment exposure and whether this change mitigates it."
+        if analytical else "According to the supplied change record, is it merged?"
+    )
+    state.confirmed = [InvestigationStateItem(
+        proposition='change:17 merged = false semantics={"source_id":"forge"}',
+        evidence_refs=["evidence:status"], writer="M3Knowledge",
+        reason_code="source_record", updated_revision=7,
+    ), InvestigationStateItem(
+        proposition='change:17 title = "Guard invalid input"',
+        evidence_refs=["evidence:title"], writer="M3Knowledge",
+        reason_code="source_record", updated_revision=7,
+    )]
+    conclusion = DecisionConclusion(
+        statement=(
+            "The recorded unmerged status does not establish deployment exposure."
+            if analytical else state.confirmed[0].proposition
+        ),
+        type=ConclusionType.INFERENCE if analytical else ConclusionType.FACT,
+        evidence_refs=["evidence:status"],
+    )
+    proposal = FinalDecisionProposal(
+        conclusions=[conclusion],
+        unknowns=["Deployment exposure has not been checked."] if analytical else [],
+        answer_payload={"status": "partial"} if analytical else {"merged": False},
+        report_paragraphs=[DecisionReportParagraph(
+            text=(
+                conclusion.statement if analytical else "The supplied record says it is unmerged."
+            ),
+            evidence_refs=conclusion.evidence_refs,
+        )],
+        stop_reason="partial_evidence" if analytical else "evidence_sufficient",
+    )
+    provider = _Provider(DecisionPlannerResponse(action=proposal))
+    sources = [CitationSource(evidence_ref="evidence:status", source_ref="source:forge")]
+    draft = await ModelDecisionPlanner(provider).plan(
+        state, citation_sources=sources, include_report=True, prefer_partial_final=analytical,
+    )
+    assert isinstance(draft, DecisionDraft)
+    result = DecisionService().decide(state, draft, citation_sources=sources)
+    assert result.conclusions == [conclusion]
+    assert result.unknowns == proposal.unknowns
+    assert result.answer_payload == proposal.answer_payload
+    assert result.stop_reason == proposal.stop_reason
+    assert result.report_summary is None and result.report_layout is None
+    # The planner retains all supplied evidence and the user's full goal; no heuristic
+    # drops analytical context or filters conclusions to match a lookup-shaped answer.
+    assert provider.requests[0].data["investigation_state"] == state.model_dump(mode="json")
+    instruction = provider.requests[0].system_instruction
+    assert ("current investigation episode has ended" in instruction) is analytical
 
 
 @pytest.mark.asyncio

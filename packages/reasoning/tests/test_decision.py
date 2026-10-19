@@ -198,3 +198,96 @@ def test_decision_service_rejects_stale_case_revision() -> None:
             ),
             citation_sources=[],
         )
+
+
+@pytest.mark.parametrize("mutation", [None, "drop_qualifier", "swap_evidence"])
+def test_qualified_fact_retains_its_exact_statement_and_evidence_identity(mutation) -> None:
+    state = _state()
+    qualified = 'component:widget affected-by vulnerability:example semantics={"platform":"linux"}'
+    state.confirmed[0].proposition = qualified
+    state.confirmed.append(state.confirmed[0].model_copy(update={
+        "proposition": "The vendor published an advisory.",
+        "evidence_refs": ["evidence:advisory-title"],
+    }))
+    statement = qualified.split(" semantics=", 1)[0] if mutation == "drop_qualifier" else qualified
+    ref = "evidence:advisory-title" if mutation == "swap_evidence" else "evidence:primary-release"
+    draft = DecisionDraft(
+        case_id=state.case_id,
+        case_revision=state.case_revision,
+        conclusions=[DecisionConclusion(
+            statement=statement, type=ConclusionType.FACT, evidence_refs=[ref],
+        )],
+        stop_reason="evidence_sufficient",
+        model_prompt_revision="decision-test",
+    )
+    # Even matching source and locator coordinates cannot substitute another fact's ref.
+    sources = [CitationSource(
+        evidence_ref=evidence_ref,
+        source_ref="source:vendor-advisory",
+        locator={"field": "advisory"},
+    ) for evidence_ref in ("evidence:primary-release", "evidence:advisory-title")]
+    if mutation is not None:
+        with pytest.raises(ValueError, match="must reproduce one confirmed M4 proposition"):
+            DecisionService().decide(state, draft, citation_sources=sources)
+    else:
+        result = DecisionService().decide(state, draft, citation_sources=sources)
+        assert result.conclusions[0].statement == qualified
+        assert result.citations[0].evidence_ref == "evidence:primary-release"
+
+
+@pytest.mark.parametrize("summary", [False, True])
+def test_report_cannot_borrow_available_evidence_omitted_from_conclusions(summary) -> None:
+    state = _state()
+    text = DecisionReportParagraph(
+        text="The earlier release may also contain the fix.",
+        evidence_refs=["evidence:secondary-blog"],
+    )
+    draft = DecisionDraft(
+        case_id=state.case_id,
+        case_revision=state.case_revision,
+        conclusions=[DecisionConclusion(
+            statement=state.confirmed[0].proposition,
+            type=ConclusionType.FACT,
+            evidence_refs=state.confirmed[0].evidence_refs,
+        )],
+        report_summary=text if summary else None,
+        report_paragraphs=[] if summary else [text],
+        stop_reason="evidence_sufficient",
+        model_prompt_revision="decision-test",
+    )
+    with pytest.raises(ValueError, match="report paragraph cites evidence outside"):
+        DecisionService().decide(state, draft, citation_sources=[
+            CitationSource(evidence_ref="evidence:primary-release"),
+            CitationSource(evidence_ref="evidence:secondary-blog"),
+        ])
+
+
+def test_genuine_supported_inference_remains_a_valid_answer() -> None:
+    state = _state()
+    state.goal = "What uncertainty remains about the earliest fixed release?"
+    inference = DecisionConclusion(
+        statement=(
+            "The primary release evidence establishes v1.2.3, but the secondary report "
+            "suggests v1.2.2 may already contain the fix; "
+            "the earliest fixed release remains uncertain."
+        ),
+        type=ConclusionType.INFERENCE,
+        evidence_refs=["evidence:primary-release", "evidence:secondary-blog"],
+    )
+    paragraph = DecisionReportParagraph(
+        text=inference.statement, evidence_refs=inference.evidence_refs,
+    )
+    result = DecisionService().decide(state, DecisionDraft(
+        case_id=state.case_id,
+        case_revision=state.case_revision,
+        conclusions=[inference],
+        report_summary=paragraph,
+        report_paragraphs=[paragraph],
+        unknowns=["Earliest fixed release"],
+        stop_reason="partial_evidence",
+        model_prompt_revision="decision-test",
+    ), citation_sources=[
+        CitationSource(evidence_ref=ref) for ref in inference.evidence_refs
+    ])
+    assert result.conclusions == [inference]
+    assert {citation.evidence_ref for citation in result.citations} == set(inference.evidence_refs)

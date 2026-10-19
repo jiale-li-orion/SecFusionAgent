@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import func, select
@@ -25,6 +25,11 @@ from apps.evaluation_runtime import load_product_question_session_trace
 from apps.runtime_models import register_runtime_models
 from packages.intelligence.retrieval.contracts import CandidateKind, RetrievedCandidate
 from packages.intelligence.retrieval.operators import LexicalRetrievalOperator
+from packages.intelligence.storage.document_models import (
+    DocumentChunkModel,
+    DocumentModel,
+    DocumentRevisionModel,
+)
 from packages.intelligence.storage.evidence_models import ObservationModel
 from packages.intelligence.storage.knowledge_models import (
     ClaimModel,
@@ -489,7 +494,7 @@ async def test_lookup_question_runs_read_only_decision_without_durable_case() ->
         assert metadata["execution_id"]
         assert metadata["case_id"] is None
         assert metadata["product_request_id"] == "question-direct-1"
-        assert metadata["prompt_revision"] == "decision-model-v7"
+        assert metadata["prompt_revision"] == "decision-model-v9"
     finally:
         await engine.dispose()
 
@@ -1052,6 +1057,122 @@ async def test_identical_retrieve_followup_reuses_prior_chunk_results() -> None:
             trace = await load_product_question_session_trace(session, first.session_id)
             assert trace.turns[0].retrieval_refs == invocations[0].result_refs
             assert trace.turns[1].retrieval_refs == invocations[1].result_refs
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("boundary", [
+    "same_source", "same_bound_source", "new_target", "missing", "stale", "ambiguous",
+])
+async def test_same_source_followup_recovers_cited_material_after_unbound_turn(boundary) -> None:
+    engine, factory = await _factory()
+    refs = ["document-chunk:followup-chunk@followup-r1", "document-chunk:other-chunk@other-r1"]
+
+    class FirstTurnRetrieval(LexicalRetrievalOperator):
+        calls = 0
+
+        async def search(self, session, *, query, limit=20, source_ids=None):
+            self.calls += 1
+            return await self.by_chunk_refs(session, refs=refs) if self.calls == 1 else []
+
+    retrieval = FirstTurnRetrieval()
+    cited = refs if boundary == "ambiguous" else refs[:1]
+    response = DecisionPlannerResponse(action=FinalDecisionProposal(
+        conclusions=[DecisionConclusion(
+            statement="The report does not establish the requested relation.",
+            type=ConclusionType.INFERENCE, evidence_refs=cited,
+        )], answer_payload={"analysis": "bounded source analysis"},
+        stop_reason="evidence_sufficient",
+    ))
+    try:
+        async with factory() as session, session.begin():
+            for prefix, object_id in [("followup", DOCUMENT_ID), ("other", PRODUCT_ID)]:
+                session.add(DocumentModel(
+                    document_id=f"{prefix}-document", object_id=object_id, source_id="vendor-test",
+                    external_object_id=prefix, canonical_url=f"https://vendor.example/{prefix}",
+                    created_at=NOW,
+                ))
+                session.add(DocumentRevisionModel(
+                    document_revision_id=f"{prefix}-r1", document_id=f"{prefix}-document",
+                    observation_id="question-observation", title="Research report",
+                    content_hash=prefix, parser_name=prefix, parser_version="1", created_at=NOW,
+                ))
+                session.add(DocumentChunkModel(
+                    chunk_id=f"{prefix}-chunk", document_revision_id=f"{prefix}-r1", ordinal=0,
+                    text="The report does not establish the requested relation.",
+                    locator={"section": "analysis"}, content_hash=prefix, chunker_version="1",
+                ))
+        async with factory() as session:
+            first = await _use_case(_Provider(response), retrieval=retrieval).execute(
+                session, AskQuestionCommand(principal="user:test", request_id="cited-first",
+                    question="请说明研究报告中的观点，并保留引用。"),  # noqa: RUF001
+            )
+        assert first.decision is not None and first.decision.stop_reason == "evidence_sufficient"
+        missing = _Provider(DecisionPlannerResponse(action=ContinuationProposal(
+            purpose="missing_source", proposition_or_question="Which report was referenced?",
+            reason="The current turn contains no source material.",
+        )))
+        async with factory() as session:
+            failed = await _use_case(missing, retrieval=retrieval).execute(
+                session, AskQuestionCommand(principal="user:test", request_id="cited-unbound",
+                    session_id=first.session_id, question="请补充说明。"),
+            )
+        assert failed.decision is not None
+        assert failed.decision.stop_reason == "no_bound_investigation_target"
+        async with factory() as session, session.begin():
+            if boundary == "missing":
+                chunk = await session.get(DocumentChunkModel, "followup-chunk")
+                await session.delete(chunk)
+            if boundary == "stale":
+                session.add(DocumentRevisionModel(
+                    document_revision_id="followup-r2", document_id="followup-document",
+                    observation_id="question-observation", title="Changed research report",
+                    content_hash="changed", parser_name="followup", parser_version="2",
+                    created_at=NOW + timedelta(seconds=1),
+                ))
+        provider = _Provider(response)
+        async with factory() as session:
+            third = await _use_case(provider, retrieval=retrieval).execute(
+                session, AskQuestionCommand(principal="user:test", request_id="cited-followup",
+                    session_id=first.session_id,
+                    object_id=OBJECT_ID if boundary == "new_target" else None,
+                    question=(
+                        "请继续分析这同一篇研究报告：区分其中观点和推断，"  # noqa: RUF001
+                        "并说明尚不能判断什么。请保留引用。"
+                    )),
+            )
+        assert third.session_id == first.session_id and third.turn_index == 3
+        assert third.decision is not None
+        if boundary == "same_bound_source":
+            async with factory() as session:
+                fourth = await _use_case(provider, retrieval=retrieval).execute(
+                    session, AskQuestionCommand(
+                        principal="user:test", request_id="cited-bound-followup",
+                        session_id=first.session_id, question="请继续说明这篇研究报告的判断边界。",
+                    ),
+                )
+            assert fourth.turn_index == 4 and fourth.decision is not None
+            assert fourth.decision.stop_reason == "evidence_sufficient"
+        if boundary in {"same_source", "same_bound_source"}:
+            assert third.decision.stop_reason == "evidence_sufficient"
+            state = provider.requests[0].data["investigation_state"]
+            assert isinstance(state, dict)
+            assert state["targets"] == [DOCUMENT_ID]
+            tentative = state["tentative"]
+            assert isinstance(tentative, list)
+            assert len(tentative) == 1 and isinstance(tentative[0], dict)
+            assert tentative[0]["evidence_refs"] == refs[:1]
+            assert retrieval.calls == 2
+            async with factory() as session:
+                invocation = await session.scalar(select(RetrievalInvocationModel).where(
+                    RetrievalInvocationModel.product_session_id == first.session_id,
+                    RetrievalInvocationModel.product_turn_index == 3,
+                ))
+                assert invocation is not None and invocation.result_refs == refs[:1]
+                assert invocation.operator == "document_chunk_refs"
+        else:
+            assert third.decision.stop_reason == "evidence_validation_failed"
     finally:
         await engine.dispose()
 

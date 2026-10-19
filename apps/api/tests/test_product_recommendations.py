@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import func, select
+from sqlalchemy import event, func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from apps.api.dependencies import database_session
@@ -617,6 +617,58 @@ async def test_dynamic_feed_modes_cursor_and_item_feedback(recommendation_client
         row["object_id"] for row in (await client.get(f"{base}/recommendations")).json()["items"]
     }
     assert (await client.get(f"{base}/feed?cursor=broken")).status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_feed_keeps_all_evidence_with_a_bounded_sql_parameter_budget(recommendation_client):
+    client, factory = recommendation_client
+    async with factory() as session, session.begin():
+        for index in range(80):
+            session.add(
+                ClaimModel(
+                    claim_id=f"feed-volume-{index}",
+                    subject_id="vulnerability-a",
+                    predicate="description",
+                    value=f"Ray security finding {index}",
+                    origin="source_asserted",
+                    lifecycle="accepted",
+                    created_revision=1,
+                )
+            )
+            session.add(
+                EvidenceLinkModel(
+                    evidence_link_id=f"feed-volume-link-{index}",
+                    target_kind="claim",
+                    target_id=f"feed-volume-{index}",
+                    observation_id="recommendation-observation",
+                    locator={"field": f"finding-{index}"},
+                    locator_hash=f"finding-{index}",
+                )
+            )
+    await client.put(
+        "/api/v1/intelligence/preferences",
+        json={"keywords": ["Ray"], "target_object_ids": []},
+    )
+
+    # Exercise the driver limit at a smaller scale without a 32k-row fixture.
+    def enforce_bind_budget(_conn, _cursor, statement, parameters, _context, _many):
+        if statement.lstrip().upper().startswith("SELECT"):
+            assert len(parameters) <= 64, "feed query exceeded driver parameter budget"
+
+    engine = factory.kw["bind"].sync_engine
+    event.listen(engine, "before_cursor_execute", enforce_bind_budget)
+    try:
+        for mode in ("recommended", "following"):
+            response = await client.get(f"/api/v1/intelligence/feed?mode={mode}")
+            assert response.status_code == 200, response.text
+            item = next(
+                row for row in response.json()["items"] if row["object_id"] == "vulnerability-a"
+            )
+            refs = {ref["evidence_ref"] for ref in item["evidence"]}
+            assert {f"evidence:feed-volume-link-{i}" for i in range(80)} <= refs
+            assert "evidence:link-affects" in refs
+    finally:
+        event.remove(engine, "before_cursor_execute", enforce_bind_budget)
 
 
 @pytest.mark.asyncio

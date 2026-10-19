@@ -88,7 +88,7 @@
 .library-intro .library-corpus-total { display:flex; align-items:baseline; gap:12px; white-space:nowrap; }
 .library-corpus-total strong { font-size:40px; font-weight:500; color:var(--ui-foreground); font-variant-numeric:tabular-nums; letter-spacing:-.045em; }
 .library-catalog-controls { display:grid; grid-template-columns:minmax(150px,.7fr) minmax(200px,1fr) minmax(230px,1.3fr); gap:24px; padding:12px 0 28px; }
-.library-catalog-controls>label { display:flex; align-items:center; gap:12px; font-size:14px; min-width:0; }
+.library-catalog-controls>label { display:grid; grid-template-columns:max-content minmax(0,1fr); align-items:center; gap:12px; font-size:14px; min-width:0; }
 .library-catalog-controls select,.library-page-clusters select { min-height:44px; min-width:0; width:100%; border:0; border-bottom:1px solid var(--ui-border); background:transparent; color:var(--ui-foreground); font:inherit; padding:8px 24px 8px 4px; text-overflow:ellipsis; }
 .library-catalog-controls form { display:flex; align-items:center; border-bottom:1px solid var(--ui-border); }
 .library-catalog-controls input { min-width:0; width:100%; border:0; background:transparent; color:var(--ui-foreground); font:inherit; font-size:14px; min-height:44px; outline-offset:3px; }
