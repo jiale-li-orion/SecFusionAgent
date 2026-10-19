@@ -39,9 +39,7 @@ def test_competition_run_set_must_cover_selected_provider_snapshots() -> None:
     with pytest.raises(ValueError, match="omit provider snapshots"):
         _validate_provider_snapshot_refs(
             run_world_snapshot_refs=["provider-snapshot:m3-world", None],
-            case_artifact_refs=[
-                ["provider-snapshot:m1-delivery", "m1-latency-samples:digest"]
-            ],
+            case_artifact_refs=[["provider-snapshot:m1-delivery", "m1-latency-samples:digest"]],
             declared_artifact_refs=["provider-snapshot:m1-delivery"],
         )
 
@@ -53,3 +51,22 @@ def test_competition_run_set_must_cover_selected_provider_snapshots() -> None:
             "provider-snapshot:m3-world",
         ],
     )
+
+
+def test_empty_artifact_declaration_cannot_bypass_provider_closure() -> None:
+    with pytest.raises(ValueError, match="omit provider snapshots"):
+        _validate_provider_snapshot_refs(
+            run_world_snapshot_refs=["provider-snapshot:gold"],
+            case_artifact_refs=[],
+            declared_artifact_refs=[],
+        )
+
+
+def test_provider_gold_in_case_fixtures_requires_artifact_declaration() -> None:
+    with pytest.raises(ValueError, match="omit provider snapshots"):
+        _validate_provider_snapshot_refs(
+            run_world_snapshot_refs=["knowledge:17"],
+            case_artifact_refs=[],
+            declared_artifact_refs=[],
+            case_fixture_refs=[["provider-snapshot:gold"]],
+        )

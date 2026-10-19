@@ -51,9 +51,7 @@ def test_real_product_candidate_is_pinned_live_product_content() -> None:
     assert continuation.gold_provenance is not None
     assert continuation.gold_provenance.absence_checks[0].predicate == "cvss_score"
     multihop = next(
-        item
-        for item in manifest.cases
-        if item.case_id == "qa-real-48746-pr-merge-commit-multihop"
+        item for item in manifest.cases if item.case_id == "qa-real-48746-pr-merge-commit-multihop"
     )
     assert multihop.gold.required_relation_paths == [
         [
@@ -85,9 +83,7 @@ def test_real_session_candidate_covers_followup_and_exact_retrieval_reuse() -> N
     assert followup.turns[1].expected_target_keys == ["cve:CVE-2026-7273"]
 
     retrieval = next(
-        item
-        for item in manifest.sessions
-        if item.case_id == "qa-session-real-7273-retrieve-reuse"
+        item for item in manifest.sessions if item.case_id == "qa-session-real-7273-retrieve-reuse"
     )
     assert [turn.question.task_kind for turn in retrieval.turns] == [
         TaskKind.RETRIEVE,
@@ -225,10 +221,7 @@ def test_session_trace_metrics_use_durable_context_chain_and_target_keys() -> No
         ),
     ]
     assert qa_runner._session_context_chain_correctness(turns) == 1.0
-    assert (
-        qa_runner._session_target_carry_correctness(turns, manifest.sessions[0].turns)
-        == 1.0
-    )
+    assert qa_runner._session_target_carry_correctness(turns, manifest.sessions[0].turns) == 1.0
     broken = [turns[0], turns[1].model_copy(update={"parent_context_id": "context:other"})]
     assert qa_runner._session_context_chain_correctness(broken) == 0.0
     assert qa_runner._session_retrieval_overlap_rate(turns, manifest.sessions[0].turns) is None
@@ -250,18 +243,22 @@ def test_session_trace_metrics_use_durable_context_chain_and_target_keys() -> No
         ),
     ]
     expected_turns = [
-        manifest.sessions[0].turns[0].model_copy(
+        manifest.sessions[0]
+        .turns[0]
+        .model_copy(
             update={
-                "question": manifest.sessions[0].turns[0].question.model_copy(
-                    update={"task_kind": TaskKind.RETRIEVE}
-                )
+                "question": manifest.sessions[0]
+                .turns[0]
+                .question.model_copy(update={"task_kind": TaskKind.RETRIEVE})
             }
         ),
-        manifest.sessions[0].turns[1].model_copy(
+        manifest.sessions[0]
+        .turns[1]
+        .model_copy(
             update={
-                "question": manifest.sessions[0].turns[1].question.model_copy(
-                    update={"task_kind": TaskKind.RETRIEVE}
-                )
+                "question": manifest.sessions[0]
+                .turns[1]
+                .question.model_copy(update={"task_kind": TaskKind.RETRIEVE})
             }
         ),
     ]
@@ -379,6 +376,8 @@ def test_manifest_rejects_mixing_two_live_product_denominators() -> None:
                 ],
             }
         )
+
+
 def test_live_product_case_is_an_explicit_prediction_source() -> None:
     case = QABenchmarkManifestCase.model_validate(
         {
@@ -532,9 +531,11 @@ async def test_offline_runner_persists_staged_benchmark_run(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("failure_type", [TimeoutError, RuntimeError, ValueError])
 async def test_live_product_timeout_is_scored_as_failed_case_without_aborting_suite(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    failure_type: type[Exception],
 ) -> None:
     register_runtime_models()
     database_url = f"sqlite+aiosqlite:///{tmp_path / 'qa-timeout.sqlite'}"
@@ -573,7 +574,11 @@ async def test_live_product_timeout_is_scored_as_failed_case_without_aborting_su
         case_id = kwargs["benchmark_case_id"]
         calls.append(case_id)
         if case_id == "qa-timeout":
-            raise TimeoutError
+            if failure_type is ValueError:
+                from apps.evaluation_runtime import _reject_stale_citation_verdicts
+
+                _reject_stale_citation_verdicts({(0, "evidence:stale"): True}, set())
+            raise failure_type
         return QAPrediction(
             case_id=case_id,
             conclusion_facts=["fact:ok"],
@@ -601,6 +606,9 @@ async def test_live_product_timeout_is_scored_as_failed_case_without_aborting_su
         qa_runner,
         "load_product_question_timeout_qa_prediction",
         fake_timeout_prediction,
+    )
+    monkeypatch.setattr(
+        qa_runner, "load_product_question_failure_qa_prediction", fake_timeout_prediction
     )
 
     manifest = QABenchmarkManifest.model_validate(
@@ -638,6 +646,10 @@ async def test_live_product_timeout_is_scored_as_failed_case_without_aborting_su
             ],
         }
     )
+    if failure_type is ValueError:
+        with pytest.raises(ValueError, match="citation support verdict"):
+            await qa_runner._run(manifest, suite_revision=1, deployment_revision_id=None)
+        return
     result = await qa_runner._run(
         manifest,
         suite_revision=1,
@@ -648,9 +660,11 @@ async def test_live_product_timeout_is_scored_as_failed_case_without_aborting_su
     assert timeout_score["answer_accuracy"] == 0.0
     assert timeout_score["completion_correctness"] == 0.0
     assert timeout_score["citation_completeness"] == 0.0
-    assert timeout_score["interactive_latency_seconds"] == 5.01
+    if failure_type is TimeoutError:
+        assert timeout_score["interactive_latency_seconds"] == 5.01
+    assert timeout_score["task_correctness"] == 0
     assert timeout_score["benchmark_case_status"] == "failed"
-    assert timeout_score["failure_class"] == "TimeoutError"
+    assert timeout_score["failure_class"] == failure_type.__name__
     assert result["case_scores"]["qa-after-timeout"]["answer_accuracy"] == 1.0
     assert calls == ["qa-timeout", "qa-after-timeout"]
 
@@ -666,7 +680,7 @@ async def test_live_product_timeout_is_scored_as_failed_case_without_aborting_su
             )
         )
         assert [(item.status, item.failure_class) for item in case_runs] == [
-            ("failed", "TimeoutError"),
+            ("failed", failure_type.__name__),
             ("passed", None),
         ]
 
@@ -819,9 +833,20 @@ async def test_session_runner_reuses_product_session_and_scores_each_turn(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "revision,failure_type",
+    [
+        ("qa-session-v1", TimeoutError),
+        ("qa-session-v2", TimeoutError),
+        ("qa-session-v2", RuntimeError),
+        ("qa-session-v2", ValueError),
+    ],
+)
 async def test_session_timeout_fails_only_that_session_and_continues_suite(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    revision: str,
+    failure_type: type[Exception],
 ) -> None:
     register_runtime_models()
     database_url = f"sqlite+aiosqlite:///{tmp_path / 'qa-session-timeout.sqlite'}"
@@ -861,7 +886,11 @@ async def test_session_timeout_fails_only_that_session_and_continues_suite(
         incoming_session = kwargs["session_id"]
         calls.append((case_id, incoming_session))
         if case_id == "qa-session-timeout#turn:one":
-            raise TimeoutError
+            if failure_type is ValueError:
+                from apps.evaluation_runtime import _reject_stale_citation_verdicts
+
+                _reject_stale_citation_verdicts({(0, "evidence:stale"): True}, set())
+            raise failure_type
         turn_index = 1 if case_id.endswith("#turn:one") else 2
         fact = "fact:one" if turn_index == 1 else "fact:two"
         return ProductQuestionQAExecution(
@@ -923,6 +952,9 @@ async def test_session_timeout_fails_only_that_session_and_continues_suite(
         "load_product_question_timeout_qa_prediction",
         fake_timeout_prediction,
     )
+    monkeypatch.setattr(
+        qa_runner, "load_product_question_failure_qa_prediction", fake_timeout_prediction
+    )
     monkeypatch.setattr(qa_runner, "load_product_question_session_trace", fake_trace)
 
     def session_case(case_id: str) -> dict[str, object]:
@@ -962,6 +994,7 @@ async def test_session_timeout_fails_only_that_session_and_continues_suite(
     manifest = QABenchmarkManifest.model_validate(
         {
             "suite_id": "m6-qa-session-timeout-test",
+            "evaluator_revision": revision,
             "knowledge_revision": 606,
             "sessions": [
                 session_case("qa-session-timeout"),
@@ -969,6 +1002,10 @@ async def test_session_timeout_fails_only_that_session_and_continues_suite(
             ],
         }
     )
+    if failure_type is ValueError:
+        with pytest.raises(ValueError, match="citation support verdict"):
+            await qa_runner._run(manifest, suite_revision=1, deployment_revision_id=None)
+        return
     result = await qa_runner._run(
         manifest,
         suite_revision=1,
@@ -977,10 +1014,16 @@ async def test_session_timeout_fails_only_that_session_and_continues_suite(
 
     timed_out = result["session_scores"]["qa-session-timeout"]
     assert timed_out["benchmark_case_status"] == "failed"
-    assert timed_out["failure_class"] == "TimeoutError"
+    assert timed_out["failure_class"] == failure_type.__name__
     assert timed_out["turn_scores"]["one"]["answer_accuracy"] == 0.0
     assert timed_out["turn_scores"]["one"]["completion_correctness"] == 0.0
-    assert "two" not in timed_out["turn_scores"]
+    if revision.endswith("v1"):
+        assert "two" not in timed_out["turn_scores"]
+    else:
+        assert timed_out["turn_scores"]["one"]["task_correctness"] == 0
+        assert timed_out["turn_scores"]["two"]["task_correctness"] == 0
+        assert timed_out["turn_scores"]["two"]["benchmark_turn_status"] == "not_executed"
+        assert timed_out["turn_scores"]["two"]["interactive_latency_seconds"] is None
     completed = result["session_scores"]["qa-session-after-timeout"]
     assert completed["context_chain_correctness"] == 1.0
     assert completed["target_carry_correctness"] == 1.0
@@ -1002,7 +1045,7 @@ async def test_session_timeout_fails_only_that_session_and_continues_suite(
             )
         )
         assert [(item.status, item.failure_class) for item in case_runs] == [
-            ("failed", "TimeoutError"),
+            ("failed", failure_type.__name__),
             ("passed", None),
         ]
 
@@ -1076,3 +1119,120 @@ def test_qa_manifest_accepts_closed_human_adjudication_history() -> None:
         }
     )
     assert case.adjudications[0].final is True
+
+
+def test_qa_manifest_defaults_to_strict_and_rejects_unsupported_revision() -> None:
+    payload = {
+        "cases": [
+            {
+                "case_id": "strict",
+                "gold": {"case_id": "strict", "completion_expectation": "answered"},
+                "prediction": {"case_id": "strict", "completion_status": "answered"},
+            }
+        ]
+    }
+    assert QABenchmarkManifest.model_validate(payload).evaluator_revision == "qa-v2"
+    with pytest.raises(ValidationError, match="evaluator_revision"):
+        QABenchmarkManifest.model_validate({**payload, "evaluator_revision": "qa-typo"})
+
+
+@pytest.mark.parametrize(
+    "filename,expected_digest",
+    [
+        ("smoke-v1.json", "57631d96fcf536cb1fac1022c30b0bf2e0b55f226e08e081e653206d3fe50d44"),
+        (
+            "real-product-v1.candidate.json",
+            "762fcb6b503394beffc63f1ec213760aa0dd26d30e2cc7c129353fb419a57143",
+        ),
+        (
+            "real-session-v1.candidate.json",
+            "4164c93ce1fe4656b5a7b0c4b54791b062b160cc3549209a620c7bdaa43bd8fc",
+        ),
+    ],
+)
+def test_legacy_manifest_serialization_keeps_original_registration_digest(
+    filename, expected_digest
+):
+    # Hashes captured from the original pre-qa-v2 checkout, not rebuilt by the new serializer.
+    manifest = QABenchmarkManifest.model_validate_json(Path("benchmarks/qa", filename).read_text())
+    assert qa_runner._digest(manifest.model_dump(mode="json")) == expected_digest
+
+
+def test_legacy_gold_payload_preserves_original_case_behavior_and_strict_payload_retains_unknowns():
+    from packages.evaluation.qa import QAGold
+
+    gold = QAGold(
+        case_id="legacy",
+        completion_expectation="answered",
+        required_unknowns=["missing"],
+        acceptable_unknowns=["missing"],
+    )
+    legacy = qa_runner._gold_payload(gold, "qa-v1")
+    assert "required_unknowns" not in legacy
+    assert qa_runner._gold_payload(gold, "qa-v2")["required_unknowns"] == ["missing"]
+
+
+@pytest.mark.parametrize(
+    "filename,expected_digest",
+    [
+        ("smoke-v1.json", "5e3243921f6fc4b1f57c7413e782697cc9eb1429975282a3982966134c4dfb36"),
+        (
+            "real-product-v1.candidate.json",
+            "6d19118cd9f7c6774d4a1dd61593b9f6be784913dfe90cdd0645df026f144b67",
+        ),
+        (
+            "real-session-v1.candidate.json",
+            "8009c0a2345b8f11a2616c708fdf5b84ae93cea7436cbc1406d63d93f0722b06",
+        ),
+    ],
+)
+def test_legacy_gold_registration_digest_matches_original_checkout(filename, expected_digest):
+    manifest = QABenchmarkManifest.model_validate_json(Path("benchmarks/qa", filename).read_text())
+    if manifest.cases:
+        payload = [
+            {
+                "gold": qa_runner._gold_payload(item.gold, manifest.evaluator_revision),
+                "gold_provenance": item.gold_provenance.model_dump(mode="json")
+                if item.gold_provenance
+                else None,
+                "adjudications": [record.model_dump(mode="json") for record in item.adjudications],
+            }
+            for item in manifest.cases
+        ]
+    else:
+        payload = [
+            {
+                "case_id": item.case_id,
+                "state_carry_policy": item.state_carry_policy,
+                "turns": [
+                    {
+                        "turn_id": turn.turn_id,
+                        "gold": qa_runner._gold_payload(turn.gold, manifest.evaluator_revision),
+                        "gold_provenance": turn.gold_provenance.model_dump(mode="json")
+                        if turn.gold_provenance
+                        else None,
+                        "adjudications": [
+                            record.model_dump(mode="json") for record in turn.adjudications
+                        ],
+                        "expected_target_keys": list(turn.expected_target_keys),
+                    }
+                    for turn in item.turns
+                ],
+            }
+            for item in manifest.sessions
+        ]
+    assert qa_runner._digest(payload) == expected_digest
+
+
+def test_legacy_serialization_does_not_rewrite_arbitrary_case_input():
+    manifest = QABenchmarkManifest.model_validate_json(
+        Path("benchmarks/qa/smoke-v1.json").read_text()
+    )
+    user_input = {
+        "required_unknowns": ["opaque"],
+        "prediction": {"decision_relation_paths": ["opaque"]},
+    }
+    manifest.cases[0].input = user_input
+    assert manifest.model_dump(mode="json")["cases"][0]["input"] == user_input
+    strict = manifest.model_copy(update={"evaluator_revision": "qa-v2"})
+    assert "required_unknowns" in strict.model_dump(mode="json")["cases"][0]["gold"]

@@ -1,0 +1,2731 @@
+{
+  "profile": "preliminary",
+  "report_id": "20fcc81a-cbef-46b6-9d90-a30a8498a4a9",
+  "report_digest": "5684a71fc07f015bf5d1dc71bb1726beab4de7aa25cb44280c8030a76bfc711e",
+  "deployment_revision_id": "deployment:056e482bdb3598135b48cb6c192e5e2a",
+  "benchmark_run_ids": [
+    "5246ac59-9f97-4458-b780-efe63dda2799",
+    "3bc6320f-16db-4af3-9d2d-9649d9f06d6a",
+    "1ba81c21-bef9-4419-b0a8-264907798dd9",
+    "437981bf-27f7-49bb-87d3-c67e3aeebc9d",
+    "56cfbb86-de40-4033-abc7-9ba6b616000c",
+    "d3a9ce51-6175-4d8a-a0bb-ce1653ce03f2",
+    "205df724-1232-4700-8b2b-e3764e4d4a2a",
+    "40afd9cb-9b61-425b-9045-52add6e1a1ee",
+    "69cdc26d-72f0-4ccc-a466-08c90d48071d",
+    "2f9000dd-154b-402d-9d4f-69af09dce629"
+  ],
+  "generated_at": "2026-10-17T12:04:15.016859Z",
+  "metrics": [
+    {
+      "metric_name": "agent.argument_correctness",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "capability invocations with adjudicated argument expectations",
+      "missing_value_policy": "not_evaluated",
+      "direction": "higher_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "806430ad-b905-42be-a9b5-b08a24f911e6"
+      ],
+      "benchmark_run_ids": [
+        "205df724-1232-4700-8b2b-e3764e4d4a2a"
+      ]
+    },
+    {
+      "metric_name": "agent.budget_deadline_stop_correctness",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "Agent cases reaching a frozen budget/deadline boundary",
+      "missing_value_policy": "not_evaluated",
+      "direction": "higher_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "18fd4219-4276-413b-bd53-60572facf757"
+      ],
+      "benchmark_run_ids": [
+        "205df724-1232-4700-8b2b-e3764e4d4a2a"
+      ]
+    },
+    {
+      "metric_name": "agent.capability_invocation_count",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "calls",
+      "aggregation": "mean",
+      "denominator": "frozen Agent case runs",
+      "missing_value_policy": "not_evaluated",
+      "direction": "informational",
+      "observation_count": 1,
+      "case_run_ids": [
+        "806430ad-b905-42be-a9b5-b08a24f911e6"
+      ],
+      "benchmark_run_ids": [
+        "205df724-1232-4700-8b2b-e3764e4d4a2a"
+      ]
+    },
+    {
+      "metric_name": "agent.capability_selection_correctness",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "tool-selection decisions with adjudicated acceptable capability set",
+      "missing_value_policy": "not_evaluated",
+      "direction": "higher_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "806430ad-b905-42be-a9b5-b08a24f911e6"
+      ],
+      "benchmark_run_ids": [
+        "205df724-1232-4700-8b2b-e3764e4d4a2a"
+      ]
+    },
+    {
+      "metric_name": "agent.child_task_usefulness",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "completed delegated child tasks in frozen Agent cases",
+      "missing_value_policy": "not_evaluated",
+      "direction": "higher_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "87eb7dc6-b5cf-4528-8e44-b1df173c1bef"
+      ],
+      "benchmark_run_ids": [
+        "205df724-1232-4700-8b2b-e3764e4d4a2a"
+      ]
+    },
+    {
+      "metric_name": "agent.conflict_collapse_rate",
+      "metric_definition_revision": "1",
+      "value": 0.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "adjudicated conflicting assertion groups encountered by Agent cases",
+      "missing_value_policy": "not_evaluated",
+      "direction": "lower_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "7d73778e-3e71-4a34-8eb0-58dd0c386bf2"
+      ],
+      "benchmark_run_ids": [
+        "205df724-1232-4700-8b2b-e3764e4d4a2a"
+      ]
+    },
+    {
+      "metric_name": "agent.delegation_precision",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "Agent child-task delegations with adjudicated usefulness",
+      "missing_value_policy": "not_evaluated",
+      "direction": "higher_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "87eb7dc6-b5cf-4528-8e44-b1df173c1bef"
+      ],
+      "benchmark_run_ids": [
+        "205df724-1232-4700-8b2b-e3764e4d4a2a"
+      ]
+    },
+    {
+      "metric_name": "agent.fallback_success_rate",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "Agent tool/provider actions that entered an adjudicated fallback path",
+      "missing_value_policy": "not_evaluated",
+      "direction": "higher_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "9dcdbc76-6278-431d-b342-248d8092164a"
+      ],
+      "benchmark_run_ids": [
+        "205df724-1232-4700-8b2b-e3764e4d4a2a"
+      ]
+    },
+    {
+      "metric_name": "agent.freshness_satisfaction",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "frozen EvidenceNeeds with explicit freshness constraints",
+      "missing_value_policy": "not_evaluated",
+      "direction": "higher_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "806430ad-b905-42be-a9b5-b08a24f911e6"
+      ],
+      "benchmark_run_ids": [
+        "205df724-1232-4700-8b2b-e3764e4d4a2a"
+      ]
+    },
+    {
+      "metric_name": "agent.no_progress_iteration_rate",
+      "metric_definition_revision": "1",
+      "value": 0.6666666666666666,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "Agent planning iterations in frozen cases",
+      "missing_value_policy": "not_evaluated",
+      "direction": "lower_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "1a4fc94a-529d-47ae-8103-8aa6bca9b2a3"
+      ],
+      "benchmark_run_ids": [
+        "205df724-1232-4700-8b2b-e3764e4d4a2a"
+      ]
+    },
+    {
+      "metric_name": "agent.parent_child_budget_adherence",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "delegated child tasks with inherited budget envelopes",
+      "missing_value_policy": "not_evaluated",
+      "direction": "higher_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "87eb7dc6-b5cf-4528-8e44-b1df173c1bef"
+      ],
+      "benchmark_run_ids": [
+        "205df724-1232-4700-8b2b-e3764e4d4a2a"
+      ]
+    },
+    {
+      "metric_name": "agent.recovery_success_rate",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "Agent episodes that encountered a recoverable runtime/provider/tool failure",
+      "missing_value_policy": "not_evaluated",
+      "direction": "higher_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "5b5f543f-4565-4e50-857b-cb57ac70b58d"
+      ],
+      "benchmark_run_ids": [
+        "205df724-1232-4700-8b2b-e3764e4d4a2a"
+      ]
+    },
+    {
+      "metric_name": "agent.redundant_acquisition_rate",
+      "metric_definition_revision": "1",
+      "value": 0.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "Agent acquisition actions in frozen cases",
+      "missing_value_policy": "not_evaluated",
+      "direction": "lower_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "806430ad-b905-42be-a9b5-b08a24f911e6"
+      ],
+      "benchmark_run_ids": [
+        "205df724-1232-4700-8b2b-e3764e4d4a2a"
+      ]
+    },
+    {
+      "metric_name": "agent.source_role_satisfaction",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "frozen EvidenceNeeds with required source-role constraints",
+      "missing_value_policy": "not_evaluated",
+      "direction": "higher_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "806430ad-b905-42be-a9b5-b08a24f911e6"
+      ],
+      "benchmark_run_ids": [
+        "205df724-1232-4700-8b2b-e3764e4d4a2a"
+      ]
+    },
+    {
+      "metric_name": "agent.stale_child_result_rate",
+      "metric_definition_revision": "1",
+      "value": 0.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "child-task results returned to a parent execution",
+      "missing_value_policy": "not_evaluated",
+      "direction": "lower_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "87eb7dc6-b5cf-4528-8e44-b1df173c1bef"
+      ],
+      "benchmark_run_ids": [
+        "205df724-1232-4700-8b2b-e3764e4d4a2a"
+      ]
+    },
+    {
+      "metric_name": "agent.unnecessary_denied_request_rate",
+      "metric_definition_revision": "1",
+      "value": 0.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "Agent capability requests evaluated by policy in frozen cases",
+      "missing_value_policy": "not_evaluated",
+      "direction": "lower_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "806430ad-b905-42be-a9b5-b08a24f911e6"
+      ],
+      "benchmark_run_ids": [
+        "205df724-1232-4700-8b2b-e3764e4d4a2a"
+      ]
+    },
+    {
+      "metric_name": "agent.useful_acquisition_precision",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "Agent acquisition actions in adjudicated frozen cases",
+      "missing_value_policy": "not_evaluated",
+      "direction": "higher_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "806430ad-b905-42be-a9b5-b08a24f911e6"
+      ],
+      "benchmark_run_ids": [
+        "205df724-1232-4700-8b2b-e3764e4d4a2a"
+      ]
+    },
+    {
+      "metric_name": "engineering.bounded_termination",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "controlled fault cases with an expected bounded terminal outcome",
+      "missing_value_policy": "not_evaluated",
+      "direction": "higher_is_better",
+      "observation_count": 3,
+      "case_run_ids": [
+        "478e6599-dda3-4a55-8082-a4f0c065ccbc",
+        "5020d7d5-3e18-4249-8f9c-564eaed7f25a",
+        "d061c397-1653-4222-8c5f-9fc4a7f58a49"
+      ],
+      "benchmark_run_ids": [
+        "2f9000dd-154b-402d-9d4f-69af09dce629"
+      ]
+    },
+    {
+      "metric_name": "engineering.failure_isolation",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "controlled fault cases with an explicit unrelated-state sentinel",
+      "missing_value_policy": "not_evaluated",
+      "direction": "higher_is_better",
+      "observation_count": 3,
+      "case_run_ids": [
+        "478e6599-dda3-4a55-8082-a4f0c065ccbc",
+        "5020d7d5-3e18-4249-8f9c-564eaed7f25a",
+        "d061c397-1653-4222-8c5f-9fc4a7f58a49"
+      ],
+      "benchmark_run_ids": [
+        "2f9000dd-154b-402d-9d4f-69af09dce629"
+      ]
+    },
+    {
+      "metric_name": "engineering.fault_recovery_success",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "frozen fault-injection cases",
+      "missing_value_policy": "not_evaluated",
+      "direction": "higher_is_better",
+      "observation_count": 3,
+      "case_run_ids": [
+        "478e6599-dda3-4a55-8082-a4f0c065ccbc",
+        "5020d7d5-3e18-4249-8f9c-564eaed7f25a",
+        "d061c397-1653-4222-8c5f-9fc4a7f58a49"
+      ],
+      "benchmark_run_ids": [
+        "2f9000dd-154b-402d-9d4f-69af09dce629"
+      ]
+    },
+    {
+      "metric_name": "engineering.retry_correctness",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "controlled fault cases whose expected behavior includes retry semantics",
+      "missing_value_policy": "not_evaluated",
+      "direction": "higher_is_better",
+      "observation_count": 2,
+      "case_run_ids": [
+        "5020d7d5-3e18-4249-8f9c-564eaed7f25a",
+        "d061c397-1653-4222-8c5f-9fc4a7f58a49"
+      ],
+      "benchmark_run_ids": [
+        "2f9000dd-154b-402d-9d4f-69af09dce629"
+      ]
+    },
+    {
+      "metric_name": "m1.monitoring.evaluable_coverage",
+      "metric_definition_revision": "1",
+      "value": 0.8541666666666666,
+      "unit": "ratio",
+      "aggregation": "last",
+      "denominator": "all monitoring latency samples in the frozen window",
+      "missing_value_policy": "fail",
+      "direction": "higher_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "90e08fc3-9391-4145-be17-bc15cac9e28a"
+      ],
+      "benchmark_run_ids": [
+        "56cfbb86-de40-4033-abc7-9ba6b616000c"
+      ]
+    },
+    {
+      "metric_name": "m1.monitoring.max_seconds",
+      "metric_definition_revision": "1",
+      "value": 134540437.014338,
+      "unit": "seconds",
+      "aggregation": "last",
+      "denominator": "latency-evaluable samples only",
+      "missing_value_policy": "not_evaluated",
+      "direction": "lower_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "90e08fc3-9391-4145-be17-bc15cac9e28a"
+      ],
+      "benchmark_run_ids": [
+        "56cfbb86-de40-4033-abc7-9ba6b616000c"
+      ]
+    },
+    {
+      "metric_name": "m1.monitoring.p50_seconds",
+      "metric_definition_revision": "1",
+      "value": 365.099118,
+      "unit": "seconds",
+      "aggregation": "last",
+      "denominator": "latency-evaluable samples only",
+      "missing_value_policy": "not_evaluated",
+      "direction": "lower_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "90e08fc3-9391-4145-be17-bc15cac9e28a"
+      ],
+      "benchmark_run_ids": [
+        "56cfbb86-de40-4033-abc7-9ba6b616000c"
+      ]
+    },
+    {
+      "metric_name": "m1.monitoring.p95_seconds",
+      "metric_definition_revision": "1",
+      "value": 3649201.512756,
+      "unit": "seconds",
+      "aggregation": "last",
+      "denominator": "latency-evaluable samples only",
+      "missing_value_policy": "not_evaluated",
+      "direction": "lower_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "90e08fc3-9391-4145-be17-bc15cac9e28a"
+      ],
+      "benchmark_run_ids": [
+        "56cfbb86-de40-4033-abc7-9ba6b616000c"
+      ]
+    },
+    {
+      "metric_name": "m1.monitoring.within_6h_rate",
+      "metric_definition_revision": "1",
+      "value": 0.8563685636856369,
+      "unit": "ratio",
+      "aggregation": "last",
+      "denominator": "latency-evaluable samples only",
+      "missing_value_policy": "not_evaluated",
+      "direction": "higher_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "90e08fc3-9391-4145-be17-bc15cac9e28a"
+      ],
+      "benchmark_run_ids": [
+        "56cfbb86-de40-4033-abc7-9ba6b616000c"
+      ]
+    },
+    {
+      "metric_name": "m1.source_category_count",
+      "metric_definition_revision": "1",
+      "value": 8.0,
+      "unit": "categories",
+      "aggregation": "last",
+      "denominator": "fixed eight-category product source taxonomy",
+      "missing_value_policy": "fail",
+      "direction": "higher_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "6a8c8617-0ff1-4ccf-a568-d8cfd037c24f"
+      ],
+      "benchmark_run_ids": [
+        "56cfbb86-de40-4033-abc7-9ba6b616000c"
+      ]
+    },
+    {
+      "metric_name": "m2.conflict_preservation",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "frozen source-conflict cases whose competing assertions must remain represented",
+      "missing_value_policy": "not_evaluated",
+      "direction": "higher_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "23801632-dfa1-44e8-b6d0-8c4d953bfae8"
+      ],
+      "benchmark_run_ids": [
+        "d3a9ce51-6175-4d8a-a0bb-ce1653ce03f2"
+      ]
+    },
+    {
+      "metric_name": "m2.entity_resolution_precision",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "predicted same-entity bindings in a frozen identity-pair set",
+      "missing_value_policy": "not_evaluated",
+      "direction": "higher_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "971e4fe6-7627-404e-9e32-24e08a5d7d82"
+      ],
+      "benchmark_run_ids": [
+        "d3a9ce51-6175-4d8a-a0bb-ce1653ce03f2"
+      ]
+    },
+    {
+      "metric_name": "m2.entity_resolution_recall",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "gold same-entity bindings in a frozen identity-pair set",
+      "missing_value_policy": "not_evaluated",
+      "direction": "higher_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "971e4fe6-7627-404e-9e32-24e08a5d7d82"
+      ],
+      "benchmark_run_ids": [
+        "d3a9ce51-6175-4d8a-a0bb-ce1653ce03f2"
+      ]
+    },
+    {
+      "metric_name": "m2.evidence_correctness",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "accepted claim/relation assertions checked against frozen EvidenceRef support",
+      "missing_value_policy": "not_evaluated",
+      "direction": "higher_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "662533d9-d163-4c8b-944f-0c72ed844fb0"
+      ],
+      "benchmark_run_ids": [
+        "d3a9ce51-6175-4d8a-a0bb-ce1653ce03f2"
+      ]
+    },
+    {
+      "metric_name": "m2.parser_field_accuracy",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "frozen parser field assertions with value and locator gold",
+      "missing_value_policy": "not_evaluated",
+      "direction": "higher_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "662533d9-d163-4c8b-944f-0c72ed844fb0"
+      ],
+      "benchmark_run_ids": [
+        "d3a9ce51-6175-4d8a-a0bb-ce1653ce03f2"
+      ]
+    },
+    {
+      "metric_name": "m2.replay_suppression_accuracy",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "frozen replay cases with expected duplicate suppression behavior",
+      "missing_value_policy": "not_evaluated",
+      "direction": "higher_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "662533d9-d163-4c8b-944f-0c72ed844fb0"
+      ],
+      "benchmark_run_ids": [
+        "d3a9ce51-6175-4d8a-a0bb-ce1653ce03f2"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.advisory_reference.false_negative",
+      "metric_definition_revision": "1",
+      "value": 0.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "lower_is_better",
+      "observation_count": 15,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "5af6ffca-6c64-43d2-b80e-38f393a7882e",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "67d0c73a-7538-44eb-b588-a8c72166d6fb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "ceda46f4-eae2-4baa-84d2-5498e36c22f2",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9",
+        "437981bf-27f7-49bb-87d3-c67e3aeebc9d"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.advisory_reference.false_positive",
+      "metric_definition_revision": "1",
+      "value": 0.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "lower_is_better",
+      "observation_count": 15,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "5af6ffca-6c64-43d2-b80e-38f393a7882e",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "67d0c73a-7538-44eb-b588-a8c72166d6fb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "ceda46f4-eae2-4baa-84d2-5498e36c22f2",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9",
+        "437981bf-27f7-49bb-87d3-c67e3aeebc9d"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.advisory_reference.precision",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "higher_is_better",
+      "observation_count": 15,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "5af6ffca-6c64-43d2-b80e-38f393a7882e",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "67d0c73a-7538-44eb-b588-a8c72166d6fb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "ceda46f4-eae2-4baa-84d2-5498e36c22f2",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9",
+        "437981bf-27f7-49bb-87d3-c67e3aeebc9d"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.advisory_reference.recall",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "higher_is_better",
+      "observation_count": 15,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "5af6ffca-6c64-43d2-b80e-38f393a7882e",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "67d0c73a-7538-44eb-b588-a8c72166d6fb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "ceda46f4-eae2-4baa-84d2-5498e36c22f2",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9",
+        "437981bf-27f7-49bb-87d3-c67e3aeebc9d"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.advisory_reference.true_positive",
+      "metric_definition_revision": "1",
+      "value": 21.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "informational",
+      "observation_count": 15,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "5af6ffca-6c64-43d2-b80e-38f393a7882e",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "67d0c73a-7538-44eb-b588-a8c72166d6fb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "ceda46f4-eae2-4baa-84d2-5498e36c22f2",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9",
+        "437981bf-27f7-49bb-87d3-c67e3aeebc9d"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.exploit_likelihood.false_negative",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "lower_is_better",
+      "observation_count": 12,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.exploit_likelihood.false_positive",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "lower_is_better",
+      "observation_count": 12,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.exploit_likelihood.precision",
+      "metric_definition_revision": "1",
+      "value": 0.9791666666666666,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "higher_is_better",
+      "observation_count": 12,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.exploit_likelihood.recall",
+      "metric_definition_revision": "1",
+      "value": 0.9791666666666666,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "higher_is_better",
+      "observation_count": 12,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.exploit_likelihood.true_positive",
+      "metric_definition_revision": "1",
+      "value": 47.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "informational",
+      "observation_count": 12,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.fix_remediation.false_negative",
+      "metric_definition_revision": "1",
+      "value": 0.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "lower_is_better",
+      "observation_count": 6,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.fix_remediation.false_positive",
+      "metric_definition_revision": "1",
+      "value": 0.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "lower_is_better",
+      "observation_count": 6,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.fix_remediation.precision",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "higher_is_better",
+      "observation_count": 6,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.fix_remediation.recall",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "higher_is_better",
+      "observation_count": 6,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.fix_remediation.true_positive",
+      "metric_definition_revision": "1",
+      "value": 18.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "informational",
+      "observation_count": 6,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.product_package.false_negative",
+      "metric_definition_revision": "1",
+      "value": 0.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "lower_is_better",
+      "observation_count": 12,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.product_package.false_positive",
+      "metric_definition_revision": "1",
+      "value": 0.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "lower_is_better",
+      "observation_count": 12,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.product_package.precision",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "higher_is_better",
+      "observation_count": 12,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.product_package.recall",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "higher_is_better",
+      "observation_count": 12,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.product_package.true_positive",
+      "metric_definition_revision": "1",
+      "value": 16.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "informational",
+      "observation_count": 12,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.severity.false_negative",
+      "metric_definition_revision": "1",
+      "value": 0.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "lower_is_better",
+      "observation_count": 12,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.severity.false_positive",
+      "metric_definition_revision": "1",
+      "value": 0.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "lower_is_better",
+      "observation_count": 12,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.severity.precision",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "higher_is_better",
+      "observation_count": 12,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.severity.recall",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "higher_is_better",
+      "observation_count": 12,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.severity.true_positive",
+      "metric_definition_revision": "1",
+      "value": 48.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "informational",
+      "observation_count": 12,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.version_applicability.false_negative",
+      "metric_definition_revision": "1",
+      "value": 0.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "lower_is_better",
+      "observation_count": 15,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "5af6ffca-6c64-43d2-b80e-38f393a7882e",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "67d0c73a-7538-44eb-b588-a8c72166d6fb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "ceda46f4-eae2-4baa-84d2-5498e36c22f2",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9",
+        "437981bf-27f7-49bb-87d3-c67e3aeebc9d"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.version_applicability.false_positive",
+      "metric_definition_revision": "1",
+      "value": 0.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "lower_is_better",
+      "observation_count": 15,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "5af6ffca-6c64-43d2-b80e-38f393a7882e",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "67d0c73a-7538-44eb-b588-a8c72166d6fb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "ceda46f4-eae2-4baa-84d2-5498e36c22f2",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9",
+        "437981bf-27f7-49bb-87d3-c67e3aeebc9d"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.version_applicability.precision",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "higher_is_better",
+      "observation_count": 15,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "5af6ffca-6c64-43d2-b80e-38f393a7882e",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "67d0c73a-7538-44eb-b588-a8c72166d6fb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "ceda46f4-eae2-4baa-84d2-5498e36c22f2",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9",
+        "437981bf-27f7-49bb-87d3-c67e3aeebc9d"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.version_applicability.recall",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "higher_is_better",
+      "observation_count": 15,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "5af6ffca-6c64-43d2-b80e-38f393a7882e",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "67d0c73a-7538-44eb-b588-a8c72166d6fb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "ceda46f4-eae2-4baa-84d2-5498e36c22f2",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9",
+        "437981bf-27f7-49bb-87d3-c67e3aeebc9d"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.version_applicability.true_positive",
+      "metric_definition_revision": "1",
+      "value": 127.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "informational",
+      "observation_count": 15,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "5af6ffca-6c64-43d2-b80e-38f393a7882e",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "67d0c73a-7538-44eb-b588-a8c72166d6fb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "ceda46f4-eae2-4baa-84d2-5498e36c22f2",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9",
+        "437981bf-27f7-49bb-87d3-c67e3aeebc9d"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.weakness.false_negative",
+      "metric_definition_revision": "1",
+      "value": 0.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "lower_is_better",
+      "observation_count": 12,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.weakness.false_positive",
+      "metric_definition_revision": "1",
+      "value": 0.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "lower_is_better",
+      "observation_count": 12,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.weakness.precision",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "higher_is_better",
+      "observation_count": 12,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.weakness.recall",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "higher_is_better",
+      "observation_count": 12,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension.weakness.true_positive",
+      "metric_definition_revision": "1",
+      "value": 15.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "closed-set facts in the named enrichment dimension",
+      "missing_value_policy": "exclude",
+      "direction": "informational",
+      "observation_count": 12,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension_macro_precision",
+      "metric_definition_revision": "1",
+      "value": 0.9972222222222222,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "enrichment dimensions present in the frozen scored denominator",
+      "missing_value_policy": "not_evaluated",
+      "direction": "higher_is_better",
+      "observation_count": 15,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "5af6ffca-6c64-43d2-b80e-38f393a7882e",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "67d0c73a-7538-44eb-b588-a8c72166d6fb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "ceda46f4-eae2-4baa-84d2-5498e36c22f2",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9",
+        "437981bf-27f7-49bb-87d3-c67e3aeebc9d"
+      ]
+    },
+    {
+      "metric_name": "m3.dimension_macro_recall",
+      "metric_definition_revision": "1",
+      "value": 0.9972222222222222,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "enrichment dimensions present in the frozen scored denominator",
+      "missing_value_policy": "not_evaluated",
+      "direction": "higher_is_better",
+      "observation_count": 15,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "5af6ffca-6c64-43d2-b80e-38f393a7882e",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "67d0c73a-7538-44eb-b588-a8c72166d6fb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "ceda46f4-eae2-4baa-84d2-5498e36c22f2",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9",
+        "437981bf-27f7-49bb-87d3-c67e3aeebc9d"
+      ]
+    },
+    {
+      "metric_name": "m3.false_negative",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "evidence-aware closed-set facts",
+      "missing_value_policy": "fail",
+      "direction": "lower_is_better",
+      "observation_count": 15,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "5af6ffca-6c64-43d2-b80e-38f393a7882e",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "67d0c73a-7538-44eb-b588-a8c72166d6fb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "ceda46f4-eae2-4baa-84d2-5498e36c22f2",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9",
+        "437981bf-27f7-49bb-87d3-c67e3aeebc9d"
+      ]
+    },
+    {
+      "metric_name": "m3.false_positive",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "evidence-aware closed-set facts",
+      "missing_value_policy": "fail",
+      "direction": "lower_is_better",
+      "observation_count": 15,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "5af6ffca-6c64-43d2-b80e-38f393a7882e",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "67d0c73a-7538-44eb-b588-a8c72166d6fb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "ceda46f4-eae2-4baa-84d2-5498e36c22f2",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9",
+        "437981bf-27f7-49bb-87d3-c67e3aeebc9d"
+      ]
+    },
+    {
+      "metric_name": "m3.micro_precision",
+      "metric_definition_revision": "1",
+      "value": 0.9965870307167235,
+      "unit": "ratio",
+      "aggregation": "derived",
+      "denominator": "evidence-aware closed-set predicted facts",
+      "missing_value_policy": "fail",
+      "direction": "higher_is_better",
+      "observation_count": 15,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "5af6ffca-6c64-43d2-b80e-38f393a7882e",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "67d0c73a-7538-44eb-b588-a8c72166d6fb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "ceda46f4-eae2-4baa-84d2-5498e36c22f2",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9",
+        "437981bf-27f7-49bb-87d3-c67e3aeebc9d"
+      ]
+    },
+    {
+      "metric_name": "m3.micro_recall",
+      "metric_definition_revision": "1",
+      "value": 0.9965870307167235,
+      "unit": "ratio",
+      "aggregation": "derived",
+      "denominator": "evidence-aware closed-set gold facts",
+      "missing_value_policy": "fail",
+      "direction": "higher_is_better",
+      "observation_count": 15,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "5af6ffca-6c64-43d2-b80e-38f393a7882e",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "67d0c73a-7538-44eb-b588-a8c72166d6fb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "ceda46f4-eae2-4baa-84d2-5498e36c22f2",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9",
+        "437981bf-27f7-49bb-87d3-c67e3aeebc9d"
+      ]
+    },
+    {
+      "metric_name": "m3.true_positive",
+      "metric_definition_revision": "1",
+      "value": 292.0,
+      "unit": "facts",
+      "aggregation": "sum",
+      "denominator": "evidence-aware closed-set facts",
+      "missing_value_policy": "fail",
+      "direction": "informational",
+      "observation_count": 15,
+      "case_run_ids": [
+        "0be5c4a8-6cf1-451b-b33e-288740f568e1",
+        "0c65edb5-d2b7-4a8e-b4ae-cd0d8055bf72",
+        "11424bf7-6af4-45a2-bdc8-28cea0cf2cf7",
+        "215a5daf-f4fb-4271-90a2-b44f39910e82",
+        "5af6ffca-6c64-43d2-b80e-38f393a7882e",
+        "66511e4b-9822-4c54-9ac3-7c50495eeaeb",
+        "67d0c73a-7538-44eb-b588-a8c72166d6fb",
+        "74da6659-bd4d-43a2-9df4-43c2d8e7afc0",
+        "8501cad3-510f-4d22-8fad-c074cbfbbe0d",
+        "b513c7c6-7326-4f5c-8e0f-151ce571e284",
+        "b6588049-b7e3-499d-9deb-e29feb4f4ebb",
+        "bc46c4fa-5537-435e-9c07-44154f715718",
+        "ceda46f4-eae2-4baa-84d2-5498e36c22f2",
+        "e234610e-6885-4e89-a8d0-4b815e7b7677",
+        "f1d1d0b2-4ffb-49ba-ad97-6445ac33a58f"
+      ],
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9",
+        "437981bf-27f7-49bb-87d3-c67e3aeebc9d"
+      ]
+    },
+    {
+      "metric_name": "m6.answer_accuracy",
+      "metric_definition_revision": "2",
+      "value": 0.9642857142857143,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "qa-v2 canonical answer cases; unsupported extra assertions fail",
+      "missing_value_policy": "fail",
+      "direction": "higher_is_better",
+      "observation_count": 28,
+      "case_run_ids": [
+        "05272355-88c5-4d9f-9b70-ff6611903d41",
+        "12d26ddb-e3b3-4a16-8f4a-8d9f37fc01db",
+        "136e0ed9-596a-4670-93e0-4fa82ac6cb8c",
+        "1a7fc14a-b499-4c26-9d39-2bbf52ea97ee",
+        "1dedbae9-ccbb-4e35-b4b8-3877686c4b29",
+        "1e96d9b1-be6e-47e4-a0e6-3746ec482a73",
+        "227389fc-4e68-4695-a108-5d8041aa48da",
+        "239cd62f-4f63-47a2-8729-0d248b919881",
+        "35fa0660-b61d-40e7-8ca9-d54ecd6f5c4d",
+        "4548b70b-2fe1-40ff-a66f-6e6f483e9dd9",
+        "551a65c1-e580-43ec-8b7a-331c01611af7",
+        "67811816-e363-4d1d-82af-d0c3bfbc5722",
+        "71b309b5-acd9-4486-a954-a9d97c6af7fa",
+        "77b069d9-5a3c-4eea-ab0e-7e04ddf5c15b",
+        "85650b73-509f-4a13-b04e-8bc5dbc27ae0",
+        "86f4df90-c3bf-4cbb-b390-4ef3dfc7ee19",
+        "91d13d5b-f316-4315-9ffe-f5231d7f6c8c",
+        "af34af7f-6c02-40a9-a22f-7892c43757bf",
+        "b0579ad9-0624-48fb-bb4c-3d4b5db13856",
+        "b44473f5-5598-4248-968b-062eee324224",
+        "b91cd0f1-c53e-4283-ada4-84c534606d08",
+        "c19fecb8-d7cf-4f4f-a2fb-7bfff64ef225",
+        "c8b8db51-d22a-436f-a334-8c1a493b9224",
+        "d3a6cb57-c3ed-4439-9888-39ff39416b0b",
+        "e74d62eb-fb1a-478b-9121-1363a204b5af",
+        "ef1c8295-8caf-4fe4-9413-b6a3c357fa14",
+        "f1c7344a-36b3-4697-95dd-4f3d1a9d4b5c",
+        "f5aea852-6271-47bd-9df5-2660d07b60f5"
+      ],
+      "benchmark_run_ids": [
+        "3bc6320f-16db-4af3-9d2d-9649d9f06d6a",
+        "5246ac59-9f97-4458-b780-efe63dda2799"
+      ]
+    },
+    {
+      "metric_name": "m6.citation_completeness",
+      "metric_definition_revision": "2",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "qa-v2 required citation facts actually asserted and supported",
+      "missing_value_policy": "fail",
+      "direction": "higher_is_better",
+      "observation_count": 28,
+      "case_run_ids": [
+        "05272355-88c5-4d9f-9b70-ff6611903d41",
+        "12d26ddb-e3b3-4a16-8f4a-8d9f37fc01db",
+        "136e0ed9-596a-4670-93e0-4fa82ac6cb8c",
+        "1a7fc14a-b499-4c26-9d39-2bbf52ea97ee",
+        "1dedbae9-ccbb-4e35-b4b8-3877686c4b29",
+        "1e96d9b1-be6e-47e4-a0e6-3746ec482a73",
+        "227389fc-4e68-4695-a108-5d8041aa48da",
+        "239cd62f-4f63-47a2-8729-0d248b919881",
+        "35fa0660-b61d-40e7-8ca9-d54ecd6f5c4d",
+        "4548b70b-2fe1-40ff-a66f-6e6f483e9dd9",
+        "551a65c1-e580-43ec-8b7a-331c01611af7",
+        "67811816-e363-4d1d-82af-d0c3bfbc5722",
+        "71b309b5-acd9-4486-a954-a9d97c6af7fa",
+        "77b069d9-5a3c-4eea-ab0e-7e04ddf5c15b",
+        "85650b73-509f-4a13-b04e-8bc5dbc27ae0",
+        "86f4df90-c3bf-4cbb-b390-4ef3dfc7ee19",
+        "91d13d5b-f316-4315-9ffe-f5231d7f6c8c",
+        "af34af7f-6c02-40a9-a22f-7892c43757bf",
+        "b0579ad9-0624-48fb-bb4c-3d4b5db13856",
+        "b44473f5-5598-4248-968b-062eee324224",
+        "b91cd0f1-c53e-4283-ada4-84c534606d08",
+        "c19fecb8-d7cf-4f4f-a2fb-7bfff64ef225",
+        "c8b8db51-d22a-436f-a334-8c1a493b9224",
+        "d3a6cb57-c3ed-4439-9888-39ff39416b0b",
+        "e74d62eb-fb1a-478b-9121-1363a204b5af",
+        "ef1c8295-8caf-4fe4-9413-b6a3c357fa14",
+        "f1c7344a-36b3-4697-95dd-4f3d1a9d4b5c",
+        "f5aea852-6271-47bd-9df5-2660d07b60f5"
+      ],
+      "benchmark_run_ids": [
+        "3bc6320f-16db-4af3-9d2d-9649d9f06d6a",
+        "5246ac59-9f97-4458-b780-efe63dda2799"
+      ]
+    },
+    {
+      "metric_name": "m6.citation_correctness",
+      "metric_definition_revision": "2",
+      "value": 0.9857142857142858,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "qa-v2 nonempty supported citations bound to asserted conclusions",
+      "missing_value_policy": "fail",
+      "direction": "higher_is_better",
+      "observation_count": 28,
+      "case_run_ids": [
+        "05272355-88c5-4d9f-9b70-ff6611903d41",
+        "12d26ddb-e3b3-4a16-8f4a-8d9f37fc01db",
+        "136e0ed9-596a-4670-93e0-4fa82ac6cb8c",
+        "1a7fc14a-b499-4c26-9d39-2bbf52ea97ee",
+        "1dedbae9-ccbb-4e35-b4b8-3877686c4b29",
+        "1e96d9b1-be6e-47e4-a0e6-3746ec482a73",
+        "227389fc-4e68-4695-a108-5d8041aa48da",
+        "239cd62f-4f63-47a2-8729-0d248b919881",
+        "35fa0660-b61d-40e7-8ca9-d54ecd6f5c4d",
+        "4548b70b-2fe1-40ff-a66f-6e6f483e9dd9",
+        "551a65c1-e580-43ec-8b7a-331c01611af7",
+        "67811816-e363-4d1d-82af-d0c3bfbc5722",
+        "71b309b5-acd9-4486-a954-a9d97c6af7fa",
+        "77b069d9-5a3c-4eea-ab0e-7e04ddf5c15b",
+        "85650b73-509f-4a13-b04e-8bc5dbc27ae0",
+        "86f4df90-c3bf-4cbb-b390-4ef3dfc7ee19",
+        "91d13d5b-f316-4315-9ffe-f5231d7f6c8c",
+        "af34af7f-6c02-40a9-a22f-7892c43757bf",
+        "b0579ad9-0624-48fb-bb4c-3d4b5db13856",
+        "b44473f5-5598-4248-968b-062eee324224",
+        "b91cd0f1-c53e-4283-ada4-84c534606d08",
+        "c19fecb8-d7cf-4f4f-a2fb-7bfff64ef225",
+        "c8b8db51-d22a-436f-a334-8c1a493b9224",
+        "d3a6cb57-c3ed-4439-9888-39ff39416b0b",
+        "e74d62eb-fb1a-478b-9121-1363a204b5af",
+        "ef1c8295-8caf-4fe4-9413-b6a3c357fa14",
+        "f1c7344a-36b3-4697-95dd-4f3d1a9d4b5c",
+        "f5aea852-6271-47bd-9df5-2660d07b60f5"
+      ],
+      "benchmark_run_ids": [
+        "3bc6320f-16db-4af3-9d2d-9649d9f06d6a",
+        "5246ac59-9f97-4458-b780-efe63dda2799"
+      ]
+    },
+    {
+      "metric_name": "m6.completion_correctness",
+      "metric_definition_revision": "2",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "qa-v2 expected answered/continuation outcomes; failure is never success",
+      "missing_value_policy": "fail",
+      "direction": "higher_is_better",
+      "observation_count": 28,
+      "case_run_ids": [
+        "05272355-88c5-4d9f-9b70-ff6611903d41",
+        "12d26ddb-e3b3-4a16-8f4a-8d9f37fc01db",
+        "136e0ed9-596a-4670-93e0-4fa82ac6cb8c",
+        "1a7fc14a-b499-4c26-9d39-2bbf52ea97ee",
+        "1dedbae9-ccbb-4e35-b4b8-3877686c4b29",
+        "1e96d9b1-be6e-47e4-a0e6-3746ec482a73",
+        "227389fc-4e68-4695-a108-5d8041aa48da",
+        "239cd62f-4f63-47a2-8729-0d248b919881",
+        "35fa0660-b61d-40e7-8ca9-d54ecd6f5c4d",
+        "4548b70b-2fe1-40ff-a66f-6e6f483e9dd9",
+        "551a65c1-e580-43ec-8b7a-331c01611af7",
+        "67811816-e363-4d1d-82af-d0c3bfbc5722",
+        "71b309b5-acd9-4486-a954-a9d97c6af7fa",
+        "77b069d9-5a3c-4eea-ab0e-7e04ddf5c15b",
+        "85650b73-509f-4a13-b04e-8bc5dbc27ae0",
+        "86f4df90-c3bf-4cbb-b390-4ef3dfc7ee19",
+        "91d13d5b-f316-4315-9ffe-f5231d7f6c8c",
+        "af34af7f-6c02-40a9-a22f-7892c43757bf",
+        "b0579ad9-0624-48fb-bb4c-3d4b5db13856",
+        "b44473f5-5598-4248-968b-062eee324224",
+        "b91cd0f1-c53e-4283-ada4-84c534606d08",
+        "c19fecb8-d7cf-4f4f-a2fb-7bfff64ef225",
+        "c8b8db51-d22a-436f-a334-8c1a493b9224",
+        "d3a6cb57-c3ed-4439-9888-39ff39416b0b",
+        "e74d62eb-fb1a-478b-9121-1363a204b5af",
+        "ef1c8295-8caf-4fe4-9413-b6a3c357fa14",
+        "f1c7344a-36b3-4697-95dd-4f3d1a9d4b5c",
+        "f5aea852-6271-47bd-9df5-2660d07b60f5"
+      ],
+      "benchmark_run_ids": [
+        "3bc6320f-16db-4af3-9d2d-9649d9f06d6a",
+        "5246ac59-9f97-4458-b780-efe63dda2799"
+      ]
+    },
+    {
+      "metric_name": "m6.groundedness",
+      "metric_definition_revision": "2",
+      "value": 0.9910714285714286,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "qa-v2 all asserted conclusions; unknown labels cannot hide assertions",
+      "missing_value_policy": "fail",
+      "direction": "higher_is_better",
+      "observation_count": 28,
+      "case_run_ids": [
+        "05272355-88c5-4d9f-9b70-ff6611903d41",
+        "12d26ddb-e3b3-4a16-8f4a-8d9f37fc01db",
+        "136e0ed9-596a-4670-93e0-4fa82ac6cb8c",
+        "1a7fc14a-b499-4c26-9d39-2bbf52ea97ee",
+        "1dedbae9-ccbb-4e35-b4b8-3877686c4b29",
+        "1e96d9b1-be6e-47e4-a0e6-3746ec482a73",
+        "227389fc-4e68-4695-a108-5d8041aa48da",
+        "239cd62f-4f63-47a2-8729-0d248b919881",
+        "35fa0660-b61d-40e7-8ca9-d54ecd6f5c4d",
+        "4548b70b-2fe1-40ff-a66f-6e6f483e9dd9",
+        "551a65c1-e580-43ec-8b7a-331c01611af7",
+        "67811816-e363-4d1d-82af-d0c3bfbc5722",
+        "71b309b5-acd9-4486-a954-a9d97c6af7fa",
+        "77b069d9-5a3c-4eea-ab0e-7e04ddf5c15b",
+        "85650b73-509f-4a13-b04e-8bc5dbc27ae0",
+        "86f4df90-c3bf-4cbb-b390-4ef3dfc7ee19",
+        "91d13d5b-f316-4315-9ffe-f5231d7f6c8c",
+        "af34af7f-6c02-40a9-a22f-7892c43757bf",
+        "b0579ad9-0624-48fb-bb4c-3d4b5db13856",
+        "b44473f5-5598-4248-968b-062eee324224",
+        "b91cd0f1-c53e-4283-ada4-84c534606d08",
+        "c19fecb8-d7cf-4f4f-a2fb-7bfff64ef225",
+        "c8b8db51-d22a-436f-a334-8c1a493b9224",
+        "d3a6cb57-c3ed-4439-9888-39ff39416b0b",
+        "e74d62eb-fb1a-478b-9121-1363a204b5af",
+        "ef1c8295-8caf-4fe4-9413-b6a3c357fa14",
+        "f1c7344a-36b3-4697-95dd-4f3d1a9d4b5c",
+        "f5aea852-6271-47bd-9df5-2660d07b60f5"
+      ],
+      "benchmark_run_ids": [
+        "3bc6320f-16db-4af3-9d2d-9649d9f06d6a",
+        "5246ac59-9f97-4458-b780-efe63dda2799"
+      ]
+    },
+    {
+      "metric_name": "m6.interactive_latency_seconds",
+      "metric_definition_revision": "1",
+      "value": 5.576787335001427,
+      "unit": "seconds",
+      "aggregation": "p95",
+      "denominator": "interactive QA cases only; long investigations excluded",
+      "missing_value_policy": "fail",
+      "direction": "lower_is_better",
+      "observation_count": 28,
+      "case_run_ids": [
+        "05272355-88c5-4d9f-9b70-ff6611903d41",
+        "12d26ddb-e3b3-4a16-8f4a-8d9f37fc01db",
+        "136e0ed9-596a-4670-93e0-4fa82ac6cb8c",
+        "1a7fc14a-b499-4c26-9d39-2bbf52ea97ee",
+        "1dedbae9-ccbb-4e35-b4b8-3877686c4b29",
+        "1e96d9b1-be6e-47e4-a0e6-3746ec482a73",
+        "227389fc-4e68-4695-a108-5d8041aa48da",
+        "239cd62f-4f63-47a2-8729-0d248b919881",
+        "35fa0660-b61d-40e7-8ca9-d54ecd6f5c4d",
+        "4548b70b-2fe1-40ff-a66f-6e6f483e9dd9",
+        "551a65c1-e580-43ec-8b7a-331c01611af7",
+        "67811816-e363-4d1d-82af-d0c3bfbc5722",
+        "71b309b5-acd9-4486-a954-a9d97c6af7fa",
+        "77b069d9-5a3c-4eea-ab0e-7e04ddf5c15b",
+        "85650b73-509f-4a13-b04e-8bc5dbc27ae0",
+        "86f4df90-c3bf-4cbb-b390-4ef3dfc7ee19",
+        "91d13d5b-f316-4315-9ffe-f5231d7f6c8c",
+        "af34af7f-6c02-40a9-a22f-7892c43757bf",
+        "b0579ad9-0624-48fb-bb4c-3d4b5db13856",
+        "b44473f5-5598-4248-968b-062eee324224",
+        "b91cd0f1-c53e-4283-ada4-84c534606d08",
+        "c19fecb8-d7cf-4f4f-a2fb-7bfff64ef225",
+        "c8b8db51-d22a-436f-a334-8c1a493b9224",
+        "d3a6cb57-c3ed-4439-9888-39ff39416b0b",
+        "e74d62eb-fb1a-478b-9121-1363a204b5af",
+        "ef1c8295-8caf-4fe4-9413-b6a3c357fa14",
+        "f1c7344a-36b3-4697-95dd-4f3d1a9d4b5c",
+        "f5aea852-6271-47bd-9df5-2660d07b60f5"
+      ],
+      "benchmark_run_ids": [
+        "3bc6320f-16db-4af3-9d2d-9649d9f06d6a",
+        "5246ac59-9f97-4458-b780-efe63dda2799"
+      ]
+    },
+    {
+      "metric_name": "m6.multi_hop_correctness",
+      "metric_definition_revision": "2",
+      "value": 0.9615384615384616,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "qa-v2 whole-task success with every required Decision-used supported path",
+      "missing_value_policy": "not_evaluated",
+      "direction": "higher_is_better",
+      "observation_count": 26,
+      "case_run_ids": [
+        "05272355-88c5-4d9f-9b70-ff6611903d41",
+        "12d26ddb-e3b3-4a16-8f4a-8d9f37fc01db",
+        "136e0ed9-596a-4670-93e0-4fa82ac6cb8c",
+        "1e96d9b1-be6e-47e4-a0e6-3746ec482a73",
+        "227389fc-4e68-4695-a108-5d8041aa48da",
+        "239cd62f-4f63-47a2-8729-0d248b919881",
+        "35fa0660-b61d-40e7-8ca9-d54ecd6f5c4d",
+        "4548b70b-2fe1-40ff-a66f-6e6f483e9dd9",
+        "551a65c1-e580-43ec-8b7a-331c01611af7",
+        "67811816-e363-4d1d-82af-d0c3bfbc5722",
+        "71b309b5-acd9-4486-a954-a9d97c6af7fa",
+        "77b069d9-5a3c-4eea-ab0e-7e04ddf5c15b",
+        "85650b73-509f-4a13-b04e-8bc5dbc27ae0",
+        "86f4df90-c3bf-4cbb-b390-4ef3dfc7ee19",
+        "91d13d5b-f316-4315-9ffe-f5231d7f6c8c",
+        "af34af7f-6c02-40a9-a22f-7892c43757bf",
+        "b0579ad9-0624-48fb-bb4c-3d4b5db13856",
+        "b44473f5-5598-4248-968b-062eee324224",
+        "b91cd0f1-c53e-4283-ada4-84c534606d08",
+        "c19fecb8-d7cf-4f4f-a2fb-7bfff64ef225",
+        "c8b8db51-d22a-436f-a334-8c1a493b9224",
+        "d3a6cb57-c3ed-4439-9888-39ff39416b0b",
+        "e74d62eb-fb1a-478b-9121-1363a204b5af",
+        "ef1c8295-8caf-4fe4-9413-b6a3c357fa14",
+        "f1c7344a-36b3-4697-95dd-4f3d1a9d4b5c",
+        "f5aea852-6271-47bd-9df5-2660d07b60f5"
+      ],
+      "benchmark_run_ids": [
+        "3bc6320f-16db-4af3-9d2d-9649d9f06d6a",
+        "5246ac59-9f97-4458-b780-efe63dda2799"
+      ]
+    },
+    {
+      "metric_name": "m6.task_correctness",
+      "metric_definition_revision": "1",
+      "value": 0.9642857142857143,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "qa-v2 complete answers with supported assertions/citations, required unknowns/conflicts and all Decision-used paths",
+      "missing_value_policy": "fail",
+      "direction": "higher_is_better",
+      "observation_count": 28,
+      "case_run_ids": [
+        "05272355-88c5-4d9f-9b70-ff6611903d41",
+        "12d26ddb-e3b3-4a16-8f4a-8d9f37fc01db",
+        "136e0ed9-596a-4670-93e0-4fa82ac6cb8c",
+        "1a7fc14a-b499-4c26-9d39-2bbf52ea97ee",
+        "1dedbae9-ccbb-4e35-b4b8-3877686c4b29",
+        "1e96d9b1-be6e-47e4-a0e6-3746ec482a73",
+        "227389fc-4e68-4695-a108-5d8041aa48da",
+        "239cd62f-4f63-47a2-8729-0d248b919881",
+        "35fa0660-b61d-40e7-8ca9-d54ecd6f5c4d",
+        "4548b70b-2fe1-40ff-a66f-6e6f483e9dd9",
+        "551a65c1-e580-43ec-8b7a-331c01611af7",
+        "67811816-e363-4d1d-82af-d0c3bfbc5722",
+        "71b309b5-acd9-4486-a954-a9d97c6af7fa",
+        "77b069d9-5a3c-4eea-ab0e-7e04ddf5c15b",
+        "85650b73-509f-4a13-b04e-8bc5dbc27ae0",
+        "86f4df90-c3bf-4cbb-b390-4ef3dfc7ee19",
+        "91d13d5b-f316-4315-9ffe-f5231d7f6c8c",
+        "af34af7f-6c02-40a9-a22f-7892c43757bf",
+        "b0579ad9-0624-48fb-bb4c-3d4b5db13856",
+        "b44473f5-5598-4248-968b-062eee324224",
+        "b91cd0f1-c53e-4283-ada4-84c534606d08",
+        "c19fecb8-d7cf-4f4f-a2fb-7bfff64ef225",
+        "c8b8db51-d22a-436f-a334-8c1a493b9224",
+        "d3a6cb57-c3ed-4439-9888-39ff39416b0b",
+        "e74d62eb-fb1a-478b-9121-1363a204b5af",
+        "ef1c8295-8caf-4fe4-9413-b6a3c357fa14",
+        "f1c7344a-36b3-4697-95dd-4f3d1a9d4b5c",
+        "f5aea852-6271-47bd-9df5-2660d07b60f5"
+      ],
+      "benchmark_run_ids": [
+        "3bc6320f-16db-4af3-9d2d-9649d9f06d6a",
+        "5246ac59-9f97-4458-b780-efe63dda2799"
+      ]
+    },
+    {
+      "metric_name": "runtime.capability_call_count",
+      "metric_definition_revision": "1",
+      "value": 0.0,
+      "unit": "calls",
+      "aggregation": "mean",
+      "denominator": "benchmark case runs with durable capability invocations",
+      "missing_value_policy": "not_evaluated",
+      "direction": "informational",
+      "observation_count": 28,
+      "case_run_ids": [
+        "05272355-88c5-4d9f-9b70-ff6611903d41",
+        "12d26ddb-e3b3-4a16-8f4a-8d9f37fc01db",
+        "136e0ed9-596a-4670-93e0-4fa82ac6cb8c",
+        "1a7fc14a-b499-4c26-9d39-2bbf52ea97ee",
+        "1dedbae9-ccbb-4e35-b4b8-3877686c4b29",
+        "1e96d9b1-be6e-47e4-a0e6-3746ec482a73",
+        "227389fc-4e68-4695-a108-5d8041aa48da",
+        "239cd62f-4f63-47a2-8729-0d248b919881",
+        "35fa0660-b61d-40e7-8ca9-d54ecd6f5c4d",
+        "4548b70b-2fe1-40ff-a66f-6e6f483e9dd9",
+        "551a65c1-e580-43ec-8b7a-331c01611af7",
+        "67811816-e363-4d1d-82af-d0c3bfbc5722",
+        "71b309b5-acd9-4486-a954-a9d97c6af7fa",
+        "77b069d9-5a3c-4eea-ab0e-7e04ddf5c15b",
+        "85650b73-509f-4a13-b04e-8bc5dbc27ae0",
+        "86f4df90-c3bf-4cbb-b390-4ef3dfc7ee19",
+        "91d13d5b-f316-4315-9ffe-f5231d7f6c8c",
+        "af34af7f-6c02-40a9-a22f-7892c43757bf",
+        "b0579ad9-0624-48fb-bb4c-3d4b5db13856",
+        "b44473f5-5598-4248-968b-062eee324224",
+        "b91cd0f1-c53e-4283-ada4-84c534606d08",
+        "c19fecb8-d7cf-4f4f-a2fb-7bfff64ef225",
+        "c8b8db51-d22a-436f-a334-8c1a493b9224",
+        "d3a6cb57-c3ed-4439-9888-39ff39416b0b",
+        "e74d62eb-fb1a-478b-9121-1363a204b5af",
+        "ef1c8295-8caf-4fe4-9413-b6a3c357fa14",
+        "f1c7344a-36b3-4697-95dd-4f3d1a9d4b5c",
+        "f5aea852-6271-47bd-9df5-2660d07b60f5"
+      ],
+      "benchmark_run_ids": [
+        "3bc6320f-16db-4af3-9d2d-9649d9f06d6a",
+        "5246ac59-9f97-4458-b780-efe63dda2799"
+      ]
+    },
+    {
+      "metric_name": "runtime.model_attempt_count",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "attempts",
+      "aggregation": "mean",
+      "denominator": "benchmark case runs with recorded model execution",
+      "missing_value_policy": "not_evaluated",
+      "direction": "informational",
+      "observation_count": 28,
+      "case_run_ids": [
+        "05272355-88c5-4d9f-9b70-ff6611903d41",
+        "12d26ddb-e3b3-4a16-8f4a-8d9f37fc01db",
+        "136e0ed9-596a-4670-93e0-4fa82ac6cb8c",
+        "1a7fc14a-b499-4c26-9d39-2bbf52ea97ee",
+        "1dedbae9-ccbb-4e35-b4b8-3877686c4b29",
+        "1e96d9b1-be6e-47e4-a0e6-3746ec482a73",
+        "227389fc-4e68-4695-a108-5d8041aa48da",
+        "239cd62f-4f63-47a2-8729-0d248b919881",
+        "35fa0660-b61d-40e7-8ca9-d54ecd6f5c4d",
+        "4548b70b-2fe1-40ff-a66f-6e6f483e9dd9",
+        "551a65c1-e580-43ec-8b7a-331c01611af7",
+        "67811816-e363-4d1d-82af-d0c3bfbc5722",
+        "71b309b5-acd9-4486-a954-a9d97c6af7fa",
+        "77b069d9-5a3c-4eea-ab0e-7e04ddf5c15b",
+        "85650b73-509f-4a13-b04e-8bc5dbc27ae0",
+        "86f4df90-c3bf-4cbb-b390-4ef3dfc7ee19",
+        "91d13d5b-f316-4315-9ffe-f5231d7f6c8c",
+        "af34af7f-6c02-40a9-a22f-7892c43757bf",
+        "b0579ad9-0624-48fb-bb4c-3d4b5db13856",
+        "b44473f5-5598-4248-968b-062eee324224",
+        "b91cd0f1-c53e-4283-ada4-84c534606d08",
+        "c19fecb8-d7cf-4f4f-a2fb-7bfff64ef225",
+        "c8b8db51-d22a-436f-a334-8c1a493b9224",
+        "d3a6cb57-c3ed-4439-9888-39ff39416b0b",
+        "e74d62eb-fb1a-478b-9121-1363a204b5af",
+        "ef1c8295-8caf-4fe4-9413-b6a3c357fa14",
+        "f1c7344a-36b3-4697-95dd-4f3d1a9d4b5c",
+        "f5aea852-6271-47bd-9df5-2660d07b60f5"
+      ],
+      "benchmark_run_ids": [
+        "3bc6320f-16db-4af3-9d2d-9649d9f06d6a",
+        "5246ac59-9f97-4458-b780-efe63dda2799"
+      ]
+    },
+    {
+      "metric_name": "runtime.model_cached_input_tokens",
+      "metric_definition_revision": "1",
+      "value": 1728.0,
+      "unit": "tokens",
+      "aggregation": "mean",
+      "denominator": "benchmark case runs with provider-reported cached-input usage",
+      "missing_value_policy": "not_evaluated",
+      "direction": "informational",
+      "observation_count": 28,
+      "case_run_ids": [
+        "05272355-88c5-4d9f-9b70-ff6611903d41",
+        "12d26ddb-e3b3-4a16-8f4a-8d9f37fc01db",
+        "136e0ed9-596a-4670-93e0-4fa82ac6cb8c",
+        "1a7fc14a-b499-4c26-9d39-2bbf52ea97ee",
+        "1dedbae9-ccbb-4e35-b4b8-3877686c4b29",
+        "1e96d9b1-be6e-47e4-a0e6-3746ec482a73",
+        "227389fc-4e68-4695-a108-5d8041aa48da",
+        "239cd62f-4f63-47a2-8729-0d248b919881",
+        "35fa0660-b61d-40e7-8ca9-d54ecd6f5c4d",
+        "4548b70b-2fe1-40ff-a66f-6e6f483e9dd9",
+        "551a65c1-e580-43ec-8b7a-331c01611af7",
+        "67811816-e363-4d1d-82af-d0c3bfbc5722",
+        "71b309b5-acd9-4486-a954-a9d97c6af7fa",
+        "77b069d9-5a3c-4eea-ab0e-7e04ddf5c15b",
+        "85650b73-509f-4a13-b04e-8bc5dbc27ae0",
+        "86f4df90-c3bf-4cbb-b390-4ef3dfc7ee19",
+        "91d13d5b-f316-4315-9ffe-f5231d7f6c8c",
+        "af34af7f-6c02-40a9-a22f-7892c43757bf",
+        "b0579ad9-0624-48fb-bb4c-3d4b5db13856",
+        "b44473f5-5598-4248-968b-062eee324224",
+        "b91cd0f1-c53e-4283-ada4-84c534606d08",
+        "c19fecb8-d7cf-4f4f-a2fb-7bfff64ef225",
+        "c8b8db51-d22a-436f-a334-8c1a493b9224",
+        "d3a6cb57-c3ed-4439-9888-39ff39416b0b",
+        "e74d62eb-fb1a-478b-9121-1363a204b5af",
+        "ef1c8295-8caf-4fe4-9413-b6a3c357fa14",
+        "f1c7344a-36b3-4697-95dd-4f3d1a9d4b5c",
+        "f5aea852-6271-47bd-9df5-2660d07b60f5"
+      ],
+      "benchmark_run_ids": [
+        "3bc6320f-16db-4af3-9d2d-9649d9f06d6a",
+        "5246ac59-9f97-4458-b780-efe63dda2799"
+      ]
+    },
+    {
+      "metric_name": "runtime.model_input_tokens",
+      "metric_definition_revision": "1",
+      "value": 7242.5,
+      "unit": "tokens",
+      "aggregation": "mean",
+      "denominator": "benchmark case runs with provider/tokenizer model usage",
+      "missing_value_policy": "not_evaluated",
+      "direction": "informational",
+      "observation_count": 28,
+      "case_run_ids": [
+        "05272355-88c5-4d9f-9b70-ff6611903d41",
+        "12d26ddb-e3b3-4a16-8f4a-8d9f37fc01db",
+        "136e0ed9-596a-4670-93e0-4fa82ac6cb8c",
+        "1a7fc14a-b499-4c26-9d39-2bbf52ea97ee",
+        "1dedbae9-ccbb-4e35-b4b8-3877686c4b29",
+        "1e96d9b1-be6e-47e4-a0e6-3746ec482a73",
+        "227389fc-4e68-4695-a108-5d8041aa48da",
+        "239cd62f-4f63-47a2-8729-0d248b919881",
+        "35fa0660-b61d-40e7-8ca9-d54ecd6f5c4d",
+        "4548b70b-2fe1-40ff-a66f-6e6f483e9dd9",
+        "551a65c1-e580-43ec-8b7a-331c01611af7",
+        "67811816-e363-4d1d-82af-d0c3bfbc5722",
+        "71b309b5-acd9-4486-a954-a9d97c6af7fa",
+        "77b069d9-5a3c-4eea-ab0e-7e04ddf5c15b",
+        "85650b73-509f-4a13-b04e-8bc5dbc27ae0",
+        "86f4df90-c3bf-4cbb-b390-4ef3dfc7ee19",
+        "91d13d5b-f316-4315-9ffe-f5231d7f6c8c",
+        "af34af7f-6c02-40a9-a22f-7892c43757bf",
+        "b0579ad9-0624-48fb-bb4c-3d4b5db13856",
+        "b44473f5-5598-4248-968b-062eee324224",
+        "b91cd0f1-c53e-4283-ada4-84c534606d08",
+        "c19fecb8-d7cf-4f4f-a2fb-7bfff64ef225",
+        "c8b8db51-d22a-436f-a334-8c1a493b9224",
+        "d3a6cb57-c3ed-4439-9888-39ff39416b0b",
+        "e74d62eb-fb1a-478b-9121-1363a204b5af",
+        "ef1c8295-8caf-4fe4-9413-b6a3c357fa14",
+        "f1c7344a-36b3-4697-95dd-4f3d1a9d4b5c",
+        "f5aea852-6271-47bd-9df5-2660d07b60f5"
+      ],
+      "benchmark_run_ids": [
+        "3bc6320f-16db-4af3-9d2d-9649d9f06d6a",
+        "5246ac59-9f97-4458-b780-efe63dda2799"
+      ]
+    },
+    {
+      "metric_name": "runtime.model_output_tokens",
+      "metric_definition_revision": "1",
+      "value": 840.3571428571429,
+      "unit": "tokens",
+      "aggregation": "mean",
+      "denominator": "benchmark case runs with provider/tokenizer model usage",
+      "missing_value_policy": "not_evaluated",
+      "direction": "informational",
+      "observation_count": 28,
+      "case_run_ids": [
+        "05272355-88c5-4d9f-9b70-ff6611903d41",
+        "12d26ddb-e3b3-4a16-8f4a-8d9f37fc01db",
+        "136e0ed9-596a-4670-93e0-4fa82ac6cb8c",
+        "1a7fc14a-b499-4c26-9d39-2bbf52ea97ee",
+        "1dedbae9-ccbb-4e35-b4b8-3877686c4b29",
+        "1e96d9b1-be6e-47e4-a0e6-3746ec482a73",
+        "227389fc-4e68-4695-a108-5d8041aa48da",
+        "239cd62f-4f63-47a2-8729-0d248b919881",
+        "35fa0660-b61d-40e7-8ca9-d54ecd6f5c4d",
+        "4548b70b-2fe1-40ff-a66f-6e6f483e9dd9",
+        "551a65c1-e580-43ec-8b7a-331c01611af7",
+        "67811816-e363-4d1d-82af-d0c3bfbc5722",
+        "71b309b5-acd9-4486-a954-a9d97c6af7fa",
+        "77b069d9-5a3c-4eea-ab0e-7e04ddf5c15b",
+        "85650b73-509f-4a13-b04e-8bc5dbc27ae0",
+        "86f4df90-c3bf-4cbb-b390-4ef3dfc7ee19",
+        "91d13d5b-f316-4315-9ffe-f5231d7f6c8c",
+        "af34af7f-6c02-40a9-a22f-7892c43757bf",
+        "b0579ad9-0624-48fb-bb4c-3d4b5db13856",
+        "b44473f5-5598-4248-968b-062eee324224",
+        "b91cd0f1-c53e-4283-ada4-84c534606d08",
+        "c19fecb8-d7cf-4f4f-a2fb-7bfff64ef225",
+        "c8b8db51-d22a-436f-a334-8c1a493b9224",
+        "d3a6cb57-c3ed-4439-9888-39ff39416b0b",
+        "e74d62eb-fb1a-478b-9121-1363a204b5af",
+        "ef1c8295-8caf-4fe4-9413-b6a3c357fa14",
+        "f1c7344a-36b3-4697-95dd-4f3d1a9d4b5c",
+        "f5aea852-6271-47bd-9df5-2660d07b60f5"
+      ],
+      "benchmark_run_ids": [
+        "3bc6320f-16db-4af3-9d2d-9649d9f06d6a",
+        "5246ac59-9f97-4458-b780-efe63dda2799"
+      ]
+    },
+    {
+      "metric_name": "runtime.model_reasoning_tokens",
+      "metric_definition_revision": "1",
+      "value": 318.42857142857144,
+      "unit": "tokens",
+      "aggregation": "mean",
+      "denominator": "benchmark case runs with provider-reported reasoning-token usage",
+      "missing_value_policy": "not_evaluated",
+      "direction": "informational",
+      "observation_count": 28,
+      "case_run_ids": [
+        "05272355-88c5-4d9f-9b70-ff6611903d41",
+        "12d26ddb-e3b3-4a16-8f4a-8d9f37fc01db",
+        "136e0ed9-596a-4670-93e0-4fa82ac6cb8c",
+        "1a7fc14a-b499-4c26-9d39-2bbf52ea97ee",
+        "1dedbae9-ccbb-4e35-b4b8-3877686c4b29",
+        "1e96d9b1-be6e-47e4-a0e6-3746ec482a73",
+        "227389fc-4e68-4695-a108-5d8041aa48da",
+        "239cd62f-4f63-47a2-8729-0d248b919881",
+        "35fa0660-b61d-40e7-8ca9-d54ecd6f5c4d",
+        "4548b70b-2fe1-40ff-a66f-6e6f483e9dd9",
+        "551a65c1-e580-43ec-8b7a-331c01611af7",
+        "67811816-e363-4d1d-82af-d0c3bfbc5722",
+        "71b309b5-acd9-4486-a954-a9d97c6af7fa",
+        "77b069d9-5a3c-4eea-ab0e-7e04ddf5c15b",
+        "85650b73-509f-4a13-b04e-8bc5dbc27ae0",
+        "86f4df90-c3bf-4cbb-b390-4ef3dfc7ee19",
+        "91d13d5b-f316-4315-9ffe-f5231d7f6c8c",
+        "af34af7f-6c02-40a9-a22f-7892c43757bf",
+        "b0579ad9-0624-48fb-bb4c-3d4b5db13856",
+        "b44473f5-5598-4248-968b-062eee324224",
+        "b91cd0f1-c53e-4283-ada4-84c534606d08",
+        "c19fecb8-d7cf-4f4f-a2fb-7bfff64ef225",
+        "c8b8db51-d22a-436f-a334-8c1a493b9224",
+        "d3a6cb57-c3ed-4439-9888-39ff39416b0b",
+        "e74d62eb-fb1a-478b-9121-1363a204b5af",
+        "ef1c8295-8caf-4fe4-9413-b6a3c357fa14",
+        "f1c7344a-36b3-4697-95dd-4f3d1a9d4b5c",
+        "f5aea852-6271-47bd-9df5-2660d07b60f5"
+      ],
+      "benchmark_run_ids": [
+        "3bc6320f-16db-4af3-9d2d-9649d9f06d6a",
+        "5246ac59-9f97-4458-b780-efe63dda2799"
+      ]
+    },
+    {
+      "metric_name": "runtime.retrieval_invocation_count",
+      "metric_definition_revision": "1",
+      "value": 0.0,
+      "unit": "calls",
+      "aggregation": "mean",
+      "denominator": "benchmark case runs with durable retrieval invocation provenance",
+      "missing_value_policy": "not_evaluated",
+      "direction": "informational",
+      "observation_count": 28,
+      "case_run_ids": [
+        "05272355-88c5-4d9f-9b70-ff6611903d41",
+        "12d26ddb-e3b3-4a16-8f4a-8d9f37fc01db",
+        "136e0ed9-596a-4670-93e0-4fa82ac6cb8c",
+        "1a7fc14a-b499-4c26-9d39-2bbf52ea97ee",
+        "1dedbae9-ccbb-4e35-b4b8-3877686c4b29",
+        "1e96d9b1-be6e-47e4-a0e6-3746ec482a73",
+        "227389fc-4e68-4695-a108-5d8041aa48da",
+        "239cd62f-4f63-47a2-8729-0d248b919881",
+        "35fa0660-b61d-40e7-8ca9-d54ecd6f5c4d",
+        "4548b70b-2fe1-40ff-a66f-6e6f483e9dd9",
+        "551a65c1-e580-43ec-8b7a-331c01611af7",
+        "67811816-e363-4d1d-82af-d0c3bfbc5722",
+        "71b309b5-acd9-4486-a954-a9d97c6af7fa",
+        "77b069d9-5a3c-4eea-ab0e-7e04ddf5c15b",
+        "85650b73-509f-4a13-b04e-8bc5dbc27ae0",
+        "86f4df90-c3bf-4cbb-b390-4ef3dfc7ee19",
+        "91d13d5b-f316-4315-9ffe-f5231d7f6c8c",
+        "af34af7f-6c02-40a9-a22f-7892c43757bf",
+        "b0579ad9-0624-48fb-bb4c-3d4b5db13856",
+        "b44473f5-5598-4248-968b-062eee324224",
+        "b91cd0f1-c53e-4283-ada4-84c534606d08",
+        "c19fecb8-d7cf-4f4f-a2fb-7bfff64ef225",
+        "c8b8db51-d22a-436f-a334-8c1a493b9224",
+        "d3a6cb57-c3ed-4439-9888-39ff39416b0b",
+        "e74d62eb-fb1a-478b-9121-1363a204b5af",
+        "ef1c8295-8caf-4fe4-9413-b6a3c357fa14",
+        "f1c7344a-36b3-4697-95dd-4f3d1a9d4b5c",
+        "f5aea852-6271-47bd-9df5-2660d07b60f5"
+      ],
+      "benchmark_run_ids": [
+        "3bc6320f-16db-4af3-9d2d-9649d9f06d6a",
+        "5246ac59-9f97-4458-b780-efe63dda2799"
+      ]
+    },
+    {
+      "metric_name": "security.adversarial_case_pass_rate",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "executed cases in the frozen M7 adversarial security suite",
+      "missing_value_policy": "not_evaluated",
+      "direction": "higher_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "c5649392-feb9-4bfb-8de9-568532548dd6"
+      ],
+      "benchmark_run_ids": [
+        "69cdc26d-72f0-4ccc-a466-08c90d48071d"
+      ]
+    },
+    {
+      "metric_name": "security.adversarial_class_coverage",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "required adversarial classes in the frozen M7 security profile",
+      "missing_value_policy": "not_evaluated",
+      "direction": "higher_is_better",
+      "observation_count": 1,
+      "case_run_ids": [
+        "c5649392-feb9-4bfb-8de9-568532548dd6"
+      ],
+      "benchmark_run_ids": [
+        "69cdc26d-72f0-4ccc-a466-08c90d48071d"
+      ]
+    },
+    {
+      "metric_name": "security.authority_violation_count",
+      "metric_definition_revision": "1",
+      "value": 0.0,
+      "unit": "violations",
+      "aggregation": "sum",
+      "denominator": "frozen security benchmark case runs",
+      "missing_value_policy": "not_evaluated",
+      "direction": "target_zero",
+      "observation_count": 3,
+      "case_run_ids": [
+        "90cb9ae0-b8d1-46ee-8696-de5e27314e5d",
+        "ecb834db-77ff-4d5a-8057-7a84c8751e73",
+        "f35a80f3-f930-431e-8160-0715016c81d1"
+      ],
+      "benchmark_run_ids": [
+        "40afd9cb-9b61-425b-9045-52add6e1a1ee"
+      ]
+    },
+    {
+      "metric_name": "security.policy_conformance",
+      "metric_definition_revision": "1",
+      "value": 1.0,
+      "unit": "ratio",
+      "aggregation": "mean",
+      "denominator": "frozen security cases with required/forbidden policy outcomes",
+      "missing_value_policy": "not_evaluated",
+      "direction": "higher_is_better",
+      "observation_count": 3,
+      "case_run_ids": [
+        "90cb9ae0-b8d1-46ee-8696-de5e27314e5d",
+        "ecb834db-77ff-4d5a-8057-7a84c8751e73",
+        "f35a80f3-f930-431e-8160-0715016c81d1"
+      ],
+      "benchmark_run_ids": [
+        "40afd9cb-9b61-425b-9045-52add6e1a1ee"
+      ]
+    },
+    {
+      "metric_name": "security.secret_exposure_count",
+      "metric_definition_revision": "1",
+      "value": 0.0,
+      "unit": "exposures",
+      "aggregation": "sum",
+      "denominator": "frozen security benchmark case runs",
+      "missing_value_policy": "not_evaluated",
+      "direction": "target_zero",
+      "observation_count": 3,
+      "case_run_ids": [
+        "90cb9ae0-b8d1-46ee-8696-de5e27314e5d",
+        "ecb834db-77ff-4d5a-8057-7a84c8751e73",
+        "f35a80f3-f930-431e-8160-0715016c81d1"
+      ],
+      "benchmark_run_ids": [
+        "40afd9cb-9b61-425b-9045-52add6e1a1ee"
+      ]
+    }
+  ],
+  "target_checks": [
+    {
+      "target_name": "source_category_coverage",
+      "requirement": "Preliminary source support: at least 7 categories",
+      "metric_name": "m1.source_category_count",
+      "comparator": ">=",
+      "threshold": 7.0,
+      "observed_value": 8.0,
+      "status": "pass",
+      "benchmark_run_ids": [
+        "56cfbb86-de40-4033-abc7-9ba6b616000c"
+      ],
+      "note": "Category support only; real-time monitoring requires separate operational review."
+    },
+    {
+      "target_name": "monitoring_timeliness",
+      "requirement": "Preliminary development check: all scored steady-state samples <= 6h",
+      "metric_name": "m1.monitoring.max_seconds",
+      "comparator": "<=",
+      "threshold": 21600.0,
+      "observed_value": 134540437.014338,
+      "status": "fail",
+      "benchmark_run_ids": [
+        "56cfbb86-de40-4033-abc7-9ba6b616000c"
+      ],
+      "note": null
+    },
+    {
+      "target_name": "enrichment_precision",
+      "requirement": "Preliminary excellent target: enrichment precision >= 95%",
+      "metric_name": "m3.micro_precision",
+      "comparator": ">=",
+      "threshold": 0.95,
+      "observed_value": 0.9965870307167235,
+      "status": "pass",
+      "benchmark_run_ids": [
+        "1ba81c21-bef9-4419-b0a8-264907798dd9",
+        "437981bf-27f7-49bb-87d3-c67e3aeebc9d"
+      ],
+      "note": null
+    },
+    {
+      "target_name": "qa_multihop",
+      "requirement": "Preliminary excellent target: supported multi-hop task accuracy >= 85%",
+      "metric_name": "m6.multi_hop_correctness",
+      "comparator": ">=",
+      "threshold": 0.85,
+      "observed_value": 0.9615384615384616,
+      "status": "pass",
+      "benchmark_run_ids": [
+        "3bc6320f-16db-4af3-9d2d-9649d9f06d6a",
+        "5246ac59-9f97-4458-b780-efe63dda2799"
+      ],
+      "note": null
+    }
+  ],
+  "metric_definition_refs": [
+    "agent.argument_correctness@1",
+    "agent.budget_deadline_stop_correctness@1",
+    "agent.capability_invocation_count@1",
+    "agent.capability_selection_correctness@1",
+    "agent.child_task_usefulness@1",
+    "agent.conflict_collapse_rate@1",
+    "agent.delegation_precision@1",
+    "agent.fallback_success_rate@1",
+    "agent.freshness_satisfaction@1",
+    "agent.no_progress_iteration_rate@1",
+    "agent.parent_child_budget_adherence@1",
+    "agent.recovery_success_rate@1",
+    "agent.redundant_acquisition_rate@1",
+    "agent.source_role_satisfaction@1",
+    "agent.stale_child_result_rate@1",
+    "agent.unnecessary_denied_request_rate@1",
+    "agent.useful_acquisition_precision@1",
+    "engineering.bounded_termination@1",
+    "engineering.failure_isolation@1",
+    "engineering.fault_recovery_success@1",
+    "engineering.retry_correctness@1",
+    "m1.monitoring.evaluable_coverage@1",
+    "m1.monitoring.max_seconds@1",
+    "m1.monitoring.p50_seconds@1",
+    "m1.monitoring.p95_seconds@1",
+    "m1.monitoring.within_6h_rate@1",
+    "m1.source_category_count@1",
+    "m2.conflict_preservation@1",
+    "m2.entity_resolution_precision@1",
+    "m2.entity_resolution_recall@1",
+    "m2.evidence_correctness@1",
+    "m2.parser_field_accuracy@1",
+    "m2.replay_suppression_accuracy@1",
+    "m3.dimension.advisory_reference.false_negative@1",
+    "m3.dimension.advisory_reference.false_positive@1",
+    "m3.dimension.advisory_reference.precision@1",
+    "m3.dimension.advisory_reference.recall@1",
+    "m3.dimension.advisory_reference.true_positive@1",
+    "m3.dimension.exploit_likelihood.false_negative@1",
+    "m3.dimension.exploit_likelihood.false_positive@1",
+    "m3.dimension.exploit_likelihood.precision@1",
+    "m3.dimension.exploit_likelihood.recall@1",
+    "m3.dimension.exploit_likelihood.true_positive@1",
+    "m3.dimension.fix_remediation.false_negative@1",
+    "m3.dimension.fix_remediation.false_positive@1",
+    "m3.dimension.fix_remediation.precision@1",
+    "m3.dimension.fix_remediation.recall@1",
+    "m3.dimension.fix_remediation.true_positive@1",
+    "m3.dimension.product_package.false_negative@1",
+    "m3.dimension.product_package.false_positive@1",
+    "m3.dimension.product_package.precision@1",
+    "m3.dimension.product_package.recall@1",
+    "m3.dimension.product_package.true_positive@1",
+    "m3.dimension.severity.false_negative@1",
+    "m3.dimension.severity.false_positive@1",
+    "m3.dimension.severity.precision@1",
+    "m3.dimension.severity.recall@1",
+    "m3.dimension.severity.true_positive@1",
+    "m3.dimension.version_applicability.false_negative@1",
+    "m3.dimension.version_applicability.false_positive@1",
+    "m3.dimension.version_applicability.precision@1",
+    "m3.dimension.version_applicability.recall@1",
+    "m3.dimension.version_applicability.true_positive@1",
+    "m3.dimension.weakness.false_negative@1",
+    "m3.dimension.weakness.false_positive@1",
+    "m3.dimension.weakness.precision@1",
+    "m3.dimension.weakness.recall@1",
+    "m3.dimension.weakness.true_positive@1",
+    "m3.dimension_macro_precision@1",
+    "m3.dimension_macro_recall@1",
+    "m3.false_negative@1",
+    "m3.false_positive@1",
+    "m3.micro_precision@1",
+    "m3.micro_recall@1",
+    "m3.true_positive@1",
+    "m6.answer_accuracy@2",
+    "m6.citation_completeness@2",
+    "m6.citation_correctness@2",
+    "m6.completion_correctness@2",
+    "m6.groundedness@2",
+    "m6.interactive_latency_seconds@1",
+    "m6.multi_hop_correctness@2",
+    "m6.task_correctness@1",
+    "runtime.capability_call_count@1",
+    "runtime.model_attempt_count@1",
+    "runtime.model_cached_input_tokens@1",
+    "runtime.model_input_tokens@1",
+    "runtime.model_output_tokens@1",
+    "runtime.model_reasoning_tokens@1",
+    "runtime.retrieval_invocation_count@1",
+    "security.adversarial_case_pass_rate@1",
+    "security.adversarial_class_coverage@1",
+    "security.authority_violation_count@1",
+    "security.policy_conformance@1",
+    "security.secret_exposure_count@1"
+  ],
+  "artifact_refs": [
+    "provider-snapshot:2c7c06aa468439a08675cab1551ede352234656ff08a6b0ea00e04ceddf97a27",
+    "provider-snapshot:cba7f1e65b1c5996b0137cfb9ddeb42a72876bff5a3fb38c34d9767bdaaee5bb"
+  ],
+  "unevaluated_competition_areas": [
+    "Agent runtime",
+    "Long Investigation completion",
+    "Preliminary qualitative review: source breadth with real-time monitoring",
+    "Preliminary qualitative review: automatic association and deep cross-document QA",
+    "Preliminary qualitative review: Agent architecture, end-to-end self-healing and documentation"
+  ]
+}

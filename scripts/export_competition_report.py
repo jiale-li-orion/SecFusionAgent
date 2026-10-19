@@ -4,13 +4,18 @@ import argparse
 import asyncio
 import json
 from pathlib import Path
+from typing import Literal, cast
 
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import select
 
 from apps.runtime_models import register_runtime_models
 from packages.evaluation.benchmark import CompetitionReport, CompetitionReportService
-from packages.evaluation.benchmark.storage import BenchmarkCaseRunModel, BenchmarkRunModel
+from packages.evaluation.benchmark.storage import (
+    BenchmarkCaseModel,
+    BenchmarkCaseRunModel,
+    BenchmarkRunModel,
+)
 from packages.evaluation.competition_status import render_competition_report_markdown
 from packages.shared.config import get_settings
 from packages.shared.db import create_engine, create_session_factory
@@ -21,6 +26,7 @@ class CompetitionRunSet(BaseModel):
     deployment_revision_id: str = Field(min_length=1)
     benchmark_run_ids: list[str] = Field(min_length=1)
     artifact_refs: list[str] = Field(default_factory=list)
+    profile: Literal["finals", "preliminary"] = "finals"
 
     @model_validator(mode="after")
     def validate_run_set(self) -> CompetitionRunSet:
@@ -42,9 +48,8 @@ def _validate_provider_snapshot_refs(
     run_world_snapshot_refs: list[str | None],
     case_artifact_refs: list[list[str]],
     declared_artifact_refs: list[str],
+    case_fixture_refs: list[list[str]] | None = None,
 ) -> None:
-    if not declared_artifact_refs:
-        return
     required = {
         ref
         for ref in run_world_snapshot_refs
@@ -52,7 +57,7 @@ def _validate_provider_snapshot_refs(
     }
     required.update(
         ref
-        for refs in case_artifact_refs
+        for refs in [*case_artifact_refs, *(case_fixture_refs or [])]
         for ref in refs
         if ref.startswith("provider-snapshot:")
     )
@@ -69,6 +74,7 @@ async def _export(
     *,
     deployment_revision_id: str | None,
     artifact_refs: list[str],
+    profile: Literal["finals", "preliminary"] = "finals",
 ) -> CompetitionReport:
     if not run_ids:
         raise ValueError("at least one benchmark run id is required")
@@ -109,16 +115,28 @@ async def _export(
                     )
                 )
             )
+            fixture_rows = list(
+                await session.scalars(
+                    select(BenchmarkCaseModel.fixture_refs_json)
+                    .join(
+                        BenchmarkCaseRunModel,
+                        BenchmarkCaseRunModel.case_version_id == BenchmarkCaseModel.case_version_id,
+                    )
+                    .where(BenchmarkCaseRunModel.benchmark_run_id.in_(run_ids))
+                )
+            )
             _validate_provider_snapshot_refs(
                 run_world_snapshot_refs=[item.world_snapshot_ref for item in runs],
                 case_artifact_refs=[list(item) for item in artifact_rows],
                 declared_artifact_refs=artifact_refs,
+                case_fixture_refs=[list(item) for item in fixture_rows],
             )
             return await CompetitionReportService().generate_and_persist(
                 session,
                 deployment_revision_id=resolved_deployment_id,
                 benchmark_run_ids=run_ids,
                 artifact_refs=artifact_refs,
+                profile=profile,
             )
     finally:
         await engine.dispose()
@@ -133,6 +151,7 @@ def main() -> None:
     parser.add_argument("--deployment-revision-id")
     parser.add_argument("--artifact-ref", action="append", default=[])
     parser.add_argument("--run-set-manifest", type=Path)
+    parser.add_argument("--profile", choices=["finals", "preliminary"], default=None)
     parser.add_argument("--json-output", type=Path)
     parser.add_argument("--markdown-output", type=Path)
     parser.add_argument("--output", type=Path, help="legacy alias for --json-output")
@@ -140,6 +159,7 @@ def main() -> None:
     run_ids = [*args.run_ids, *args.run_id]
     deployment_revision_id = args.deployment_revision_id
     artifact_refs = list(args.artifact_ref)
+    profile = cast(Literal["finals", "preliminary"], args.profile or "finals")
     if args.run_set_manifest is not None:
         if run_ids or deployment_revision_id is not None or artifact_refs:
             parser.error(
@@ -147,6 +167,9 @@ def main() -> None:
                 "or artifact refs"
             )
         run_set = _load_run_set(args.run_set_manifest)
+        if args.profile is not None and args.profile != run_set.profile:
+            parser.error("--profile conflicts with frozen run-set profile")
+        profile = run_set.profile
         run_ids = list(run_set.benchmark_run_ids)
         deployment_revision_id = run_set.deployment_revision_id
         artifact_refs = list(run_set.artifact_refs)
@@ -155,6 +178,7 @@ def main() -> None:
             run_ids,
             deployment_revision_id=deployment_revision_id,
             artifact_refs=artifact_refs,
+            profile=profile,
         )
     )
     payload = report.model_dump(mode="json")

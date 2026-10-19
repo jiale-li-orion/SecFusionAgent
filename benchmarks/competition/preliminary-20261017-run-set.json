@@ -1,0 +1,21 @@
+{
+  "schema_version": "competition-run-set-v1",
+  "profile": "preliminary",
+  "deployment_revision_id": "deployment:056e482bdb3598135b48cb6c192e5e2a",
+  "benchmark_run_ids": [
+    "5246ac59-9f97-4458-b780-efe63dda2799",
+    "3bc6320f-16db-4af3-9d2d-9649d9f06d6a",
+    "1ba81c21-bef9-4419-b0a8-264907798dd9",
+    "437981bf-27f7-49bb-87d3-c67e3aeebc9d",
+    "56cfbb86-de40-4033-abc7-9ba6b616000c",
+    "d3a9ce51-6175-4d8a-a0bb-ce1653ce03f2",
+    "205df724-1232-4700-8b2b-e3764e4d4a2a",
+    "40afd9cb-9b61-425b-9045-52add6e1a1ee",
+    "69cdc26d-72f0-4ccc-a466-08c90d48071d",
+    "2f9000dd-154b-402d-9d4f-69af09dce629"
+  ],
+  "artifact_refs": [
+    "provider-snapshot:2c7c06aa468439a08675cab1551ede352234656ff08a6b0ea00e04ceddf97a27",
+    "provider-snapshot:cba7f1e65b1c5996b0137cfb9ddeb42a72876bff5a3fb38c34d9767bdaaee5bb"
+  ]
+}

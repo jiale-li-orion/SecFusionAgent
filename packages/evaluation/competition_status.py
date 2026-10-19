@@ -19,12 +19,21 @@ def render_competition_report_markdown(report: CompetitionReport) -> str:
         "| Target | Metric | Observed | Requirement | Status |",
         "| --- | --- | ---: | --- | --- |",
     ]
+    if report.profile == "preliminary":
+        lines[3:3] = [
+            "Profile: **preliminary**. Numeric checks do not assign qualitative rubric points.",
+            "Source category support requires separate real-time operational evidence.",
+            "",
+        ]
     for check in report.target_checks:
         observed = "—" if check.observed_value is None else f"{check.observed_value:.6g}"
         lines.append(
             f"| {check.target_name} | `{check.metric_name}` | {observed} | "
             f"{check.comparator} {check.threshold:g} | **{check.status.value}** |"
         )
+    for check in report.target_checks:
+        if check.note:
+            lines.extend(["", f"{check.target_name}: {check.note}"])
     lines.extend(
         [
             "",

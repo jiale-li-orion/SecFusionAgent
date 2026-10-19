@@ -859,7 +859,59 @@ CORE_METRICS: dict[str, MetricDefinition] = {
 }
 
 
-def metric_definition(name: str) -> MetricDefinition:
+# Immutable historical definitions remain addressable after the default advances.
+METRIC_REVISIONS = {(item.name, item.revision): item for item in CORE_METRICS.values()}
+_QA_V2_DENOMINATORS = {
+    "m6.answer_accuracy": "qa-v2 canonical answer cases; unsupported extra assertions fail",
+    "m6.groundedness": "qa-v2 all asserted conclusions; unknown labels cannot hide assertions",
+    "m6.citation_correctness": "qa-v2 nonempty supported citations bound to asserted conclusions",
+    "m6.citation_completeness": "qa-v2 required citation facts actually asserted and supported",
+    "m6.completion_correctness": (
+        "qa-v2 expected answered/continuation outcomes; failure is never success"
+    ),
+    "m6.multi_hop_correctness": (
+        "qa-v2 whole-task success with every required Decision-used supported path"
+    ),
+    "m6.unknown_correctness": (
+        "qa-v2 cases with gold or predicted unknowns; "
+        "required unknown recall and allowed unknown precision"
+    ),
+    "m6.conflict_handling": (
+        "qa-v2 cases with gold or predicted conflicts; exact required conflict set"
+    ),
+}
+QA_V2_METRIC_REVISIONS = {name: "2" for name in _QA_V2_DENOMINATORS}
+for _name, _denominator in _QA_V2_DENOMINATORS.items():
+    _definition = CORE_METRICS[_name].model_copy(
+        update={
+            "revision": "2",
+            "denominator": _denominator,
+        }
+    )
+    CORE_METRICS[_name] = _definition
+    METRIC_REVISIONS[(_name, "2")] = _definition
+CORE_METRICS["m6.task_correctness"] = MetricDefinition(
+    name="m6.task_correctness",
+    revision="1",
+    denominator=(
+        "qa-v2 complete answers with supported assertions/citations, "
+        "required unknowns/conflicts and all Decision-used paths"
+    ),
+    aggregation=MetricAggregation.MEAN,
+    missing_value_policy=MissingValuePolicy.FAIL,
+    direction=MetricDirection.HIGHER_IS_BETTER,
+    unit="ratio",
+)
+METRIC_REVISIONS[("m6.task_correctness", "1")] = CORE_METRICS["m6.task_correctness"]
+
+
+def metric_definition(name: str, *, revision: str | None = None) -> MetricDefinition:
+    if revision is not None:
+        historical = METRIC_REVISIONS.get((name, revision))
+        if historical is not None:
+            return historical
+        if not name.startswith("m3.dimension.") or revision != "1":
+            raise KeyError(f"metric definition is not registered: {name}@{revision}")
     exact = CORE_METRICS.get(name)
     if exact is not None:
         return exact

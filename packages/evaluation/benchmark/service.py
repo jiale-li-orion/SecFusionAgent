@@ -235,6 +235,7 @@ class BenchmarkStore:
         evidence_refs: list[str] | None = None,
         metadata: dict[str, JsonValue] | None = None,
         metric_observation_id: str | None = None,
+        metric_definition_revision: str | None = None,
         now: datetime | None = None,
     ) -> MetricObservation:
         case_run = await session.get(BenchmarkCaseRunModel, case_run_id)
@@ -242,7 +243,7 @@ class BenchmarkStore:
             raise LookupError(f"benchmark case run not found: {case_run_id}")
         if case_run.status != BenchmarkCaseRunStatus.RUNNING.value:
             raise ValueError("metrics can only be appended to a running benchmark case")
-        definition = metric_definition(metric_name)
+        definition = metric_definition(metric_name, revision=metric_definition_revision)
         if direction is not definition.direction:
             raise ValueError(
                 f"metric direction mismatch for {metric_name}: "

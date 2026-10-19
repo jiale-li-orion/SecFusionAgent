@@ -147,9 +147,7 @@ def test_project_decision_to_qa_prediction_uses_m4_support_and_omits_recommendat
         benchmark_case_id="qa-affected-1",
         decision=decision,
         state=state,
-        relation_paths=[
-            ["deployment:1", "affected-by", "vulnerability:CVE-2026-0001"]
-        ],
+        relation_paths=[["deployment:1", "affected-by", "vulnerability:CVE-2026-0001"]],
         interactive_latency_seconds=0.42,
     )
     assert prediction.case_id == "qa-affected-1"
@@ -601,9 +599,7 @@ async def test_investigation_recorder_separates_success_latency_and_diagnostics(
         ),
         subject_ref="case:open",
     )
-    assert "m6.investigation_time_to_final_decision_seconds" not in (
-        no_decision_store.metric_names
-    )
+    assert "m6.investigation_time_to_final_decision_seconds" not in (no_decision_store.metric_names)
     assert no_decision_store.observations[0]["value"] == 0.0
 
 
@@ -1034,5 +1030,180 @@ async def test_pinned_deployment_accepts_same_current_coordinate(
                 deployment_revision_id=pinned.deployment_revision_id,
             )
             assert resolved == pinned.deployment_revision_id
+    finally:
+        await engine.dispose()
+
+
+def test_qa_projection_keeps_context_paths_separate_from_decision_usage() -> None:
+    paths = [["vulnerability", "references", "pr", "merged-as", "commit"]]
+    prediction = evaluation_runtime.project_validated_decision_to_qa_prediction(
+        benchmark_case_id="strict-path", decision=_decision(), relation_paths=paths
+    )
+    assert prediction.relation_paths == paths  # legacy reproduction
+    assert prediction.available_relation_paths == paths
+    assert prediction.decision_relation_paths == []
+
+
+@pytest.mark.asyncio
+async def test_qa_recorder_selects_score_revision_and_omits_inapplicable_axes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from packages.evaluation.benchmark.metrics import CORE_METRICS
+    from packages.evaluation.qa import score_qa
+
+    # A future current definition must not relabel a frozen qa-v2 scorer result.
+    monkeypatch.setitem(
+        CORE_METRICS,
+        "m6.answer_accuracy",
+        CORE_METRICS["m6.answer_accuracy"].model_copy(update={"revision": "future"}),
+    )
+    store = _MetricCaptureStore()
+    recorder = evaluation_runtime.QABenchmarkRecorder(store)  # type: ignore[arg-type]
+    prediction = QAPrediction(case_id="strict", completion_status="answered")
+    gold = QAGold(case_id="strict", completion_expectation="answered")
+    for revision in ("qa-v1", "qa-v2"):
+        store.observations.clear()
+        await recorder.record_case_score(
+            None,
+            case_run_id="run",  # type: ignore[arg-type]
+            score=score_qa(gold=gold, prediction=prediction, evaluator_revision=revision),
+            subject_ref="strict",
+            prediction=prediction,
+            gold=gold,
+        )
+        observed = {row["metric_name"]: row for row in store.observations}
+        assert observed["m6.answer_accuracy"]["metric_definition_revision"] == revision[-1]
+        if revision == "qa-v2":
+            assert "m6.unknown_correctness" not in observed
+            assert "m6.conflict_handling" not in observed
+            assert observed["m6.task_correctness"]["value"] == 1
+        else:
+            assert "m6.task_correctness" not in observed
+
+
+@pytest.mark.asyncio
+async def test_decision_path_requires_cited_edges_and_supports_three_hops() -> None:
+    engine, factory = await _database()
+    try:
+        async with factory() as session, session.begin():
+            revision = KnowledgeRevisionModel(committed_at=datetime.now(UTC))
+            session.add(revision)
+            await session.flush()
+            for key in ("a", "b", "c", "d"):
+                session.add(
+                    ObjectModel(
+                        object_id=key,
+                        object_type="Document",
+                        canonical_key=key,
+                        properties={},
+                        created_revision=revision.revision,
+                    )
+                )
+            for index, (source, target) in enumerate((("a", "b"), ("b", "c"), ("c", "d"))):
+                session.add(
+                    RelationModel(
+                        relation_id=f"edge-{index}",
+                        source_object_id=source,
+                        target_object_id=target,
+                        relation_type="links",
+                        qualifier={},
+                        origin="source_asserted",
+                        lifecycle="accepted",
+                        created_revision=revision.revision,
+                    )
+                )
+                session.add(
+                    EvidenceLinkModel(
+                        evidence_link_id=f"edge-evidence-{index}",
+                        target_kind="relation",
+                        target_id=f"edge-{index}",
+                        observation_id="fixture",
+                        locator={},
+                        locator_hash=f"locator-{index}",
+                    )
+                )
+        decision = _decision().model_copy(deep=True)
+        decision.conclusions = [
+            DecisionConclusion(
+                statement=f"{source} links {target}",
+                type=ConclusionType.FACT,
+                evidence_refs=[f"evidence:edge-evidence-{index}"],
+            )
+            for index, (source, target) in enumerate((("a", "b"), ("b", "c"), ("c", "d")))
+        ]
+        decision.citations = [
+            DecisionCitation(
+                conclusion_index=index,
+                evidence_ref=f"evidence:edge-evidence-{index}",
+                source_ref="source:fixture",
+            )
+            for index in range(3)
+        ]
+        # Use the same renderer as actual confirmed Product relation propositions.
+        for conclusion, (source, target) in zip(
+            decision.conclusions, (("a", "b"), ("b", "c"), ("c", "d")), strict=True
+        ):
+            conclusion.statement = evaluation_runtime.render_relation_fact(
+                source, "links", target, qualifier={}
+            )
+        async with factory() as session:
+            paths = await evaluation_runtime._decision_relation_paths(session, decision)
+            assert ["a", "links", "b", "links", "c", "links", "d"] in paths
+            decision.citations.pop()
+            assert ["a", "links", "b", "links", "c", "links", "d"] not in (
+                await evaluation_runtime._decision_relation_paths(session, decision)
+            )
+            # Arbitrary reasoning refs do not make an uncited edge used/supported.
+            decision.conclusions[0].reasoning_relation_refs = [
+                f"relation:edge-{i}" for i in range(3)
+            ]
+            assert ["a", "links", "b", "links", "c", "links", "d"] not in (
+                await evaluation_runtime._decision_relation_paths(session, decision)
+            )
+            decision.citations.clear()
+            assert await evaluation_runtime._decision_relation_paths(session, decision) == []
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_failure_projection_preserves_absent_calls_and_rejects_world_drift() -> None:
+    engine, factory = await _database()
+    try:
+        prediction = await evaluation_runtime.load_product_question_failure_qa_prediction(
+            factory,
+            benchmark_case_id="failed",
+            request_id="request:failed",
+            interactive_latency_seconds=0.2,
+            expected_knowledge_revision=0,
+        )
+        assert prediction.completion_status == "execution_failed"
+        assert prediction.execution_refs == ["product-request:request:failed"]
+        assert prediction.decision_relation_paths == []
+        with pytest.raises(evaluation_runtime.QAWorldDriftError):
+            await evaluation_runtime.load_product_question_failure_qa_prediction(
+                factory,
+                benchmark_case_id="failed",
+                request_id="request:failed",
+                interactive_latency_seconds=0.2,
+                expected_knowledge_revision=1,
+            )
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_missing_timeout_provenance_is_an_evaluation_validation_error() -> None:
+    engine, factory = await _database()
+    try:
+        with pytest.raises(
+            evaluation_runtime.QAProjectionProvenanceError, match="no persisted ModelRequest"
+        ):
+            await evaluation_runtime.load_product_question_timeout_qa_prediction(
+                factory,
+                benchmark_case_id="missing-timeout",
+                request_id="missing",
+                interactive_latency_seconds=5,
+            )
     finally:
         await engine.dispose()

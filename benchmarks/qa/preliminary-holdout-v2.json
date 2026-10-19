@@ -1,0 +1,429 @@
+{
+  "suite_id": "m6-preliminary-structured-holdout",
+  "purpose": "Six remaining raw-verified two-hop candidates not executed in the22-case development run. Frozen before prompt revision. Same structural task family; small repo-correlated holdout, not open-world generalization.",
+  "evaluator_revision": "qa-v2",
+  "knowledge_revision": 8024,
+  "cases": [
+    {
+      "case_id": "qa-prelim-cve-2026-105759-2hop",
+      "input": {},
+      "gold": {
+        "case_id": "qa-prelim-cve-2026-105759-2hop",
+        "required_facts": [
+          "cve:CVE-2026-105759 references-development-object github:vllm-project/vllm:pull:56058",
+          "github:vllm-project/vllm:pull:56058 merged-as git:commit:3735c2d5f5248259482b9045c34fb7a8a3892352"
+        ],
+        "acceptable_answer_facts": [],
+        "forbidden_facts": [],
+        "required_relation_paths": [
+          [
+            "cve:CVE-2026-105759",
+            "references-development-object",
+            "github:vllm-project/vllm:pull:56058",
+            "merged-as",
+            "git:commit:3735c2d5f5248259482b9045c34fb7a8a3892352"
+          ]
+        ],
+        "acceptable_unknowns": [],
+        "required_unknowns": [],
+        "required_conflicts": [],
+        "required_citation_facts": [
+          "cve:CVE-2026-105759 references-development-object github:vllm-project/vllm:pull:56058",
+          "github:vllm-project/vllm:pull:56058 merged-as git:commit:3735c2d5f5248259482b9045c34fb7a8a3892352"
+        ],
+        "allowed_assumptions": [],
+        "completion_expectation": "answered"
+      },
+      "prediction": null,
+      "product_case_id": null,
+      "live_product_case_id": null,
+      "live_product_question": {
+        "question": "沿 CVE-2026-105759 的 NVD 参考资料，找到它引用的 vllm-project/vllm PR，再查该 PR 实际合入的提交 SHA。如果引用了多个该仓库 PR，取编号最小的一个。请给出漏洞到 PR、PR 到合并提交这两步关系，并分别引用对应来源。只回答这两条关系，不附加漏洞描述或其他开发对象。",
+        "principal": "system:benchmark-m6",
+        "cve_id": "CVE-2026-105759",
+        "object_id": null,
+        "task_kind": "lookup",
+        "required_source_roles": [],
+        "priority": 50,
+        "interactive_timeout_seconds": 30,
+        "retrieval_limit": 8
+      },
+      "citation_support": {},
+      "relation_paths": [],
+      "interactive_latency_seconds": null,
+      "tags": [
+        "real",
+        "two-hop",
+        "pull_request",
+        "source-frozen",
+        "independent-root"
+      ],
+      "latency_class": "interactive",
+      "execution_refs": [],
+      "adjudications": [],
+      "gold_provenance": {
+        "mode": "structured_authority",
+        "evidence_refs": [
+          "evidence:cc5e2f4a-0a51-5078-9a45-834d778373c8",
+          "evidence:fdfc503f-ff5b-5685-927b-d032f21b764f"
+        ],
+        "source_ids": [
+          "nvd-cves-2",
+          "github-target-repos"
+        ],
+        "absence_checks": []
+      }
+    },
+    {
+      "case_id": "qa-prelim-cve-2026-105760-2hop",
+      "input": {},
+      "gold": {
+        "case_id": "qa-prelim-cve-2026-105760-2hop",
+        "required_facts": [
+          "cve:CVE-2026-105760 references-development-object github:vllm-project/vllm:pull:54935",
+          "github:vllm-project/vllm:pull:54935 merged-as git:commit:8b6de0eb9a09ef53f20cf06bd4d17ee264b9c2a7"
+        ],
+        "acceptable_answer_facts": [],
+        "forbidden_facts": [],
+        "required_relation_paths": [
+          [
+            "cve:CVE-2026-105760",
+            "references-development-object",
+            "github:vllm-project/vllm:pull:54935",
+            "merged-as",
+            "git:commit:8b6de0eb9a09ef53f20cf06bd4d17ee264b9c2a7"
+          ]
+        ],
+        "acceptable_unknowns": [],
+        "required_unknowns": [],
+        "required_conflicts": [],
+        "required_citation_facts": [
+          "cve:CVE-2026-105760 references-development-object github:vllm-project/vllm:pull:54935",
+          "github:vllm-project/vllm:pull:54935 merged-as git:commit:8b6de0eb9a09ef53f20cf06bd4d17ee264b9c2a7"
+        ],
+        "allowed_assumptions": [],
+        "completion_expectation": "answered"
+      },
+      "prediction": null,
+      "product_case_id": null,
+      "live_product_case_id": null,
+      "live_product_question": {
+        "question": "沿 CVE-2026-105760 的 NVD 参考资料，找到它引用的 vllm-project/vllm PR，再查该 PR 实际合入的提交 SHA。如果引用了多个该仓库 PR，取编号最小的一个。请给出漏洞到 PR、PR 到合并提交这两步关系，并分别引用对应来源。只回答这两条关系，不附加漏洞描述或其他开发对象。",
+        "principal": "system:benchmark-m6",
+        "cve_id": "CVE-2026-105760",
+        "object_id": null,
+        "task_kind": "lookup",
+        "required_source_roles": [],
+        "priority": 50,
+        "interactive_timeout_seconds": 30,
+        "retrieval_limit": 8
+      },
+      "citation_support": {},
+      "relation_paths": [],
+      "interactive_latency_seconds": null,
+      "tags": [
+        "real",
+        "two-hop",
+        "pull_request",
+        "source-frozen",
+        "independent-root"
+      ],
+      "latency_class": "interactive",
+      "execution_refs": [],
+      "adjudications": [],
+      "gold_provenance": {
+        "mode": "structured_authority",
+        "evidence_refs": [
+          "evidence:9a04daca-a399-5852-a874-e9436093aba0",
+          "evidence:35c91b9f-a16e-57c3-9154-29fca9a303ae"
+        ],
+        "source_ids": [
+          "nvd-cves-2",
+          "github-target-repos"
+        ],
+        "absence_checks": []
+      }
+    },
+    {
+      "case_id": "qa-prelim-cve-2026-57173-2hop",
+      "input": {},
+      "gold": {
+        "case_id": "qa-prelim-cve-2026-57173-2hop",
+        "required_facts": [
+          "cve:CVE-2026-57173 references-development-object github:vllm-project/vllm:pull:45908",
+          "github:vllm-project/vllm:pull:45908 merged-as git:commit:3d20275bb4d434f53055c3c0b645fd8bb072965e"
+        ],
+        "acceptable_answer_facts": [],
+        "forbidden_facts": [],
+        "required_relation_paths": [
+          [
+            "cve:CVE-2026-57173",
+            "references-development-object",
+            "github:vllm-project/vllm:pull:45908",
+            "merged-as",
+            "git:commit:3d20275bb4d434f53055c3c0b645fd8bb072965e"
+          ]
+        ],
+        "acceptable_unknowns": [],
+        "required_unknowns": [],
+        "required_conflicts": [],
+        "required_citation_facts": [
+          "cve:CVE-2026-57173 references-development-object github:vllm-project/vllm:pull:45908",
+          "github:vllm-project/vllm:pull:45908 merged-as git:commit:3d20275bb4d434f53055c3c0b645fd8bb072965e"
+        ],
+        "allowed_assumptions": [],
+        "completion_expectation": "answered"
+      },
+      "prediction": null,
+      "product_case_id": null,
+      "live_product_case_id": null,
+      "live_product_question": {
+        "question": "沿 CVE-2026-57173 的 NVD 参考资料，找到它引用的 vllm-project/vllm PR，再查该 PR 实际合入的提交 SHA。如果引用了多个该仓库 PR，取编号最小的一个。请给出漏洞到 PR、PR 到合并提交这两步关系，并分别引用对应来源。只回答这两条关系，不附加漏洞描述或其他开发对象。",
+        "principal": "system:benchmark-m6",
+        "cve_id": "CVE-2026-57173",
+        "object_id": null,
+        "task_kind": "lookup",
+        "required_source_roles": [],
+        "priority": 50,
+        "interactive_timeout_seconds": 30,
+        "retrieval_limit": 8
+      },
+      "citation_support": {},
+      "relation_paths": [],
+      "interactive_latency_seconds": null,
+      "tags": [
+        "real",
+        "two-hop",
+        "pull_request",
+        "source-frozen",
+        "independent-root"
+      ],
+      "latency_class": "interactive",
+      "execution_refs": [],
+      "adjudications": [],
+      "gold_provenance": {
+        "mode": "structured_authority",
+        "evidence_refs": [
+          "evidence:d561b5ec-5752-5644-911c-06e7b6d0d754",
+          "evidence:0e14f660-5033-5195-8334-722d2cdf6cdf"
+        ],
+        "source_ids": [
+          "nvd-cves-2",
+          "github-target-repos"
+        ],
+        "absence_checks": []
+      }
+    },
+    {
+      "case_id": "qa-prelim-cve-2026-71486-2hop",
+      "input": {},
+      "gold": {
+        "case_id": "qa-prelim-cve-2026-71486-2hop",
+        "required_facts": [
+          "cve:CVE-2026-71486 references-development-object github:vllm-project/vllm:pull:47260",
+          "github:vllm-project/vllm:pull:47260 merged-as git:commit:8e61b646e2d157f9b93451fa048f9c8530c8a67b"
+        ],
+        "acceptable_answer_facts": [],
+        "forbidden_facts": [],
+        "required_relation_paths": [
+          [
+            "cve:CVE-2026-71486",
+            "references-development-object",
+            "github:vllm-project/vllm:pull:47260",
+            "merged-as",
+            "git:commit:8e61b646e2d157f9b93451fa048f9c8530c8a67b"
+          ]
+        ],
+        "acceptable_unknowns": [],
+        "required_unknowns": [],
+        "required_conflicts": [],
+        "required_citation_facts": [
+          "cve:CVE-2026-71486 references-development-object github:vllm-project/vllm:pull:47260",
+          "github:vllm-project/vllm:pull:47260 merged-as git:commit:8e61b646e2d157f9b93451fa048f9c8530c8a67b"
+        ],
+        "allowed_assumptions": [],
+        "completion_expectation": "answered"
+      },
+      "prediction": null,
+      "product_case_id": null,
+      "live_product_case_id": null,
+      "live_product_question": {
+        "question": "沿 CVE-2026-71486 的 NVD 参考资料，找到它引用的 vllm-project/vllm PR，再查该 PR 实际合入的提交 SHA。如果引用了多个该仓库 PR，取编号最小的一个。请给出漏洞到 PR、PR 到合并提交这两步关系，并分别引用对应来源。只回答这两条关系，不附加漏洞描述或其他开发对象。",
+        "principal": "system:benchmark-m6",
+        "cve_id": "CVE-2026-71486",
+        "object_id": null,
+        "task_kind": "lookup",
+        "required_source_roles": [],
+        "priority": 50,
+        "interactive_timeout_seconds": 30,
+        "retrieval_limit": 8
+      },
+      "citation_support": {},
+      "relation_paths": [],
+      "interactive_latency_seconds": null,
+      "tags": [
+        "real",
+        "two-hop",
+        "pull_request",
+        "source-frozen",
+        "independent-root"
+      ],
+      "latency_class": "interactive",
+      "execution_refs": [],
+      "adjudications": [],
+      "gold_provenance": {
+        "mode": "structured_authority",
+        "evidence_refs": [
+          "evidence:e8cee008-b8d5-5f48-adf7-dbe4e21e3c1e",
+          "evidence:f2a60371-81cc-5358-8936-801df907b859"
+        ],
+        "source_ids": [
+          "nvd-cves-2",
+          "github-target-repos"
+        ],
+        "absence_checks": []
+      }
+    },
+    {
+      "case_id": "qa-prelim-cve-2026-73555-2hop",
+      "input": {},
+      "gold": {
+        "case_id": "qa-prelim-cve-2026-73555-2hop",
+        "required_facts": [
+          "cve:CVE-2026-73555 references-development-object github:vllm-project/vllm:pull:46415",
+          "github:vllm-project/vllm:pull:46415 merged-as git:commit:e87521626febe2763f997691d1599de4175f4324"
+        ],
+        "acceptable_answer_facts": [],
+        "forbidden_facts": [],
+        "required_relation_paths": [
+          [
+            "cve:CVE-2026-73555",
+            "references-development-object",
+            "github:vllm-project/vllm:pull:46415",
+            "merged-as",
+            "git:commit:e87521626febe2763f997691d1599de4175f4324"
+          ]
+        ],
+        "acceptable_unknowns": [],
+        "required_unknowns": [],
+        "required_conflicts": [],
+        "required_citation_facts": [
+          "cve:CVE-2026-73555 references-development-object github:vllm-project/vllm:pull:46415",
+          "github:vllm-project/vllm:pull:46415 merged-as git:commit:e87521626febe2763f997691d1599de4175f4324"
+        ],
+        "allowed_assumptions": [],
+        "completion_expectation": "answered"
+      },
+      "prediction": null,
+      "product_case_id": null,
+      "live_product_case_id": null,
+      "live_product_question": {
+        "question": "沿 CVE-2026-73555 的 NVD 参考资料，找到它引用的 vllm-project/vllm PR，再查该 PR 实际合入的提交 SHA。如果引用了多个该仓库 PR，取编号最小的一个。请给出漏洞到 PR、PR 到合并提交这两步关系，并分别引用对应来源。只回答这两条关系，不附加漏洞描述或其他开发对象。",
+        "principal": "system:benchmark-m6",
+        "cve_id": "CVE-2026-73555",
+        "object_id": null,
+        "task_kind": "lookup",
+        "required_source_roles": [],
+        "priority": 50,
+        "interactive_timeout_seconds": 30,
+        "retrieval_limit": 8
+      },
+      "citation_support": {},
+      "relation_paths": [],
+      "interactive_latency_seconds": null,
+      "tags": [
+        "real",
+        "two-hop",
+        "pull_request",
+        "source-frozen",
+        "independent-root"
+      ],
+      "latency_class": "interactive",
+      "execution_refs": [],
+      "adjudications": [],
+      "gold_provenance": {
+        "mode": "structured_authority",
+        "evidence_refs": [
+          "evidence:4f46b0f1-7370-527d-860a-4d21580c9d31",
+          "evidence:44094fbe-cc91-566c-a5c6-06664a79fa96"
+        ],
+        "source_ids": [
+          "nvd-cves-2",
+          "github-target-repos"
+        ],
+        "absence_checks": []
+      }
+    },
+    {
+      "case_id": "qa-prelim-cve-2026-73557-2hop",
+      "input": {},
+      "gold": {
+        "case_id": "qa-prelim-cve-2026-73557-2hop",
+        "required_facts": [
+          "cve:CVE-2026-73557 references-development-object github:vllm-project/vllm:pull:48583",
+          "github:vllm-project/vllm:pull:48583 merged-as git:commit:793cf79c89d4049124e756915468ac30318f2e50"
+        ],
+        "acceptable_answer_facts": [],
+        "forbidden_facts": [],
+        "required_relation_paths": [
+          [
+            "cve:CVE-2026-73557",
+            "references-development-object",
+            "github:vllm-project/vllm:pull:48583",
+            "merged-as",
+            "git:commit:793cf79c89d4049124e756915468ac30318f2e50"
+          ]
+        ],
+        "acceptable_unknowns": [],
+        "required_unknowns": [],
+        "required_conflicts": [],
+        "required_citation_facts": [
+          "cve:CVE-2026-73557 references-development-object github:vllm-project/vllm:pull:48583",
+          "github:vllm-project/vllm:pull:48583 merged-as git:commit:793cf79c89d4049124e756915468ac30318f2e50"
+        ],
+        "allowed_assumptions": [],
+        "completion_expectation": "answered"
+      },
+      "prediction": null,
+      "product_case_id": null,
+      "live_product_case_id": null,
+      "live_product_question": {
+        "question": "沿 CVE-2026-73557 的 NVD 参考资料，找到它引用的 vllm-project/vllm PR，再查该 PR 实际合入的提交 SHA。如果引用了多个该仓库 PR，取编号最小的一个。请给出漏洞到 PR、PR 到合并提交这两步关系，并分别引用对应来源。只回答这两条关系，不附加漏洞描述或其他开发对象。",
+        "principal": "system:benchmark-m6",
+        "cve_id": "CVE-2026-73557",
+        "object_id": null,
+        "task_kind": "lookup",
+        "required_source_roles": [],
+        "priority": 50,
+        "interactive_timeout_seconds": 30,
+        "retrieval_limit": 8
+      },
+      "citation_support": {},
+      "relation_paths": [],
+      "interactive_latency_seconds": null,
+      "tags": [
+        "real",
+        "two-hop",
+        "pull_request",
+        "source-frozen",
+        "independent-root"
+      ],
+      "latency_class": "interactive",
+      "execution_refs": [],
+      "adjudications": [],
+      "gold_provenance": {
+        "mode": "structured_authority",
+        "evidence_refs": [
+          "evidence:7c6b6601-5101-58c2-aca5-491c42c8cc17",
+          "evidence:fd694dd5-15a5-555e-9617-3eddb0fea835"
+        ],
+        "source_ids": [
+          "nvd-cves-2",
+          "github-target-repos"
+        ],
+        "absence_checks": []
+      }
+    }
+  ],
+  "sessions": []
+}

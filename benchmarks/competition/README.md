@@ -1,5 +1,12 @@
 # Competition report evidence
 
+The [2026-10-17 preliminary report](preliminary-20261017.md) uses the explicit
+[`preliminary-20261017-run-set.json`](preliminary-20261017-run-set.json) and the `preliminary`
+profile. Its strict QA metric revision 2 is not interchangeable with the historical QA revision 1.
+The frozen [QA result](../qa/preliminary-20261017-results.json) separates development and repeated
+validation cohorts. Canonical monitoring still fails its six-hour maximum check; the report does
+not assign a fabricated overall competition score. Historical `current*` files below are preserved.
+
 `current-run-set.json` is the explicit composition policy for the reviewed competition report. It
 pins one DeploymentRevision, an ordered list of completed BenchmarkRun IDs, and the frozen artifact
 coordinates needed to audit their provider worlds. Report generation never searches for a latest run.

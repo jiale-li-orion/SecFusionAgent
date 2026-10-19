@@ -32,7 +32,7 @@ def test_qa_score_checks_answer_grounding_citation_multihop_and_completion() -> 
         completion_status="answered",
         interactive_latency_seconds=1.4,
     )
-    score = score_qa(gold=gold, prediction=prediction)
+    score = score_qa(gold=gold, prediction=prediction, evaluator_revision="qa-v1")
     assert score.answer_accuracy == 1.0
     assert score.groundedness == 1.0
     assert score.citation_correctness == 1.0
@@ -61,7 +61,7 @@ def test_qa_score_does_not_reward_correct_text_with_unsupported_citation() -> No
         ],
         completion_status="answered",
     )
-    score = score_qa(gold=gold, prediction=prediction)
+    score = score_qa(gold=gold, prediction=prediction, evaluator_revision="qa-v1")
     assert score.answer_accuracy == 1.0
     assert score.groundedness == 0.0
     assert score.citation_correctness == 0.0

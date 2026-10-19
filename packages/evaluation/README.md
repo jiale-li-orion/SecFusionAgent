@@ -1,5 +1,12 @@
 # `packages.evaluation`
 
+The **2026-10-17 preliminary evaluation** is retained separately in
+[`preliminary-20261017.md`](../../benchmarks/competition/preliminary-20261017.md), with
+[strict QA results and frozen coordinates](../../benchmarks/qa/preliminary-20261017-results.json).
+It uses `qa-v2` and the preliminary scoring profile; the generated block below remains the
+historical 2026-10-08 finals-profile baseline. The new run is fixed-set repeated validation,
+not a fresh blind test. Monitoring's failed canonical threshold remains visible.
+
 <!-- BEGIN GENERATED EVALUATION STATUS -->
 ## Retained formal evaluation evidence (generated)
 
@@ -65,9 +72,22 @@ remain auditable but no longer satisfy current readiness by name alone.
 
 ## Competition reporting profile
 
-Requirements remain the authority for competition targets. The executable evaluation layer uses the finals target as the stricter development profile: enrichment micro precision and recall both target `>=95%`. The preliminary-round report can reuse the same fixed benchmark and report the required accuracy/precision view without maintaining a second enrichment ontology.
+Requirements remain the authority for competition targets. `export_competition_report --profile preliminary` checks source support `>=7` categories, monitoring `<=6h`, enrichment precision `>=95%`, and whole-task multi-hop correctness `>=85%` under metric revision 2. The default `finals` profile retains its historical stricter QA/latency and enrichment precision/recall checks. Numeric checks do not assign qualitative rubric points. Preliminary export rejects missing or duplicated frozen cases, unscored cases/turns, duplicate metric rows and multiple monitoring-window maxima that legacy LAST aggregation would hide. Provider snapshot closure includes case fixtures as well as run/case-run references; an empty artifact declaration cannot bypass it.
 
 The scoring threshold does not redefine the data contract. Formal enrichment P/R is always calculated over the versioned, benchmarked closed set; open semantic discoveries and non-benchmarked support edges do not enter the denominator merely to improve coverage.
+
+## Retained Hot Pool monitoring replay
+
+`scripts/score_hot_monitoring.py SNAPSHOT --sha256 DIGEST --output RESULT` independently
+recomputes latency from frozen Source time semantics, AcquisitionRun metadata and every resident
+HotBugRecord in a predeclared fetch window. The successful run completion time is a conservative
+availability upper bound. Scheduled steady-state eligibility excludes explicit input/output backfill;
+slow samples remain. Missing time retains an explicit eligible/evaluable denominator. Duplicate
+source/object identities, mismatched run ownership and invalid timestamps fail closed.
+
+This population contains only retained latest revisions. It cannot establish complete delivery recall
+or exact first availability; both remain `not_evaluated`. It supplements canonical durable monitoring
+and must never replace an unfavorable durable result or be advertised as all-source latency.
 
 ## Source category coverage
 
@@ -587,3 +607,47 @@ authority for report composition; report tooling never searches for a newest run
 
 Older suite/report coordinates in the sections above are historical checkpoints. They remain useful
 for regression archaeology but no longer serve as the source of the current competition summary.
+
+## Revisioned strict QA scoring
+
+New manifests and `score_qa()` default to `qa-v2`; `qa-session-v2` uses the same scorer
+for each session turn. Explicit `qa-v1` and `qa-session-v1` retain their historical formulas,
+including independent answer/path scores and vacuous unknown/conflict success. Unsupported
+revision strings fail validation. Historical runs and archived `current*.json` are not rewritten.
+
+`qa-v2` adds `m6.task_correctness@1`: a binary conjunction of correct canonical answer,
+supported factual conclusions and required citations, correct completion, required unknowns and
+conflicts, allowed assumptions, and every required relation path. Unsupported extra assertions
+fail the answer diagnostic too. `answer_accuracy@2` remains an answer diagnostic and cannot
+substitute for full task correctness. Gold distinguishes `required_unknowns` from optional
+`acceptable_unknowns`; required unknowns must be acceptable and cannot also be required facts.
+Unknown/conflict axes have no observation when neither gold nor prediction makes them applicable.
+The changed answer, grounding, citation, completion, multi-hop, unknown and conflict formulas use metric
+revision 2; `BenchmarkStore.observe_metric(metric_definition_revision=...)` and the QA recorder
+bind observations to their exact definition. The registry keeps revision 1 addressable.
+
+`relation_paths` preserves legacy context-availability projection. `available_relation_paths`
+makes that diagnostic explicit; only `decision_relation_paths` enters strict multi-hop scoring.
+Runtime resolves used edges from a Decision's supported citations to relation EvidenceLinks,
+requiring either an exact FACT edge conclusion or its explicit `reasoning_relation_refs`.
+INFERENCE citation support requires adjudication. Nonaccepted/superseded relations and uncited
+reasoning refs cannot earn credit. Connected simple directed paths from two through six edges
+are supported, and gold preflight checks the same bounded shape. A correct endpoint or a path
+that merely appeared in ContextManifest is insufficient; missing any required path or failing
+any task condition gives multi-hop correctness zero.
+
+Strict runner execution failures remain in the frozen denominator and carry their failure class.
+The next independent case/session still executes. After a failed session turn, dependent turns
+are recorded as `not_executed` with zero task correctness and no invented latency or model calls.
+Configuration, gold/provenance validation and Knowledge-world drift remain fail-closed.
+
+Strict completion accepts only `answered` or `continuation_requested`; failure/unattempted
+statuses can never succeed even if malformed gold repeats that status. Applicable multi-hop
+cases additionally need at least one asserted supported conclusion; empty path-only answers
+cannot exploit empty-denominator diagnostic defaults. `QAProjectionProvenanceError` separates
+invalid/stale evaluation evidence from genuine execution failures, so stale citation verdicts
+and missing persisted timeout attempts terminate the run rather than become model-quality zeros.
+
+Legacy manifest serialization and gold registration omit fields introduced by v2 only in v1
+evaluators. Original v1 manifest/gold digests and case expected-behavior payloads therefore stay
+reproducible; arbitrary case input is preserved byte-for-value, without recursive key filtering.

@@ -1,0 +1,1601 @@
+{
+  "knowledge_revision": 8024,
+  "construction_pool": 32,
+  "complete_provider_chains": 26,
+  "selected_cases": 28,
+  "unique_repositories": 9,
+  "records": [
+    {
+      "case_id": "qa-prelim-cve-2026-27905-2hop",
+      "cve": "CVE-2026-27905",
+      "repo": "bentoml/BentoML",
+      "provider_url": "https://github.com/bentoml/BentoML/commit/4e0eb007765ac04c7924220d643f264715cc9670",
+      "question": "沿 CVE-2026-27905 的 NVD 参考资料，找到它引用的 bentoml/BentoML 提交，再查该提交在 GitHub 记录中的第一个父提交 SHA。如果有多个引用提交，取完整 SHA 字典序最小的一个。请给出漏洞到引用提交、引用提交到父提交这两步关系，并分别引用对应来源。只回答这两条关系，不把父提交称作漏洞修复，不附加其他信息。",
+      "raw_verified_relation_path": [
+        "cve:CVE-2026-27905",
+        "references-development-object",
+        "git:commit:4e0eb007765ac04c7924220d643f264715cc9670",
+        "has-parent-commit",
+        "git:commit:3ba9d54637312aa2a9c7c35540c18c30317cac3f"
+      ],
+      "gold_derivation": "NVD references URL plus GitHub merge_commit_sha / parents[0].sha; no model output or knowledge prediction used to select answer",
+      "proof": [
+        {
+          "relation_id": "2a33b832-8cb1-574a-afd0-b8ebbc1b6f62",
+          "evidence": {
+            "evidence_ref": "evidence:cde5df09-744e-5a0a-9b9d-3ae4742684b1",
+            "source_id": "nvd-cves-2",
+            "observation_id": "d65dd919-1bc5-4389-9316-d1bf56429067",
+            "artifact_id": "2efa6313-0413-4252-98de-57975b9b8a0c",
+            "external_object_id": "CVE-2026-27905",
+            "external_revision": "2026-10-07T08:10:00.200000+00:00",
+            "published_at": "2026-03-03T23:15:55.897000Z",
+            "updated_at": "2026-10-07T08:10:00.200000Z",
+            "observed_at": "2026-10-07T17:28:48.942369Z",
+            "canonical_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-27905",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.cve.references"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/a8/a8ffa43e56cb6e753fca1781edc3343bcd8e9878e6fc9482e0005b36386fc3d4",
+          "sha256": "a8ffa43e56cb6e753fca1781edc3343bcd8e9878e6fc9482e0005b36386fc3d4"
+        },
+        {
+          "relation_id": "aae7412e-08fa-50a6-bec3-7a9bfd23c713",
+          "evidence": {
+            "evidence_ref": "evidence:dc191628-8b23-5eb4-9d72-b77963818ffc",
+            "source_id": "github-target-repos",
+            "observation_id": "1ac8bfef-e4ab-4d3f-8bfe-5eb227e26952",
+            "artifact_id": "49a10de4-623c-40b0-85e0-7def2f797f41",
+            "external_object_id": "bentoml/BentoML@4e0eb007765ac04c7924220d643f264715cc9670",
+            "external_revision": "4e0eb007765ac04c7924220d643f264715cc9670",
+            "published_at": "2026-02-25T00:48:40Z",
+            "updated_at": null,
+            "observed_at": "2026-10-17T11:18:33.705048Z",
+            "canonical_url": "https://github.com/bentoml/BentoML/commit/4e0eb007765ac04c7924220d643f264715cc9670",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.parents[0].sha"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/bd/bd9505ef0cc2ff470cbd7a8aff77bf30084e0fc6f439648d7636a840a330db80",
+          "sha256": "bd9505ef0cc2ff470cbd7a8aff77bf30084e0fc6f439648d7636a840a330db80"
+        }
+      ]
+    },
+    {
+      "case_id": "qa-prelim-cve-2026-108574-2hop",
+      "cve": "CVE-2026-108574",
+      "repo": "BerriAI/litellm",
+      "provider_url": "https://github.com/BerriAI/litellm/commit/722d9ffa4f6c5ae15702ab9ab2c5f6bf1688308b",
+      "question": "沿 CVE-2026-108574 的 NVD 参考资料，找到它引用的 BerriAI/litellm 提交，再查该提交在 GitHub 记录中的第一个父提交 SHA。如果有多个引用提交，取完整 SHA 字典序最小的一个。请给出漏洞到引用提交、引用提交到父提交这两步关系，并分别引用对应来源。只回答这两条关系，不把父提交称作漏洞修复，不附加其他信息。",
+      "raw_verified_relation_path": [
+        "cve:CVE-2026-108574",
+        "references-development-object",
+        "git:commit:722d9ffa4f6c5ae15702ab9ab2c5f6bf1688308b",
+        "has-parent-commit",
+        "git:commit:ba1bde70e4b45d4f2bf5e9dd4b49858e7d9ac691"
+      ],
+      "gold_derivation": "NVD references URL plus GitHub merge_commit_sha / parents[0].sha; no model output or knowledge prediction used to select answer",
+      "proof": [
+        {
+          "relation_id": "3bb017f0-e5e5-5d22-9e74-3ad605737ffb",
+          "evidence": {
+            "evidence_ref": "evidence:98f07806-b6fa-5cc3-8062-0f996f335bc5",
+            "source_id": "nvd-cves-2",
+            "observation_id": "f9c0976e-f6cd-4dec-ba17-2a3b41ad1ccb",
+            "artifact_id": "e9414b2b-d8e9-42ea-b368-d786a653ad4c",
+            "external_object_id": "CVE-2026-108574",
+            "external_revision": "2026-10-13T13:29:12.567000+00:00",
+            "published_at": "2026-10-11T12:16:52.990000Z",
+            "updated_at": "2026-10-13T13:29:12.567000Z",
+            "observed_at": "2026-10-13T17:32:45.019282Z",
+            "canonical_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-108574",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.cve.references"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/ad/ad1f793162d4ad107005bc7de7086705d740298e7aa6bf4b5250fa283c6ebe33",
+          "sha256": "ad1f793162d4ad107005bc7de7086705d740298e7aa6bf4b5250fa283c6ebe33"
+        },
+        {
+          "relation_id": "0eff6639-aee0-5eed-aa5e-63b6d664dd8e",
+          "evidence": {
+            "evidence_ref": "evidence:49edb039-8ba5-5ca6-a36f-f9d7a147101e",
+            "source_id": "github-target-repos",
+            "observation_id": "b7565b58-2b55-4620-bf09-aaaabd881315",
+            "artifact_id": "8c9e6974-817e-43dd-9a84-3dfe741e24bb",
+            "external_object_id": "BerriAI/litellm@722d9ffa4f6c5ae15702ab9ab2c5f6bf1688308b",
+            "external_revision": "722d9ffa4f6c5ae15702ab9ab2c5f6bf1688308b",
+            "published_at": "2026-08-04T00:22:11Z",
+            "updated_at": null,
+            "observed_at": "2026-10-17T11:18:27.711360Z",
+            "canonical_url": "https://github.com/BerriAI/litellm/commit/722d9ffa4f6c5ae15702ab9ab2c5f6bf1688308b",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.parents[0].sha"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/07/0731b1dfd00bab29d7a5c8712cfddc69585b5e1e0ccfa3f1c2d0b5c6856cef49",
+          "sha256": "0731b1dfd00bab29d7a5c8712cfddc69585b5e1e0ccfa3f1c2d0b5c6856cef49"
+        }
+      ]
+    },
+    {
+      "case_id": "qa-prelim-cve-2026-107183-2hop",
+      "cve": "CVE-2026-107183",
+      "repo": "ggml-org/llama.cpp",
+      "provider_url": "https://github.com/ggml-org/llama.cpp/pull/29942",
+      "question": "沿 CVE-2026-107183 的 NVD 参考资料，找到它引用的 ggml-org/llama.cpp PR，再查该 PR 实际合入的提交 SHA。如果引用了多个该仓库 PR，取编号最小的一个。请给出漏洞到 PR、PR 到合并提交这两步关系，并分别引用对应来源。只回答这两条关系，不附加漏洞描述或其他开发对象。",
+      "raw_verified_relation_path": [
+        "cve:CVE-2026-107183",
+        "references-development-object",
+        "github:ggml-org/llama.cpp:pull:29942",
+        "merged-as",
+        "git:commit:dbe4c3ed42343f0a7ba0fd7e808ffeaca404d29f"
+      ],
+      "gold_derivation": "NVD references URL plus GitHub merge_commit_sha / parents[0].sha; no model output or knowledge prediction used to select answer",
+      "proof": [
+        {
+          "relation_id": "d114a4ef-1300-5343-acd2-42a0d4f096de",
+          "evidence": {
+            "evidence_ref": "evidence:4a9ad8b6-39c7-500e-ad1f-2175bb4e5c54",
+            "source_id": "nvd-cves-2",
+            "observation_id": "75bdd774-c254-47e9-a97a-90a3f1bd1d28",
+            "artifact_id": "be44bb77-e172-4964-810e-a715121e81d8",
+            "external_object_id": "CVE-2026-107183",
+            "external_revision": "2026-10-07T15:57:20.793000+00:00",
+            "published_at": "2026-10-07T14:17:09.003000Z",
+            "updated_at": "2026-10-07T15:57:20.793000Z",
+            "observed_at": "2026-10-07T17:29:10.693071Z",
+            "canonical_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-107183",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.cve.references"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/95/956a4e4f06146da7b87940a2d37b5f076cfd77f7610ef700fabfdbd6abd9cb77",
+          "sha256": "956a4e4f06146da7b87940a2d37b5f076cfd77f7610ef700fabfdbd6abd9cb77"
+        },
+        {
+          "relation_id": "3884c0eb-b1f6-5b78-804c-c90393afaa32",
+          "evidence": {
+            "evidence_ref": "evidence:3c1885cc-4c6d-5008-9cc3-632068c0eb88",
+            "source_id": "github-target-repos",
+            "observation_id": "dec47d34-9274-45a6-886b-6f8e6ceda169",
+            "artifact_id": "e76e4b66-e737-4e36-bb56-3ee10ed55b36",
+            "external_object_id": "ggml-org/llama.cpp#pull-29942",
+            "external_revision": "2026-10-04T17:47:02+00:00",
+            "published_at": "2026-10-04T10:12:47Z",
+            "updated_at": "2026-10-04T17:47:02Z",
+            "observed_at": "2026-10-17T11:18:26.877207Z",
+            "canonical_url": "https://github.com/ggml-org/llama.cpp/pull/29942",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.merge_commit_sha"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/59/59327ae79a4438a3b2efeb2a874d01c4c2a6362d35889669b4d6f3759ee9df4f",
+          "sha256": "59327ae79a4438a3b2efeb2a874d01c4c2a6362d35889669b4d6f3759ee9df4f"
+        }
+      ]
+    },
+    {
+      "case_id": "qa-prelim-cve-2025-6051-2hop",
+      "cve": "CVE-2025-6051",
+      "repo": "huggingface/transformers",
+      "provider_url": "https://github.com/huggingface/transformers/commit/ba8eaba9865618253f997784aa565b96206426f0",
+      "question": "沿 CVE-2025-6051 的 NVD 参考资料，找到它引用的 huggingface/transformers 提交，再查该提交在 GitHub 记录中的第一个父提交 SHA。如果有多个引用提交，取完整 SHA 字典序最小的一个。请给出漏洞到引用提交、引用提交到父提交这两步关系，并分别引用对应来源。只回答这两条关系，不把父提交称作漏洞修复，不附加其他信息。",
+      "raw_verified_relation_path": [
+        "cve:CVE-2025-6051",
+        "references-development-object",
+        "git:commit:ba8eaba9865618253f997784aa565b96206426f0",
+        "has-parent-commit",
+        "git:commit:39d019a041192d3eba36340d77463d060539e01d"
+      ],
+      "gold_derivation": "NVD references URL plus GitHub merge_commit_sha / parents[0].sha; no model output or knowledge prediction used to select answer",
+      "proof": [
+        {
+          "relation_id": "c74658a6-d39b-5492-bca3-ceb619afceb0",
+          "evidence": {
+            "evidence_ref": "evidence:e798afc9-af8b-513b-971a-b93f587571b6",
+            "source_id": "nvd-cves-2",
+            "observation_id": "7c7f2339-0059-4740-a633-d9ce36db5fb6",
+            "artifact_id": "865d0046-ed17-416b-814c-b562ed835575",
+            "external_object_id": "CVE-2025-6051",
+            "external_revision": "2026-09-30T23:10:00.237000+00:00",
+            "published_at": "2025-09-14T17:15:34.210000Z",
+            "updated_at": "2026-09-30T23:10:00.237000Z",
+            "observed_at": "2026-10-01T16:58:12.521720Z",
+            "canonical_url": "https://nvd.nist.gov/vuln/detail/CVE-2025-6051",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.cve.references"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/26/26c45d95736b039ac51accce25dfed777df70751d378559665158fe3282913aa",
+          "sha256": "26c45d95736b039ac51accce25dfed777df70751d378559665158fe3282913aa"
+        },
+        {
+          "relation_id": "10336820-457c-5a45-a786-45273d2e9a77",
+          "evidence": {
+            "evidence_ref": "evidence:edf4fed6-3744-5b14-bacb-57b593263ca7",
+            "source_id": "github-target-repos",
+            "observation_id": "5717e3a2-018f-4176-b5bf-a7e009d4551d",
+            "artifact_id": "9b99961b-c18c-4c31-b175-e921e0c46550",
+            "external_object_id": "huggingface/transformers@ba8eaba9865618253f997784aa565b96206426f0",
+            "external_revision": "ba8eaba9865618253f997784aa565b96206426f0",
+            "published_at": "2025-06-16T12:40:26Z",
+            "updated_at": null,
+            "observed_at": "2026-10-17T11:18:11.374614Z",
+            "canonical_url": "https://github.com/huggingface/transformers/commit/ba8eaba9865618253f997784aa565b96206426f0",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.parents[0].sha"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/c9/c9749253e60bbdbb2f55cc7a0236b05c2cfb3b02d32deb0f370c4ba174e493be",
+          "sha256": "c9749253e60bbdbb2f55cc7a0236b05c2cfb3b02d32deb0f370c4ba174e493be"
+        }
+      ]
+    },
+    {
+      "case_id": "qa-prelim-cve-2026-103764-2hop",
+      "cve": "CVE-2026-103764",
+      "repo": "kvcache-ai/Mooncake",
+      "provider_url": "https://github.com/kvcache-ai/Mooncake/commit/a2933849417259e562fc9cbad63c618d464dfb2d",
+      "question": "沿 CVE-2026-103764 的 NVD 参考资料，找到它引用的 kvcache-ai/Mooncake 提交，再查该提交在 GitHub 记录中的第一个父提交 SHA。如果有多个引用提交，取完整 SHA 字典序最小的一个。请给出漏洞到引用提交、引用提交到父提交这两步关系，并分别引用对应来源。只回答这两条关系，不把父提交称作漏洞修复，不附加其他信息。",
+      "raw_verified_relation_path": [
+        "cve:CVE-2026-103764",
+        "references-development-object",
+        "git:commit:a2933849417259e562fc9cbad63c618d464dfb2d",
+        "has-parent-commit",
+        "git:commit:228d49ce6c98824b1b1c4e632615ef85aee8567a"
+      ],
+      "gold_derivation": "NVD references URL plus GitHub merge_commit_sha / parents[0].sha; no model output or knowledge prediction used to select answer",
+      "proof": [
+        {
+          "relation_id": "2b4e3bfa-09bb-58aa-b5a9-fa12f84ce9fe",
+          "evidence": {
+            "evidence_ref": "evidence:a5f3948a-f624-5e77-903f-9177d1a7b972",
+            "source_id": "nvd-cves-2",
+            "observation_id": "db8ce408-98c1-4f1b-95d9-aa77a051dcbc",
+            "artifact_id": "5b0cea75-2fa1-4792-a91c-5cefbdbcd4d2",
+            "external_object_id": "CVE-2026-103764",
+            "external_revision": "2026-10-02T19:16:39.627000+00:00",
+            "published_at": "2026-10-02T00:16:59.253000Z",
+            "updated_at": "2026-10-02T19:16:39.627000Z",
+            "observed_at": "2026-10-02T19:24:51.521642Z",
+            "canonical_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-103764",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.cve.references"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/51/51184103b606fe8018486a93bad9b0517789fb20189739729fb0d6c3558210fc",
+          "sha256": "51184103b606fe8018486a93bad9b0517789fb20189739729fb0d6c3558210fc"
+        },
+        {
+          "relation_id": "86d149a1-f8e5-5682-830e-f34d7b10b770",
+          "evidence": {
+            "evidence_ref": "evidence:7b6674ca-4871-548f-ac9d-00ed07acead8",
+            "source_id": "github-target-repos",
+            "observation_id": "46c17965-556a-41fa-9df8-c090686354c8",
+            "artifact_id": "7338fb08-7da3-490a-ba1c-b58e87d2ba11",
+            "external_object_id": "kvcache-ai/Mooncake@a2933849417259e562fc9cbad63c618d464dfb2d",
+            "external_revision": "a2933849417259e562fc9cbad63c618d464dfb2d",
+            "published_at": "2026-08-11T02:49:49Z",
+            "updated_at": null,
+            "observed_at": "2026-10-17T11:18:15.716498Z",
+            "canonical_url": "https://github.com/kvcache-ai/Mooncake/commit/a2933849417259e562fc9cbad63c618d464dfb2d",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.parents[0].sha"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/21/21a138544622210d0d4f72b66752257429b885840779d1b1b8b73d74dca662be",
+          "sha256": "21a138544622210d0d4f72b66752257429b885840779d1b1b8b73d74dca662be"
+        }
+      ]
+    },
+    {
+      "case_id": "qa-prelim-cve-2026-108836-2hop",
+      "cve": "CVE-2026-108836",
+      "repo": "ollama/ollama",
+      "provider_url": "https://github.com/ollama/ollama/pull/18512",
+      "question": "沿 CVE-2026-108836 的 NVD 参考资料，找到它引用的 ollama/ollama PR，再查该 PR 实际合入的提交 SHA。如果引用了多个该仓库 PR，取编号最小的一个。请给出漏洞到 PR、PR 到合并提交这两步关系，并分别引用对应来源。只回答这两条关系，不附加漏洞描述或其他开发对象。",
+      "raw_verified_relation_path": [
+        "cve:CVE-2026-108836",
+        "references-development-object",
+        "github:ollama/ollama:pull:18512",
+        "merged-as",
+        "git:commit:dfabde4539e42ba1e1eab50a3a50b88aea7958a0"
+      ],
+      "gold_derivation": "NVD references URL plus GitHub merge_commit_sha / parents[0].sha; no model output or knowledge prediction used to select answer",
+      "proof": [
+        {
+          "relation_id": "23e48988-a15b-5d06-a186-81d457591c53",
+          "evidence": {
+            "evidence_ref": "evidence:3df2658a-4eb3-5c7a-bd7f-82ddca8f514e",
+            "source_id": "nvd-cves-2",
+            "observation_id": "7c975cea-027e-47c2-a754-22aa03c6a4cb",
+            "artifact_id": "405c15d7-7bdf-4b1d-8649-1e0b93a0bfe3",
+            "external_object_id": "CVE-2026-108836",
+            "external_revision": "2026-10-13T19:18:10.857000+00:00",
+            "published_at": "2026-10-12T13:17:27.457000Z",
+            "updated_at": "2026-10-13T19:18:10.857000Z",
+            "observed_at": "2026-10-14T03:18:20.234081Z",
+            "canonical_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-108836",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.cve.references"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/14/143fb024e527e7c140a9125d3210f796afefa1ac073e38a96c9010f3c11bdebf",
+          "sha256": "143fb024e527e7c140a9125d3210f796afefa1ac073e38a96c9010f3c11bdebf"
+        },
+        {
+          "relation_id": "b6e23bd9-b06d-589c-88af-29c0706ea877",
+          "evidence": {
+            "evidence_ref": "evidence:f388ad13-a4a2-5214-9d7a-8ebbae8fad28",
+            "source_id": "github-target-repos",
+            "observation_id": "6c854733-7340-4804-9359-2be586855023",
+            "artifact_id": "2def539a-b1f0-4768-a41b-23f6fe01f9ad",
+            "external_object_id": "ollama/ollama#pull-18512",
+            "external_revision": "2026-09-17T21:21:31+00:00",
+            "published_at": "2026-09-17T21:08:25Z",
+            "updated_at": "2026-09-17T21:21:31Z",
+            "observed_at": "2026-10-17T11:18:28.832311Z",
+            "canonical_url": "https://github.com/ollama/ollama/pull/18512",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.merge_commit_sha"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/b4/b4d7f3da5654ea0b1e0748fef819a41fdba97d6429d9db42764619c9ef780837",
+          "sha256": "b4d7f3da5654ea0b1e0748fef819a41fdba97d6429d9db42764619c9ef780837"
+        }
+      ]
+    },
+    {
+      "case_id": "qa-prelim-cve-2026-57516-2hop",
+      "cve": "CVE-2026-57516",
+      "repo": "ray-project/ray",
+      "provider_url": "https://github.com/ray-project/ray/pull/63469",
+      "question": "沿 CVE-2026-57516 的 NVD 参考资料，找到它引用的 ray-project/ray PR，再查该 PR 实际合入的提交 SHA。如果引用了多个该仓库 PR，取编号最小的一个。请给出漏洞到 PR、PR 到合并提交这两步关系，并分别引用对应来源。只回答这两条关系，不附加漏洞描述或其他开发对象。",
+      "raw_verified_relation_path": [
+        "cve:CVE-2026-57516",
+        "references-development-object",
+        "github:ray-project/ray:pull:63469",
+        "merged-as",
+        "git:commit:41443a18f9e6403a072de69098a279c23e2d943c"
+      ],
+      "gold_derivation": "NVD references URL plus GitHub merge_commit_sha / parents[0].sha; no model output or knowledge prediction used to select answer",
+      "proof": [
+        {
+          "relation_id": "dd42432c-b905-5038-aa50-394f73f1e9cc",
+          "evidence": {
+            "evidence_ref": "evidence:cb8e23f0-57b4-588a-8b74-3771e9b02bd3",
+            "source_id": "nvd-cves-2",
+            "observation_id": "a6251608-3807-4497-980f-2e75c1aacc58",
+            "artifact_id": "0ccd1833-81db-40ce-9d41-190190ea35bd",
+            "external_object_id": "CVE-2026-57516",
+            "external_revision": "2026-10-08T16:17:22.863000+00:00",
+            "published_at": "2026-07-01T17:16:37.390000Z",
+            "updated_at": "2026-10-08T16:17:22.863000Z",
+            "observed_at": "2026-10-08T16:31:28.690547Z",
+            "canonical_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-57516",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.cve.references"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/50/5018e780d401ed7bcf5e0ec722645e1c00ca4fc9cd97cf1665e8585cdf750d04",
+          "sha256": "5018e780d401ed7bcf5e0ec722645e1c00ca4fc9cd97cf1665e8585cdf750d04"
+        },
+        {
+          "relation_id": "20459f58-2600-588e-9acf-e5d5eba2d36e",
+          "evidence": {
+            "evidence_ref": "evidence:3c391a9e-2f80-5c3f-ad09-24d9f55876b7",
+            "source_id": "github-target-repos",
+            "observation_id": "ce263114-85fc-49ab-a5a6-079da2c69a34",
+            "artifact_id": "0ffe27a1-0ebd-4719-a909-043db4111216",
+            "external_object_id": "ray-project/ray#pull-63469",
+            "external_revision": "2026-05-19T01:39:51+00:00",
+            "published_at": "2026-05-18T20:39:17Z",
+            "updated_at": "2026-05-19T01:39:51Z",
+            "observed_at": "2026-10-17T11:18:40.115691Z",
+            "canonical_url": "https://github.com/ray-project/ray/pull/63469",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.merge_commit_sha"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/83/833fcfd8180aa15caae7be2e3fe0ba2aa6fd350803ab5209551993ca6a9ad24d",
+          "sha256": "833fcfd8180aa15caae7be2e3fe0ba2aa6fd350803ab5209551993ca6a9ad24d"
+        }
+      ]
+    },
+    {
+      "case_id": "qa-prelim-cve-2026-100650-2hop",
+      "cve": "CVE-2026-100650",
+      "repo": "vllm-project/vllm",
+      "provider_url": "https://github.com/vllm-project/vllm/commit/752a3a504485790a2e8491cacbb35c137339ad34",
+      "question": "沿 CVE-2026-100650 的 NVD 参考资料，找到它引用的 vllm-project/vllm 提交，再查该提交在 GitHub 记录中的第一个父提交 SHA。如果有多个引用提交，取完整 SHA 字典序最小的一个。请给出漏洞到引用提交、引用提交到父提交这两步关系，并分别引用对应来源。只回答这两条关系，不把父提交称作漏洞修复，不附加其他信息。",
+      "raw_verified_relation_path": [
+        "cve:CVE-2026-100650",
+        "references-development-object",
+        "git:commit:752a3a504485790a2e8491cacbb35c137339ad34",
+        "has-parent-commit",
+        "git:commit:3c31722d6dd63127100d74179ad613ba8eef21a6"
+      ],
+      "gold_derivation": "NVD references URL plus GitHub merge_commit_sha / parents[0].sha; no model output or knowledge prediction used to select answer",
+      "proof": [
+        {
+          "relation_id": "dd55e700-4f81-50e5-8c62-4cf80f75dd4c",
+          "evidence": {
+            "evidence_ref": "evidence:52a172e6-f664-5587-922e-6001478bd1e8",
+            "source_id": "nvd-cves-2",
+            "observation_id": "a7e11010-08ad-4985-bdf1-edea8546b9d8",
+            "artifact_id": "b961f459-7496-4ca6-81c9-726fee4c9700",
+            "external_object_id": "CVE-2026-100650",
+            "external_revision": "2026-10-06T19:32:45.337000+00:00",
+            "published_at": "2026-09-26T14:16:47.523000Z",
+            "updated_at": "2026-10-06T19:32:45.337000Z",
+            "observed_at": "2026-10-07T17:28:51.358671Z",
+            "canonical_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-100650",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.cve.references"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/6a/6a7abf24b2f5d43d467076ff3aa2c6cefd7635dec28837d1d505af852b2b15dc",
+          "sha256": "6a7abf24b2f5d43d467076ff3aa2c6cefd7635dec28837d1d505af852b2b15dc"
+        },
+        {
+          "relation_id": "a979e094-31e1-5a04-a63b-4699105e5216",
+          "evidence": {
+            "evidence_ref": "evidence:f1984572-599c-55dc-97e0-398a337a90c3",
+            "source_id": "github-target-repos",
+            "observation_id": "272b0fb2-4e2a-46ed-bcca-2a73b8d8440d",
+            "artifact_id": "75944630-077a-45d3-a5da-f0d14794631a",
+            "external_object_id": "vllm-project/vllm@752a3a504485790a2e8491cacbb35c137339ad34",
+            "external_revision": "752a3a504485790a2e8491cacbb35c137339ad34",
+            "published_at": "2026-07-12T23:40:12Z",
+            "updated_at": null,
+            "observed_at": "2026-10-17T11:18:12.769277Z",
+            "canonical_url": "https://github.com/vllm-project/vllm/commit/752a3a504485790a2e8491cacbb35c137339ad34",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.parents[0].sha"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/9f/9f80223904a969f3cb1f919ab8adfc7f3d7cece64fc88db900b50414b51a2c8a",
+          "sha256": "9f80223904a969f3cb1f919ab8adfc7f3d7cece64fc88db900b50414b51a2c8a"
+        }
+      ]
+    },
+    {
+      "case_id": "qa-prelim-cve-2026-47101-2hop",
+      "cve": "CVE-2026-47101",
+      "repo": "BerriAI/litellm",
+      "provider_url": "https://github.com/BerriAI/litellm/commit/2220f3076ac89bd2a2e3439acf57dcfbec2434c9",
+      "question": "沿 CVE-2026-47101 的 NVD 参考资料，找到它引用的 BerriAI/litellm 提交，再查该提交在 GitHub 记录中的第一个父提交 SHA。如果有多个引用提交，取完整 SHA 字典序最小的一个。请给出漏洞到引用提交、引用提交到父提交这两步关系，并分别引用对应来源。只回答这两条关系，不把父提交称作漏洞修复，不附加其他信息。",
+      "raw_verified_relation_path": [
+        "cve:CVE-2026-47101",
+        "references-development-object",
+        "git:commit:2220f3076ac89bd2a2e3439acf57dcfbec2434c9",
+        "has-parent-commit",
+        "git:commit:cac57a82b2750c931cf10b986bfc7107a2b67ad4"
+      ],
+      "gold_derivation": "NVD references URL plus GitHub merge_commit_sha / parents[0].sha; no model output or knowledge prediction used to select answer",
+      "proof": [
+        {
+          "relation_id": "f4038617-29e3-5418-a6d8-be3f10830c69",
+          "evidence": {
+            "evidence_ref": "evidence:4378f7f8-3fb2-5019-8bd0-075440a66121",
+            "source_id": "nvd-cves-2",
+            "observation_id": "f3dac0f6-2d38-4e8c-8640-1b937fa5753d",
+            "artifact_id": "821374a4-27b9-426d-96b0-12ecd2070900",
+            "external_object_id": "CVE-2026-47101",
+            "external_revision": "2026-10-08T16:17:16.950000+00:00",
+            "published_at": "2026-05-21T21:16:32.413000Z",
+            "updated_at": "2026-10-08T16:17:16.950000Z",
+            "observed_at": "2026-10-08T16:31:28.602891Z",
+            "canonical_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-47101",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.cve.references"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/b3/b36fda172dfd6a0e882b23eb8762a8f0d6c76a3b857799f803c3a9b8745ffb6d",
+          "sha256": "b36fda172dfd6a0e882b23eb8762a8f0d6c76a3b857799f803c3a9b8745ffb6d"
+        },
+        {
+          "relation_id": "3a2cf67a-7c24-561b-b35d-732a31159283",
+          "evidence": {
+            "evidence_ref": "evidence:166560ec-b9a5-5c8f-b712-5735fba28df6",
+            "source_id": "github-target-repos",
+            "observation_id": "4b5a6a5d-5593-46d7-8521-fdc65578d167",
+            "artifact_id": "da9df144-c846-4833-ae11-903b387e696d",
+            "external_object_id": "BerriAI/litellm@2220f3076ac89bd2a2e3439acf57dcfbec2434c9",
+            "external_revision": "2220f3076ac89bd2a2e3439acf57dcfbec2434c9",
+            "published_at": "2026-04-25T05:55:21Z",
+            "updated_at": null,
+            "observed_at": "2026-10-17T11:18:34.392927Z",
+            "canonical_url": "https://github.com/BerriAI/litellm/commit/2220f3076ac89bd2a2e3439acf57dcfbec2434c9",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.parents[0].sha"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/7c/7ca1332cf07ac81bbb97ecd86e0e0dbc7e76b86fcfa76ed7f25edafbc2f587ab",
+          "sha256": "7ca1332cf07ac81bbb97ecd86e0e0dbc7e76b86fcfa76ed7f25edafbc2f587ab"
+        }
+      ]
+    },
+    {
+      "case_id": "qa-prelim-cve-2025-6921-2hop",
+      "cve": "CVE-2025-6921",
+      "repo": "huggingface/transformers",
+      "provider_url": "https://github.com/huggingface/transformers/commit/47c34fba5c303576560cb29767efb452ff12b8be",
+      "question": "沿 CVE-2025-6921 的 NVD 参考资料，找到它引用的 huggingface/transformers 提交，再查该提交在 GitHub 记录中的第一个父提交 SHA。如果有多个引用提交，取完整 SHA 字典序最小的一个。请给出漏洞到引用提交、引用提交到父提交这两步关系，并分别引用对应来源。只回答这两条关系，不把父提交称作漏洞修复，不附加其他信息。",
+      "raw_verified_relation_path": [
+        "cve:CVE-2025-6921",
+        "references-development-object",
+        "git:commit:47c34fba5c303576560cb29767efb452ff12b8be",
+        "has-parent-commit",
+        "git:commit:ec17043109966fcdfa575fa7a3b5eebba5761ae4"
+      ],
+      "gold_derivation": "NVD references URL plus GitHub merge_commit_sha / parents[0].sha; no model output or knowledge prediction used to select answer",
+      "proof": [
+        {
+          "relation_id": "18765865-dad1-5bae-9671-9cd22a78e1c4",
+          "evidence": {
+            "evidence_ref": "evidence:a5424ddd-9de9-56a0-b42e-b7aaa2da19d9",
+            "source_id": "nvd-cves-2",
+            "observation_id": "ab24ff05-c078-4ed9-be6d-5dfd07e7dcb7",
+            "artifact_id": "be48c2a6-bce0-43dd-986b-85913eb229b1",
+            "external_object_id": "CVE-2025-6921",
+            "external_revision": "2026-10-11T20:10:00.200000+00:00",
+            "published_at": "2025-09-23T14:15:41.387000Z",
+            "updated_at": "2026-10-11T20:10:00.200000Z",
+            "observed_at": "2026-10-11T20:16:39.178190Z",
+            "canonical_url": "https://nvd.nist.gov/vuln/detail/CVE-2025-6921",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.cve.references"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/4c/4c3595cc79770decef420c3e8ab52922e7126aa40ceea42cf1500f2c9d0bf589",
+          "sha256": "4c3595cc79770decef420c3e8ab52922e7126aa40ceea42cf1500f2c9d0bf589"
+        },
+        {
+          "relation_id": "8deb30d5-9416-52b1-855d-f6e3b1f23f52",
+          "evidence": {
+            "evidence_ref": "evidence:e6814ab9-409e-5d91-866e-cc139ba449ca",
+            "source_id": "github-target-repos",
+            "observation_id": "53930090-05f0-44c0-a856-77d59df47e7f",
+            "artifact_id": "0032c76b-8a86-4061-9a63-2f8ec134d8fd",
+            "external_object_id": "huggingface/transformers@47c34fba5c303576560cb29767efb452ff12b8be",
+            "external_revision": "47c34fba5c303576560cb29767efb452ff12b8be",
+            "published_at": "2025-06-24T18:00:54Z",
+            "updated_at": null,
+            "observed_at": "2026-10-17T11:18:12.161378Z",
+            "canonical_url": "https://github.com/huggingface/transformers/commit/47c34fba5c303576560cb29767efb452ff12b8be",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.parents[0].sha"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/e1/e12dd0bca6e72bf9affd859b1b907df87f70e4428dd54168bf23271a40800e70",
+          "sha256": "e12dd0bca6e72bf9affd859b1b907df87f70e4428dd54168bf23271a40800e70"
+        }
+      ]
+    },
+    {
+      "case_id": "qa-prelim-cve-2026-100653-2hop",
+      "cve": "CVE-2026-100653",
+      "repo": "vllm-project/vllm",
+      "provider_url": "https://github.com/vllm-project/vllm/commit/d26a28ab033697f55a1414b5b0435de7cd6045b6",
+      "question": "沿 CVE-2026-100653 的 NVD 参考资料，找到它引用的 vllm-project/vllm 提交，再查该提交在 GitHub 记录中的第一个父提交 SHA。如果有多个引用提交，取完整 SHA 字典序最小的一个。请给出漏洞到引用提交、引用提交到父提交这两步关系，并分别引用对应来源。只回答这两条关系，不把父提交称作漏洞修复，不附加其他信息。",
+      "raw_verified_relation_path": [
+        "cve:CVE-2026-100653",
+        "references-development-object",
+        "git:commit:d26a28ab033697f55a1414b5b0435de7cd6045b6",
+        "has-parent-commit",
+        "git:commit:d735968f6d634ec849268f18e3b84ceb494fee79"
+      ],
+      "gold_derivation": "NVD references URL plus GitHub merge_commit_sha / parents[0].sha; no model output or knowledge prediction used to select answer",
+      "proof": [
+        {
+          "relation_id": "61e2c871-b566-5b5b-9cf8-da1f59e168a2",
+          "evidence": {
+            "evidence_ref": "evidence:dffeb793-bc1b-5214-bc25-c4dd46efe7ca",
+            "source_id": "nvd-cves-2",
+            "observation_id": "4810de34-ab92-44d5-b49e-056499aa7294",
+            "artifact_id": "ae4c9f3b-fdb8-4cf1-ad86-02eb436280f3",
+            "external_object_id": "CVE-2026-100653",
+            "external_revision": "2026-09-30T18:18:01.040000+00:00",
+            "published_at": "2026-09-26T14:16:47.953000Z",
+            "updated_at": "2026-09-30T18:18:01.040000Z",
+            "observed_at": "2026-10-01T16:58:14.021505Z",
+            "canonical_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-100653",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.cve.references"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/9e/9e05750d709261fcb3065d672415a0affc4862d982e6de173d41a4e1c6a4d15a",
+          "sha256": "9e05750d709261fcb3065d672415a0affc4862d982e6de173d41a4e1c6a4d15a"
+        },
+        {
+          "relation_id": "9afaa346-9f84-5c03-a901-fc12c17258cc",
+          "evidence": {
+            "evidence_ref": "evidence:033eff36-9292-5f5c-8590-f3df6cde4bf7",
+            "source_id": "github-target-repos",
+            "observation_id": "476d9fd1-4086-4611-9fcb-59f4f86a65be",
+            "artifact_id": "abe883d1-87af-471c-958d-c68f8801c9c9",
+            "external_object_id": "vllm-project/vllm@d26a28ab033697f55a1414b5b0435de7cd6045b6",
+            "external_revision": "d26a28ab033697f55a1414b5b0435de7cd6045b6",
+            "published_at": "2026-05-15T09:31:54Z",
+            "updated_at": null,
+            "observed_at": "2026-10-17T11:18:13.400587Z",
+            "canonical_url": "https://github.com/vllm-project/vllm/commit/d26a28ab033697f55a1414b5b0435de7cd6045b6",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.parents[0].sha"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/34/34e5819222363f783bd4853f83fefbfc0cfb0afc4e2cb754386e02426136a429",
+          "sha256": "34e5819222363f783bd4853f83fefbfc0cfb0afc4e2cb754386e02426136a429"
+        }
+      ]
+    },
+    {
+      "case_id": "qa-prelim-cve-2026-47102-2hop",
+      "cve": "CVE-2026-47102",
+      "repo": "BerriAI/litellm",
+      "provider_url": "https://github.com/BerriAI/litellm/pull/25541",
+      "question": "沿 CVE-2026-47102 的 NVD 参考资料，找到它引用的 BerriAI/litellm PR，再查该 PR 实际合入的提交 SHA。如果引用了多个该仓库 PR，取编号最小的一个。请给出漏洞到 PR、PR 到合并提交这两步关系，并分别引用对应来源。只回答这两条关系，不附加漏洞描述或其他开发对象。",
+      "raw_verified_relation_path": [
+        "cve:CVE-2026-47102",
+        "references-development-object",
+        "github:berriai/litellm:pull:25541",
+        "merged-as",
+        "git:commit:05e9ca7e75ed74f9b7fde4e190f481285d709b8f"
+      ],
+      "gold_derivation": "NVD references URL plus GitHub merge_commit_sha / parents[0].sha; no model output or knowledge prediction used to select answer",
+      "proof": [
+        {
+          "relation_id": "c37342cd-b854-5722-9679-315442bdfff0",
+          "evidence": {
+            "evidence_ref": "evidence:6987a7f9-5d62-5f15-b0e0-fa61240e67e9",
+            "source_id": "nvd-cves-2",
+            "observation_id": "69d70c17-15cf-4639-a9ad-bf33c620529b",
+            "artifact_id": "11807e6c-c7f4-4b2a-b6e0-897374e7fdd3",
+            "external_object_id": "CVE-2026-47102",
+            "external_revision": "2026-10-08T16:17:17.247000+00:00",
+            "published_at": "2026-05-21T21:16:32.557000Z",
+            "updated_at": "2026-10-08T16:17:17.247000Z",
+            "observed_at": "2026-10-08T16:31:28.606153Z",
+            "canonical_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-47102",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.cve.references"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/42/4222ac6d14fc986af040419b287b9e1826448acff83259dff32b4a6dd0b9f5c2",
+          "sha256": "4222ac6d14fc986af040419b287b9e1826448acff83259dff32b4a6dd0b9f5c2"
+        },
+        {
+          "relation_id": "b506c1a6-a224-571c-8bb5-fa75d2c923d2",
+          "evidence": {
+            "evidence_ref": "evidence:3cd6df56-da2f-5270-8552-ac1a20d9fce2",
+            "source_id": "github-target-repos",
+            "observation_id": "838b3074-025e-47cf-9aa0-5ee99ceb1369",
+            "artifact_id": "ab964d0a-ef55-49da-a0b0-7c92f24fce97",
+            "external_object_id": "BerriAI/litellm#pull-25541",
+            "external_revision": "2026-04-12T03:50:12+00:00",
+            "published_at": "2026-04-10T23:56:35Z",
+            "updated_at": "2026-04-12T03:50:12Z",
+            "observed_at": "2026-10-17T11:18:36.847573Z",
+            "canonical_url": "https://github.com/BerriAI/litellm/pull/25541",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.merge_commit_sha"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/4c/4c5ca7657b8f5f59d27466b873e7498cb27de55ac0e5c1449b8014db77f43304",
+          "sha256": "4c5ca7657b8f5f59d27466b873e7498cb27de55ac0e5c1449b8014db77f43304"
+        }
+      ]
+    },
+    {
+      "case_id": "qa-prelim-cve-2026-105753-2hop",
+      "cve": "CVE-2026-105753",
+      "repo": "vllm-project/vllm",
+      "provider_url": "https://github.com/vllm-project/vllm/pull/46747",
+      "question": "沿 CVE-2026-105753 的 NVD 参考资料，找到它引用的 vllm-project/vllm PR，再查该 PR 实际合入的提交 SHA。如果引用了多个该仓库 PR，取编号最小的一个。请给出漏洞到 PR、PR 到合并提交这两步关系，并分别引用对应来源。只回答这两条关系，不附加漏洞描述或其他开发对象。",
+      "raw_verified_relation_path": [
+        "cve:CVE-2026-105753",
+        "references-development-object",
+        "github:vllm-project/vllm:pull:46747",
+        "merged-as",
+        "git:commit:396204230423b7cc6798300926b8fa30190d26a9"
+      ],
+      "gold_derivation": "NVD references URL plus GitHub merge_commit_sha / parents[0].sha; no model output or knowledge prediction used to select answer",
+      "proof": [
+        {
+          "relation_id": "8af075be-e834-56d0-a143-6fd35389f2f8",
+          "evidence": {
+            "evidence_ref": "evidence:2ad94634-bb14-509e-8722-c30c5c6267d4",
+            "source_id": "nvd-cves-2",
+            "observation_id": "78ddb67c-9e57-4e3b-b303-49d72755f91f",
+            "artifact_id": "b123473b-0906-46b9-8e0b-b00c51e92f3e",
+            "external_object_id": "CVE-2026-105753",
+            "external_revision": "2026-10-08T01:29:33.007000+00:00",
+            "published_at": "2026-10-05T23:17:01.867000Z",
+            "updated_at": "2026-10-08T01:29:33.007000Z",
+            "observed_at": "2026-10-08T01:43:31.423847Z",
+            "canonical_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-105753",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.cve.references"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/49/492395aaa6891c321e05a0983ad63449c09e4ab5863ac11b4e438584dd6417a6",
+          "sha256": "492395aaa6891c321e05a0983ad63449c09e4ab5863ac11b4e438584dd6417a6"
+        },
+        {
+          "relation_id": "5ec635a8-4e8d-5584-a2f9-de46379008e4",
+          "evidence": {
+            "evidence_ref": "evidence:197401e5-d2aa-5138-aecb-dda834c6b1d7",
+            "source_id": "github-target-repos",
+            "observation_id": "e55e8db4-1a57-493f-b633-2bf5c6547a55",
+            "artifact_id": "19670018-7f0b-4ea8-b39f-227e3e1a29f2",
+            "external_object_id": "vllm-project/vllm#pull-46747",
+            "external_revision": "2026-08-12T04:06:58+00:00",
+            "published_at": "2026-06-25T17:31:38Z",
+            "updated_at": "2026-08-12T04:06:58Z",
+            "observed_at": "2026-10-17T11:18:18.779280Z",
+            "canonical_url": "https://github.com/vllm-project/vllm/pull/46747",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.merge_commit_sha"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/3b/3b45bdcc358c1f7a55c8b988422a9ffe482d2dc8089574ba69c1a3754f439fdb",
+          "sha256": "3b45bdcc358c1f7a55c8b988422a9ffe482d2dc8089574ba69c1a3754f439fdb"
+        }
+      ]
+    },
+    {
+      "case_id": "qa-prelim-cve-2026-59823-2hop",
+      "cve": "CVE-2026-59823",
+      "repo": "BerriAI/litellm",
+      "provider_url": "https://github.com/BerriAI/litellm/pull/25827",
+      "question": "沿 CVE-2026-59823 的 NVD 参考资料，找到它引用的 BerriAI/litellm PR，再查该 PR 实际合入的提交 SHA。如果引用了多个该仓库 PR，取编号最小的一个。请给出漏洞到 PR、PR 到合并提交这两步关系，并分别引用对应来源。只回答这两条关系，不附加漏洞描述或其他开发对象。",
+      "raw_verified_relation_path": [
+        "cve:CVE-2026-59823",
+        "references-development-object",
+        "github:berriai/litellm:pull:25827",
+        "merged-as",
+        "git:commit:0c8b83c0a1ff9c75013aa139cb1144c9d50e1bf1"
+      ],
+      "gold_derivation": "NVD references URL plus GitHub merge_commit_sha / parents[0].sha; no model output or knowledge prediction used to select answer",
+      "proof": [
+        {
+          "relation_id": "68a5d049-6818-589e-a8dc-2b63b06bb2cc",
+          "evidence": {
+            "evidence_ref": "evidence:d85ece82-0bda-547d-8195-713504245616",
+            "source_id": "nvd-cves-2",
+            "observation_id": "7babea4d-1621-4894-9898-e959675dc326",
+            "artifact_id": "587b69af-aa81-4f17-a452-ab65d611d381",
+            "external_object_id": "CVE-2026-59823",
+            "external_revision": "2026-09-30T17:43:24.057000+00:00",
+            "published_at": "2026-09-16T19:17:21.377000Z",
+            "updated_at": "2026-09-30T17:43:24.057000Z",
+            "observed_at": "2026-10-01T16:58:13.814732Z",
+            "canonical_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-59823",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.cve.references"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/29/297f92b8fa87c04069e0cd671aca6a0496606773a08d096b57a7f972122323c8",
+          "sha256": "297f92b8fa87c04069e0cd671aca6a0496606773a08d096b57a7f972122323c8"
+        },
+        {
+          "relation_id": "cc6ee5be-31d3-5e11-98c5-bd90290f5c0a",
+          "evidence": {
+            "evidence_ref": "evidence:39aa8642-c5e6-5c12-b35b-e26e3a7d64dd",
+            "source_id": "github-target-repos",
+            "observation_id": "734f8d5e-200b-440a-a846-61ca741c34ea",
+            "artifact_id": "a7d7d533-29a0-4c14-9c0c-b262b82de428",
+            "external_object_id": "BerriAI/litellm#pull-25827",
+            "external_revision": "2026-04-16T03:57:45+00:00",
+            "published_at": "2026-04-16T01:07:47Z",
+            "updated_at": "2026-04-16T03:57:45Z",
+            "observed_at": "2026-10-17T11:18:42.219063Z",
+            "canonical_url": "https://github.com/BerriAI/litellm/pull/25827",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.merge_commit_sha"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/bc/bcdf4475f1e5e18a987f45e242c688d6586a50dabaccf7313b39c2c8270f77de",
+          "sha256": "bcdf4475f1e5e18a987f45e242c688d6586a50dabaccf7313b39c2c8270f77de"
+        }
+      ]
+    },
+    {
+      "case_id": "qa-prelim-cve-2026-105754-2hop",
+      "cve": "CVE-2026-105754",
+      "repo": "vllm-project/vllm",
+      "provider_url": "https://github.com/vllm-project/vllm/pull/51898",
+      "question": "沿 CVE-2026-105754 的 NVD 参考资料，找到它引用的 vllm-project/vllm PR，再查该 PR 实际合入的提交 SHA。如果引用了多个该仓库 PR，取编号最小的一个。请给出漏洞到 PR、PR 到合并提交这两步关系，并分别引用对应来源。只回答这两条关系，不附加漏洞描述或其他开发对象。",
+      "raw_verified_relation_path": [
+        "cve:CVE-2026-105754",
+        "references-development-object",
+        "github:vllm-project/vllm:pull:51898",
+        "merged-as",
+        "git:commit:1970f3ed4be7fa8620e4ddc4a12c36a8384cfc27"
+      ],
+      "gold_derivation": "NVD references URL plus GitHub merge_commit_sha / parents[0].sha; no model output or knowledge prediction used to select answer",
+      "proof": [
+        {
+          "relation_id": "5f74bf6c-eda7-5fd5-803a-e9ec27677795",
+          "evidence": {
+            "evidence_ref": "evidence:ff426657-178f-540b-be75-22702d049ae1",
+            "source_id": "nvd-cves-2",
+            "observation_id": "48d70f36-d959-46b0-ba40-97b04bfb5ee4",
+            "artifact_id": "2ec6f403-18f1-4a00-82ff-407b25bc6e4c",
+            "external_object_id": "CVE-2026-105754",
+            "external_revision": "2026-10-08T03:16:35.230000+00:00",
+            "published_at": "2026-10-05T23:17:02.017000Z",
+            "updated_at": "2026-10-08T03:16:35.230000Z",
+            "observed_at": "2026-10-08T03:28:53.182437Z",
+            "canonical_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-105754",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.cve.references"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/0e/0e554a81485d9218fa6cfe476d57e3424608eec71c337f8ab8ccf3c25a040b21",
+          "sha256": "0e554a81485d9218fa6cfe476d57e3424608eec71c337f8ab8ccf3c25a040b21"
+        },
+        {
+          "relation_id": "60add901-7c2b-5197-9f4e-3807d2681f76",
+          "evidence": {
+            "evidence_ref": "evidence:e6335ea5-dbcf-502b-9ae7-d3011ad5d734",
+            "source_id": "github-target-repos",
+            "observation_id": "33f75df6-8264-49d0-82f1-1d97691e7f91",
+            "artifact_id": "6b6a43e2-8ff0-45b1-9801-2117b9b105a8",
+            "external_object_id": "vllm-project/vllm#pull-51898",
+            "external_revision": "2026-09-06T04:58:05+00:00",
+            "published_at": "2026-08-11T23:57:41Z",
+            "updated_at": "2026-09-06T04:58:05Z",
+            "observed_at": "2026-10-17T11:18:20.726256Z",
+            "canonical_url": "https://github.com/vllm-project/vllm/pull/51898",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.merge_commit_sha"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/9f/9fc54418f8306d59efff71d9baeb25ec197702c0800f63c91acf117cd316d8ef",
+          "sha256": "9fc54418f8306d59efff71d9baeb25ec197702c0800f63c91acf117cd316d8ef"
+        }
+      ]
+    },
+    {
+      "case_id": "qa-prelim-cve-2026-89032-2hop",
+      "cve": "CVE-2026-89032",
+      "repo": "BerriAI/litellm",
+      "provider_url": "https://github.com/BerriAI/litellm/pull/39590",
+      "question": "沿 CVE-2026-89032 的 NVD 参考资料，找到它引用的 BerriAI/litellm PR，再查该 PR 实际合入的提交 SHA。如果引用了多个该仓库 PR，取编号最小的一个。请给出漏洞到 PR、PR 到合并提交这两步关系，并分别引用对应来源。只回答这两条关系，不附加漏洞描述或其他开发对象。",
+      "raw_verified_relation_path": [
+        "cve:CVE-2026-89032",
+        "references-development-object",
+        "github:berriai/litellm:pull:39590",
+        "merged-as",
+        "git:commit:16db51e2cfc28e02bd460481e634a8403ea9265e"
+      ],
+      "gold_derivation": "NVD references URL plus GitHub merge_commit_sha / parents[0].sha; no model output or knowledge prediction used to select answer",
+      "proof": [
+        {
+          "relation_id": "11348574-d61f-5715-9ec7-58b96993274d",
+          "evidence": {
+            "evidence_ref": "evidence:039f2555-6840-50e3-9dd6-ab7aac8930ac",
+            "source_id": "nvd-cves-2",
+            "observation_id": "ece7ea34-ed55-41d5-a3d5-786526773265",
+            "artifact_id": "c4f4e892-5be4-4b40-bcd4-882d3d466a9b",
+            "external_object_id": "CVE-2026-89032",
+            "external_revision": "2026-10-01T04:18:21.403000+00:00",
+            "published_at": "2026-09-25T17:17:18.793000Z",
+            "updated_at": "2026-10-01T04:18:21.403000Z",
+            "observed_at": "2026-10-01T16:58:13.976082Z",
+            "canonical_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-89032",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.cve.references"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/f8/f8bd40327cd4236616cbcdcc748a3ff11f8da4077ed094306a436a9eea2c2819",
+          "sha256": "f8bd40327cd4236616cbcdcc748a3ff11f8da4077ed094306a436a9eea2c2819"
+        },
+        {
+          "relation_id": "5ebd7766-70d3-5e4f-a9b9-4084a80041f3",
+          "evidence": {
+            "evidence_ref": "evidence:ec9d4998-5537-534b-9e5b-ffe8ecfe86a1",
+            "source_id": "github-target-repos",
+            "observation_id": "3199b4a3-89ce-4f89-99d3-c4fdbc435daf",
+            "artifact_id": "6b9fefe7-3977-435f-be55-476374658435",
+            "external_object_id": "BerriAI/litellm#pull-39590",
+            "external_revision": "2026-09-04T01:44:56+00:00",
+            "published_at": "2026-09-03T17:29:03Z",
+            "updated_at": "2026-09-04T01:44:56Z",
+            "observed_at": "2026-10-17T11:18:46.956222Z",
+            "canonical_url": "https://github.com/BerriAI/litellm/pull/39590",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.merge_commit_sha"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/ae/aeb9f3038026eb2e0b11591f23b167670106474db9adff1f41301ac5b7da3de5",
+          "sha256": "aeb9f3038026eb2e0b11591f23b167670106474db9adff1f41301ac5b7da3de5"
+        }
+      ]
+    },
+    {
+      "case_id": "qa-prelim-cve-2026-105755-2hop",
+      "cve": "CVE-2026-105755",
+      "repo": "vllm-project/vllm",
+      "provider_url": "https://github.com/vllm-project/vllm/pull/51445",
+      "question": "沿 CVE-2026-105755 的 NVD 参考资料，找到它引用的 vllm-project/vllm PR，再查该 PR 实际合入的提交 SHA。如果引用了多个该仓库 PR，取编号最小的一个。请给出漏洞到 PR、PR 到合并提交这两步关系，并分别引用对应来源。只回答这两条关系，不附加漏洞描述或其他开发对象。",
+      "raw_verified_relation_path": [
+        "cve:CVE-2026-105755",
+        "references-development-object",
+        "github:vllm-project/vllm:pull:51445",
+        "merged-as",
+        "git:commit:ee17d0d869203ef9a35ad73358a4987bba14b1fc"
+      ],
+      "gold_derivation": "NVD references URL plus GitHub merge_commit_sha / parents[0].sha; no model output or knowledge prediction used to select answer",
+      "proof": [
+        {
+          "relation_id": "131fcbc3-753f-5e46-b89d-05ed34301128",
+          "evidence": {
+            "evidence_ref": "evidence:523c77b4-a4d0-5d75-90c5-d190862113d8",
+            "source_id": "nvd-cves-2",
+            "observation_id": "826ec4bd-ff4f-4d24-b8d4-a4436dbb5293",
+            "artifact_id": "0217b398-13d0-4603-881d-ccc32dab9164",
+            "external_object_id": "CVE-2026-105755",
+            "external_revision": "2026-10-08T01:28:50.393000+00:00",
+            "published_at": "2026-10-05T23:17:02.167000Z",
+            "updated_at": "2026-10-08T01:28:50.393000Z",
+            "observed_at": "2026-10-08T01:43:31.431706Z",
+            "canonical_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-105755",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.cve.references"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/aa/aa11885945bee6563eb74a25a70a0d084e8568944e9810b82247b1bc9a7c6252",
+          "sha256": "aa11885945bee6563eb74a25a70a0d084e8568944e9810b82247b1bc9a7c6252"
+        },
+        {
+          "relation_id": "e32f4046-f93b-5725-aa49-784f5962a5f5",
+          "evidence": {
+            "evidence_ref": "evidence:abb309fe-3e8f-5365-b28a-0436a17812c1",
+            "source_id": "github-target-repos",
+            "observation_id": "8eb3b535-4999-4eec-9d0b-a702e25ad308",
+            "artifact_id": "a116a632-58d7-4dbd-bc2a-d458412ed944",
+            "external_object_id": "vllm-project/vllm#pull-51445",
+            "external_revision": "2026-09-03T07:15:59+00:00",
+            "published_at": "2026-08-07T20:52:56Z",
+            "updated_at": "2026-09-03T07:15:59Z",
+            "observed_at": "2026-10-17T11:18:21.931194Z",
+            "canonical_url": "https://github.com/vllm-project/vllm/pull/51445",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.merge_commit_sha"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/c3/c3475328c01afc73624a80affcfeb5194a289e278a95f4b9382c3f150505991f",
+          "sha256": "c3475328c01afc73624a80affcfeb5194a289e278a95f4b9382c3f150505991f"
+        }
+      ]
+    },
+    {
+      "case_id": "qa-prelim-cve-2026-105756-2hop",
+      "cve": "CVE-2026-105756",
+      "repo": "vllm-project/vllm",
+      "provider_url": "https://github.com/vllm-project/vllm/pull/51444",
+      "question": "沿 CVE-2026-105756 的 NVD 参考资料，找到它引用的 vllm-project/vllm PR，再查该 PR 实际合入的提交 SHA。如果引用了多个该仓库 PR，取编号最小的一个。请给出漏洞到 PR、PR 到合并提交这两步关系，并分别引用对应来源。只回答这两条关系，不附加漏洞描述或其他开发对象。",
+      "raw_verified_relation_path": [
+        "cve:CVE-2026-105756",
+        "references-development-object",
+        "github:vllm-project/vllm:pull:51444",
+        "merged-as",
+        "git:commit:e962733e08d10f7ca65dac4df99e116460b8b174"
+      ],
+      "gold_derivation": "NVD references URL plus GitHub merge_commit_sha / parents[0].sha; no model output or knowledge prediction used to select answer",
+      "proof": [
+        {
+          "relation_id": "c2e89e3c-2a4e-50a9-a667-e5858e950502",
+          "evidence": {
+            "evidence_ref": "evidence:c005e586-37a4-569c-8795-c3db017cb83c",
+            "source_id": "nvd-cves-2",
+            "observation_id": "ff5b3fe2-579a-43bc-a97a-5f41873b83e5",
+            "artifact_id": "86823a09-4c33-478a-9af4-771786c1da74",
+            "external_object_id": "CVE-2026-105756",
+            "external_revision": "2026-10-08T01:28:23.010000+00:00",
+            "published_at": "2026-10-05T23:17:02.317000Z",
+            "updated_at": "2026-10-08T01:28:23.010000Z",
+            "observed_at": "2026-10-08T01:28:27.033042Z",
+            "canonical_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-105756",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.cve.references"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/50/5098c746882068de09c6fdeb4d30279ba5aa920a578f67338495ef07d4b1c3ce",
+          "sha256": "5098c746882068de09c6fdeb4d30279ba5aa920a578f67338495ef07d4b1c3ce"
+        },
+        {
+          "relation_id": "7ac3321d-e76d-585e-86d5-1f9865732cf1",
+          "evidence": {
+            "evidence_ref": "evidence:2b069a8f-c5b1-50f1-97e4-a57dc8bd1c78",
+            "source_id": "github-target-repos",
+            "observation_id": "b00c8e0e-5d35-424c-8a47-355e8e61cd59",
+            "artifact_id": "a95791ce-98b2-4066-832d-424a272a5055",
+            "external_object_id": "vllm-project/vllm#pull-51444",
+            "external_revision": "2026-09-05T03:56:07+00:00",
+            "published_at": "2026-08-07T20:52:51Z",
+            "updated_at": "2026-09-05T03:56:07Z",
+            "observed_at": "2026-10-17T11:18:22.805091Z",
+            "canonical_url": "https://github.com/vllm-project/vllm/pull/51444",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.merge_commit_sha"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/8c/8c24e01c03025c494786af3986e03f7fc5240903f67e30e756b8c6f8ed99ebdd",
+          "sha256": "8c24e01c03025c494786af3986e03f7fc5240903f67e30e756b8c6f8ed99ebdd"
+        }
+      ]
+    },
+    {
+      "case_id": "qa-prelim-cve-2026-105757-2hop",
+      "cve": "CVE-2026-105757",
+      "repo": "vllm-project/vllm",
+      "provider_url": "https://github.com/vllm-project/vllm/pull/51450",
+      "question": "沿 CVE-2026-105757 的 NVD 参考资料，找到它引用的 vllm-project/vllm PR，再查该 PR 实际合入的提交 SHA。如果引用了多个该仓库 PR，取编号最小的一个。请给出漏洞到 PR、PR 到合并提交这两步关系，并分别引用对应来源。只回答这两条关系，不附加漏洞描述或其他开发对象。",
+      "raw_verified_relation_path": [
+        "cve:CVE-2026-105757",
+        "references-development-object",
+        "github:vllm-project/vllm:pull:51450",
+        "merged-as",
+        "git:commit:c55e15a44ec4127832d4a86928a356fdd9e68dbd"
+      ],
+      "gold_derivation": "NVD references URL plus GitHub merge_commit_sha / parents[0].sha; no model output or knowledge prediction used to select answer",
+      "proof": [
+        {
+          "relation_id": "3f1b52b4-9036-5732-a880-5f3f2d800e1a",
+          "evidence": {
+            "evidence_ref": "evidence:44865473-1b7f-5aaa-90a5-9af7e71cac98",
+            "source_id": "nvd-cves-2",
+            "observation_id": "cd3e41ee-421e-4300-a9c7-671f3c931bd9",
+            "artifact_id": "436ba62f-a6ff-48c0-9588-9fbfea81868e",
+            "external_object_id": "CVE-2026-105757",
+            "external_revision": "2026-10-08T01:28:00.630000+00:00",
+            "published_at": "2026-10-05T23:17:02.467000Z",
+            "updated_at": "2026-10-08T01:28:00.630000Z",
+            "observed_at": "2026-10-08T01:28:27.040692Z",
+            "canonical_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-105757",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.cve.references"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/7c/7cc1e41a96ab766b69acda83c43e1764bfe0bc1c3734a3b92da0e46220f3564a",
+          "sha256": "7cc1e41a96ab766b69acda83c43e1764bfe0bc1c3734a3b92da0e46220f3564a"
+        },
+        {
+          "relation_id": "2bfaee60-2a4b-5fea-9797-9c742461724b",
+          "evidence": {
+            "evidence_ref": "evidence:b018ce62-8fc8-57f4-b83e-f2fac1e3ffbe",
+            "source_id": "github-target-repos",
+            "observation_id": "5c4249a3-38dc-401c-a2e6-8243e235f03c",
+            "artifact_id": "9e423856-82a0-4af8-b0ea-18b24f855324",
+            "external_object_id": "vllm-project/vllm#pull-51450",
+            "external_revision": "2026-09-09T15:32:02+00:00",
+            "published_at": "2026-08-07T20:53:16Z",
+            "updated_at": "2026-09-09T15:32:02Z",
+            "observed_at": "2026-10-17T11:18:23.664788Z",
+            "canonical_url": "https://github.com/vllm-project/vllm/pull/51450",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.merge_commit_sha"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/e0/e0b565254ab6c57c1e98f53a40c44caa12b320dc37bf9692c13c2e598780b74d",
+          "sha256": "e0b565254ab6c57c1e98f53a40c44caa12b320dc37bf9692c13c2e598780b74d"
+        }
+      ]
+    },
+    {
+      "case_id": "qa-prelim-cve-2026-105758-2hop",
+      "cve": "CVE-2026-105758",
+      "repo": "vllm-project/vllm",
+      "provider_url": "https://github.com/vllm-project/vllm/pull/56729",
+      "question": "沿 CVE-2026-105758 的 NVD 参考资料，找到它引用的 vllm-project/vllm PR，再查该 PR 实际合入的提交 SHA。如果引用了多个该仓库 PR，取编号最小的一个。请给出漏洞到 PR、PR 到合并提交这两步关系，并分别引用对应来源。只回答这两条关系，不附加漏洞描述或其他开发对象。",
+      "raw_verified_relation_path": [
+        "cve:CVE-2026-105758",
+        "references-development-object",
+        "github:vllm-project/vllm:pull:56729",
+        "merged-as",
+        "git:commit:ea723c81c3ea26425cb69503a5d5e90822a04a45"
+      ],
+      "gold_derivation": "NVD references URL plus GitHub merge_commit_sha / parents[0].sha; no model output or knowledge prediction used to select answer",
+      "proof": [
+        {
+          "relation_id": "a1ff457c-3161-503d-8f98-fd410de712ef",
+          "evidence": {
+            "evidence_ref": "evidence:6f4f1cfd-5476-5360-8013-53c310e98fd0",
+            "source_id": "nvd-cves-2",
+            "observation_id": "fabe3ba4-d433-4d84-a690-05e58c69fe78",
+            "artifact_id": "8221292f-e183-4701-8974-edcc23ea9119",
+            "external_object_id": "CVE-2026-105758",
+            "external_revision": "2026-10-08T03:16:35.407000+00:00",
+            "published_at": "2026-10-05T23:17:02.610000Z",
+            "updated_at": "2026-10-08T03:16:35.407000Z",
+            "observed_at": "2026-10-08T03:28:53.186450Z",
+            "canonical_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-105758",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.cve.references"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/c3/c36665856b05a550021254f80d326902b339c22742b61682ea06bd67243bc8d5",
+          "sha256": "c36665856b05a550021254f80d326902b339c22742b61682ea06bd67243bc8d5"
+        },
+        {
+          "relation_id": "41a6d4d7-ffed-57fc-a21e-192693fa808e",
+          "evidence": {
+            "evidence_ref": "evidence:7ea5c1cf-49f2-511f-b391-77f001790d67",
+            "source_id": "github-target-repos",
+            "observation_id": "234efeb4-a249-4557-886e-1c60529f1122",
+            "artifact_id": "1b06cbbf-c5f8-471a-a5ac-15ed081650a4",
+            "external_object_id": "vllm-project/vllm#pull-56729",
+            "external_revision": "2026-09-14T10:22:19+00:00",
+            "published_at": "2026-09-13T22:07:30Z",
+            "updated_at": "2026-09-14T10:22:19Z",
+            "observed_at": "2026-10-17T11:18:24.361512Z",
+            "canonical_url": "https://github.com/vllm-project/vllm/pull/56729",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.merge_commit_sha"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/3c/3ccbd442257f5743cf5b0a1fda33134458666866a816fbd5be111a4b21992bae",
+          "sha256": "3ccbd442257f5743cf5b0a1fda33134458666866a816fbd5be111a4b21992bae"
+        }
+      ]
+    },
+    {
+      "case_id": "qa-prelim-cve-2026-105759-2hop",
+      "cve": "CVE-2026-105759",
+      "repo": "vllm-project/vllm",
+      "provider_url": "https://github.com/vllm-project/vllm/pull/56058",
+      "question": "沿 CVE-2026-105759 的 NVD 参考资料，找到它引用的 vllm-project/vllm PR，再查该 PR 实际合入的提交 SHA。如果引用了多个该仓库 PR，取编号最小的一个。请给出漏洞到 PR、PR 到合并提交这两步关系，并分别引用对应来源。只回答这两条关系，不附加漏洞描述或其他开发对象。",
+      "raw_verified_relation_path": [
+        "cve:CVE-2026-105759",
+        "references-development-object",
+        "github:vllm-project/vllm:pull:56058",
+        "merged-as",
+        "git:commit:3735c2d5f5248259482b9045c34fb7a8a3892352"
+      ],
+      "gold_derivation": "NVD references URL plus GitHub merge_commit_sha / parents[0].sha; no model output or knowledge prediction used to select answer",
+      "proof": [
+        {
+          "relation_id": "827686e6-1908-55c1-b2a9-161db32d37f7",
+          "evidence": {
+            "evidence_ref": "evidence:cc5e2f4a-0a51-5078-9a45-834d778373c8",
+            "source_id": "nvd-cves-2",
+            "observation_id": "03a8f080-88dd-4741-acfa-fe18432fb9a4",
+            "artifact_id": "e4f09816-5234-452f-9c43-32be6b941bd0",
+            "external_object_id": "CVE-2026-105759",
+            "external_revision": "2026-10-06T18:16:46.407000+00:00",
+            "published_at": "2026-10-05T23:17:02.760000Z",
+            "updated_at": "2026-10-06T18:16:46.407000Z",
+            "observed_at": "2026-10-07T17:29:08.326453Z",
+            "canonical_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-105759",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.cve.references"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/d4/d4bdb66b65251350af009e33a30e59fb8bf23c34f467ee924b3e2dea874ec6da",
+          "sha256": "d4bdb66b65251350af009e33a30e59fb8bf23c34f467ee924b3e2dea874ec6da"
+        },
+        {
+          "relation_id": "355f56c8-292e-561a-a2a4-319acb2e915b",
+          "evidence": {
+            "evidence_ref": "evidence:fdfc503f-ff5b-5685-927b-d032f21b764f",
+            "source_id": "github-target-repos",
+            "observation_id": "69769a56-e74d-4394-b5ef-7ec87d0b35ea",
+            "artifact_id": "ff15c980-71dc-487c-96d2-5947a5f9d4ce",
+            "external_object_id": "vllm-project/vllm#pull-56058",
+            "external_revision": "2026-09-10T02:54:41+00:00",
+            "published_at": "2026-09-09T10:26:04Z",
+            "updated_at": "2026-09-10T02:54:41Z",
+            "observed_at": "2026-10-17T11:18:25.273985Z",
+            "canonical_url": "https://github.com/vllm-project/vllm/pull/56058",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.merge_commit_sha"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/75/75a4aee043b70242f5c541a7a236a4689d7b0e55f7d497574183172327948e74",
+          "sha256": "75a4aee043b70242f5c541a7a236a4689d7b0e55f7d497574183172327948e74"
+        }
+      ]
+    },
+    {
+      "case_id": "qa-prelim-cve-2026-105760-2hop",
+      "cve": "CVE-2026-105760",
+      "repo": "vllm-project/vllm",
+      "provider_url": "https://github.com/vllm-project/vllm/pull/54935",
+      "question": "沿 CVE-2026-105760 的 NVD 参考资料，找到它引用的 vllm-project/vllm PR，再查该 PR 实际合入的提交 SHA。如果引用了多个该仓库 PR，取编号最小的一个。请给出漏洞到 PR、PR 到合并提交这两步关系，并分别引用对应来源。只回答这两条关系，不附加漏洞描述或其他开发对象。",
+      "raw_verified_relation_path": [
+        "cve:CVE-2026-105760",
+        "references-development-object",
+        "github:vllm-project/vllm:pull:54935",
+        "merged-as",
+        "git:commit:8b6de0eb9a09ef53f20cf06bd4d17ee264b9c2a7"
+      ],
+      "gold_derivation": "NVD references URL plus GitHub merge_commit_sha / parents[0].sha; no model output or knowledge prediction used to select answer",
+      "proof": [
+        {
+          "relation_id": "853e0243-1c85-526b-8181-9332afd6249d",
+          "evidence": {
+            "evidence_ref": "evidence:9a04daca-a399-5852-a874-e9436093aba0",
+            "source_id": "nvd-cves-2",
+            "observation_id": "bb651d21-a561-4787-88ca-94cb33a6b274",
+            "artifact_id": "34e16c01-5ab0-47c1-8c66-2b220b9c8e81",
+            "external_object_id": "CVE-2026-105760",
+            "external_revision": "2026-10-06T15:17:15.257000+00:00",
+            "published_at": "2026-10-05T23:17:02.903000Z",
+            "updated_at": "2026-10-06T15:17:15.257000Z",
+            "observed_at": "2026-10-07T17:29:08.327645Z",
+            "canonical_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-105760",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.cve.references"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/b6/b6aafa04d1be5c3fa9645ebf00ab435b8431bf83cd2f697e4d8fd869df4f8fbc",
+          "sha256": "b6aafa04d1be5c3fa9645ebf00ab435b8431bf83cd2f697e4d8fd869df4f8fbc"
+        },
+        {
+          "relation_id": "0b85d013-256b-5f1d-aacf-991525de8492",
+          "evidence": {
+            "evidence_ref": "evidence:35c91b9f-a16e-57c3-9154-29fca9a303ae",
+            "source_id": "github-target-repos",
+            "observation_id": "438d491f-131f-4598-a358-a2b472389d19",
+            "artifact_id": "4db06753-59cb-4e16-89f7-40e86f2e5f9e",
+            "external_object_id": "vllm-project/vllm#pull-54935",
+            "external_revision": "2026-09-04T12:02:41+00:00",
+            "published_at": "2026-09-02T09:51:27Z",
+            "updated_at": "2026-09-04T12:02:41Z",
+            "observed_at": "2026-10-17T11:18:26.013376Z",
+            "canonical_url": "https://github.com/vllm-project/vllm/pull/54935",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.merge_commit_sha"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/10/10e5e123d2aff033578a8688e2e3c499c395d4b1deb5bbb585d7d99237aa2875",
+          "sha256": "10e5e123d2aff033578a8688e2e3c499c395d4b1deb5bbb585d7d99237aa2875"
+        }
+      ]
+    },
+    {
+      "case_id": "qa-prelim-cve-2026-57173-2hop",
+      "cve": "CVE-2026-57173",
+      "repo": "vllm-project/vllm",
+      "provider_url": "https://github.com/vllm-project/vllm/pull/45908",
+      "question": "沿 CVE-2026-57173 的 NVD 参考资料，找到它引用的 vllm-project/vllm PR，再查该 PR 实际合入的提交 SHA。如果引用了多个该仓库 PR，取编号最小的一个。请给出漏洞到 PR、PR 到合并提交这两步关系，并分别引用对应来源。只回答这两条关系，不附加漏洞描述或其他开发对象。",
+      "raw_verified_relation_path": [
+        "cve:CVE-2026-57173",
+        "references-development-object",
+        "github:vllm-project/vllm:pull:45908",
+        "merged-as",
+        "git:commit:3d20275bb4d434f53055c3c0b645fd8bb072965e"
+      ],
+      "gold_derivation": "NVD references URL plus GitHub merge_commit_sha / parents[0].sha; no model output or knowledge prediction used to select answer",
+      "proof": [
+        {
+          "relation_id": "80faebf1-50e1-5ec4-903e-7ce64d4d790e",
+          "evidence": {
+            "evidence_ref": "evidence:d561b5ec-5752-5644-911c-06e7b6d0d754",
+            "source_id": "nvd-cves-2",
+            "observation_id": "dd28ba3f-9cfe-4b34-97b2-6bcac4e6b54f",
+            "artifact_id": "5ca05468-98b5-4c69-952f-fb334c41e727",
+            "external_object_id": "CVE-2026-57173",
+            "external_revision": "2026-10-07T14:24:22.100000+00:00",
+            "published_at": "2026-09-16T17:17:24.603000Z",
+            "updated_at": "2026-10-07T14:24:22.100000Z",
+            "observed_at": "2026-10-07T17:28:51.006157Z",
+            "canonical_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-57173",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.cve.references"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/17/17b599bc7983d287cc2cd6f78417e99a93feb8766a89a0a11f847170391fc745",
+          "sha256": "17b599bc7983d287cc2cd6f78417e99a93feb8766a89a0a11f847170391fc745"
+        },
+        {
+          "relation_id": "e363a9fe-da49-5009-8849-becd2d6b2f01",
+          "evidence": {
+            "evidence_ref": "evidence:0e14f660-5033-5195-8334-722d2cdf6cdf",
+            "source_id": "github-target-repos",
+            "observation_id": "8bae6750-2612-477b-b066-267c27ba8a5a",
+            "artifact_id": "1be16e0a-4aad-4cec-8e74-2b8a82ec51bc",
+            "external_object_id": "vllm-project/vllm#pull-45908",
+            "external_revision": "2026-06-17T11:07:14+00:00",
+            "published_at": "2026-06-17T07:19:51Z",
+            "updated_at": "2026-06-17T11:07:14Z",
+            "observed_at": "2026-10-17T11:18:38.731395Z",
+            "canonical_url": "https://github.com/vllm-project/vllm/pull/45908",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.merge_commit_sha"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/c1/c1c6672ffca156b64d64234e66291523caa4851528e30e497b429089bf01b8c8",
+          "sha256": "c1c6672ffca156b64d64234e66291523caa4851528e30e497b429089bf01b8c8"
+        }
+      ]
+    },
+    {
+      "case_id": "qa-prelim-cve-2026-71486-2hop",
+      "cve": "CVE-2026-71486",
+      "repo": "vllm-project/vllm",
+      "provider_url": "https://github.com/vllm-project/vllm/pull/47260",
+      "question": "沿 CVE-2026-71486 的 NVD 参考资料，找到它引用的 vllm-project/vllm PR，再查该 PR 实际合入的提交 SHA。如果引用了多个该仓库 PR，取编号最小的一个。请给出漏洞到 PR、PR 到合并提交这两步关系，并分别引用对应来源。只回答这两条关系，不附加漏洞描述或其他开发对象。",
+      "raw_verified_relation_path": [
+        "cve:CVE-2026-71486",
+        "references-development-object",
+        "github:vllm-project/vllm:pull:47260",
+        "merged-as",
+        "git:commit:8e61b646e2d157f9b93451fa048f9c8530c8a67b"
+      ],
+      "gold_derivation": "NVD references URL plus GitHub merge_commit_sha / parents[0].sha; no model output or knowledge prediction used to select answer",
+      "proof": [
+        {
+          "relation_id": "315c3ba0-debf-5c60-8de6-0dc13b397ea0",
+          "evidence": {
+            "evidence_ref": "evidence:e8cee008-b8d5-5f48-adf7-dbe4e21e3c1e",
+            "source_id": "nvd-cves-2",
+            "observation_id": "beba733b-6de3-4b2d-87a9-5948cd1d19aa",
+            "artifact_id": "5e8bddc2-17af-4e53-a35b-210d61d85802",
+            "external_object_id": "CVE-2026-71486",
+            "external_revision": "2026-10-02T19:30:34.767000+00:00",
+            "published_at": "2026-08-17T20:16:45.927000Z",
+            "updated_at": "2026-10-02T19:30:34.767000Z",
+            "observed_at": "2026-10-02T19:39:52.016891Z",
+            "canonical_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-71486",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.cve.references"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/2b/2bb701109c0f7c600676604ab7b5a8f269e3c59998872d7ef78774ffd4c410b2",
+          "sha256": "2bb701109c0f7c600676604ab7b5a8f269e3c59998872d7ef78774ffd4c410b2"
+        },
+        {
+          "relation_id": "1e47fc95-e015-5f62-b7a4-f29c4ce82346",
+          "evidence": {
+            "evidence_ref": "evidence:f2a60371-81cc-5358-8936-801df907b859",
+            "source_id": "github-target-repos",
+            "observation_id": "71a24daf-9e6e-4f0c-942b-d78b2fd20109",
+            "artifact_id": "8a5c2815-5f04-42f4-9b53-00e2394a3d1a",
+            "external_object_id": "vllm-project/vllm#pull-47260",
+            "external_revision": "2026-07-07T06:58:27+00:00",
+            "published_at": "2026-07-01T07:57:02Z",
+            "updated_at": "2026-07-07T06:58:27Z",
+            "observed_at": "2026-10-17T11:18:42.913809Z",
+            "canonical_url": "https://github.com/vllm-project/vllm/pull/47260",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.merge_commit_sha"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/f0/f09a96fa04028b8d1ca0139fb6a495ea60ecad74ee34a3ed95ec3d21b04bc307",
+          "sha256": "f09a96fa04028b8d1ca0139fb6a495ea60ecad74ee34a3ed95ec3d21b04bc307"
+        }
+      ]
+    },
+    {
+      "case_id": "qa-prelim-cve-2026-73555-2hop",
+      "cve": "CVE-2026-73555",
+      "repo": "vllm-project/vllm",
+      "provider_url": "https://github.com/vllm-project/vllm/pull/46415",
+      "question": "沿 CVE-2026-73555 的 NVD 参考资料，找到它引用的 vllm-project/vllm PR，再查该 PR 实际合入的提交 SHA。如果引用了多个该仓库 PR，取编号最小的一个。请给出漏洞到 PR、PR 到合并提交这两步关系，并分别引用对应来源。只回答这两条关系，不附加漏洞描述或其他开发对象。",
+      "raw_verified_relation_path": [
+        "cve:CVE-2026-73555",
+        "references-development-object",
+        "github:vllm-project/vllm:pull:46415",
+        "merged-as",
+        "git:commit:e87521626febe2763f997691d1599de4175f4324"
+      ],
+      "gold_derivation": "NVD references URL plus GitHub merge_commit_sha / parents[0].sha; no model output or knowledge prediction used to select answer",
+      "proof": [
+        {
+          "relation_id": "3dabe808-db34-5170-a690-18c1e6aed3bf",
+          "evidence": {
+            "evidence_ref": "evidence:4f46b0f1-7370-527d-860a-4d21580c9d31",
+            "source_id": "nvd-cves-2",
+            "observation_id": "411bb2d4-97da-441a-832a-7c1aa9b8a6a7",
+            "artifact_id": "278ba7d5-89e4-4ec8-a5bf-cefb73b668a2",
+            "external_object_id": "CVE-2026-73555",
+            "external_revision": "2026-10-02T19:28:34.510000+00:00",
+            "published_at": "2026-08-13T15:20:17.773000Z",
+            "updated_at": "2026-10-02T19:28:34.510000Z",
+            "observed_at": "2026-10-02T19:39:52.013782Z",
+            "canonical_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-73555",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.cve.references"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/78/7841e3dd6ad142f5f5c02db5260e44edfd53c5e1ab69ce0d66602a23a348692a",
+          "sha256": "7841e3dd6ad142f5f5c02db5260e44edfd53c5e1ab69ce0d66602a23a348692a"
+        },
+        {
+          "relation_id": "1cb94978-1f1e-567f-9119-a7767c42da0e",
+          "evidence": {
+            "evidence_ref": "evidence:44094fbe-cc91-566c-a5c6-06664a79fa96",
+            "source_id": "github-target-repos",
+            "observation_id": "88263ddb-daf1-4a07-b60e-e99c3b7a9db5",
+            "artifact_id": "2131cff6-a458-481d-a6b8-747565e51f9b",
+            "external_object_id": "vllm-project/vllm#pull-46415",
+            "external_revision": "2026-07-09T09:46:30+00:00",
+            "published_at": "2026-06-22T21:05:23Z",
+            "updated_at": "2026-07-09T09:46:30Z",
+            "observed_at": "2026-10-17T11:18:44.188511Z",
+            "canonical_url": "https://github.com/vllm-project/vllm/pull/46415",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.merge_commit_sha"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/ef/ef697ae09dab552c91cecc50709e42e2471e62917e9f3d64f0bee431f5ad58c6",
+          "sha256": "ef697ae09dab552c91cecc50709e42e2471e62917e9f3d64f0bee431f5ad58c6"
+        }
+      ]
+    },
+    {
+      "case_id": "qa-prelim-cve-2026-73557-2hop",
+      "cve": "CVE-2026-73557",
+      "repo": "vllm-project/vllm",
+      "provider_url": "https://github.com/vllm-project/vllm/pull/48583",
+      "question": "沿 CVE-2026-73557 的 NVD 参考资料，找到它引用的 vllm-project/vllm PR，再查该 PR 实际合入的提交 SHA。如果引用了多个该仓库 PR，取编号最小的一个。请给出漏洞到 PR、PR 到合并提交这两步关系，并分别引用对应来源。只回答这两条关系，不附加漏洞描述或其他开发对象。",
+      "raw_verified_relation_path": [
+        "cve:CVE-2026-73557",
+        "references-development-object",
+        "github:vllm-project/vllm:pull:48583",
+        "merged-as",
+        "git:commit:793cf79c89d4049124e756915468ac30318f2e50"
+      ],
+      "gold_derivation": "NVD references URL plus GitHub merge_commit_sha / parents[0].sha; no model output or knowledge prediction used to select answer",
+      "proof": [
+        {
+          "relation_id": "088d787b-251d-56ec-8d53-3071117afac7",
+          "evidence": {
+            "evidence_ref": "evidence:7c6b6601-5101-58c2-aca5-491c42c8cc17",
+            "source_id": "nvd-cves-2",
+            "observation_id": "b49930f7-d611-4aa3-9bd8-e22883f70f1c",
+            "artifact_id": "45507406-8a0a-4fed-ad00-f4ef2c1f716e",
+            "external_object_id": "CVE-2026-73557",
+            "external_revision": "2026-10-15T20:42:47.637000+00:00",
+            "published_at": "2026-08-13T15:20:18.080000Z",
+            "updated_at": "2026-10-15T20:42:47.637000Z",
+            "observed_at": "2026-10-15T20:43:17.383791Z",
+            "canonical_url": "https://nvd.nist.gov/vuln/detail/CVE-2026-73557",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.cve.references"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/27/27d6d801ebe4aee80485b5b763ec4e9efd6efec75630e5829cb49dbfeb5b926f",
+          "sha256": "27d6d801ebe4aee80485b5b763ec4e9efd6efec75630e5829cb49dbfeb5b926f"
+        },
+        {
+          "relation_id": "50aaa46e-6f94-546c-8d82-889d70d33595",
+          "evidence": {
+            "evidence_ref": "evidence:fd694dd5-15a5-555e-9617-3eddb0fea835",
+            "source_id": "github-target-repos",
+            "observation_id": "29246446-959c-47e6-ba40-644ef4226e46",
+            "artifact_id": "b7316ab4-dd9d-4065-99d3-b1ece0c0b7bd",
+            "external_object_id": "vllm-project/vllm#pull-48583",
+            "external_revision": "2026-07-14T11:08:25+00:00",
+            "published_at": "2026-07-14T07:49:32Z",
+            "updated_at": "2026-07-14T11:08:25Z",
+            "observed_at": "2026-10-17T11:18:45.006241Z",
+            "canonical_url": "https://github.com/vllm-project/vllm/pull/48583",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.merge_commit_sha"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/92/921f784eea5593ef98914efeb21659c83aa5b33033521c007b867ee411edad9d",
+          "sha256": "921f784eea5593ef98914efeb21659c83aa5b33033521c007b867ee411edad9d"
+        }
+      ]
+    },
+    {
+      "case_id": "qa-prelim-cve-2026-110807-unmerged-control",
+      "cve": "CVE-2026-110807",
+      "repo": "sgl-project/sglang",
+      "question": "与 CVE-2026-110807 关联的 sgl-project/sglang PR #41535 是否已经合并？仅回答该 PR 的真实合并状态并引用 GitHub 来源；不要把测试合并 SHA 当成已经合并。",
+      "gold_derivation": "Raw GitHub merged=false; non-null merge_commit_sha is a test commit, not a completed merge.",
+      "proof": [
+        {
+          "evidence": {
+            "evidence_ref": "evidence:1e41ef71-e323-54f7-9ad5-e4af97953ad2",
+            "source_id": "github-target-repos",
+            "observation_id": "88fe6741-cad2-481d-a977-7c2f4a8de6ba",
+            "artifact_id": "17f9490c-74bd-4f83-93f3-bdf22edfe614",
+            "external_object_id": "sgl-project/sglang#pull-41535",
+            "external_revision": "2026-09-29T01:13:37+00:00",
+            "published_at": "2026-09-28T08:36:35Z",
+            "updated_at": "2026-09-29T01:13:37Z",
+            "observed_at": "2026-10-17T11:18:30.045826Z",
+            "canonical_url": "https://github.com/sgl-project/sglang/pull/41535",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.merged"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/78/781982e52d936d3a8d6f05293898267d05e0c01ea80c686aa856beaef1fcb9a4",
+          "sha256": "781982e52d936d3a8d6f05293898267d05e0c01ea80c686aa856beaef1fcb9a4"
+        }
+      ]
+    },
+    {
+      "case_id": "qa-prelim-cve-2026-110809-unmerged-control",
+      "cve": "CVE-2026-110809",
+      "repo": "sgl-project/sglang",
+      "question": "与 CVE-2026-110809 关联的 sgl-project/sglang PR #41483 是否已经合并？仅回答该 PR 的真实合并状态并引用 GitHub 来源；不要把测试合并 SHA 当成已经合并。",
+      "gold_derivation": "Raw GitHub merged=false; non-null merge_commit_sha is a test commit, not a completed merge.",
+      "proof": [
+        {
+          "evidence": {
+            "evidence_ref": "evidence:4cdff84f-e1dd-58e4-8f96-6f156b354be7",
+            "source_id": "github-target-repos",
+            "observation_id": "b2602c4e-89e3-498c-8ee9-f7af445aa830",
+            "artifact_id": "b5b02a6d-a26e-4469-afac-4a4c70137c8a",
+            "external_object_id": "sgl-project/sglang#pull-41483",
+            "external_revision": "2026-09-27T20:31:21+00:00",
+            "published_at": "2026-09-27T20:25:39Z",
+            "updated_at": "2026-09-27T20:31:21Z",
+            "observed_at": "2026-10-17T11:18:31.322648Z",
+            "canonical_url": "https://github.com/sgl-project/sglang/pull/41483",
+            "locator": {
+              "kind": "jsonpath",
+              "path": "$.merged"
+            }
+          },
+          "artifact_uri": "artifact://secfusion-evidence/sha256/10/106ae53d14124a23be1ebc66d6aaefc150264f3b2051859aac5e62db165d9e15",
+          "sha256": "106ae53d14124a23be1ebc66d6aaefc150264f3b2051859aac5e62db165d9e15"
+        }
+      ]
+    }
+  ]
+}

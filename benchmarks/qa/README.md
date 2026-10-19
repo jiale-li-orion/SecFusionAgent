@@ -1,5 +1,11 @@
 # M6 QA benchmark assets
 
+Latest preliminary evidence: [2026-10-17 strict QA results](preliminary-20261017-results.json),
+[raw-source gold provenance](preliminary-gold-provenance.json), and
+[same-deployment competition report](../competition/preliminary-20261017.md).
+These dated assets preserve the final fixed-set rerun separately from the historical generated
+baseline below. Main-set and previously held-out results remain separate in the JSON.
+
 <!-- BEGIN GENERATED QA STATUS -->
 ## Retained M6 formal evidence (generated)
 
@@ -69,3 +75,43 @@ uv run python -m scripts.validate_qa_manifest \
 This first session denominator measures turn correctness, durable context chaining and canonical target carry. Follow-up `RETRIEVE` turns now expose three separate retrieval diagnostics. `m6.session_retrieval_overlap_rate` reports how many current `document-chunk:*` refs were already exposed by prior turns. `m6.session_retrieval_invocation_coverage` checks whether the expected retrieval turn has exactly one durable `RetrievalInvocation`. `m6.session_retrieval_reuse_rate` reads that invocation's `executed/reused` disposition, so exact Product-level reuse is measured from operational provenance instead of inferred from chunk overlap. The current reuse policy is intentionally strict: only the same Product session + exact request digest + same Knowledge revision/operator/limit/source scope may reuse prior ordered chunk refs; any stale/missing chunk ref falls back to a fresh lexical search.
 
 `session-overlap-diagnostic-v1.json` is a separate live-external evaluation-infrastructure denominator pinned at Knowledge revision 1731. It exists because the reviewed reuse candidate can legitimately execute/reuse an empty retrieval result, in which case chunk-overlap has no denominator and must remain `not_evaluated` even though invocation coverage/reuse are measurable. The diagnostic uses the same CVE target and structured-authority CVSS gold but a deliberately minimal `CVSS score` retrieval query that has non-empty lexical results. `session-overlap-diagnostic-current.json` records BenchmarkRun `a395c200-7eb1-439d-99b9-532f5e748377`: both turns score 1.0 on QA, the first invocation executes a non-empty result set, the second reuses it, and overlap / invocation coverage / reuse are all 1.0. This diagnostic closes the metric implementation/provenance gap; it does not replace the reviewed natural-language session denominator.
+
+New strict benchmarks must pin `evaluator_revision: qa-v2` (or `qa-session-v2`) and report
+`m6.task_correctness@1` alongside answer, citation, completion and path diagnostics. Existing v1
+assets retain their historical evaluator and results. Gold unknowns that the answer must mention
+belong in both `required_unknowns` and `acceptable_unknowns`; the latter alone permits an unknown
+but does not require it. Strict multi-hop success requires all supported paths actually used in
+the Decision, as well as a correct complete answer; context availability is only diagnostic.
+Every frozen case and session turn remains in the task denominator when execution fails.
+See `packages/evaluation/README.md` for the revision and provenance contract.
+
+## Preliminary structured two-hop benchmark
+
+`preliminary-structured-v2.json` freezes 20 positive two-hop CVE cases across eight development repositories,
+plus two unmerged-PR controls (nine repositories overall), at Knowledge revision 8024. The candidate population was all 32 retained NVD records
+referencing supported GitHub PRs/commits; 26 had semantically valid two-edge provider chains. Selection used
+repository round-robin and CVE ordering before any model execution. One source record returned 404;
+three selected PR records had no merge SHA; two unmerged PRs carried synthetic test merge SHAs
+and became negative controls. These construction exclusions are not model successes.
+
+Gold is derived independently from raw NVD reference URLs and GitHub `merge_commit_sha` or
+`parents[0].sha`. Both supporting blobs must pass SHA-256 verification and match the declared
+canonical path. Questions are Chinese, bound-target structured requests that supply no intermediate object identifier;
+ties use lowest PR number or lexicographically lowest commit SHA. They require both relation
+facts and source citations. They do not establish open-world investigation quality, natural-language
+paraphrase robustness, conflict adjudication or three-hop coverage. The generation ledger, raw input
+capture, run outputs and source patch are retained in the dated local evaluation artifact bundle.
+
+Use `qa-v2`, preserve all 22 outcomes (including failures), and report whole-task multi-hop accuracy
+over the 20 positive cases, and total task success over all 22. CVE roots are distinct, but
+project/template clusters are correlated. Nine positive cases also expose the final SHA in the NVD
+references; the verifier still requires both source-bound relationships. Never compare it numerically as the same metric as `qa-v1`
+context-path coverage. A rerun after changes receives a new suite/deployment revision.
+
+`preliminary-holdout-v2.json` contains all six remaining valid positive chains, frozen before the
+v8 prompt adjustment and never executed in the first development run. Report its result separately
+from the 20 reused positive cases and the two controls. This is a small same-family holdout with
+correlated project clusters, not a broad blind benchmark or a temporal generalization test.
+After its first execution, any subsequent run of those six cases is repeated validation,
+not a new unseen test. Preserve the initial held-out result alongside later results and
+report generation configuration changes as part of the new deployment identity.

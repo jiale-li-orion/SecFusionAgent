@@ -91,6 +91,7 @@ EVALUATION_METRIC_GROUPS: tuple[EvaluationMetricGroup, ...] = (
         purpose="answer, evidence, multi-hop, abstention/conflict, completion and latency",
         metric_names=(
             "m6.answer_accuracy",
+            "m6.task_correctness",
             "m6.groundedness",
             "m6.citation_correctness",
             "m6.citation_completeness",

@@ -23,10 +23,16 @@ from packages.evaluation.benchmark import (
     MeasurementSource,
     MetricDirection,
 )
-from packages.evaluation.benchmark.metrics import metric_definition
+from packages.evaluation.benchmark.metrics import QA_V2_METRIC_REVISIONS, metric_definition
 from packages.evaluation.benchmark.storage import DeploymentRevisionModel
 from packages.evaluation.m1_m3 import EnrichmentScore
-from packages.evaluation.qa import QACitationCheck, QAGold, QAPrediction, QAScore
+from packages.evaluation.qa import (
+    QACitationCheck,
+    QAGold,
+    QAPrediction,
+    QAScore,
+    qa_evaluator_version,
+)
 from packages.intelligence.knowledge.vocabulary import VOCABULARY_REVISION
 from packages.intelligence.retrieval.validation import current_knowledge_revision
 from packages.intelligence.storage.evidence_models import ObservationModel
@@ -60,6 +66,14 @@ from packages.shared.config import Settings
 from packages.shared.model_provider import ModelProvider
 from packages.task_runtime.contracts.models import TaskKind, TaskRunStatus
 from packages.task_runtime.storage.models import ContextManifestVersionModel, TaskRunModel
+
+
+class QAProjectionProvenanceError(ValueError):
+    """Invalid evaluation coordinates or evidence must not become model-quality failures."""
+
+
+class QAWorldDriftError(QAProjectionProvenanceError):
+    """A live QA observation cannot be bound to its frozen Knowledge world."""
 
 
 class M3BenchmarkRecorder:
@@ -538,9 +552,7 @@ async def load_investigation_completion_trace(
     active_episode_count = len(episodes) - terminal_episode_count
     failed_episode_count = sum(item.status == TaskRunStatus.FAILED.value for item in episodes)
     timed_out_episode_count = sum(item.status == TaskRunStatus.TIMED_OUT.value for item in episodes)
-    completed_episode_count = sum(
-        item.status == TaskRunStatus.COMPLETED.value for item in episodes
-    )
+    completed_episode_count = sum(item.status == TaskRunStatus.COMPLETED.value for item in episodes)
     episode_statuses = [item.status for item in episodes]
     agent_wall_latency_seconds: float | None = None
     if episodes and terminal_episode_count == len(episodes):
@@ -568,9 +580,7 @@ async def load_investigation_completion_trace(
     execution_rows = (
         list(
             await session.scalars(
-                select(ExecutionRunModel).where(
-                    ExecutionRunModel.task_run_id.in_(all_role_run_ids)
-                )
+                select(ExecutionRunModel).where(ExecutionRunModel.task_run_id.in_(all_role_run_ids))
             )
         )
         if all_role_run_ids
@@ -735,7 +745,8 @@ async def validate_structured_qa_gold_provenance(
 
     if gold.required_relation_paths:
         observed_paths = {
-            tuple(path) for path in await _relation_paths_for_refs(session, relation_refs)
+            tuple(path)
+            for path in await _relation_paths_for_refs(session, relation_refs, maximum_hops=6)
         }
         missing_paths = {tuple(path) for path in gold.required_relation_paths} - observed_paths
         if missing_paths:
@@ -793,7 +804,8 @@ class QABenchmarkRecorder:
             else []
         )
         execution_refs = list(prediction.execution_refs) if prediction is not None else []
-        values: list[tuple[str, float]] = [
+        version = qa_evaluator_version(score.evaluator_revision)
+        values: list[tuple[str, float | None]] = [
             ("m6.answer_accuracy", score.answer_accuracy),
             ("m6.groundedness", score.groundedness),
             ("m6.citation_correctness", score.citation_correctness),
@@ -802,22 +814,33 @@ class QABenchmarkRecorder:
             ("m6.conflict_handling", score.conflict_handling),
             ("m6.completion_correctness", score.completion_correctness),
         ]
+        if version == 2:
+            if score.task_correctness is None:
+                raise ValueError("qa-v2 score requires task_correctness")
+            values.append(("m6.task_correctness", score.task_correctness))
         if score.multi_hop_correctness is not None:
             values.append(("m6.multi_hop_correctness", score.multi_hop_correctness))
         if score.interactive_latency_seconds is not None:
             values.append(("m6.interactive_latency_seconds", score.interactive_latency_seconds))
         for metric_name, value in values:
-            definition = metric_definition(metric_name)
+            if value is None:
+                continue
+            revision = "1" if version == 1 else QA_V2_METRIC_REVISIONS.get(metric_name, "1")
+            definition = metric_definition(metric_name, revision=revision)
             await self._store.observe_metric(
                 session,
                 case_run_id=case_run_id,
                 metric_name=metric_name,
+                metric_definition_revision=definition.revision,
                 value=value,
                 direction=definition.direction,
                 measurement_source=MeasurementSource.SCORER,
                 subject_ref=subject_ref,
                 evidence_refs=evidence_refs,
-                metadata={"execution_refs": cast(JsonValue, execution_refs)},
+                metadata={
+                    "execution_refs": cast(JsonValue, execution_refs),
+                    "evaluator_revision": score.evaluator_revision,
+                },
             )
 
         if prediction is not None and gold is not None:
@@ -920,6 +943,7 @@ def project_decision_to_qa_prediction(
     decision: DecisionResult,
     state: InvestigationState,
     relation_paths: Iterable[Iterable[str]] = (),
+    decision_relation_paths: Iterable[Iterable[str]] = (),
     citation_support: Mapping[tuple[int, str], bool] | None = None,
     interactive_latency_seconds: float | None = None,
     execution_refs: Iterable[str] = (),
@@ -927,12 +951,12 @@ def project_decision_to_qa_prediction(
     """Project a persisted M6 decision into the evaluation-neutral QA contract."""
 
     if not benchmark_case_id.strip():
-        raise ValueError("benchmark_case_id cannot be empty")
+        raise QAProjectionProvenanceError("benchmark_case_id cannot be empty")
     if decision.case_id != state.case_id:
-        raise ValueError("decision case_id does not match M4 state")
+        raise QAProjectionProvenanceError("decision case_id does not match M4 state")
     current = state.current_decision
     if current is not None and current.get("decision_id") != decision.decision_id:
-        raise ValueError("M4 current_decision does not match projected decision")
+        raise QAProjectionProvenanceError("M4 current_decision does not match projected decision")
 
     support_verdicts = dict(citation_support or {})
     eligible_indexes = {
@@ -946,7 +970,7 @@ def project_decision_to_qa_prediction(
         if citation.conclusion_index not in eligible_indexes:
             continue
         if citation.conclusion_index >= len(decision.conclusions):
-            raise ValueError("decision citation conclusion_index is out of range")
+            raise QAProjectionProvenanceError("decision citation conclusion_index is out of range")
         conclusion = decision.conclusions[citation.conclusion_index]
         verdict_key = (citation.conclusion_index, citation.evidence_ref)
         explicit = support_verdicts.get(verdict_key)
@@ -971,7 +995,9 @@ def project_decision_to_qa_prediction(
         rendered = ", ".join(
             f"{index}:{evidence_ref}" for index, evidence_ref in sorted(stale_verdicts)
         )
-        raise ValueError(f"citation support verdict does not match decision citation: {rendered}")
+        raise QAProjectionProvenanceError(
+            f"citation support verdict does not match decision citation: {rendered}"
+        )
 
     reasoning_refs = [
         ref
@@ -988,6 +1014,7 @@ def project_decision_to_qa_prediction(
             *execution_refs,
         ]
     )
+    available_paths = [list(path) for path in relation_paths]
     return QAPrediction(
         case_id=benchmark_case_id,
         conclusion_facts=[
@@ -995,7 +1022,9 @@ def project_decision_to_qa_prediction(
             for conclusion in decision.conclusions
             if conclusion.type is not ConclusionType.RECOMMENDATION
         ],
-        relation_paths=[list(path) for path in relation_paths],
+        relation_paths=available_paths,
+        available_relation_paths=available_paths,
+        decision_relation_paths=[list(path) for path in decision_relation_paths],
         citations=citations,
         unknowns=list(decision.unknowns),
         conflicts=list(decision.conflicts),
@@ -1018,7 +1047,9 @@ def project_continuation_state_to_qa_prediction(
 
     needs = list(evidence_need_refs)
     if not needs:
-        raise ValueError("continuation projection requires at least one EvidenceNeed ref")
+        raise QAProjectionProvenanceError(
+            "continuation projection requires at least one EvidenceNeed ref"
+        )
     return QAPrediction(
         case_id=benchmark_case_id,
         conclusion_facts=[],
@@ -1057,12 +1088,17 @@ async def load_product_qa_prediction(
         try:
             decision = DecisionResult.model_validate(state.current_decision)
         except ValueError as exc:
-            raise ValueError(f"persisted decision is invalid for case: {product_case_id}") from exc
+            raise QAProjectionProvenanceError(
+                f"persisted decision is invalid for case: {product_case_id}"
+            ) from exc
         return project_decision_to_qa_prediction(
             benchmark_case_id=benchmark_case_id,
             decision=decision,
             state=state,
             relation_paths=relation_paths,
+            decision_relation_paths=await _decision_relation_paths(
+                session, decision, citation_support=citation_support
+            ),
             citation_support=citation_support,
             interactive_latency_seconds=interactive_latency_seconds,
             execution_refs=execution_refs,
@@ -1074,7 +1110,9 @@ async def load_product_qa_prediction(
         statuses={EvidenceNeedStatus.OPEN, EvidenceNeedStatus.BLOCKED},
     )
     if not needs:
-        raise LookupError(f"case has no persisted decision or continuation: {product_case_id}")
+        raise QAProjectionProvenanceError(
+            f"case has no persisted decision or continuation: {product_case_id}"
+        )
     return project_continuation_state_to_qa_prediction(
         benchmark_case_id=benchmark_case_id,
         state=state,
@@ -1111,7 +1149,9 @@ async def execute_product_case_qa_prediction(
         await session.rollback()
 
     if state.current_decision is not None:
-        raise ValueError("live Product QA source case must not already contain a current decision")
+        raise QAProjectionProvenanceError(
+            "live Product QA source case must not already contain a current decision"
+        )
 
     started = monotonic()
     proposal = await ModelDecisionPlanner(provider).plan(
@@ -1137,6 +1177,9 @@ async def execute_product_case_qa_prediction(
                     decision=outcome.decision,
                     state=projected_state,
                     relation_paths=relation_paths,
+                    decision_relation_paths=await _decision_relation_paths(
+                        session, outcome.decision, citation_support=citation_support
+                    ),
                     citation_support=citation_support,
                     interactive_latency_seconds=latency,
                     execution_refs=merged_execution_refs,
@@ -1188,7 +1231,7 @@ async def execute_product_question_qa_execution(
         if expected_knowledge_revision is not None:
             current_revision = await current_knowledge_revision(session)
             if current_revision != expected_knowledge_revision:
-                raise ValueError(
+                raise QAWorldDriftError(
                     "live Product QA knowledge revision drifted before execution: "
                     f"expected={expected_knowledge_revision}, current={current_revision}"
                 )
@@ -1228,13 +1271,13 @@ async def execute_product_question_qa_execution(
         )
         if expected_knowledge_revision is not None:
             if context_revisions != {expected_knowledge_revision}:
-                raise ValueError(
+                raise QAWorldDriftError(
                     "live Product QA ContextManifest knowledge revision does not match pin: "
                     f"expected={expected_knowledge_revision}, observed={sorted(context_revisions)}"
                 )
             current_revision = await current_knowledge_revision(session)
             if current_revision != expected_knowledge_revision:
-                raise ValueError(
+                raise QAWorldDriftError(
                     "live Product QA knowledge revision drifted during execution: "
                     f"expected={expected_knowledge_revision}, current={current_revision}"
                 )
@@ -1252,6 +1295,9 @@ async def execute_product_question_qa_execution(
                     benchmark_case_id=benchmark_case_id,
                     decision=decision,
                     relation_paths=runtime_relation_paths,
+                    decision_relation_paths=await _decision_relation_paths(
+                        session, decision, citation_support=citation_support
+                    ),
                     citation_support=citation_support,
                     interactive_latency_seconds=latency,
                     execution_refs=merged_execution_refs,
@@ -1265,7 +1311,9 @@ async def execute_product_question_qa_execution(
         state = await InvestigationStateService().get_state(session, investigation.case_id)
         need_refs = [f"evidence-need:{item.need_id}" for item in investigation.open_evidence_needs]
         if not need_refs:
-            raise ValueError("accepted Product question has no durable EvidenceNeed")
+            raise QAProjectionProvenanceError(
+                "accepted Product question has no durable EvidenceNeed"
+            )
         return ProductQuestionQAExecution(
             prediction=project_continuation_state_to_qa_prediction(
                 benchmark_case_id=benchmark_case_id,
@@ -1323,6 +1371,36 @@ async def execute_product_question_qa_prediction(
     return execution.prediction
 
 
+async def load_product_question_failure_qa_prediction(
+    session_factory: async_sessionmaker[AsyncSession],
+    *,
+    benchmark_case_id: str,
+    request_id: str,
+    interactive_latency_seconds: float,
+    expected_knowledge_revision: int | None = None,
+    execution_refs: Iterable[str] = (),
+) -> QAPrediction:
+    """Keep failed execution in its frozen denominator without inventing model calls."""
+    async with session_factory() as session:
+        runtime_refs, context_revisions, _ = await _product_question_execution_refs(
+            session, request_id
+        )
+        if expected_knowledge_revision is not None:
+            current = await current_knowledge_revision(session)
+            if current != expected_knowledge_revision or (
+                context_revisions and context_revisions != {expected_knowledge_revision}
+            ):
+                raise QAWorldDriftError("failed Product QA knowledge revision does not match pin")
+    return QAPrediction(
+        case_id=benchmark_case_id,
+        completion_status="execution_failed",
+        interactive_latency_seconds=interactive_latency_seconds,
+        execution_refs=_stable_unique(
+            [f"product-request:{request_id}", *runtime_refs, *execution_refs]
+        ),
+    )
+
+
 async def load_product_question_timeout_qa_prediction(
     session_factory: async_sessionmaker[AsyncSession],
     *,
@@ -1350,7 +1428,7 @@ async def load_product_question_timeout_qa_prediction(
             if ref.startswith("model-request:")
         ]
         if not model_request_ids:
-            raise LookupError("Product QA timeout has no persisted ModelRequest")
+            raise QAProjectionProvenanceError("Product QA timeout has no persisted ModelRequest")
         attempts = list(
             await session.scalars(
                 select(ModelAttemptModel).where(
@@ -1359,19 +1437,19 @@ async def load_product_question_timeout_qa_prediction(
             )
         )
         if not any(item.failure_class == "timeout_before_response" for item in attempts):
-            raise ValueError(
+            raise QAProjectionProvenanceError(
                 "Product QA TimeoutError is not backed by a recorded "
                 "timeout_before_response attempt"
             )
         if expected_knowledge_revision is not None:
             if context_revisions != {expected_knowledge_revision}:
-                raise ValueError(
+                raise QAWorldDriftError(
                     "timed-out Product QA ContextManifest knowledge revision does not match pin: "
                     f"expected={expected_knowledge_revision}, observed={sorted(context_revisions)}"
                 )
             current_revision = await current_knowledge_revision(session)
             if current_revision != expected_knowledge_revision:
-                raise ValueError(
+                raise QAWorldDriftError(
                     "timed-out Product QA knowledge revision drifted during execution: "
                     f"expected={expected_knowledge_revision}, current={current_revision}"
                 )
@@ -1391,6 +1469,7 @@ def project_validated_decision_to_qa_prediction(
     benchmark_case_id: str,
     decision: DecisionResult,
     relation_paths: Iterable[Iterable[str]] = (),
+    decision_relation_paths: Iterable[Iterable[str]] = (),
     citation_support: Mapping[tuple[int, str], bool] | None = None,
     interactive_latency_seconds: float | None = None,
     execution_refs: Iterable[str] = (),
@@ -1403,7 +1482,7 @@ def project_validated_decision_to_qa_prediction(
     """
 
     if not benchmark_case_id.strip():
-        raise ValueError("benchmark_case_id cannot be empty")
+        raise QAProjectionProvenanceError("benchmark_case_id cannot be empty")
     support_verdicts = dict(citation_support or {})
     eligible_indexes = {
         index
@@ -1416,7 +1495,7 @@ def project_validated_decision_to_qa_prediction(
         if citation.conclusion_index not in eligible_indexes:
             continue
         if citation.conclusion_index >= len(decision.conclusions):
-            raise ValueError("decision citation conclusion_index is out of range")
+            raise QAProjectionProvenanceError("decision citation conclusion_index is out of range")
         conclusion = decision.conclusions[citation.conclusion_index]
         verdict_key = (citation.conclusion_index, citation.evidence_ref)
         explicit = support_verdicts.get(verdict_key)
@@ -1434,6 +1513,7 @@ def project_validated_decision_to_qa_prediction(
         )
     _reject_stale_citation_verdicts(support_verdicts, consumed_verdicts)
     reasoning_refs = _decision_reasoning_refs(decision.conclusions, eligible_indexes)
+    available_paths = [list(path) for path in relation_paths]
     return QAPrediction(
         case_id=benchmark_case_id,
         conclusion_facts=[
@@ -1441,7 +1521,9 @@ def project_validated_decision_to_qa_prediction(
             for conclusion in decision.conclusions
             if conclusion.type is not ConclusionType.RECOMMENDATION
         ],
-        relation_paths=[list(path) for path in relation_paths],
+        relation_paths=available_paths,
+        available_relation_paths=available_paths,
+        decision_relation_paths=[list(path) for path in decision_relation_paths],
         citations=citations,
         unknowns=list(decision.unknowns),
         conflicts=list(decision.conflicts),
@@ -1608,6 +1690,8 @@ async def load_product_question_session_trace(
 async def _relation_paths_for_refs(
     session: AsyncSession,
     relation_refs: Iterable[str],
+    *,
+    maximum_hops: int = 2,
 ) -> list[list[str]]:
     relation_ids = [
         ref.removeprefix("relation:") for ref in relation_refs if ref.startswith("relation:")
@@ -1630,6 +1714,34 @@ async def _relation_paths_for_refs(
             select(ObjectModel).where(ObjectModel.object_id.in_(object_ids))
         )
     }
+    if maximum_hops > 2:
+        # Strict paths are bounded simple directed paths; no cycles or inferred edges.
+        adjacency: dict[str, list[RelationModel]] = {}
+        for relation in relations:
+            adjacency.setdefault(relation.source_object_id, []).append(relation)
+        found: set[tuple[str, ...]] = set()
+
+        def walk(node: str, path: tuple[str, ...], visited: set[str], hops: int) -> None:
+            if hops >= 2:
+                found.add(path)
+            if hops >= min(maximum_hops, 6):
+                return
+            for edge in adjacency.get(node, []):
+                target = objects.get(edge.target_object_id)
+                if target is not None and target.object_id not in visited:
+                    walk(
+                        target.object_id,
+                        (*path, edge.relation_type, target.canonical_key),
+                        visited | {target.object_id},
+                        hops + 1,
+                    )
+
+        for source_id in sorted(adjacency):
+            source = objects.get(source_id)
+            if source is not None:
+                walk(source_id, (source.canonical_key,), {source_id}, 0)
+        return [list(path) for path in sorted(found)]
+
     paths: list[list[str]] = []
     for first in relations:
         source = objects.get(first.source_object_id)
@@ -1654,6 +1766,68 @@ async def _relation_paths_for_refs(
     return [list(path) for path in dict.fromkeys(tuple(path) for path in paths)]
 
 
+async def _decision_relation_paths(
+    session: AsyncSession,
+    decision: DecisionResult,
+    *,
+    citation_support: Mapping[tuple[int, str], bool] | None = None,
+) -> list[list[str]]:
+    """Resolve only cited, supported edges actually used by eligible Decision conclusions.
+
+    Exact FACT edge conclusions are explicit usage. Inferences additionally need frozen
+    citation adjudication and explicit reasoning refs; a reference's presence alone is not support.
+    ContextManifest availability never enters this calculation.
+    """
+    verdicts = citation_support or {}
+    used_refs: set[str] = set()
+    for citation in decision.citations:
+        if not 0 <= citation.conclusion_index < len(decision.conclusions):
+            continue
+        conclusion = decision.conclusions[citation.conclusion_index]
+        if conclusion.type is ConclusionType.RECOMMENDATION:
+            continue
+        if citation.evidence_ref not in conclusion.evidence_refs:
+            continue
+        supported = verdicts.get(
+            (citation.conclusion_index, citation.evidence_ref),
+            conclusion.type is ConclusionType.FACT,
+        )
+        if not supported or not citation.evidence_ref.startswith("evidence:"):
+            continue
+        link = await session.get(EvidenceLinkModel, citation.evidence_ref.removeprefix("evidence:"))
+        if link is None or link.target_kind != "relation":
+            continue
+        relation = await session.get(RelationModel, link.target_id)
+        if (
+            relation is None
+            or relation.superseded_revision is not None
+            or relation.lifecycle != "accepted"
+        ):
+            continue
+        relation_ref = f"relation:{relation.relation_id}"
+        if relation_ref in conclusion.reasoning_relation_refs:
+            used_refs.add(relation_ref)
+            continue
+        if conclusion.type is not ConclusionType.FACT:
+            continue
+        source = await session.get(ObjectModel, relation.source_object_id)
+        target = await session.get(ObjectModel, relation.target_object_id)
+        if (
+            source is not None
+            and target is not None
+            and conclusion.statement
+            == render_relation_fact(
+                source.canonical_key,
+                relation.relation_type,
+                target.canonical_key,
+                qualifier=relation.qualifier,
+                target_properties=target.properties,
+            )
+        ):
+            used_refs.add(relation_ref)
+    return await _relation_paths_for_refs(session, sorted(used_refs), maximum_hops=6)
+
+
 def _decision_reasoning_refs(
     conclusions: Iterable[DecisionConclusion],
     eligible_indexes: set[int],
@@ -1675,7 +1849,9 @@ def _reject_stale_citation_verdicts(
         rendered = ", ".join(
             f"{index}:{evidence_ref}" for index, evidence_ref in sorted(stale_verdicts)
         )
-        raise ValueError(f"citation support verdict does not match decision citation: {rendered}")
+        raise QAProjectionProvenanceError(
+            f"citation support verdict does not match decision citation: {rendered}"
+        )
 
 
 async def _load_citation_sources(

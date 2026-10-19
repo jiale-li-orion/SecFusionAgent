@@ -191,3 +191,56 @@ async def test_benchmark_case_revision_is_immutable_and_suite_membership_is_enfo
                 )
     finally:
         await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_qa_metric_revisions_remain_immutable_and_observations_pin_each_revision() -> None:
+    engine, factory = await _database()
+    store = BenchmarkStore()
+    try:
+        async with factory() as session, session.begin():
+            await store.register_deployment(session, _deployment())
+            await store.register_case(session, _case("qa-history"))
+            await store.register_suite(
+                session,
+                BenchmarkSuite(
+                    suite_id="qa-history",
+                    suite_revision=1,
+                    domain=BenchmarkDomain.M6_QA,
+                    purpose="Metric history regression",
+                    case_refs=["qa-history@1"],
+                    gold_revision="gold-history",
+                    evaluator_revision="qa-v2",
+                    created_at=NOW,
+                ),
+            )
+            run = await store.start_run(
+                session,
+                suite_ref="qa-history@1",
+                deployment_revision_id="deployment:test-v1",
+                execution_mode=BenchmarkExecutionMode.OFFLINE_SCORER,
+                environment="test",
+                now=NOW,
+            )
+            case_run = await store.start_case_run(
+                session, benchmark_run_id=run.benchmark_run_id, case_ref="qa-history@1", now=NOW
+            )
+            for revision in ("1", "2"):
+                observation = await store.observe_metric(
+                    session,
+                    case_run_id=case_run.case_run_id,
+                    metric_name="m6.answer_accuracy",
+                    metric_definition_revision=revision,
+                    value=1,
+                    direction=MetricDirection.HIGHER_IS_BETTER,
+                    measurement_source=MeasurementSource.SCORER,
+                    now=NOW,
+                )
+                assert observation.metric_definition_revision == revision
+            old = await session.get(MetricDefinitionModel, "m6.answer_accuracy@1")
+            new = await session.get(MetricDefinitionModel, "m6.answer_accuracy@2")
+            assert old is not None and new is not None
+            assert old.denominator == "frozen QA cases with adjudicated answer gold"
+            assert old.definition_digest != new.definition_digest
+    finally:
+        await engine.dispose()

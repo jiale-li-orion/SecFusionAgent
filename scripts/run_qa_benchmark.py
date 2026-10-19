@@ -11,16 +11,25 @@ from time import monotonic
 from typing import Any, Literal, cast
 
 import httpx
-from pydantic import BaseModel, Field, JsonValue, model_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    JsonValue,
+    SerializerFunctionWrapHandler,
+    model_serializer,
+    model_validator,
+)
 
 from apps.evaluation_runtime import (
     QABenchmarkRecorder,
+    QAProjectionProvenanceError,
     ensure_benchmark_deployment_revision,
     execute_product_case_qa_prediction,
     execute_product_question_qa_execution,
     execute_product_question_qa_prediction,
     load_execution_measurement_trace,
     load_product_qa_prediction,
+    load_product_question_failure_qa_prediction,
     load_product_question_session_trace,
     load_product_question_timeout_qa_prediction,
     validate_structured_qa_gold_provenance,
@@ -39,8 +48,10 @@ from packages.evaluation.benchmark import (
 )
 from packages.evaluation.qa import (
     QAAdjudicationRecord,
+    QAEvaluatorRevision,
     QAGold,
     QAPrediction,
+    qa_evaluator_version,
     score_qa,
     validate_qa_adjudication_history,
 )
@@ -219,7 +230,8 @@ class QABenchmarkManifestCase(BaseModel):
             )
         if self.live_product_question is not None and self.relation_paths:
             raise ValueError(
-                "live Product Question relation_paths are derived from runtime ContextManifest"
+                "live Product Question relation_paths are derived from runtime ContextManifest; "
+                "strict path usage is derived from the Decision"
             )
         for key in self.citation_support:
             index, separator, evidence_ref = key.partition(":")
@@ -240,10 +252,25 @@ class QABenchmarkManifestCase(BaseModel):
 class QABenchmarkManifest(BaseModel):
     suite_id: str = "m6-qa"
     purpose: str = "Frozen QA accuracy, grounding, citation and multi-hop benchmark"
-    evaluator_revision: str = "qa-v1"
+    evaluator_revision: QAEvaluatorRevision = "qa-v2"
     knowledge_revision: int | None = Field(default=None, ge=0)
     cases: list[QABenchmarkManifestCase] = Field(default_factory=list)
     sessions: list[QASessionManifestCase] = Field(default_factory=list)
+
+    @model_serializer(mode="wrap")
+    def serialize_evaluator_schema(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        payload = handler(self)
+        if qa_evaluator_version(self.evaluator_revision) == 1:
+            # These keys did not exist in the frozen v1 schema. Leave arbitrary case input alone.
+            for case in payload.get("cases", []):
+                case.get("gold", {}).pop("required_unknowns", None)
+                if case.get("prediction") is not None:
+                    case["prediction"].pop("available_relation_paths", None)
+                    case["prediction"].pop("decision_relation_paths", None)
+            for session_case in payload.get("sessions", []):
+                for turn in session_case.get("turns", []):
+                    turn.get("gold", {}).pop("required_unknowns", None)
+        return cast(dict[str, Any], payload)
 
     @model_validator(mode="after")
     def validate_execution_mode(self) -> QABenchmarkManifest:
@@ -277,6 +304,12 @@ class QABenchmarkManifest(BaseModel):
         ):
             raise ValueError("structured-authority QA gold requires a pinned knowledge_revision")
         return self
+
+
+def _gold_payload(gold: QAGold, evaluator_revision: str) -> dict[str, JsonValue]:
+    """Preserve v1 gold digests and immutable expected_behavior registration payloads."""
+    excluded = {"required_unknowns"} if qa_evaluator_version(evaluator_revision) == 1 else set()
+    return cast(dict[str, JsonValue], gold.model_dump(mode="json", exclude=excluded))
 
 
 def _digest(value: object) -> str:
@@ -338,7 +371,7 @@ async def _run(
     gold_digest = _digest(
         [
             {
-                "gold": item.gold.model_dump(mode="json"),
+                "gold": _gold_payload(item.gold, manifest.evaluator_revision),
                 "gold_provenance": (
                     item.gold_provenance.model_dump(mode="json")
                     if item.gold_provenance is not None
@@ -400,7 +433,7 @@ async def _run(
                         execution_profile=_execution_profile(item),
                         target_refs=list(dict.fromkeys(target_refs)),
                         world_snapshot_ref=world_snapshot_ref,
-                        expected_behavior=item.gold.model_dump(mode="json"),
+                        expected_behavior=_gold_payload(item.gold, manifest.evaluator_revision),
                         gold_ref=f"qa-gold:{gold_digest}#{item.case_id}",
                         tags=["m6", "qa", *item.tags],
                         latency_class=item.latency_class,
@@ -424,6 +457,11 @@ async def _run(
                         "knowledge_revision": manifest.knowledge_revision,
                         "metrics": [
                             "answer_accuracy",
+                            *(
+                                ["task_correctness"]
+                                if manifest.evaluator_revision.endswith("v2")
+                                else []
+                            ),
                             "groundedness",
                             "citation_correctness",
                             "citation_completeness",
@@ -479,59 +517,78 @@ async def _run(
             try:
                 case_status = BenchmarkCaseRunStatus.PASSED
                 failure_class: str | None = None
-                if item.prediction is not None:
-                    prediction = item.prediction
-                elif item.product_case_id is not None:
-                    async with factory() as session:
-                        prediction = await load_product_qa_prediction(
-                            session,
+                started = monotonic()
+                request_id = f"benchmark:{run.benchmark_run_id}:{item.case_id}"
+                try:
+                    if item.prediction is not None:
+                        prediction = item.prediction
+                    elif item.product_case_id is not None:
+                        async with factory() as session:
+                            prediction = await load_product_qa_prediction(
+                                session,
+                                benchmark_case_id=item.case_id,
+                                product_case_id=item.product_case_id,
+                                relation_paths=item.relation_paths,
+                                citation_support=_citation_support(item.citation_support),
+                                interactive_latency_seconds=item.interactive_latency_seconds,
+                                execution_refs=item.execution_refs,
+                            )
+                            await session.rollback()
+                    elif item.live_product_case_id is not None:
+                        assert provider is not None
+                        prediction = await execute_product_case_qa_prediction(
+                            factory,
                             benchmark_case_id=item.case_id,
-                            product_case_id=item.product_case_id,
+                            product_case_id=item.live_product_case_id,
+                            provider=provider,
                             relation_paths=item.relation_paths,
                             citation_support=_citation_support(item.citation_support),
-                            interactive_latency_seconds=item.interactive_latency_seconds,
                             execution_refs=item.execution_refs,
                         )
-                        await session.rollback()
-                elif item.live_product_case_id is not None:
-                    assert provider is not None
-                    prediction = await execute_product_case_qa_prediction(
-                        factory,
-                        benchmark_case_id=item.case_id,
-                        product_case_id=item.live_product_case_id,
-                        provider=provider,
-                        relation_paths=item.relation_paths,
-                        citation_support=_citation_support(item.citation_support),
-                        execution_refs=item.execution_refs,
-                    )
-                else:
-                    assert item.live_product_question is not None
-                    assert provider is not None
-                    question = item.live_product_question
-                    request_id = f"benchmark:{run.benchmark_run_id}:{item.case_id}"
-                    started = monotonic()
-                    try:
-                        prediction = await execute_product_question_qa_prediction(
-                            factory,
-                            settings=settings,
-                            benchmark_case_id=item.case_id,
-                            request_id=request_id,
-                            provider=provider,
-                            question=question.question,
-                            cve_id=question.cve_id,
-                            object_id=question.object_id,
-                            task_kind=question.task_kind,
-                            required_source_roles=question.required_source_roles,
-                            priority=question.priority,
-                            interactive_timeout_seconds=question.interactive_timeout_seconds,
-                            retrieval_limit=question.retrieval_limit,
-                            principal=question.principal,
-                            citation_support=_citation_support(item.citation_support),
-                            execution_refs=item.execution_refs,
-                            expected_knowledge_revision=manifest.knowledge_revision,
-                        )
-                    except TimeoutError:
-                        prediction = await load_product_question_timeout_qa_prediction(
+                    else:
+                        assert item.live_product_question is not None
+                        assert provider is not None
+                        question = item.live_product_question
+                        request_id = f"benchmark:{run.benchmark_run_id}:{item.case_id}"
+                        started = monotonic()
+                        try:
+                            prediction = await execute_product_question_qa_prediction(
+                                factory,
+                                settings=settings,
+                                benchmark_case_id=item.case_id,
+                                request_id=request_id,
+                                provider=provider,
+                                question=question.question,
+                                cve_id=question.cve_id,
+                                object_id=question.object_id,
+                                task_kind=question.task_kind,
+                                required_source_roles=question.required_source_roles,
+                                priority=question.priority,
+                                interactive_timeout_seconds=question.interactive_timeout_seconds,
+                                retrieval_limit=question.retrieval_limit,
+                                principal=question.principal,
+                                citation_support=_citation_support(item.citation_support),
+                                execution_refs=item.execution_refs,
+                                expected_knowledge_revision=manifest.knowledge_revision,
+                            )
+                        except TimeoutError:
+                            prediction = await load_product_question_timeout_qa_prediction(
+                                factory,
+                                benchmark_case_id=item.case_id,
+                                request_id=request_id,
+                                interactive_latency_seconds=monotonic() - started,
+                                expected_knowledge_revision=manifest.knowledge_revision,
+                                execution_refs=item.execution_refs,
+                            )
+                            case_status = BenchmarkCaseRunStatus.FAILED
+                            failure_class = "TimeoutError"
+                except QAProjectionProvenanceError:
+                    raise
+                except Exception as exc:
+                    if not manifest.evaluator_revision.endswith("v2"):
+                        raise
+                    if item.live_product_question is not None:
+                        prediction = await load_product_question_failure_qa_prediction(
                             factory,
                             benchmark_case_id=item.case_id,
                             request_id=request_id,
@@ -539,9 +596,19 @@ async def _run(
                             expected_knowledge_revision=manifest.knowledge_revision,
                             execution_refs=item.execution_refs,
                         )
-                        case_status = BenchmarkCaseRunStatus.FAILED
-                        failure_class = "TimeoutError"
-                score = score_qa(gold=item.gold, prediction=prediction)
+                    else:
+                        prediction = QAPrediction(
+                            case_id=item.case_id,
+                            completion_status="execution_failed",
+                            execution_refs=item.execution_refs,
+                        )
+                    case_status = BenchmarkCaseRunStatus.FAILED
+                    failure_class = type(exc).__name__
+                score = score_qa(
+                    gold=item.gold,
+                    prediction=prediction,
+                    evaluator_revision=manifest.evaluator_revision,
+                )
                 async with factory() as session, session.begin():
                     execution_trace = await load_execution_measurement_trace(
                         session,
@@ -574,11 +641,7 @@ async def _run(
                         None,
                     )
                     execution_id = next(
-                        (
-                            ref
-                            for ref in prediction.execution_refs
-                            if ref.startswith("execution:")
-                        ),
+                        (ref for ref in prediction.execution_refs if ref.startswith("execution:")),
                         None,
                     )
                     await store.finish_case_run(
@@ -626,6 +689,7 @@ async def _run(
             "deployment_revision_id": resolved_deployment_id,
             "suite_ref": f"{manifest.suite_id}@{suite_revision}",
             "manifest_digest": manifest_digest,
+            "evaluator_revision": manifest.evaluator_revision,
             "gold_revision": f"qa-gold:{gold_digest}",
             "case_count": len(manifest.cases),
             "execution_mode": execution_mode.value,
@@ -667,7 +731,7 @@ async def _run_sessions(
                 "turns": [
                     {
                         "turn_id": turn.turn_id,
-                        "gold": turn.gold.model_dump(mode="json"),
+                        "gold": _gold_payload(turn.gold, manifest.evaluator_revision),
                         "gold_provenance": (
                             turn.gold_provenance.model_dump(mode="json")
                             if turn.gold_provenance is not None
@@ -748,7 +812,9 @@ async def _run_sessions(
                                 "turns": [
                                     {
                                         "turn_id": turn.turn_id,
-                                        "gold": turn.gold.model_dump(mode="json"),
+                                        "gold": _gold_payload(
+                                            turn.gold, manifest.evaluator_revision
+                                        ),
                                         "expected_target_keys": turn.expected_target_keys,
                                     }
                                     for turn in session_case.turns
@@ -779,6 +845,11 @@ async def _run_sessions(
                         "state_carry_policy": "targets_and_outcomes_v1",
                         "metrics": [
                             "m6.answer_accuracy",
+                            *(
+                                ["m6.task_correctness"]
+                                if manifest.evaluator_revision.endswith("v2")
+                                else []
+                            ),
                             "m6.groundedness",
                             "m6.citation_correctness",
                             "m6.citation_completeness",
@@ -845,6 +916,7 @@ async def _run_sessions(
             "deployment_revision_id": resolved_deployment_id,
             "suite_ref": f"{manifest.suite_id}@{suite_revision}",
             "manifest_digest": manifest_digest,
+            "evaluator_revision": manifest.evaluator_revision,
             "gold_revision": f"qa-session-gold:{gold_digest}",
             "session_count": len(manifest.sessions),
             "execution_mode": BenchmarkExecutionMode.LIVE_EXTERNAL.value,
@@ -886,6 +958,30 @@ async def _execute_session_cases(
                 request_id = (
                     f"benchmark:{benchmark_run_id}:{session_case.case_id}:turn:{turn.turn_id}"
                 )
+                if session_failure_class is not None:
+                    prediction = QAPrediction(
+                        case_id=turn.gold.case_id, completion_status="not_executed"
+                    )
+                    score = score_qa(
+                        gold=turn.gold,
+                        prediction=prediction,
+                        evaluator_revision=manifest.evaluator_revision,
+                    )
+                    async with factory() as session, session.begin():
+                        await recorder.record_case_score(
+                            session,
+                            case_run_id=case_run.case_run_id,
+                            score=score,
+                            subject_ref=f"qa-session:{session_case.case_id}#turn:{turn.turn_id}",
+                            prediction=prediction,
+                            gold=turn.gold,
+                        )
+                    turn_scores[turn.turn_id] = {
+                        **score.model_dump(mode="json"),
+                        "benchmark_turn_status": "not_executed",
+                        "failure_class": "PriorTurnFailed",
+                    }
+                    continue
                 started = monotonic()
                 try:
                     execution = await execute_product_question_qa_execution(
@@ -907,15 +1003,30 @@ async def _execute_session_cases(
                         citation_support=_citation_support(turn.citation_support),
                         expected_knowledge_revision=manifest.knowledge_revision,
                     )
-                except TimeoutError:
-                    timeout_prediction = await load_product_question_timeout_qa_prediction(
+                except QAProjectionProvenanceError:
+                    raise
+                except Exception as exc:
+                    if not isinstance(
+                        exc, TimeoutError
+                    ) and not manifest.evaluator_revision.endswith("v2"):
+                        raise
+                    failure_loader = (
+                        load_product_question_timeout_qa_prediction
+                        if isinstance(exc, TimeoutError)
+                        else load_product_question_failure_qa_prediction
+                    )
+                    timeout_prediction = await failure_loader(
                         factory,
                         benchmark_case_id=turn.gold.case_id,
                         request_id=request_id,
                         interactive_latency_seconds=monotonic() - started,
                         expected_knowledge_revision=manifest.knowledge_revision,
                     )
-                    score = score_qa(gold=turn.gold, prediction=timeout_prediction)
+                    score = score_qa(
+                        gold=turn.gold,
+                        prediction=timeout_prediction,
+                        evaluator_revision=manifest.evaluator_revision,
+                    )
                     async with factory() as session, session.begin():
                         execution_trace = await load_execution_measurement_trace(
                             session,
@@ -925,9 +1036,7 @@ async def _execute_session_cases(
                             session,
                             case_run_id=case_run.case_run_id,
                             score=score,
-                            subject_ref=(
-                                f"qa-session:{session_case.case_id}#turn:{turn.turn_id}"
-                            ),
+                            subject_ref=(f"qa-session:{session_case.case_id}#turn:{turn.turn_id}"),
                             prediction=timeout_prediction,
                             gold=turn.gold,
                         )
@@ -935,20 +1044,20 @@ async def _execute_session_cases(
                             session,
                             case_run_id=case_run.case_run_id,
                             trace=execution_trace,
-                            subject_ref=(
-                                f"qa-session:{session_case.case_id}#turn:{turn.turn_id}"
-                            ),
+                            subject_ref=(f"qa-session:{session_case.case_id}#turn:{turn.turn_id}"),
                         )
                     execution_refs.extend(timeout_prediction.execution_refs)
                     timeout_score = score.model_dump(mode="json")
                     timeout_score.update(
                         {
                             "benchmark_turn_status": "failed",
-                            "failure_class": "TimeoutError",
+                            "failure_class": type(exc).__name__,
                         }
                     )
                     turn_scores[turn.turn_id] = timeout_score
-                    session_failure_class = "TimeoutError"
+                    session_failure_class = type(exc).__name__
+                    if manifest.evaluator_revision.endswith("v2"):
+                        continue
                     break
                 if execution.turn_index != ordinal:
                     raise ValueError(
@@ -959,7 +1068,11 @@ async def _execute_session_cases(
                     product_session_id = execution.session_id
                 elif execution.session_id != product_session_id:
                     raise ValueError("Product QA session identity changed between turns")
-                score = score_qa(gold=turn.gold, prediction=execution.prediction)
+                score = score_qa(
+                    gold=turn.gold,
+                    prediction=execution.prediction,
+                    evaluator_revision=manifest.evaluator_revision,
+                )
                 async with factory() as session, session.begin():
                     execution_trace = await load_execution_measurement_trace(
                         session,
