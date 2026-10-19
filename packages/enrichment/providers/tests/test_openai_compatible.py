@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import json
+import traceback
 
 import httpx
 import pytest
-from pydantic import BaseModel
+from pydantic import BaseModel, JsonValue, ValidationError
 
 from packages.enrichment.providers.openai_compatible import (
     OpenAICompatibleProvider,
@@ -21,6 +22,80 @@ from packages.shared.model_provider import (
 
 class Result(BaseModel):
     value: str
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("persist", [False, True])
+@pytest.mark.parametrize("stream", [False, True])
+@pytest.mark.parametrize(
+    ("content", "finish_reason", "error_type"),
+    [
+        ('{"value":"private-visible', "length", ModelProviderMalformedOutputError),
+        ("private-visible invalid JSON", "stop", ModelProviderMalformedOutputError),
+        ('{"value":{"private-visible":true}}', "stop", ModelProviderResponseError),
+    ],
+)
+async def test_failed_output_retains_safe_immutable_response_telemetry(
+    persist, stream, content, finish_reason, error_type,
+) -> None:
+    usage = {
+        "prompt_tokens": 12, "completion_tokens": 4, "total_tokens": 16,
+        "prompt_tokens_details": {"cached_tokens": 3},
+        "completion_tokens_details": {"reasoning_tokens": 2},
+    }
+
+    def handler(request):
+        if stream:
+            chunks = [
+                {"id": "body-request", "model": "actual-model", "choices": [{"delta": {
+                    "reasoning_content": "private-reasoning", "content": content,
+                }}]},
+                {"choices": [{"finish_reason": finish_reason}]},
+                {"usage": usage, "choices": []},
+            ]
+            body = "".join(f"data: {json.dumps(chunk)}\n\n" for chunk in chunks)
+            return httpx.Response(200, text=body + "data: [DONE]\n\n", request=request)
+        return httpx.Response(200, json={
+            "id": "body-request", "model": "actual-model", "usage": usage,
+            "choices": [{"finish_reason": finish_reason, "message": {
+                "content": content, "reasoning_content": "private-reasoning",
+            }}],
+        }, request=request)
+
+    async def on_delta(kind, text):
+        pass
+
+    metadata: dict[str, JsonValue] = (
+        {"model_payload_persistence": "redacted_runtime_artifact"} if persist else {}
+    )
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        provider = OpenAICompatibleProvider(
+            client, base_url="https://provider.example/v1", chat_model="requested-model",
+            on_delta=on_delta if stream else None,
+        )
+        with pytest.raises(error_type) as captured:
+            await provider.generate_structured_result(
+                StructuredModelRequest(system_instruction="extract", data={}, metadata=metadata),
+                Result,
+            )
+    error = captured.value
+    telemetry = getattr(error, "response_metadata", None)
+    assert telemetry is not None
+    assert telemetry.actual_model == "actual-model"
+    assert telemetry.provider_request_id == "body-request"
+    assert telemetry.finish_reason == finish_reason
+    assert telemetry.usage.total_tokens == 16
+    assert telemetry.usage.cached_input_tokens == 3
+    assert telemetry.usage.reasoning_tokens == 2
+    with pytest.raises(ValidationError, match="frozen"):
+        telemetry.finish_reason = "changed"
+    with pytest.raises(ValidationError, match="frozen"):
+        telemetry.usage.total_tokens = 0
+    assert error.raw_response_content == (content if persist else None)
+    rendered = "".join(traceback.format_exception(error)) + repr(error) + repr(telemetry)
+    assert "private-visible" not in rendered
+    assert "private-reasoning" not in rendered
+    assert error.retryable is (error_type is ModelProviderMalformedOutputError)
 
 
 @pytest.mark.asyncio

@@ -16,6 +16,7 @@ from packages.shared.model_provider import (
     ModelProviderResponseError,
     ModelProviderTransientError,
     ProviderModelResult,
+    ProviderResponseMetadata,
     ProviderUsage,
     StructuredModelRequest,
 )
@@ -112,7 +113,7 @@ def _use_json_object_format(payload: dict[str, Any], schema: dict[str, Any]) -> 
 class OpenAICompatibleProvider:
     """Small OpenAI-compatible adapter for M3 semantic extraction and embeddings."""
 
-    ADAPTER_VERSION = "openai-compatible-v1"
+    ADAPTER_VERSION = "openai-compatible-v2"
 
     def __init__(
         self,
@@ -197,28 +198,6 @@ class OpenAICompatibleProvider:
             _use_json_object_format(payload, schema)
             response = await self._chat_completion(payload)
         data = _response_json(response)
-        try:
-            choices = data["choices"]
-            message = choices[0]["message"]
-            content = message["content"]
-        except (KeyError, IndexError, TypeError) as exc:
-            raise AIProviderResponseError(
-                "chat response is missing choices[0].message.content"
-            ) from exc
-        if not isinstance(content, str):
-            raise AIProviderResponseError("chat response content must be a JSON string")
-        try:
-            parsed = json.loads(content)
-        except json.JSONDecodeError as exc:
-            raise ModelProviderMalformedOutputError(
-                "chat response content is not valid JSON"
-            ) from exc
-        try:
-            output = response_model.model_validate(parsed)
-        except Exception as exc:
-            raise AIProviderResponseError(
-                f"chat response does not satisfy {response_model.__name__}"
-            ) from exc
         usage = _provider_usage(data.get("usage"))
         provider_request_id = response.headers.get("x-request-id")
         if not provider_request_id:
@@ -230,6 +209,50 @@ class OpenAICompatibleProvider:
             if isinstance(actual_model_raw, str) and actual_model_raw
             else self._chat_model
         )
+        raw_choices = data.get("choices")
+        choice = raw_choices[0] if isinstance(raw_choices, list) and raw_choices else None
+        raw_finish_reason = choice.get("finish_reason") if isinstance(choice, dict) else None
+        finish_reason = raw_finish_reason if isinstance(raw_finish_reason, str) else None
+        telemetry = ProviderResponseMetadata(
+            actual_model=actual_model,
+            provider_request_id=provider_request_id,
+            usage=usage,
+            finish_reason=finish_reason,
+        )
+        try:
+            choices = data["choices"]
+            message = choices[0]["message"]
+            content = message["content"]
+        except (KeyError, IndexError, TypeError) as exc:
+            raise AIProviderResponseError(
+                "chat response is missing choices[0].message.content",
+                response_metadata=telemetry,
+            ) from exc
+        if not isinstance(content, str):
+            raise AIProviderResponseError(
+                "chat response content must be a JSON string", response_metadata=telemetry,
+            )
+        raw_response_content = (
+            content
+            if request.metadata.get("model_payload_persistence") == "redacted_runtime_artifact"
+            else None
+        )
+        try:
+            parsed = json.loads(content)
+        except json.JSONDecodeError:
+            raise ModelProviderMalformedOutputError(
+                "chat response content is not valid JSON",
+                response_metadata=telemetry,
+                raw_response_content=raw_response_content,
+            ) from None
+        try:
+            output = response_model.model_validate(parsed)
+        except Exception:
+            raise AIProviderResponseError(
+                f"chat response does not satisfy {response_model.__name__}",
+                response_metadata=telemetry,
+                raw_response_content=raw_response_content,
+            ) from None
         response_metadata: dict[str, JsonValue] = {
             "response_format": payload["response_format"]["type"],
             "response_format_fallback": response_format_fallback,
@@ -238,6 +261,7 @@ class OpenAICompatibleProvider:
             "max_tokens": self._max_tokens,
             "temperature": self._temperature,
             "reasoning_effort": self._reasoning_effort,
+            "finish_reason": finish_reason,
         }
         return ProviderModelResult(
             output=output,
@@ -337,6 +361,7 @@ class OpenAICompatibleProvider:
         stream_payload = {**payload, "stream": True, "stream_options": {"include_usage": True}}
         content_parts: list[str] = []
         response_data: dict[str, Any] = {}
+        finish_reason: str | None = None
         try:
             async with self._client.stream(
                 "POST",
@@ -362,7 +387,7 @@ class OpenAICompatibleProvider:
                     return httpx.Response(
                         response.status_code,
                         content=await response.aread(),
-                        headers=response.headers,
+                        headers=_decoded_response_headers(response.headers),
                         request=response.request,
                     )
                 async for line in response.aiter_lines():
@@ -385,6 +410,9 @@ class OpenAICompatibleProvider:
                     choices = chunk.get("choices")
                     if not isinstance(choices, list) or not choices:
                         continue
+                    choice = choices[0]
+                    if isinstance(choice, dict) and isinstance(choice.get("finish_reason"), str):
+                        finish_reason = choice["finish_reason"]
                     delta = choices[0].get("delta") if isinstance(choices[0], dict) else None
                     if not isinstance(delta, dict):
                         continue
@@ -394,17 +422,33 @@ class OpenAICompatibleProvider:
                             if kind == "content":
                                 content_parts.append(fragment)
                             await self._on_delta(kind, fragment)
-                response_data["choices"] = [{"message": {"content": "".join(content_parts)}}]
+                response_data["choices"] = [{
+                    "message": {"content": "".join(content_parts)}, "finish_reason": finish_reason,
+                }]
                 return httpx.Response(
                     response.status_code,
                     json=response_data,
-                    headers=response.headers,
+                    headers=_decoded_response_headers(response.headers, json_body=True),
                     request=response.request,
                 )
         except httpx.HTTPError as exc:
             raise ModelProviderTransientError(
                 f"model provider stream failed: {exc.__class__.__name__}"
             ) from exc
+
+
+def _decoded_response_headers(
+    headers: httpx.Headers, *, json_body: bool = False,
+) -> dict[str, str]:
+    # HTTPX already decoded the provider body; rebuilt content has new framing.
+    retained = {
+        name: value
+        for name, value in headers.items()
+        if name.lower() not in {"content-encoding", "content-length", "transfer-encoding"}
+    }
+    if json_body:
+        retained["content-type"] = "application/json"
+    return retained
 
 
 def _retry_after_seconds(response: httpx.Response) -> float | None:

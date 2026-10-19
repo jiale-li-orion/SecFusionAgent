@@ -5,12 +5,14 @@ import json
 from datetime import UTC, datetime
 from decimal import Decimal
 
+import httpx
 import pytest
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from apps.runtime_models import register_runtime_models
+from packages.enrichment.providers.openai_compatible import OpenAICompatibleProvider
 from packages.runtime.artifacts import MemoryRuntimeBlobStore, RuntimeArtifactService
 from packages.runtime.budget import BudgetGovernor, BudgetLimits
 from packages.runtime.model import (
@@ -20,10 +22,12 @@ from packages.runtime.model import (
     RecordedModelProvider,
 )
 from packages.runtime.model.storage import ModelAttemptModel, ModelRequestModel
-from packages.runtime.storage.models import ExecutionRunModel
+from packages.runtime.storage.models import ExecutionRunModel, RuntimeArtifactModel
 from packages.shared.db import Base
 from packages.shared.model_provider import (
     ModelProviderAuthError,
+    ModelProviderMalformedOutputError,
+    ModelProviderResponseError,
     ModelProviderTransientError,
     ProviderModelResult,
     ProviderUsage,
@@ -165,6 +169,187 @@ async def _budgeted_request(factory, *, token_limit: int, retries: int = 0):
             }
         }
     )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("persist", [False, True])
+@pytest.mark.parametrize("schema_failure", [False, True])
+async def test_failed_response_records_exact_usage_and_opt_in_content(persist, schema_failure):
+    engine, factory = await _database()
+    blobs = MemoryRuntimeBlobStore()
+    artifacts = RuntimeArtifactService(blobs)
+    content = '{"value":{"visible-private":true}}' if schema_failure else '{"visible-private":'
+    error_type = ModelProviderResponseError if schema_failure else ModelProviderMalformedOutputError
+    try:
+        async with factory() as session, session.begin():
+            session.add(ExecutionRunModel(
+                execution_id="execution:failure", task_run_id="failure-run", envelope_json={},
+                status="created", created_at=datetime.now(UTC),
+            ))
+        request = await _budgeted_request(factory, token_limit=100)
+        request.metadata["execution_id"] = "execution:failure"
+        if persist:
+            request.metadata["model_payload_persistence"] = "redacted_runtime_artifact"
+
+        def handler(http_request):
+            return httpx.Response(200, headers={"x-request-id": "header-request"}, json={
+                "model": "actual-model", "id": "body-request",
+                "usage": {"prompt_tokens": 12, "completion_tokens": 4, "total_tokens": 16,
+                          "prompt_tokens_details": {"cached_tokens": 3}},
+                "choices": [{"finish_reason": "stop" if schema_failure else "length",
+                             "message": {"content": content,
+                                         "reasoning_content": "reasoning-private"}}],
+            }, request=http_request)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            provider = RecordedModelProvider(factory, OpenAICompatibleProvider(
+                client, base_url="https://provider.example/v1", chat_model="requested-model",
+            ), artifact_service=artifacts)
+            with pytest.raises(error_type):
+                await provider.generate_structured(request, Result)
+        async with factory() as session:
+            attempt = await session.scalar(select(ModelAttemptModel))
+            assert attempt.status == ModelAttemptStatus.FAILED.value
+            assert attempt.failure_class == (
+                "schema_validation_failed" if schema_failure else "invalid_json"
+            )
+            assert attempt.actual_model == "actual-model"
+            assert attempt.provider_request_id == "header-request"
+            assert attempt.usage_json["total_tokens"] == 16
+            assert attempt.usage_json["measurement_source"] == "provider_exact"
+            assert attempt.cache_usage_json["cached_input_tokens"] == 3
+            assert attempt.response_metadata_json["finish_reason"] == (
+                "stop" if schema_failure else "length"
+            )
+            assert attempt.response_metadata_json["budget_settlement"] == "provider_exact"
+            snapshot = await BudgetGovernor().snapshot(session, "budget:model-test")
+            assert snapshot.committed["model_tokens"] == Decimal(16)
+            assert snapshot.remaining["model_tokens"] == Decimal(84)
+            assert "visible-private" not in str(attempt.response_metadata_json)
+            assert "visible-private" not in attempt.failure_detail
+            if persist:
+                artifact = await artifacts.get(session, attempt.response_artifact_ref)
+                assert artifact.trust_class == "execution_sensitive"
+                body = (await artifacts.read(session, artifact.artifact_ref)).decode()
+                assert body == content
+            else:
+                assert attempt.response_artifact_ref is None
+                assert blobs.objects == {}
+            assert all(b"reasoning-private" not in body for body in blobs.objects.values())
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_malformed_retry_settles_each_physical_response_exactly():
+    engine, factory = await _database()
+    calls = 0
+    try:
+        request = await _budgeted_request(factory, token_limit=100, retries=1)
+
+        def handler(http_request):
+            nonlocal calls
+            calls += 1
+            return httpx.Response(200, json={
+                "id": f"request-{calls}", "model": "actual-model",
+                "usage": {"prompt_tokens": 12, "completion_tokens": 4, "total_tokens": 16},
+                "choices": [{"finish_reason": "length" if calls == 1 else "stop",
+                             "message": {"content": '{"value":' if calls == 1
+                                         else '{"value":"recovered"}'}}],
+            }, request=http_request)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            provider = RecordedModelProvider(factory, OpenAICompatibleProvider(
+                client, base_url="https://provider.example/v1", chat_model="requested-model",
+            ), retry_policy=ModelRetryPolicy(max_attempts=2, base_delay_seconds=0))
+            assert await provider.generate_structured(request, Result) == Result(value="recovered")
+        async with factory() as session:
+            attempts = list(await session.scalars(
+                select(ModelAttemptModel).order_by(ModelAttemptModel.ordinal)
+            ))
+            assert [attempt.status for attempt in attempts] == ["failed", "succeeded"]
+            assert [attempt.provider_request_id for attempt in attempts] == [
+                "request-1", "request-2",
+            ]
+            assert [attempt.usage_json["total_tokens"] for attempt in attempts] == [16, 16]
+            assert attempts[0].response_metadata_json["retry_scheduled"] is True
+            snapshot = await BudgetGovernor().snapshot(session, "budget:model-test")
+            assert snapshot.committed["model_tokens"] == Decimal(32)
+            assert snapshot.committed["retries"] == Decimal(1)
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("max_attempts", [1, 2])
+@pytest.mark.parametrize("after_write", [False, True])
+async def test_failed_response_artifact_error_preserves_failure_budget_and_retry(
+    max_attempts, after_write,
+):
+    class FailingResponseArtifacts(RuntimeArtifactService):
+        async def write(self, session, **kwargs):
+            if kwargs["producer_kind"] != "model_response":
+                return await super().write(session, **kwargs)
+            if after_write:
+                await super().write(session, **kwargs)
+            raise OSError("private-artifact-diagnostic must not leak")
+
+    engine, factory = await _database()
+    calls = 0
+    try:
+        async with factory() as session, session.begin():
+            session.add(ExecutionRunModel(
+                execution_id="execution:artifact-failure", task_run_id="artifact-failure-run",
+                envelope_json={}, status="created", created_at=datetime.now(UTC),
+            ))
+        request = await _budgeted_request(factory, token_limit=100, retries=max_attempts - 1)
+        request.metadata.update({
+            "execution_id": "execution:artifact-failure",
+            "model_payload_persistence": "redacted_runtime_artifact",
+        })
+
+        def handler(http_request):
+            nonlocal calls
+            calls += 1
+            return httpx.Response(200, json={
+                "id": f"request-{calls}", "model": "actual-model",
+                "usage": {"prompt_tokens": 12, "completion_tokens": 4, "total_tokens": 16},
+                "choices": [{"finish_reason": "length", "message": {"content": '{"value":'}}],
+            }, request=http_request)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            provider = RecordedModelProvider(factory, OpenAICompatibleProvider(
+                client, base_url="https://provider.example/v1", chat_model="requested-model",
+            ), artifact_service=FailingResponseArtifacts(MemoryRuntimeBlobStore()),
+                retry_policy=ModelRetryPolicy(max_attempts=max_attempts, base_delay_seconds=0))
+            with pytest.raises(ModelProviderMalformedOutputError):
+                await provider.generate_structured(request, Result)
+        assert calls == max_attempts
+        async with factory() as session:
+            attempts = list(await session.scalars(
+                select(ModelAttemptModel).order_by(ModelAttemptModel.ordinal)
+            ))
+            assert len(attempts) == max_attempts
+            for attempt in attempts:
+                assert attempt.status == "failed"
+                assert attempt.failure_class == "invalid_json"
+                assert attempt.usage_json["total_tokens"] == 16
+                assert attempt.response_metadata_json["finish_reason"] == "length"
+                assert attempt.response_metadata_json["budget_settlement"] == "provider_exact"
+                assert attempt.response_metadata_json["response_artifact_status"] == "write_failed"
+                assert attempt.response_artifact_ref is None
+                assert "private-artifact-diagnostic" not in str(attempt.response_metadata_json)
+                assert "private-artifact-diagnostic" not in attempt.failure_detail
+            assert attempts[0].response_metadata_json["retry_scheduled"] is (max_attempts > 1)
+            assert attempts[-1].response_metadata_json["retry_scheduled"] is False
+            assert not list(await session.scalars(select(RuntimeArtifactModel).where(
+                RuntimeArtifactModel.producer_kind == "model_response"
+            )))
+            snapshot = await BudgetGovernor().snapshot(session, "budget:model-test")
+            assert snapshot.committed["model_tokens"] == Decimal(16 * max_attempts)
+            assert snapshot.reserved.get("model_tokens", Decimal(0)) == Decimal(0)
+    finally:
+        await engine.dispose()
 
 
 @pytest.mark.asyncio

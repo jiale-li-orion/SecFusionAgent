@@ -28,7 +28,9 @@ from packages.runtime.model.storage import ModelAttemptModel, ModelRequestModel
 from packages.shared.model_provider import (
     MetadataModelProvider,
     ModelProvider,
+    ModelProviderError,
     ProviderModelResult,
+    ProviderResponseMetadata,
     StructuredModelRequest,
     TStructured,
 )
@@ -225,13 +227,15 @@ class RecordedModelProvider:
                     has_retry = monotonic() + retry_delay < logical_deadline_clock
                     if not has_retry:
                         retry_delay = None
+                response = exc.response_metadata if isinstance(exc, ModelProviderError) else None
+                failed_usage = _usage(response) if response is not None else ModelUsage()
                 async with self._session_factory() as session, session.begin():
                     budget_settlement = await self._settle_attempt_budget(
                         session,
                         coordinate=coordinate,
                         reservation_group_id=reservation_group_id,
                         ordinal=ordinal,
-                        usage=None,
+                        usage=failed_usage,
                         dispatched=dispatched,
                     )
                     attempt = await _require_attempt(session, model_attempt_id)
@@ -239,11 +243,47 @@ class RecordedModelProvider:
                     attempt.failure_class = _failure_class(exc)
                     attempt.failure_detail = _failure_detail(exc)
                     attempt.finished_at = finished_at
+                    attempt.usage_json = failed_usage.model_dump(mode="json")
+                    attempt.cache_usage_json = cast(dict[str, object], _cache_usage(failed_usage))
+                    if response is not None:
+                        attempt.actual_model = response.actual_model
+                        attempt.provider_request_id = response.provider_request_id
+                    artifact_metadata: dict[str, object] = {}
+                    if (
+                        self._artifact_service is not None
+                        and coordinate.execution_id is not None
+                        and coordinate.persist_payload_artifacts
+                        and isinstance(exc, ModelProviderError)
+                        and exc.raw_response_content is not None
+                    ):
+                        try:
+                            # Optional diagnostics cannot undo the failed attempt or its budget.
+                            async with session.begin_nested():
+                                artifact = await self._artifact_service.write(
+                                    session,
+                                    execution_id=coordinate.execution_id,
+                                    producer_kind="model_response",
+                                    producer_ref=model_attempt_id,
+                                    logical_name=f"model-response-{model_attempt_id}.txt",
+                                    media_type="text/plain; charset=utf-8",
+                                    body=exc.raw_response_content.encode("utf-8"),
+                                    trust_class="execution_sensitive",
+                                )
+                        except Exception:
+                            # Storage error text may itself contain response content or secrets.
+                            artifact_metadata["response_artifact_status"] = "write_failed"
+                        else:
+                            attempt.response_artifact_ref = artifact.artifact_ref
                     attempt.response_metadata_json = {
+                        **(
+                            {"finish_reason": response.finish_reason}
+                            if response is not None else {}
+                        ),
                         "retryable": retryable,
                         "retry_scheduled": has_retry,
                         "retry_delay_seconds": retry_delay,
                         **budget_settlement,
+                        **artifact_metadata,
                     }
                     attempt.latency_ms = latency_ms
                 if not has_retry:
@@ -437,7 +477,7 @@ async def _generate_with_metadata(
     )
 
 
-def _usage(result: ProviderModelResult[Any]) -> ModelUsage:
+def _usage(result: ProviderModelResult[Any] | ProviderResponseMetadata) -> ModelUsage:
     provider_usage = result.usage
     if provider_usage is None:
         return ModelUsage(measurement_source=ModelUsageSource.UNAVAILABLE)
