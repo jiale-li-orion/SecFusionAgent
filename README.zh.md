@@ -176,3 +176,5 @@ M3 当前选定 run 聚合：TP=292，FP=1，FN=1，precision=99.659%，recall=9
 [Wiki 首页](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Home) · [PRD](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Requirements-SPEC) · [TD1 数据平面](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design-1) · [TD2 调查运行时](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design-2) · [TD2A 产品接口](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design-2A) · [TD3 评测](https://github.com/jiale-li-orion/SecFusionAgent/wiki/Technical-Design-3) · [公开文档站](https://jiale-li-orion.github.io/SecFusionAgent/)
 
 仓库保存代码、测试、迁移、配置、模块说明和可复现命令；Wiki 保存需求、跨模块设计、验收与历史复查。遵循 [仓库规范](PRODUCT-REPO-STANDARD.zh.md) 和 [AGENTS](AGENTS.md)。密钥、运行数据库、下载语料和模型输出不进入 Git。
+
+本地初赛交付件（技术报告、PPT、源码提交包）集中存放在相邻 `../SecFusionAgent.wiki/交付成果/`，演示视频母版及编辑工程在本仓库 `.local/video-production/`；两个目录均已排除在公开 Git 之外，不在主仓库与 Wiki 之间重复复制二进制资料。
